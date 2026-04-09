@@ -41,6 +41,9 @@ class Game {
             if (e.key === 'e' || e.key === 'E') {
                 this.toggleEditorMode();
             }
+            if (this.isEditorMode && (e.key === 'f' || e.key === 'F')) {
+                this.flipSelectedTool();
+            }
         });
         window.addEventListener('keyup', (e) => this.keys[e.key] = false);
 
@@ -58,9 +61,7 @@ class Game {
         // Palette buttons
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.selectedType = btn.dataset.type;
+                this.selectTool(btn.dataset.type);
             });
         });
 
@@ -80,6 +81,25 @@ class Game {
         } else {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
+        }
+    }
+
+    selectTool(type) {
+        this.selectedType = type;
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            if (btn.dataset.type === type) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    flipSelectedTool() {
+        if (this.selectedType === 'slope-left') {
+            this.selectTool('slope-right');
+        } else if (this.selectedType === 'slope-right') {
+            this.selectTool('slope-left');
         }
     }
 
