@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Platformer - 2D Adventure</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui-overlay">
+            <div class="header">
+                <h1>Neon Platformer</h1>
+                <div class="stats glass">
+                    <span id="speed-meter">SPEED: 0</span>
+                    <span id="climb-speed-meter" style="margin-left: 20px; color: #ff0073; font-weight: 700;">CLIMB: 0</span>
+                    <span id="state-info" style="margin-left: 20px; font-size: 0.8rem; opacity: 0.8;">STATE: IDLE</span>
+                </div>
+            </div>
+            
+            <div id="tutorial" class="glass">
+                <div class="control-item"><span>← →</span> 이동</div>
+                <div class="control-item"><span>Z</span> 점프</div>
+                <div class="control-item"><span>Shift</span> 달리기</div>
+                <div class="control-item"><span>E</span> 디자인 모드</div>
+                <div class="control-item-hint">벽에서 점프 가능 / 파괴 가능한 블록을 부수세요!</div>
+            </div>
+
+            <!-- Editor Toolbar (Hidden by default) -->
+            <div id="editor-toolbar" class="glass hidden">
+                <div class="toolbar-title">DESIGN MODE</div>
+                <div class="palette">
+                    <button class="tool-btn active" data-type="platform">PLATFORM</button>
+                    <button class="tool-btn" data-type="slope-left">SLOPE /</button>
+                    <button class="tool-btn" data-type="slope-right">SLOPE \</button>
+                    <button class="tool-btn" data-type="destroyable">BLOCK</button>
+                    <button class="tool-btn" data-type="hallway">HALLWAY</button>
+                    <button class="tool-btn" data-type="door">DOOR</button>
+                </div>
+                <div class="editor-actions">
+                    <button id="export-btn" class="action-btn">COPY LEVEL CODE</button>
+                    <div class="editor-hint">L-Click: Place | R-Click: Delete</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/physics.js"></script>
+    <script src="src/entities.js"></script>
+    <script src="src/player.js"></script>
+    <script src="src/game.js"></script>
+</body>
+</html>

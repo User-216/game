@@ -1,0 +1,212 @@
+:root {
+    --bg-color: #0b0e14;
+    --primary-color: #00f2ff;
+    --secondary-color: #7000ff;
+    --text-color: #e0e6ed;
+    --accent-color: #ff0073;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    overflow: hidden; /* Prevent scrolling during gameplay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+canvas {
+    background: radial-gradient(circle at 50% 50%, #1a1f2b 0%, #0b0e14 100%);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    height: 100%;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 10px 20px rgba(0, 242, 255, 0.2);
+}
+
+.stats {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    padding: 0.5rem 1.5rem;
+    border-radius: 99px;
+    font-weight: 500;
+    color: var(--primary-color);
+    letter-spacing: 1px;
+}
+
+#tutorial {
+    align-self: flex-start;
+    padding: 1.5rem;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    animation: fadeIn 1s ease-out;
+}
+
+.glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
+}
+
+.control-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1.1rem;
+}
+
+.control-item span {
+    padding: 0.2rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    min-width: 60px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.control-item-hint {
+    font-size: 0.9rem;
+    opacity: 0.7;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 0.5rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#editor-toolbar {
+    pointer-events: auto;
+    align-self: flex-center;
+    padding: 1rem 2rem;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    min-width: 600px;
+}
+
+.toolbar-title {
+    font-weight: 700;
+    color: var(--primary-color);
+    letter-spacing: 2px;
+    font-size: 0.9rem;
+    text-align: center;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 0.5rem;
+}
+
+.palette {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.tool-btn, .action-btn {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.tool-btn:hover, .action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary-color);
+}
+
+.tool-btn.active {
+    background: var(--primary-color);
+    color: var(--bg-color);
+    font-weight: 700;
+}
+
+.editor-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+}
+
+.action-btn {
+    background: var(--secondary-color);
+    color: white;
+    font-weight: 700;
+}
+
+.editor-hint {
+    font-size: 0.8rem;
+    opacity: 0.6;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Enable pointer events for specific UI containers */
+#tutorial, .stats, #editor-toolbar {
+    pointer-events: auto;
+}
