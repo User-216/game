@@ -16,7 +16,7 @@ class Player {
         this.friction = 0.85;
         this.gravity = 0.5;
         this.jumpForce = -11;
-        
+
         this.isGrounded = false;
         this.isWalled = false;
         this.wallSide = 0; // -1 for left, 1 for right
@@ -32,7 +32,10 @@ class Player {
         this.machSlideFriction = 0.94;
         this.wasRunningLastFrame = false;
         this.isNoClip = false;
-        
+
+
+
+
         this.color = '#00f2ff';
         this.machSlideColor = '#ffaa00'; // Orange for sliding
         this.groundPoundColor = '#ff0073';
@@ -74,7 +77,7 @@ class Player {
 
             this.x += this.vx;
             this.y += this.vy;
-            
+
             // Skip normal logic
             this.wasRunningLastFrame = false;
             this.isGrounded = false;
@@ -154,9 +157,9 @@ class Player {
                 this.vx += 0.4;
                 if (this.vx > 0) this.vx = 0;
             }
-            
+
             this.driftTimer--;
-            
+
             // 종료 조건: 35프레임이 모두 지났고 + 땅에 닿아 있는 상태여야 함
             if (this.driftTimer <= 0 && this.isGrounded) {
                 this.isDrifting = false;
@@ -174,9 +177,9 @@ class Player {
                 this.vx += 0.4;
                 if (this.vx > 0) this.vx = 0;
             }
-            
+
             this.driftTimer--;
-            
+
             // 종료 조건: 35프레임이 모두 지났고 + 땅에 닿아 있는 상태여야 함
             if (this.driftTimer <= 0 && this.isGrounded) {
                 this.isDrifting1 = false;
@@ -188,7 +191,7 @@ class Player {
         // Mach Sliding Logic
         if (this.isMachSliding) {
             this.vx *= this.machSlideFriction;
-            
+
             // 속도가 낮아지거나 땅에서 떨어지면 종료 (또는 사용자의 다른 조작)
             if (Math.abs(this.vx) < 1.5) {
                 this.isMachSliding = false;
@@ -211,25 +214,25 @@ class Player {
         // Apply Gravity / Ground Pound Descent / Climbing
         if (this.isClimbing) {
             // Accelerate upward by 0.05 each frame.
-            this.vy -= 0.05; 
+            this.vy -= 0.05;
             // 상향 속도를 최대 20으로 제한 (상향은 음수 값이므로 -20 이하로 내려가지 않게 함)
             if (this.vy < -20) this.vy = -20;
             this.vx = 0;
             // Force player against the wall
-            this.x += this.climbSide * 2; 
+            this.x += this.climbSide * 2;
         } else if (this.isGroundPounding) {
             this.vy += 2; // Immediate heavy downward acceleration as requested
         } else if (this.isMachSliding && !this.isGrounded) {
-             // 슬라이드 중 공중에 뜨면 슬라이드 중단 (또는 계속 유지할지 결정)
-             // 여기선 관성을 위해 유지하되 중력 적용
-             this.vy += this.gravity;
+            // 슬라이드 중 공중에 뜨면 슬라이드 중단 (또는 계속 유지할지 결정)
+            // 여기선 관성을 위해 유지하되 중력 적용
+            this.vy += this.gravity;
         } else {
             this.vy += this.gravity;
         }
-        
+
         // Clamp falling speed to 20 as requested
         if (this.vy > 20) this.vy = 20;
-        
+
         // Wall Slide friction
         if (this.isWalled && this.vy > 0) {
             this.vy *= 0.5; // Slow down fall
@@ -252,7 +255,7 @@ class Player {
         if (Math.abs(this.vx) >= this.machThreshold || (this.isClimbing && Math.abs(this.vy) >= 8) || this.isDrifting || this.isDrifting1 || this.isMachSliding || (this.isGroundPounding && this.vy >= 20)) {
             this.machFlashTimer++;
             this.machFrameCount++;
-            
+
             // Create a new mach afterimage every 4 frames
             if (this.machFrameCount % 4 === 0) {
                 const color = this.machColors[this.machColorIndex];
@@ -263,7 +266,7 @@ class Player {
                     alpha: 0.8,
                     life: 20 // 20 frames lifespan
                 });
-                
+
                 // Cycle colors
                 this.machColorIndex = (this.machColorIndex + 1) % this.machColors.length;
             }
@@ -352,7 +355,7 @@ class Player {
                             // resolution.amount < 0 이면 벽이 오른쪽에 있음 -> climbSide = 1
                             this.climbSide = resolution.amount < 0 ? 1 : -1;
                             // 현재 수평 속도를 수직 등반 속도로 전환
-                            this.vy = -Math.abs(this.vx); 
+                            this.vy = -Math.abs(this.vx);
                             if (this.vy > -8) this.vy = -8; // 최소 초기 등반 속도 보장 (선택 사항)
                         }
 
@@ -371,7 +374,7 @@ class Player {
             const buffer = 5;
             const tempX = this.x;
             this.x += this.climbSide * buffer; // Move TOWARDS the wall
-            
+
             let stillTouching = false;
             let targetWall = null;
 
@@ -381,9 +384,9 @@ class Player {
                     targetWall = entity;
                 }
             });
-            
+
             this.x = tempX; // Restore original X
-            
+
             if (!stillTouching) {
                 // --- Ledge Landing Logic ---
                 // We lost the wall. Check if we just cleared the top of it.
@@ -393,7 +396,7 @@ class Player {
                 // Find the wall we were just climbing (it should be very close horizontally)
                 entities.forEach(entity => {
                     if (entity.isDestroyed || entity.type === 'hallway' || entity.type === 'slope') return;
-                    
+
                     const isRightWall = this.climbSide === 1;
                     const wallX = isRightWall ? entity.x : entity.x + entity.width;
                     const playerEdgeX = isRightWall ? this.x + this.width : this.x;
@@ -494,7 +497,7 @@ class Player {
         ctx.shadowColor = pColor;
         ctx.fillStyle = pColor;
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        
+
         // Eyes/Face to show direction
         ctx.fillStyle = 'white';
         const eyeX = this.vx >= 0 ? this.x + 20 : this.x + 5;
