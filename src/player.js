@@ -9,13 +9,13 @@ class Player {
         this.vx = 0;
         this.vy = 0;
         this.speed = 0.5;
-        this.maxSpeed = 6;
+        this.maxSpeed = 7;
         this.runInitialSpeed = 6;
         this.runMaxSpeed = 12;
         this.runAccel = 0.1;
         this.friction = 0.85;
         this.gravity = 0.5;
-        this.jumpForce = -11;
+        this.jumpForce = -12;
 
         this.isGrounded = false;
         this.isWalled = false;
@@ -32,6 +32,7 @@ class Player {
         this.machSlideFriction = 0.94;
         this.wasRunningLastFrame = false;
         this.isNoClip = false;
+        this.canJump = true;
 
 
 
@@ -52,27 +53,28 @@ class Player {
         this.ghostAfters = [];
     }
 
-    update(keys, entities) {
-        const currentMaxSpeed = keys['Shift'] ? this.runMaxSpeed : this.maxSpeed;
-        const isCurrentlyRunning = !!keys['Shift'];
+    update(keys, entities, audio) {
+        const currentMaxSpeed = keys.actionRun ? this.runMaxSpeed : this.maxSpeed;
+        const isCurrentlyRunning = !!keys.actionRun;
 
         // Noclip Trigger
         if (keys['1']) {
             this.isNoClip = true;
         }
-        if (this.isNoClip && (keys['z'] || keys['Z'])) {
+        if (this.isNoClip && keys.actionJump) {
             this.isNoClip = false;
+            this.canJump = false;
         }
 
         if (this.isNoClip) {
             this.isRunning = false;
             const noclipSpeed = 8;
-            if (keys['ArrowLeft']) this.vx = -noclipSpeed;
-            else if (keys['ArrowRight']) this.vx = noclipSpeed;
+            if (keys.actionLeft) this.vx = -noclipSpeed;
+            else if (keys.actionRight) this.vx = noclipSpeed;
             else this.vx = 0;
 
-            if (keys['ArrowUp']) this.vy = -noclipSpeed;
-            else if (keys['ArrowDown']) this.vy = noclipSpeed;
+            if (keys.actionUp) this.vy = -noclipSpeed;
+            else if (keys.actionDown) this.vy = noclipSpeed;
             else this.vy = 0;
 
             this.x += this.vx;
@@ -90,8 +92,13 @@ class Player {
         }
 
         // Mach Slide Trigger: 달리던 중 Shift를 떼면 발동
-        if (this.wasRunningLastFrame && !keys['Shift'] && Math.abs(this.vx) > 8 && !this.isDrifting && !this.isDrifting1) {
+        if (this.wasRunningLastFrame && !keys.actionRun && Math.abs(this.vx) > 8 && !this.isDrifting && !this.isDrifting1) {
             this.isMachSliding = true;
+            if (audio) {
+                audio.stopFile('mach2');
+                audio.stopFile('mach3');
+                audio.playFile('machslideboost', true);
+            }
         }
 
         // 만약 슬라이드 중 다시 Shift와 방향키를 누르면 달리기로 복귀
@@ -103,24 +110,36 @@ class Player {
 
         // Horizontal Movement (드리프트나 마하 슬라이드 중이 아닐 때만 조작 가능)
         if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding) {
-            if (keys['ArrowLeft']) {
-                // 달리기 중이라면 반대 방향키(오른쪽으로 이동 중일 때 왼쪽 키)를 눌러도 속도가 줄어들지 않게 함
-                const canSlowDown = !this.isRunning || this.vx <= 0;
-                if (canSlowDown) {
-                    if (this.vx > -this.maxSpeed) {
-                        this.vx -= this.speed;
+            if (keys.actionLeft) {
+                if (this.isRunning && this.vx > 0 && this.vx <= 8) {
+                    this.vx = -6;
+                } else if (!this.isRunning && this.vx > 0) {
+                    // 걷는 중 방향을 꺾을 때: 미끄러지지 않고 즉시 속도를 반대로 뒤집음
+                    this.vx = -this.vx;
+                } else {
+                    const canSlowDown = !this.isRunning || this.vx <= 0;
+                    if (canSlowDown) {
+                        if (this.vx > -this.maxSpeed) {
+                            this.vx -= this.speed;
+                        }
                     }
                 }
-            } else if (keys['ArrowRight']) {
-                // 달리기 중이라면 반대 방향키(왼쪽으로 이동 중일 때 오른쪽 키)를 눌러도 속도가 줄어들지 않게 함
-                const canSlowDown = !this.isRunning || this.vx >= 0;
-                if (canSlowDown) {
-                    if (this.vx < this.maxSpeed) {
-                        this.vx += this.speed;
+            } else if (keys.actionRight) {
+                if (this.isRunning && this.vx < 0 && this.vx >= -8) {
+                    this.vx = 6;
+                } else if (!this.isRunning && this.vx < 0) {
+                    // 걷는 중 방향을 꺾을 때: 미끄러지지 않고 즉시 속도를 반대로 뒤집음
+                    this.vx = -this.vx;
+                } else {
+                    const canSlowDown = !this.isRunning || this.vx >= 0;
+                    if (canSlowDown) {
+                        if (this.vx < this.maxSpeed) {
+                            this.vx += this.speed;
+                        }
                     }
                 }
             } else if (!this.isRunning) {
-                this.vx *= this.friction;
+                this.vx = 0;
             }
         }
 
@@ -136,7 +155,7 @@ class Player {
 
         // Drifting Logic
         // Trigger: isRunning AND fast AND pressing opposite direction
-        const isPressingOpposite = (this.vx > 8 && keys['ArrowLeft']) || (this.vx < -8 && keys['ArrowRight']);
+        const isPressingOpposite = (this.vx > 8 && keys.actionLeft) || (this.vx < -8 && keys.actionRight);
         if (this.isRunning && Math.abs(this.vx) > 8 && isPressingOpposite && !this.isDrifting && !this.isDrifting1) {
             if (Math.abs(this.vx) >= this.machThreshold) {
                 this.isDrifting = true;
@@ -146,6 +165,11 @@ class Player {
             this.driftTimer = 35;
             // 드리프트가 끝날 때 튀어나갈 방향 저장 (현재 속도의 반대 방향)
             this.driftTargetDir = this.vx > 0 ? -1 : 1;
+            if (audio) {
+                audio.stopFile('mach2');
+                audio.stopFile('mach3');
+                audio.playFile('machslideboost', true);
+            }
         }
 
         if (this.isDrifting) {
@@ -205,10 +229,11 @@ class Player {
         }
 
         // Ground Pound Trigger (점프/이동과 마찬가지로 드리프트 중에는 발동 불가)
-        if (keys['ArrowDown'] && !this.isGrounded && !this.isGroundPounding && !this.isDrifting && !this.isDrifting1) {
+        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isDrifting && !this.isDrifting1) {
             this.isGroundPounding = true;
             this.vy = -18; // Upward hop
             this.vx = 0;   // Cancel horizontal momentum
+            if (audio) audio.play('groundpound');
         }
 
         // Apply Gravity / Ground Pound Descent / Climbing
@@ -340,6 +365,7 @@ class Player {
                         if (this.isClimbing) this.isClimbing = false; // Stop climbing on ceiling
                         if (entity.type === 'destroyable') {
                             entity.destroy();
+                            if (audio) audio.play('break');
                         }
                         this.vy = 0;
                     }
@@ -348,6 +374,7 @@ class Player {
                     // Collision on side (Wall)
                     if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing)) {
                         entity.destroy();
+                        if (audio) audio.play('break');
                     } else {
                         // 벽에 닿았을 때 자동으로 벽타기 트리거
                         if (!this.isClimbing) {
@@ -428,13 +455,17 @@ class Player {
 
 
         // Jump (Z key)
-        if ((keys['z'] || keys['Z']) && !this.isDrifting && !this.isDrifting1) {
-            if (this.isGrounded) {
+        if (!keys.actionJump) {
+            this.canJump = true;
+        }
+
+        if (keys.actionJump && !this.isDrifting && !this.isDrifting1) {
+            if (this.isGrounded && this.canJump) {
                 this.vy = this.jumpForce;
                 this.isGrounded = false;
-                delete keys['z']; // Debounce
-                delete keys['Z'];
-            } else if (this.isWalled || this.isClimbing) {
+                this.canJump = false;
+                if (audio) audio.play('jump');
+            } else if ((this.isWalled || this.isClimbing) && this.canJump) {
                 // Wall Jump (Stronger if climbing or high speed)
                 this.vy = this.jumpForce * 1.2;
                 this.vx = -this.wallSide * 12;
@@ -442,8 +473,33 @@ class Player {
                 this.isClimbing = false;
                 this.isDrifting = false;
                 this.isDrifting1 = false; // Cancel drift on jump
-                delete keys['z'];
-                delete keys['Z'];
+                this.canJump = false;
+                if (audio) audio.play('jump');
+            }
+        }
+
+        // Variable Jump Height
+        if (!this.isGrounded && this.vy < 0 && !keys.actionJump && !this.isGroundPounding && !this.isClimbing) {
+            this.vy = 0;
+        }
+
+        // Manage Looping Running Sounds
+        if (audio) {
+            const absSpeed = Math.abs(this.vx);
+            if (this.isRunning && this.isGrounded && !this.isMachSliding && !this.isDrifting && !this.isDrifting1 && !this.isWalled && !this.isClimbing) {
+                if (absSpeed >= 12) {
+                    audio.playFile('mach3');
+                    audio.stopFile('mach2');
+                } else if (absSpeed >= 8) {
+                    audio.playFile('mach2');
+                    audio.stopFile('mach3');
+                } else {
+                    audio.stopFile('mach2');
+                    audio.stopFile('mach3');
+                }
+            } else {
+                audio.stopFile('mach2');
+                audio.stopFile('mach3');
             }
         }
     }
@@ -455,8 +511,6 @@ class Player {
             const isFlickering = Math.floor(Date.now() / 50 + index) % 2 === 0;
             if (isFlickering) {
                 ctx.globalAlpha = m.alpha;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = m.color;
                 ctx.fillStyle = m.color;
                 ctx.fillRect(m.x, m.y, this.width, this.height);
             }
@@ -465,17 +519,13 @@ class Player {
         // Draw Ghost Trail (Smooth fade)
         this.ghostAfters.forEach(m => {
             ctx.globalAlpha = m.alpha;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = this.color;
             ctx.fillStyle = this.color;
             ctx.fillRect(m.x, m.y, this.width, this.height);
         });
 
         ctx.globalAlpha = 1.0;
-        ctx.globalAlpha = 1.0;
-        ctx.shadowBlur = 0;
 
-        // Draw Player with neon glow
+        // Draw Player
         const isMachSpeed = Math.abs(this.vx) >= this.machThreshold;
         const isFlashing = isMachSpeed && Math.floor(this.machFlashTimer / 3) % 2 === 0;
 
@@ -488,13 +538,11 @@ class Player {
             ctx.globalAlpha = 0.5; // Phantom effect
         }
 
-        ctx.shadowBlur = 15;
         let pColor = this.color;
         if (this.isGroundPounding) pColor = this.color; // Match cyan aesthetic for GP
         if (this.isDrifting || this.isDrifting1) pColor = '#ffff00'; // Yellow for drifting
         if (this.isMachSliding) pColor = this.machSlideColor;
 
-        ctx.shadowColor = pColor;
         ctx.fillStyle = pColor;
         ctx.fillRect(this.x, this.y, this.width, this.height);
 
@@ -502,7 +550,6 @@ class Player {
         ctx.fillStyle = 'white';
         const eyeX = this.vx >= 0 ? this.x + 20 : this.x + 5;
         ctx.fillRect(eyeX, this.y + 10, 5, 5);
-        ctx.shadowBlur = 0;
         ctx.restore();
     }
 }

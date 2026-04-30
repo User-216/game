@@ -1,6 +1,6 @@
 :root {
     --bg-color: #0b0e14;
-    --primary-color: #00f2ff;
+    --primary-color: #00aa9e;
     --secondary-color: #7000ff;
     --text-color: #e0e6ed;
     --accent-color: #ff0073;
@@ -210,3 +210,33 @@ h1 {
 #tutorial, .stats, #editor-toolbar {
     pointer-events: auto;
 }
+
+.options-panel {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    padding: 1rem;
+    border-radius: 12px;
+    width: 100%;
+}
+
+input[type=range] {
+    -webkit-appearance: none;
+    background: transparent;
+}
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    margin-top: -6px;
+}
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: var(--glass-border);
+    border-radius: 2px;
+}
+

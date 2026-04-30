@@ -19,37 +19,25 @@ class Entity {
 }
 
 class Platform extends Entity {
-    constructor(x, y, width, height, color = 'rgba(0, 242, 255, 0.4)') {
+    constructor(x, y, width, height, color = '#00aa9e66') {
         super(x, y, width, height, color);
         this.type = 'platform';
     }
 
     render(ctx) {
-        // Draw with a glow effect
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // Add a subtle border
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(this.x, this.y, this.width, this.height);
-        ctx.shadowBlur = 0;
     }
 }
 
 class Slope extends Entity {
-    constructor(x, y, width, height, slopeType = 'left-up', color = 'rgba(70, 0, 255, 0.4)') {
+    constructor(x, y, width, height, slopeType = 'left-up', color = '#FF9FA266') {
         super(x, y, width, height, color);
         this.type = slopeType; // 'left-up' / or 'right-up' \
     }
 
     render(ctx) {
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
         ctx.fillStyle = this.color;
-        
         ctx.beginPath();
         if (this.type === 'left-up') {
             // /  (Bottom-left to Top-right)
@@ -65,11 +53,10 @@ class Slope extends Entity {
         ctx.closePath();
         ctx.fill();
         
-        // Stroke
-        ctx.strokeStyle = 'white';
+        // Stroke for better visibility
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.shadowBlur = 0;
     }
 }
 
@@ -101,8 +88,6 @@ class Destroyable extends Entity {
 
     render(ctx) {
         if (!this.isDestroyed) {
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = this.color;
             ctx.fillStyle = this.color;
             ctx.fillRect(this.x, this.y, this.width, this.height);
             
@@ -115,7 +100,6 @@ class Destroyable extends Entity {
             ctx.moveTo(this.x + this.width - 5, this.y + 5);
             ctx.lineTo(this.x + 5, this.y + this.height - 5);
             ctx.stroke();
-            ctx.shadowBlur = 0;
         }
 
         // Always update and render particles
@@ -166,10 +150,6 @@ class Door extends Entity {
 
     render(ctx) {
         if (this.isDestroyed) return;
-        
-        // Glow effect for the door
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = this.color;
         
         // Door body
         ctx.fillStyle = this.color;
