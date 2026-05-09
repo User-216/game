@@ -22,6 +22,9 @@ class Player {
         this.wallSide = 0; // -1 for left, 1 for right
         this.isRunning = false;
         this.isGroundPounding = false;
+        this.isGroundPoundLand = false;
+        this.groundPoundLandTimer = 0;
+        this.requestScreenShake = 0;
         this.isClimbing = false;
         this.climbSide = 0; // -1 for left wall, 1 for right wall
         this.isDrifting = false;
@@ -33,6 +36,7 @@ class Player {
         this.wasRunningLastFrame = false;
         this.isNoClip = false;
         this.canJump = true;
+        this.facingDir = 1;
 
 
 
@@ -91,13 +95,15 @@ class Player {
             return;
         }
 
-        // Mach Slide Trigger: 달리던 중 Shift를 떼면 발동
-        if (this.wasRunningLastFrame && !keys.actionRun && Math.abs(this.vx) > 8 && !this.isDrifting && !this.isDrifting1) {
-            this.isMachSliding = true;
+        // Running cancel triggers: 달리던 중 Shift를 떼면 발동
+        if (this.wasRunningLastFrame && !keys.actionRun) {
             if (audio) {
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
-                audio.playFile('machslideboost', true);
+                audio.playFile('sfx_break', true);
+            }
+            if (Math.abs(this.vx) > 8 && !this.isDrifting && !this.isDrifting1) {
+                this.isMachSliding = true;
             }
         }
 
@@ -110,7 +116,16 @@ class Player {
 
         // Horizontal Movement (드리프트나 마하 슬라이드 중이 아닐 때만 조작 가능)
         if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding) {
-            if (keys.actionLeft) {
+            let effLeft = keys.actionLeft;
+            let effRight = keys.actionRight;
+            
+            // 달리기 중인데 방향키를 안 누르고 있다면 바라보는 방향으로 자동 달리기
+            if (this.isRunning && !keys.actionLeft && !keys.actionRight) {
+                if (this.facingDir === -1) effLeft = true;
+                else if (this.facingDir === 1) effRight = true;
+            }
+
+            if (effLeft) {
                 if (this.isRunning && this.vx > 0 && this.vx <= 8) {
                     this.vx = -6;
                 } else if (!this.isRunning && this.vx > 0) {
@@ -124,7 +139,7 @@ class Player {
                         }
                     }
                 }
-            } else if (keys.actionRight) {
+            } else if (effRight) {
                 if (this.isRunning && this.vx < 0 && this.vx >= -8) {
                     this.vx = 6;
                 } else if (!this.isRunning && this.vx < 0) {
@@ -138,19 +153,30 @@ class Player {
                         }
                     }
                 }
-            } else if (!this.isRunning) {
+            } else {
+                // 방향키를 누르지 않았을 때
                 this.vx = 0;
             }
         }
 
         // Running acceleration logic
         if (this.isRunning && !this.isDrifting && !this.isDrifting1) {
-            // Give an initial boost to 6 if running starts from low speed
-            if (Math.abs(this.vx) < this.runInitialSpeed) {
-                this.vx = (this.vx < 0 ? -1 : 1) * this.runInitialSpeed;
+            let effLeft = keys.actionLeft;
+            let effRight = keys.actionRight;
+            if (!keys.actionLeft && !keys.actionRight) {
+                if (this.facingDir === -1) effLeft = true;
+                else if (this.facingDir === 1) effRight = true;
             }
-            // Gradually accelerate up to max speed
-            this.vx += (this.vx < 0 ? -this.runAccel : this.runAccel);
+
+            if (effLeft || effRight) {
+                const runDir = effLeft ? -1 : 1;
+                // Give an initial boost to 6 if running starts from low speed
+                if (Math.abs(this.vx) < this.runInitialSpeed) {
+                    this.vx = runDir * this.runInitialSpeed;
+                }
+                // Gradually accelerate up to max speed
+                this.vx += runDir * this.runAccel;
+            }
         }
 
         // Drifting Logic
@@ -189,6 +215,7 @@ class Player {
                 this.isDrifting = false;
                 // 드리프트 종료 시 목표 방향으로 속도를 12로 설정
                 this.vx = this.driftTargetDir * 12;
+                this.facingDir = this.driftTargetDir;
             }
         }
 
@@ -209,6 +236,7 @@ class Player {
                 this.isDrifting1 = false;
                 // DRIFTING1 종료 시 목표 방향으로 속도를 8로 설정
                 this.vx = this.driftTargetDir * 8;
+                this.facingDir = this.driftTargetDir;
             }
         }
 
@@ -229,7 +257,7 @@ class Player {
         }
 
         // Ground Pound Trigger (점프/이동과 마찬가지로 드리프트 중에는 발동 불가)
-        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isDrifting && !this.isDrifting1) {
+        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1) {
             this.isGroundPounding = true;
             this.vy = -18; // Upward hop
             this.vx = 0;   // Cancel horizontal momentum
@@ -263,9 +291,23 @@ class Player {
             this.vy *= 0.5; // Slow down fall
         }
 
-        // Apply movement
+        if (this.isGroundPoundLand) {
+            this.vx = 0;
+            // Let vy be calculated by gravity so that collision logic marks us as grounded
+            this.groundPoundLandTimer--;
+            if (this.groundPoundLandTimer <= 0) {
+                this.isGroundPoundLand = false;
+            }
+        }
+
         this.x += this.vx;
         this.y += this.vy;
+
+        // 방향 업데이트 (드리프트 중이 아닐 때만 키 입력에 따라 방향 결정)
+        if (!this.isDrifting && !this.isDrifting1) {
+            if (keys.actionLeft) this.facingDir = -1;
+            else if (keys.actionRight) this.facingDir = 1;
+        }
 
         // 다음 프레임을 위해 현재 달리기 상태 저장
         this.wasRunningLastFrame = this.isRunning;
@@ -332,6 +374,7 @@ class Player {
         // Collision Resolution
         entities.forEach(entity => {
             if (entity.isDestroyed) return;
+            if (entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor')) return;
 
             // Slope Handling
             if (entity.type === 'left-up' || entity.type === 'right-up') {
@@ -358,7 +401,14 @@ class Player {
                         // Collision on bottom (Grounded)
                         this.isGrounded = true;
                         this.vy = 0;
-                        this.isGroundPounding = false; // Reset GP
+                        if (this.isGroundPounding) {
+                            this.isGroundPounding = false;
+                            this.isGroundPoundLand = true;
+                            this.groundPoundLandTimer = 4;
+                            this.requestScreenShake = 15; // Set screen shake intensity
+                        } else {
+                            this.isGroundPounding = false; // Reset GP just in case
+                        }
                         this.isClimbing = false;      // Reset Climbing
                     } else if (resolution.amount > 0) {
                         // Collision on top (Head butt)
@@ -548,7 +598,7 @@ class Player {
 
         // Eyes/Face to show direction
         ctx.fillStyle = 'white';
-        const eyeX = this.vx >= 0 ? this.x + 20 : this.x + 5;
+        const eyeX = this.facingDir >= 0 ? this.x + 20 : this.x + 5;
         ctx.fillRect(eyeX, this.y + 10, 5, 5);
         ctx.restore();
     }

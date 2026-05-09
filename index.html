@@ -19,16 +19,17 @@
                 <div class="stats glass">
                     <span id="speed-meter">SPEED: 0</span>
                     <span id="climb-speed-meter" style="margin-left: 20px; color: #ff0073; font-weight: 700;">CLIMB: 0</span>
+                    <span id="pos-info" style="margin-left: 20px; color: #00f2ff; font-weight: 700;">X: 0, Y: 0</span>
                     <span id="state-info" style="margin-left: 20px; font-size: 0.8rem; opacity: 0.8;">STATE: IDLE</span>
                 </div>
             </div>
             
             <div id="tutorial" class="glass">
-                <div class="control-item"><span>← →</span> 이동</div>
-                <div class="control-item"><span>Z</span> 점프</div>
-                <div class="control-item"><span>Shift</span> 달리기</div>
-                <div class="control-item"><span>E</span> 디자인 모드</div>
-                <div class="control-item-hint">벽에서 점프 가능 / 파괴 가능한 블록을 부수세요!</div>
+                <div class="control-item"><span>← →</span> <span data-i18n="tut.move">이동</span></div>
+                <div class="control-item"><span>Z</span> <span data-i18n="tut.jump">점프</span></div>
+                <div class="control-item"><span>Shift</span> <span data-i18n="tut.run">달리기</span></div>
+                <div class="control-item"><span>E</span> <span data-i18n="tut.editor">디자인 모드</span></div>
+                <div class="control-item-hint" data-i18n="tut.hint">벽에서 점프 가능 / 파괴 가능한 블록을 부수세요!</div>
             </div>
 
             <!-- Editor Toolbar (Hidden by default) -->
@@ -41,50 +42,77 @@
                     <button class="tool-btn" data-type="destroyable">BLOCK</button>
                     <button class="tool-btn" data-type="hallway">HALLWAY</button>
                     <button class="tool-btn" data-type="door">DOOR</button>
+                    <button class="tool-btn" data-type="targetDoor">T-DOOR</button>
                 </div>
                 <div class="editor-actions">
-                    <button id="export-btn" class="action-btn">COPY LEVEL CODE</button>
+                    <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                        <button id="export-btn" class="action-btn">COPY LEVEL CODE</button>
+                        <button id="add-room-btn" class="action-btn" style="background: #ff0073;">ADD ROOM</button>
+                        <button id="set-size-btn" class="action-btn" style="background: #a200ff;">ROOM SIZE</button>
+                    </div>
                     <div class="editor-hint">L-Click: Place | R-Click: Delete | F: Flip</div>
                 </div>
             </div>
 
             <!-- Pause Overlay -->
             <div id="pause-overlay" class="glass hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 2rem; border-radius: 20px; flex-direction: column; gap: 1rem; align-items: center; min-width: 300px; pointer-events: auto;">
-                <h2 style="color: var(--primary-color); margin-bottom: 1rem; text-align: center;">PAUSED</h2>
-                <button class="action-btn" id="btn-resume" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem;">Resume</button>
-                <button class="action-btn" id="btn-options" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem;">Options</button>
-                <button class="action-btn" id="btn-restart" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem;">Restart Level</button>
-                <button class="action-btn" id="btn-exit" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem; background: var(--accent-color);">Exit to Title</button>
+                <h2 data-i18n="menu.paused" style="color: var(--primary-color); margin-bottom: 1rem; text-align: center;">PAUSED</h2>
+                <button class="action-btn" id="btn-resume" data-i18n="menu.resume" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem;">Resume</button>
+                <button class="action-btn" id="btn-options" data-i18n="menu.options" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem;">Options</button>
+                <button class="action-btn" id="btn-restart" data-i18n="menu.restart" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem;">Restart Level</button>
+                <button class="action-btn" id="btn-exit" data-i18n="menu.exit" style="width: 100%; margin-bottom: 0.5rem; padding: 1rem; background: var(--accent-color);">Exit to Title</button>
             </div>
 
             <!-- Options Overlay -->
             <div id="options-overlay" class="glass hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 2rem; border-radius: 20px; flex-direction: column; gap: 1rem; min-width: 400px; pointer-events: auto;">
-                <h2 style="color: var(--primary-color); margin-bottom: 1rem; text-align: center;">OPTIONS</h2>
+                <h2 data-i18n="opt.title" style="color: var(--primary-color); margin-bottom: 1rem; text-align: center;">OPTIONS</h2>
                 
                 <div class="tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                    <button class="tool-btn active" id="tab-audio" style="flex: 1;">Audio</button>
-                    <button class="tool-btn" id="tab-video" style="flex: 1;">Video</button>
-                    <button class="tool-btn" id="tab-control" style="flex: 1;">Control</button>
+                    <button class="tool-btn active" id="tab-audio" data-i18n="opt.audio" style="flex: 1;">Audio</button>
+                    <button class="tool-btn" id="tab-video" data-i18n="opt.video" style="flex: 1;">Video</button>
+                    <button class="tool-btn" id="tab-game" data-i18n="opt.game" style="flex: 1;">Game</button>
+                    <button class="tool-btn" id="tab-control" data-i18n="opt.control" style="flex: 1;">Control</button>
                 </div>
 
                 <div id="panel-audio" class="options-panel">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label style="font-weight: 700;">Volume</label>
+                        <label data-i18n="opt.volume" style="font-weight: 700;">Volume</label>
                         <input type="range" id="volume-slider" min="0" max="100" value="100" style="width: 60%;">
                     </div>
                 </div>
 
                 <div id="panel-video" class="options-panel hidden">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <label style="font-weight: 700;">Resolution</label>
+                        <label data-i18n="opt.resolution" style="font-weight: 700;">Resolution</label>
                         <select id="resolution-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
-                            <option value="native">Window Size</option>
+                            <option value="native" data-i18n="opt.window">Window Size</option>
                             <option value="1280x720">1280 x 720</option>
                             <option value="800x600">800 x 600</option>
                             <option value="480x360">480 x 360</option>
                         </select>
                     </div>
-                    <button class="action-btn" id="btn-fullscreen" style="width: 100%;">Toggle Fullscreen</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <label data-i18n="opt.vsync" style="font-weight: 700;">VSync</label>
+                        <select id="vsync-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
+                            <option value="on">On</option>
+                            <option value="off">Off (60 FPS Limit)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <label data-i18n="opt.texture" style="font-weight: 700;">Texture Filtering</label>
+                        <select id="texture-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
+                            <option value="on">Smooth</option>
+                            <option value="off">Pixelated</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <label data-i18n="opt.screenshake" style="font-weight: 700;">Screen Shake</label>
+                        <select id="screenshake-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
+                            <option value="on">On</option>
+                            <option value="off">Off</option>
+                        </select>
+                    </div>
+                    <button class="action-btn" id="btn-fullscreen" data-i18n="opt.fullscreen" style="width: 100%;">Toggle Fullscreen</button>
                 </div>
 
                 <div id="panel-control" class="options-panel hidden">
@@ -92,11 +120,23 @@
                         <!-- JS will populate -->
                     </div>
                     <div id="bind-overlay" class="hidden" style="position: absolute; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; border-radius: 20px; z-index: 10;">
-                        <h3 style="color: white; text-align: center;">Press any key...<br><span style="font-size: 0.8rem; color: #aaa;">(Escape to cancel)</span></h3>
+                        <h3 style="color: white; text-align: center;"><span data-i18n="bind.press">Press any key...</span><br><span data-i18n="bind.cancel" style="font-size: 0.8rem; color: #aaa;">(Escape to cancel)</span></h3>
                     </div>
                 </div>
 
-                <button class="action-btn" id="btn-options-back" style="width: 100%; margin-top: 1.5rem; padding: 1rem; background: #333;">Back</button>
+                <div id="panel-game" class="options-panel hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label data-i18n="opt.language" style="font-weight: 700;">Language</label>
+                        <select id="language-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
+                            <option value="ko">한국어</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                </div>
+
+
+
+                <button class="action-btn" id="btn-options-back" data-i18n="opt.back" style="width: 100%; margin-top: 1.5rem; padding: 1rem; background: #333;">Back</button>
             </div>
         </div>
     </div>

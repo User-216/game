@@ -122,21 +122,28 @@ class Destroyable extends Entity {
 }
 
 class Hallway extends Entity {
-    constructor(x, y, width, height) {
+    constructor(x, y, width, height, targetRoom = null, targetDoor = null) {
         super(x, y, width, height, 'transparent');
         this.type = 'hallway';
+        this.targetRoom = targetRoom;
+        this.targetDoor = targetDoor;
+        
+        this.image = new Image();
+        this.image.src = '이미지/spr_hallway.png';
+        this.imageLoaded = false;
+        
+        this.image.onload = () => {
+            this.imageLoaded = true;
+        };
     }
 
     render(ctx) {
-        // Draw background panels for the hallway
-        ctx.fillStyle = 'rgba(20, 25, 40, 0.8)';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // Draw perspective lines
-        ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < this.width; i += 100) {
-            ctx.strokeRect(this.x + i, this.y, 100, this.height);
+        if (this.imageLoaded) {
+            ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        } else {
+            // Fallback while loading
+            ctx.fillStyle = 'rgba(20, 25, 40, 0.8)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
         }
     }
 }
@@ -172,3 +179,46 @@ class Door extends Entity {
         ctx.fillText('↑ ENTER', this.x + this.width / 2, this.y + this.height + 20);
     }
 }
+
+class TargetDoorBase extends Entity {
+    constructor(x, y, width, height, doorId) {
+        super(x, y, width, height, 'transparent');
+        this.doorId = doorId;
+        this.type = `targetDoor_${doorId}`;
+        this.image = new Image();
+        this.image.src = `이미지/spr_targetDoor_${doorId}.png`;
+        this.imageLoaded = false;
+        
+        this.image.onload = () => {
+            this.imageLoaded = true;
+        };
+        this.image.onerror = () => {
+            // If specific door image fails to load, fallback to spr_targetDoor_A.png
+            this.image.src = `이미지/spr_targetDoor_A.png`;
+        };
+    }
+
+    render(ctx) {
+        if (this.isDestroyed) return;
+        
+        if (this.imageLoaded) {
+            ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.strokeStyle = 'white';
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
+        
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Target ${this.doorId}`, this.x + this.width / 2, this.y - 10);
+    }
+}
+
+class TargetDoor_A extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'A'); } }
+class TargetDoor_B extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'B'); } }
+class TargetDoor_C extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'C'); } }
+class TargetDoor_D extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'D'); } }
+class TargetDoor_E extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'E'); } }

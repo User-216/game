@@ -7,7 +7,8 @@ class AudioManager {
         this.files = {
             mach2: new Audio('sound/sfx_mach2.wav'),
             mach3: new Audio('sound/sfx_mach3.wav'),
-            machslideboost: new Audio('sound/sfx_machslideboost.wav')
+            machslideboost: new Audio('sound/sfx_machslideboost.wav'),
+            sfx_break: new Audio('sound/sfx_break.wav')
         };
         
         // Set loops where appropriate

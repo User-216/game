@@ -1,4 +1,37 @@
-
+const i18n = {
+    en: {
+        'ui.speed': 'SPEED', 'ui.climb': 'CLIMB', 'ui.state': 'STATE', 'ui.room': 'ROOM',
+        'tut.move': 'Move', 'tut.jump': 'Jump', 'tut.run': 'Run', 'tut.editor': 'Design Mode',
+        'tut.hint': 'Wall jump is possible / Break destroyable blocks!',
+        'menu.paused': 'PAUSED', 'menu.resume': 'Resume', 'menu.options': 'Options',
+        'menu.restart': 'Restart Level', 'menu.exit': 'Exit to Title',
+        'opt.title': 'OPTIONS', 'opt.game': 'Game', 'opt.audio': 'Audio', 'opt.video': 'Video',
+        'opt.control': 'Control', 'opt.volume': 'Volume', 'opt.resolution': 'Resolution',
+        'opt.window': 'Window Size', 'opt.fullscreen': 'Toggle Fullscreen', 'opt.language': 'Language',
+        'opt.vsync': 'VSync', 'opt.texture': 'Texture Filtering', 'opt.screenshake': 'Screen Shake',
+        'opt.back': 'Back', 'bind.press': 'Press any key...', 'bind.cancel': '(Escape to cancel)',
+        'state.idle': 'IDLE', 'state.climbing': 'CLIMBING', 'state.running': 'RUNNING',
+        'state.grounded': 'GROUNDED', 'state.airborne': 'AIRBORNE', 'state.groundpound': 'GROUNDPOUND',
+        'state.groundpoundland': 'GROUNDPOUNDLAND',
+        'state.drifting': 'DRIFTING', 'state.mach': 'MACH', 'title.press': '- Press Z to Start -'
+    },
+    ko: {
+        'ui.speed': '속도', 'ui.climb': '등반', 'ui.state': '상태', 'ui.room': '방',
+        'tut.move': '이동', 'tut.jump': '점프', 'tut.run': '달리기', 'tut.editor': '디자인 모드',
+        'tut.hint': '벽에서 점프 가능 / 파괴 가능한 블록을 부수세요!',
+        'menu.paused': '일시정지', 'menu.resume': '계속하기', 'menu.options': '설정',
+        'menu.restart': '재시작', 'menu.exit': '타이틀로',
+        'opt.title': '설정', 'opt.game': '게임', 'opt.audio': '오디오', 'opt.video': '비디오',
+        'opt.control': '조작', 'opt.volume': '음량', 'opt.resolution': '해상도',
+        'opt.window': '창 모드', 'opt.fullscreen': '전체화면 전환', 'opt.language': '언어',
+        'opt.vsync': '수직 동기화(VSync)', 'opt.texture': '텍스처 필터링', 'opt.screenshake': '화면 흔들림',
+        'opt.back': '뒤로', 'bind.press': '아무 키나 누르세요...', 'bind.cancel': '(ESC 취소)',
+        'state.idle': '대기', 'state.climbing': '등반중', 'state.running': '달리는중',
+        'state.grounded': '지상', 'state.airborne': '공중', 'state.groundpound': '찍기',
+        'state.groundpoundland': '찍기착지',
+        'state.drifting': '드리프트', 'state.mach': '마하', 'title.press': '- Z를 눌러 시작 -'
+    }
+};
 
 class Game {
     constructor() {
@@ -6,12 +39,17 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.speedMeter = document.getElementById('speed-meter');
         this.climbMeter = document.getElementById('climb-speed-meter');
+        this.posInfo = document.getElementById('pos-info');
         this.stateInfo = document.getElementById('state-info');
         this.uiOverlay = document.getElementById('ui-overlay');
         
         this.settings = {
+            language: 'en',
             volume: 100,
             resolution: 'native',
+            vsync: true,
+            textureFiltering: false,
+            screenShake: true,
             bindings: {
                 left: 'ArrowLeft',
                 right: 'ArrowRight',
@@ -33,9 +71,10 @@ class Game {
         this.entities = [];
         this.keys = {};
         this.camera = { x: 0, y: 0 };
+        this.cameraShake = 0;
         
         this.initRooms();
-        this.loadRoom('A');
+        this.loadRoom('titlescreen');
         
         this.isEditorMode = false;
         this.selectedType = 'platform';
@@ -46,8 +85,22 @@ class Game {
         this.setupInputs();
         this.setupEditorUI();
         this.setupMenuUI();
+        this.translateUI();
 
         this.loop();
+    }
+
+    translateUI() {
+        const lang = this.settings.language || 'ko';
+        const dict = i18n[lang];
+        if (!dict) return;
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (dict[key]) {
+                el.innerText = dict[key];
+            }
+        });
     }
 
     resize() {
@@ -125,6 +178,39 @@ class Game {
         if (exportBtn) {
             exportBtn.addEventListener('click', () => this.exportLevel());
         }
+
+        // Add Room button
+        const addRoomBtn = document.getElementById('add-room-btn');
+        if (addRoomBtn) {
+            addRoomBtn.addEventListener('click', () => {
+                let newRoomName = prompt("Enter new room name:");
+                if (newRoomName && newRoomName.trim() !== '') {
+                    newRoomName = newRoomName.trim();
+                    if (!this.rooms[newRoomName]) {
+                        this.rooms[newRoomName] = () => {
+                            // Empty room gets a basic floor by default
+                            this.entities.push(new Platform(0, 500, 1000, 50));
+                        };
+                    }
+                    this.loadRoom(newRoomName);
+                }
+            });
+        }
+
+        // Set Room Size button
+        const setSizeBtn = document.getElementById('set-size-btn');
+        if (setSizeBtn) {
+            setSizeBtn.addEventListener('click', () => {
+                let w = prompt("Enter Room Width (e.g., 2000) or Cancel for infinite:", this.roomWidth || "");
+                if (w !== null) {
+                    let h = prompt("Enter Room Height (e.g., 1000) or Cancel for infinite:", this.roomHeight || "");
+                    if (h !== null) {
+                        this.roomWidth = parseInt(w) || 0;
+                        this.roomHeight = parseInt(h) || 0;
+                    }
+                }
+            });
+        }
     }
 
     togglePause() {
@@ -176,7 +262,7 @@ class Game {
         });
 
         // Tabs
-        const tabs = ['audio', 'video', 'control'];
+        const tabs = ['audio', 'video', 'game', 'control'];
         tabs.forEach(tab => {
             document.getElementById(`tab-${tab}`).addEventListener('click', (e) => {
                 tabs.forEach(t => {
@@ -186,6 +272,14 @@ class Game {
                 e.target.classList.add('active');
                 document.getElementById(`panel-${tab}`).classList.remove('hidden');
             });
+        });
+
+        // Game
+        const langSelect = document.getElementById('language-select');
+        langSelect.value = this.settings.language;
+        langSelect.addEventListener('change', (e) => {
+            this.settings.language = e.target.value;
+            this.translateUI();
         });
 
         // Audio
@@ -198,6 +292,25 @@ class Game {
             this.settings.resolution = e.target.value;
             this.resize();
         });
+        
+        const vsyncSelect = document.getElementById('vsync-select');
+        vsyncSelect.value = this.settings.vsync ? "on" : "off";
+        vsyncSelect.addEventListener('change', (e) => {
+            this.settings.vsync = (e.target.value === "on");
+        });
+
+        const textureSelect = document.getElementById('texture-select');
+        textureSelect.value = this.settings.textureFiltering ? "on" : "off";
+        textureSelect.addEventListener('change', (e) => {
+            this.settings.textureFiltering = (e.target.value === "on");
+        });
+
+        const screenShakeSelect = document.getElementById('screenshake-select');
+        screenShakeSelect.value = this.settings.screenShake ? "on" : "off";
+        screenShakeSelect.addEventListener('change', (e) => {
+            this.settings.screenShake = (e.target.value === "on");
+        });
+
         document.getElementById('btn-fullscreen').addEventListener('click', () => {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen();
@@ -324,8 +437,20 @@ class Game {
             case 'slope-left': entity = new Slope(x, y, w, h, 'left-up'); break;
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
-            case 'hallway': entity = new Hallway(x, y, w, h); break;
+            case 'hallway': 
+                let tRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
+                let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
+                entity = new Hallway(x, y, w, h, tRoom, tDoor); 
+                break;
             case 'door': entity = new Door(x, y, w, h, 'NEW', 'A'); break;
+            case 'targetDoor': 
+                let doorId = prompt("Target Door ID (A, B, C, D, E):", "A");
+                if (doorId === 'A') entity = new TargetDoor_A(x, y, w, h);
+                else if (doorId === 'B') entity = new TargetDoor_B(x, y, w, h);
+                else if (doorId === 'C') entity = new TargetDoor_C(x, y, w, h);
+                else if (doorId === 'D') entity = new TargetDoor_D(x, y, w, h);
+                else if (doorId === 'E') entity = new TargetDoor_E(x, y, w, h);
+                break;
         }
 
         if (entity) {
@@ -351,14 +476,20 @@ class Game {
     }
 
     exportLevel() {
-        let code = `this.entities.push(\n`;
+        let code = ``;
+        if (this.roomWidth || this.roomHeight) {
+            code += `this.roomWidth = ${this.roomWidth || 0};\n`;
+            code += `this.roomHeight = ${this.roomHeight || 0};\n`;
+        }
+        code += `this.entities.push(\n`;
         this.entities.forEach(ent => {
             let line = `    `;
             if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Destroyable) line += `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Hallway) line += `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Hallway) line += `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
             else if (ent instanceof Door) line += `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
+            else if (ent instanceof TargetDoorBase) line += `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             code += line + `,\n`;
         });
         code += `);`;
@@ -370,6 +501,11 @@ class Game {
 
     initRooms() {
         this.rooms = {
+            'titlescreen': () => {
+                // Initial room
+                this.entities.push(new Platform(0, 500, 1000, 50));
+                this.entities.push(new Door(400, 420, 50, 80, 'START', 'A'));
+            },
             'A': () => {
                 // Room A: Central Hub
                 this.entities.push(new Platform(0, 500, 1000, 50)); // Floor
@@ -418,22 +554,48 @@ class Game {
         };
     }
 
-    loadRoom(roomName) {
+    loadRoom(roomName, targetDoorId = null) {
+        // Save current room state to memory before switching
+        if (this.currentRoom && this.rooms[this.currentRoom] && this.entities.length > 0) {
+            const currentEntities = [...this.entities];
+            const currentW = this.roomWidth;
+            const currentH = this.roomHeight;
+            this.rooms[this.currentRoom] = () => {
+                this.roomWidth = currentW;
+                this.roomHeight = currentH;
+                currentEntities.forEach(ent => this.entities.push(ent));
+            };
+        }
+
         if (!this.rooms[roomName]) return;
         
         console.log(`Loading Room: ${roomName}`);
         this.entities = [];
+        this.roomWidth = 0;
+        this.roomHeight = 0;
         this.rooms[roomName]();
         
+        let startX = 100;
+        let startY = 300;
+        
+        if (targetDoorId) {
+            const doorObj = this.entities.find(e => e.type === `targetDoor_${targetDoorId}`);
+            if (doorObj) {
+                startX = doorObj.x + doorObj.width / 2 - this.player.width / 2;
+                startY = doorObj.y + doorObj.height - this.player.height;
+            }
+        }
+        
         // Reset player
-        this.player.x = 100;
-        this.player.y = 300;
+        this.player.x = startX;
+        this.player.y = startY;
         this.player.vx = 0;
         this.player.vy = 0;
         this.player.isGrounded = false;
         this.player.isClimbing = false;
         this.player.isDrifting = false;
         this.player.isDrifting1 = false;
+        this.player.hallwayCooldown = 60; // Prevent instant transition loop
         
         this.currentRoom = roomName;
     }
@@ -465,30 +627,59 @@ class Game {
 
         this.player.update(this.keys, this.entities, this.audio);
         
+        // Handle screen shake requests
+        if (this.player.requestScreenShake > 0) {
+            this.cameraShake = this.player.requestScreenShake;
+            this.player.requestScreenShake = 0;
+        }
+
+        if (this.cameraShake > 0) {
+            this.cameraShake *= 0.8; // Decay
+            if (this.cameraShake < 0.5) this.cameraShake = 0;
+        }
+        
         // Camera Follow (Lerp)
-        const targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
-        const targetY = this.player.y - this.canvas.height / 2 + this.player.height / 2;
+        let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
+        let targetY = this.player.y - this.canvas.height / 2 + this.player.height / 2;
+        
+        if (this.roomWidth > 0) {
+            const maxX = Math.max(0, this.roomWidth - this.canvas.width);
+            if (targetX < 0) targetX = 0;
+            if (targetX > maxX) targetX = maxX;
+        }
+        if (this.roomHeight > 0) {
+            const maxY = Math.max(0, this.roomHeight - this.canvas.height);
+            if (targetY < 0) targetY = 0;
+            if (targetY > maxY) targetY = maxY;
+        }
+
         this.camera.x += (targetX - this.camera.x) * 0.1;
         this.camera.y += (targetY - this.camera.y) * 0.1;
         
         // Update speed meters UI
+        const lang = this.settings.language || 'ko';
+        const dict = i18n[lang];
         const hSpeed = Math.round(Math.abs(this.player.vx) * 10);
         const vSpeed = Math.round(Math.abs(this.player.vy) * 10);
-        this.speedMeter.innerText = `SPEED: ${hSpeed}`;
-        this.climbMeter.innerText = `CLIMB: ${vSpeed}`;
+        this.speedMeter.innerText = `${dict['ui.speed']}: ${hSpeed}`;
+        this.climbMeter.innerText = `${dict['ui.climb']}: ${vSpeed}`;
+        if (this.posInfo) {
+            this.posInfo.innerText = `X: ${Math.round(this.player.x)}, Y: ${Math.round(this.player.y)}`;
+        }
 
         // Update state info UI
         let currentStates = [];
-        if (this.player.isClimbing) currentStates.push("CLIMBING");
-        else if (this.player.isRunning) currentStates.push("RUNNING");
-        else if (this.player.isGrounded) currentStates.push("GROUNDED");
-        else currentStates.push("AIRBORNE");
+        if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
+        else if (this.player.isGroundPoundLand) currentStates.push(dict['state.groundpoundland']);
+        else if (this.player.isRunning) currentStates.push(dict['state.running']);
+        else if (this.player.isGrounded) currentStates.push(dict['state.grounded']);
+        else currentStates.push(dict['state.airborne']);
 
-        if (this.player.isWalled && !this.player.isClimbing) currentStates.push("CLIMBING");
-        if (this.player.isGroundPounding) currentStates.push("GROUNDPOUND");
-        if (this.player.isDrifting) currentStates.push("DRIFTING");
-        if (this.player.isDrifting1) currentStates.push("DRIFTING1");
-        if (Math.abs(this.player.vx) >= this.player.machThreshold) currentStates.push("MACH");
+        if (this.player.isWalled && !this.player.isClimbing) currentStates.push(dict['state.climbing']);
+        if (this.player.isGroundPounding) currentStates.push(dict['state.groundpound']);
+        if (this.player.isDrifting) currentStates.push(dict['state.drifting']);
+        if (this.player.isDrifting1) currentStates.push(dict['state.drifting']);
+        if (Math.abs(this.player.vx) >= this.player.machThreshold) currentStates.push(dict['state.mach']);
 
         // Door Interaction Check
         const overlappingDoor = this.entities.find(e => 
@@ -505,14 +696,40 @@ class Game {
             this.keys.actionUp = false;
         }
 
-        this.stateInfo.innerText = `STATE: ${currentStates.join(" / ")} | ROOM: ${this.currentRoom}`;
+        // Hallway Transition Check
+        if (this.player.hallwayCooldown > 0) {
+            this.player.hallwayCooldown--;
+        } else if (!this.player.isNoClip) {
+            const overlappingHallway = this.entities.find(e => 
+                e.type === 'hallway' && e.targetRoom && e.targetDoor && e.targetRoom !== 'null' && e.targetDoor !== 'null' &&
+                this.player.x < e.x + e.width &&
+                this.player.x + this.player.width > e.x &&
+                this.player.y < e.y + e.height &&
+                this.player.y + this.player.height > e.y
+            );
+            
+            if (overlappingHallway) {
+                this.loadRoom(overlappingHallway.targetRoom, overlappingHallway.targetDoor);
+            }
+        }
+
+        this.stateInfo.innerText = `${dict['ui.state']}: ${currentStates.join(" / ")} | ${dict['ui.room']}: ${this.currentRoom}`;
     }
 
     render() {
+        this.ctx.imageSmoothingEnabled = this.settings.textureFiltering;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         this.ctx.save();
-        this.ctx.translate(-this.camera.x, -this.camera.y);
+        
+        let shakeX = 0;
+        let shakeY = 0;
+        if (this.settings.screenShake && this.cameraShake > 0) {
+            shakeX = (Math.random() - 0.5) * this.cameraShake;
+            shakeY = (Math.random() - 0.5) * this.cameraShake;
+        }
+        
+        this.ctx.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
         
         // Optimization: Pre-calculate view bounds for culling
         const viewLeft = this.camera.x - 100;
@@ -562,13 +779,17 @@ class Game {
             this.ctx.textAlign = 'center';
             this.ctx.shadowColor = '#00f2ff';
             this.ctx.shadowBlur = 20;
-            this.ctx.fillText('NEON PLATFORMER', this.canvas.width / 2, this.canvas.height / 2 - 40);
+            const shakeX = (Math.random() - 0.5) * 10;
+            const shakeY = (Math.random() - 0.5) * 10;
+            this.ctx.fillText('NEON PLATFORMER', this.canvas.width / 2 + shakeX, this.canvas.height / 2 - 40 + shakeY);
             this.ctx.shadowBlur = 0;
             
             this.ctx.fillStyle = 'white';
             this.ctx.font = '30px "Outfit", sans-serif';
             if (Math.floor(Date.now() / 600) % 2 === 0) {
-                this.ctx.fillText('- Press Z to Start -', this.canvas.width / 2, this.canvas.height / 2 + 60);
+                const lang = this.settings.language || 'ko';
+                const pressText = i18n[lang]['title.press'];
+                this.ctx.fillText(pressText, this.canvas.width / 2, this.canvas.height / 2 + 60);
             }
         }
     }
@@ -622,7 +843,12 @@ class Game {
     loop() {
         this.update();
         this.render();
-        requestAnimationFrame(() => this.loop());
+        if (this.settings.vsync) {
+            requestAnimationFrame(() => this.loop());
+        } else {
+            // Uncapped / Fallback 60 FPS
+            setTimeout(() => this.loop(), 1000 / 60);
+        }
     }
 }
 
