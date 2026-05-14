@@ -406,6 +406,7 @@ class Player {
                             this.isGroundPoundLand = true;
                             this.groundPoundLandTimer = 4;
                             this.requestScreenShake = 15; // Set screen shake intensity
+                            if (audio) audio.playFile('sfx_groundpound', true);
                         } else {
                             this.isGroundPounding = false; // Reset GP just in case
                         }

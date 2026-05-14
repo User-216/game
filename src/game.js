@@ -6,7 +6,8 @@ const i18n = {
         'menu.paused': 'PAUSED', 'menu.resume': 'Resume', 'menu.options': 'Options',
         'menu.restart': 'Restart Level', 'menu.exit': 'Exit to Title',
         'opt.title': 'OPTIONS', 'opt.game': 'Game', 'opt.audio': 'Audio', 'opt.video': 'Video',
-        'opt.control': 'Control', 'opt.volume': 'Volume', 'opt.resolution': 'Resolution',
+        'opt.control': 'Control', 'opt.master_vol': 'Master Volume', 'opt.music_vol': 'Music Volume',
+        'opt.sfx_vol': 'SFX Volume', 'opt.unfocused_mute': 'Unfocused Mute', 'opt.resolution': 'Resolution',
         'opt.window': 'Window Size', 'opt.fullscreen': 'Toggle Fullscreen', 'opt.language': 'Language',
         'opt.vsync': 'VSync', 'opt.texture': 'Texture Filtering', 'opt.screenshake': 'Screen Shake',
         'opt.back': 'Back', 'bind.press': 'Press any key...', 'bind.cancel': '(Escape to cancel)',
@@ -22,7 +23,8 @@ const i18n = {
         'menu.paused': '일시정지', 'menu.resume': '계속하기', 'menu.options': '설정',
         'menu.restart': '재시작', 'menu.exit': '타이틀로',
         'opt.title': '설정', 'opt.game': '게임', 'opt.audio': '오디오', 'opt.video': '비디오',
-        'opt.control': '조작', 'opt.volume': '음량', 'opt.resolution': '해상도',
+        'opt.control': '조작', 'opt.master_vol': '마스터 음량', 'opt.music_vol': '음악 음량',
+        'opt.sfx_vol': '효과음 음량', 'opt.unfocused_mute': '비활성 시 음소거', 'opt.resolution': '해상도',
         'opt.window': '창 모드', 'opt.fullscreen': '전체화면 전환', 'opt.language': '언어',
         'opt.vsync': '수직 동기화(VSync)', 'opt.texture': '텍스처 필터링', 'opt.screenshake': '화면 흔들림',
         'opt.back': '뒤로', 'bind.press': '아무 키나 누르세요...', 'bind.cancel': '(ESC 취소)',
@@ -45,7 +47,11 @@ class Game {
         
         this.settings = {
             language: 'en',
-            volume: 100,
+            masterVolume: 100,
+            musicVolume: 80,
+            sfxVolume: 100,
+            unfocusedMute: true,
+            isFocused: true,
             resolution: 'native',
             vsync: true,
             textureFiltering: false,
@@ -64,6 +70,15 @@ class Game {
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        window.addEventListener('blur', () => {
+            this.settings.isFocused = false;
+            if (this.audio && this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+        });
+        window.addEventListener('focus', () => {
+            this.settings.isFocused = true;
+            if (this.audio && this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+        });
+        this.settings.isFocused = document.hasFocus();
 
         this.gameState = 'TITLE';
 
@@ -211,6 +226,22 @@ class Game {
                 }
             });
         }
+
+        // Set Music button
+        const setMusicBtn = document.getElementById('set-music-btn');
+        if (setMusicBtn) {
+            setMusicBtn.addEventListener('click', () => {
+                let m = prompt("Enter music file name (e.g., mu_oldlevel.wav) or Cancel to clear:", this.roomMusic || "");
+                if (m !== null) {
+                    this.roomMusic = m.trim() === "" ? null : m.trim();
+                    if (this.roomMusic) {
+                        this.audio.playMusic(this.roomMusic);
+                    } else {
+                        this.audio.playMusic(null);
+                    }
+                }
+            });
+        }
     }
 
     togglePause() {
@@ -283,8 +314,38 @@ class Game {
         });
 
         // Audio
-        document.getElementById('volume-slider').addEventListener('input', (e) => {
-            this.settings.volume = e.target.value;
+        const updateAudio = () => {
+            if (this.audio && this.audio.updateMusicVolume) {
+                this.audio.updateMusicVolume();
+            }
+        };
+
+        const masterSlider = document.getElementById('master-vol-slider');
+        masterSlider.value = this.settings.masterVolume;
+        masterSlider.addEventListener('input', (e) => {
+            this.settings.masterVolume = e.target.value;
+            updateAudio();
+        });
+
+        const musicSlider = document.getElementById('music-vol-slider');
+        musicSlider.value = this.settings.musicVolume;
+        musicSlider.addEventListener('input', (e) => {
+            this.settings.musicVolume = e.target.value;
+            updateAudio();
+        });
+
+        const sfxSlider = document.getElementById('sfx-vol-slider');
+        sfxSlider.value = this.settings.sfxVolume;
+        sfxSlider.addEventListener('input', (e) => {
+            this.settings.sfxVolume = e.target.value;
+            // SFX vol is checked on play, so no immediate update needed for most
+        });
+
+        const unfocusedMuteSelect = document.getElementById('unfocused-mute-select');
+        unfocusedMuteSelect.value = this.settings.unfocusedMute ? "on" : "off";
+        unfocusedMuteSelect.addEventListener('change', (e) => {
+            this.settings.unfocusedMute = (e.target.value === "on");
+            updateAudio();
         });
 
         // Video
@@ -481,6 +542,9 @@ class Game {
             code += `this.roomWidth = ${this.roomWidth || 0};\n`;
             code += `this.roomHeight = ${this.roomHeight || 0};\n`;
         }
+        if (this.roomMusic) {
+            code += `this.roomMusic = '${this.roomMusic}';\n`;
+        }
         code += `this.entities.push(\n`;
         this.entities.forEach(ent => {
             let line = `    `;
@@ -560,9 +624,11 @@ class Game {
             const currentEntities = [...this.entities];
             const currentW = this.roomWidth;
             const currentH = this.roomHeight;
+            const currentMusic = this.roomMusic;
             this.rooms[this.currentRoom] = () => {
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
+                this.roomMusic = currentMusic;
                 currentEntities.forEach(ent => this.entities.push(ent));
             };
         }
@@ -573,7 +639,12 @@ class Game {
         this.entities = [];
         this.roomWidth = 0;
         this.roomHeight = 0;
+        this.roomMusic = null;
         this.rooms[roomName]();
+        
+        if (this.audio) {
+            this.audio.playMusic(this.roomMusic);
+        }
         
         let startX = 100;
         let startY = 300;
