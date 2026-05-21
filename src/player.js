@@ -37,6 +37,7 @@ class Player {
         this.isNoClip = false;
         this.canJump = true;
         this.facingDir = 1;
+        this.insideHallway = false;
 
 
 

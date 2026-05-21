@@ -10,6 +10,7 @@ const i18n = {
         'opt.sfx_vol': 'SFX Volume', 'opt.unfocused_mute': 'Unfocused Mute', 'opt.resolution': 'Resolution',
         'opt.window': 'Window Size', 'opt.fullscreen': 'Toggle Fullscreen', 'opt.language': 'Language',
         'opt.vsync': 'VSync', 'opt.texture': 'Texture Filtering', 'opt.screenshake': 'Screen Shake',
+        'opt.camera_speed': 'Camera Speed',
         'opt.back': 'Back', 'bind.press': 'Press any key...', 'bind.cancel': '(Escape to cancel)',
         'state.idle': 'IDLE', 'state.climbing': 'CLIMBING', 'state.running': 'RUNNING',
         'state.grounded': 'GROUNDED', 'state.airborne': 'AIRBORNE', 'state.groundpound': 'GROUNDPOUND',
@@ -27,6 +28,7 @@ const i18n = {
         'opt.sfx_vol': '효과음 음량', 'opt.unfocused_mute': '비활성 시 음소거', 'opt.resolution': '해상도',
         'opt.window': '창 모드', 'opt.fullscreen': '전체화면 전환', 'opt.language': '언어',
         'opt.vsync': '수직 동기화(VSync)', 'opt.texture': '텍스처 필터링', 'opt.screenshake': '화면 흔들림',
+        'opt.camera_speed': '카메라 이동 속도',
         'opt.back': '뒤로', 'bind.press': '아무 키나 누르세요...', 'bind.cancel': '(ESC 취소)',
         'state.idle': '대기', 'state.climbing': '등반중', 'state.running': '달리는중',
         'state.grounded': '지상', 'state.airborne': '공중', 'state.groundpound': '찍기',
@@ -56,6 +58,7 @@ class Game {
             vsync: true,
             textureFiltering: false,
             screenShake: true,
+            cameraSpeed: 20,
             bindings: {
                 left: 'ArrowLeft',
                 right: 'ArrowRight',
@@ -87,6 +90,15 @@ class Game {
         this.keys = {};
         this.camera = { x: 0, y: 0 };
         this.cameraShake = 0;
+        this.cameraSpeedOffset = 0;
+        
+        // Transitions
+        this.transitionState = 'NONE';
+        this.transitionAlpha = 0;
+        this.transitionDuration = 12; // 12 frames (approx. 0.2s)
+        this.transitionTimer = 0;
+        this.pendingRoom = null;
+        this.pendingDoor = null;
         
         this.initRooms();
         this.loadRoom('titlescreen');
@@ -312,6 +324,14 @@ class Game {
             this.settings.language = e.target.value;
             this.translateUI();
         });
+
+        const cameraSlider = document.getElementById('camera-speed-slider');
+        if (cameraSlider) {
+            cameraSlider.value = this.settings.cameraSpeed;
+            cameraSlider.addEventListener('input', (e) => {
+                this.settings.cameraSpeed = parseInt(e.target.value) || 20;
+            });
+        }
 
         // Audio
         const updateAudio = () => {
@@ -618,7 +638,7 @@ class Game {
         };
     }
 
-    loadRoom(roomName, targetDoorId = null) {
+    loadRoom(roomName, targetDoorId = null, preserveVelocity = false) {
         // Save current room state to memory before switching
         if (this.currentRoom && this.rooms[this.currentRoom] && this.entities.length > 0) {
             const currentEntities = [...this.entities];
@@ -660,18 +680,50 @@ class Game {
         // Reset player
         this.player.x = startX;
         this.player.y = startY;
-        this.player.vx = 0;
-        this.player.vy = 0;
+        if (!preserveVelocity) {
+            this.player.vx = 0;
+            this.player.vy = 0;
+        }
         this.player.isGrounded = false;
         this.player.isClimbing = false;
         this.player.isDrifting = false;
         this.player.isDrifting1 = false;
-        this.player.hallwayCooldown = 60; // Prevent instant transition loop
+        this.player.insideHallway = true; // Mark as inside hallway to prevent immediate loop
         
+        this.cameraSpeedOffset = 0;
         this.currentRoom = roomName;
     }
 
+    triggerRoomTransition(roomName, targetDoorId = null, preserveVelocity = false) {
+        if (this.transitionState !== 'NONE') return;
+        this.transitionState = 'FADE_OUT';
+        this.transitionTimer = 0;
+        this.pendingRoom = roomName;
+        this.pendingDoor = targetDoorId;
+        this.pendingPreserveVelocity = preserveVelocity;
+    }
+
     update() {
+        if (this.transitionState === 'FADE_OUT') {
+            this.transitionTimer++;
+            this.transitionAlpha = this.transitionTimer / this.transitionDuration;
+            if (this.transitionTimer >= this.transitionDuration) {
+                this.transitionAlpha = 1;
+                this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity);
+                this.transitionState = 'FADE_IN';
+                this.transitionTimer = 0;
+            }
+        } else if (this.transitionState === 'FADE_IN') {
+            this.transitionTimer++;
+            this.transitionAlpha = 1 - (this.transitionTimer / this.transitionDuration);
+            if (this.transitionTimer >= this.transitionDuration) {
+                this.transitionAlpha = 0;
+                this.transitionState = 'NONE';
+                this.pendingRoom = null;
+                this.pendingDoor = null;
+            }
+        }
+
         if (this.gameState === 'TITLE') {
             if (this.uiOverlay && this.uiOverlay.style.display !== 'none') {
                 this.uiOverlay.style.display = 'none';
@@ -689,12 +741,21 @@ class Game {
             return;
         }
 
-        this.keys.actionLeft = !!this.keys[this.settings.bindings.left];
-        this.keys.actionRight = !!this.keys[this.settings.bindings.right];
-        this.keys.actionUp = !!this.keys[this.settings.bindings.up];
-        this.keys.actionDown = !!this.keys[this.settings.bindings.down];
-        this.keys.actionJump = !!this.keys[this.settings.bindings.jump];
-        this.keys.actionRun = !!this.keys[this.settings.bindings.run];
+        if (this.transitionState !== 'NONE') {
+            this.keys.actionLeft = false;
+            this.keys.actionRight = false;
+            this.keys.actionUp = false;
+            this.keys.actionDown = false;
+            this.keys.actionJump = false;
+            this.keys.actionRun = false;
+        } else {
+            this.keys.actionLeft = !!this.keys[this.settings.bindings.left];
+            this.keys.actionRight = !!this.keys[this.settings.bindings.right];
+            this.keys.actionUp = !!this.keys[this.settings.bindings.up];
+            this.keys.actionDown = !!this.keys[this.settings.bindings.down];
+            this.keys.actionJump = !!this.keys[this.settings.bindings.jump];
+            this.keys.actionRun = !!this.keys[this.settings.bindings.run];
+        }
 
         this.player.update(this.keys, this.entities, this.audio);
         
@@ -713,6 +774,17 @@ class Game {
         let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
         let targetY = this.player.y - this.canvas.height / 2 + this.player.height / 2;
         
+        // Speed-based camera offset (look ahead in direction of movement when speed > 7)
+        const playerSpeed = Math.abs(this.player.vx);
+        let targetSpeedOffset = 0;
+        if (playerSpeed > 7) {
+            const excessSpeed = playerSpeed - 7;
+            const direction = Math.sign(this.player.vx);
+            targetSpeedOffset = direction * (excessSpeed * 15);
+        }
+        this.cameraSpeedOffset += (targetSpeedOffset - this.cameraSpeedOffset) * 0.02;
+        targetX += this.cameraSpeedOffset;
+        
         if (this.roomWidth > 0) {
             const maxX = Math.max(0, this.roomWidth - this.canvas.width);
             if (targetX < 0) targetX = 0;
@@ -724,8 +796,9 @@ class Game {
             if (targetY > maxY) targetY = maxY;
         }
 
-        this.camera.x += (targetX - this.camera.x) * 0.1;
-        this.camera.y += (targetY - this.camera.y) * 0.1;
+        const lerpFactor = (this.settings.cameraSpeed || 20) / 100;
+        this.camera.x += (targetX - this.camera.x) * lerpFactor;
+        this.camera.y += (targetY - this.camera.y) * lerpFactor;
         
         // Update speed meters UI
         const lang = this.settings.language || 'ko';
@@ -762,15 +835,13 @@ class Game {
         );
 
         if (overlappingDoor && this.keys.actionUp && this.player.isGrounded) {
-            this.loadRoom(overlappingDoor.targetRoom);
+            this.triggerRoomTransition(overlappingDoor.targetRoom);
             this.keys[this.settings.bindings.up] = false; // Prevent immediate multi-entry
             this.keys.actionUp = false;
         }
 
         // Hallway Transition Check
-        if (this.player.hallwayCooldown > 0) {
-            this.player.hallwayCooldown--;
-        } else if (!this.player.isNoClip) {
+        if (!this.player.isNoClip) {
             const overlappingHallway = this.entities.find(e => 
                 e.type === 'hallway' && e.targetRoom && e.targetDoor && e.targetRoom !== 'null' && e.targetDoor !== 'null' &&
                 this.player.x < e.x + e.width &&
@@ -780,7 +851,11 @@ class Game {
             );
             
             if (overlappingHallway) {
-                this.loadRoom(overlappingHallway.targetRoom, overlappingHallway.targetDoor);
+                if (!this.player.insideHallway) {
+                    this.triggerRoomTransition(overlappingHallway.targetRoom, overlappingHallway.targetDoor, true);
+                }
+            } else {
+                this.player.insideHallway = false; // Left hallway, can transition again instantly
             }
         }
 
@@ -862,6 +937,11 @@ class Game {
                 const pressText = i18n[lang]['title.press'];
                 this.ctx.fillText(pressText, this.canvas.width / 2, this.canvas.height / 2 + 60);
             }
+        }
+
+        if (this.transitionState !== 'NONE' && this.transitionAlpha > 0) {
+            this.ctx.fillStyle = `rgba(0, 0, 0, ${this.transitionAlpha})`;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
     }
 

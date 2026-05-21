@@ -222,3 +222,55 @@ class TargetDoor_B extends TargetDoorBase { constructor(x, y, w, h) { super(x, y
 class TargetDoor_C extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'C'); } }
 class TargetDoor_D extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'D'); } }
 class TargetDoor_E extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'E'); } }
+
+class TutorialBook extends Entity {
+    constructor(x, y, width, height, text = "Tutorial Message") {
+        super(x, y, width, height, '#00f2ff');
+        this.type = 'tutorialbook';
+        this.text = text;
+    }
+
+    render(ctx) {
+        if (this.isDestroyed) return;
+        
+        ctx.save();
+        // Glow effect
+        ctx.shadowColor = '#00f2ff';
+        ctx.shadowBlur = 10;
+        
+        // Draw Book icon
+        ctx.strokeStyle = '#00f2ff';
+        ctx.lineWidth = 3;
+        ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
+        
+        // Draw open book pages
+        ctx.beginPath();
+        // Left page
+        ctx.moveTo(this.x + 5, this.y + 10);
+        ctx.bezierCurveTo(this.x + 15, this.y + 5, this.x + 18, this.y + 12, this.x + 20, this.y + 10);
+        // Right page
+        ctx.bezierCurveTo(this.x + 22, this.y + 12, this.x + 25, this.y + 5, this.x + 35, this.y + 10);
+        // Right side down
+        ctx.lineTo(this.x + 35, this.y + 30);
+        // Bottom pages
+        ctx.bezierCurveTo(this.x + 25, this.y + 25, this.x + 22, this.y + 32, this.x + 20, this.y + 30);
+        ctx.bezierCurveTo(this.x + 18, this.y + 32, this.x + 15, this.y + 25, this.x + 5, this.y + 30);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Middle spine of the book
+        ctx.beginPath();
+        ctx.moveTo(this.x + 20, this.y + 10);
+        ctx.lineTo(this.x + 20, this.y + 30);
+        ctx.stroke();
+        
+        // Draw a small "?" mark on top of the book
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px "Outfit", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('?', this.x + 20, this.y + 23);
+        
+        ctx.restore();
+    }
+}
