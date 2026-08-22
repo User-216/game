@@ -274,3 +274,4 @@ class TutorialBook extends Entity {
         ctx.restore();
     }
 }
+

@@ -109,6 +109,65 @@ class Game {
         this.dragStart = null;
         this.mousePos = { x: 0, y: 0 };
         
+        // Load tutorial bubble and border texture
+        this.tutorialBorderImage = new Image();
+        this.tutorialBorderImage.src = 'tutorial/spr_tutorialbubble/spr_tutorialbubble_1.png';
+        
+        this.tutorialMaskImage = new Image();
+        this.tutorialMaskImage.src = 'tutorial/spr_pizzagrannytexture.png';
+        
+        this.tutorialRopeImage = new Image();
+        this.tutorialRopeImage.src = 'tutorial/spr_tutorialbubble_rope.png';
+        
+        // Load tutorial sprite font and tint to black
+        this.tutorialFontImages = [];
+        this.tutorialFontLoadedCount = 0;
+        this.tutorialFontTotal = 118;
+        for (let i = 0; i < this.tutorialFontTotal; i++) {
+            const img = new Image();
+            img.src = `tutorial/spr_tutorialfont/spr_tutorialfont_${i}.png`;
+            img.onload = () => { 
+                const tempC = document.createElement('canvas');
+                tempC.width = img.width || 32;
+                tempC.height = img.height || 32;
+                if (img.width > 0) {
+                    const tempCtx = tempC.getContext('2d');
+                    tempCtx.drawImage(img, 0, 0);
+                    tempCtx.globalCompositeOperation = 'source-in';
+                    tempCtx.fillStyle = '#000000';
+                    tempCtx.fillRect(0, 0, tempC.width, tempC.height);
+                }
+                this.tutorialFontImages[i] = tempC;
+                this.tutorialFontLoadedCount++; 
+            };
+            this.tutorialFontImages.push(img);
+        }
+
+        // Load blank key
+        this.tutorialBlankKeyImage = new Image();
+        this.tutorialBlankKeyImage.src = 'tutorial/spr_tutorialkey.png';
+        this.tutorialBlankKeyLoaded = false;
+        this.tutorialBlankKeyImage.onload = () => { this.tutorialBlankKeyLoaded = true; };
+        
+        // Special key images (if any)
+        this.tutorialKeyImages = {};
+        this.getKeyImage = (keyName) => {
+            if (this.tutorialKeyImages[keyName]) return this.tutorialKeyImages[keyName];
+            const img = new Image();
+            img.src = `tutorial/spr_tutorialkeyspecial/${keyName}.png`; // fallback if they exist
+            img.loaded = false;
+            img.error = false;
+            img.onload = () => { img.loaded = true; };
+            img.onerror = () => { img.error = true; };
+            this.tutorialKeyImages[keyName] = img;
+            return img;
+        };
+
+        this.tutorialTexX = 0;
+        this.tutorialWaveTimer = 0;
+        this.currentTutorialText = null;
+        this.currentTutorialBook = null;
+
         this.setupInputs();
         this.setupEditorUI();
         this.setupMenuUI();
@@ -532,6 +591,12 @@ class Game {
                 else if (doorId === 'D') entity = new TargetDoor_D(x, y, w, h);
                 else if (doorId === 'E') entity = new TargetDoor_E(x, y, w, h);
                 break;
+            case 'tutorialbook':
+                let tutText = prompt("Enter tutorial text (use \\n for newlines, [J] for jump, etc):", "Tutorial Message");
+                if (tutText !== null) {
+                    entity = new TutorialBook(x, y, w, h, tutText);
+                }
+                break;
         }
 
         if (entity) {
@@ -574,6 +639,7 @@ class Game {
             else if (ent instanceof Hallway) line += `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
             else if (ent instanceof Door) line += `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if (ent instanceof TargetDoorBase) line += `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof TutorialBook) line += `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             code += line + `,\n`;
         });
         code += `);`;
@@ -860,6 +926,46 @@ class Game {
         }
 
         this.stateInfo.innerText = `${dict['ui.state']}: ${currentStates.join(" / ")} | ${dict['ui.room']}: ${this.currentRoom}`;
+
+        // Tutorial Book Interaction Check
+        let touchingBook = false;
+        let bookText = null;
+        for (let i = 0; i < this.entities.length; i++) {
+            const e = this.entities[i];
+            if (e.type === 'tutorialbook' && !e.isDestroyed) {
+                // Check distance
+                const dx = (this.player.x + this.player.width/2) - (e.x + e.width/2);
+                const dy = (this.player.y + this.player.height/2) - (e.y + e.height/2);
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 150) { // proximity radius
+                    touchingBook = true;
+                    bookText = e.text;
+                    this.currentTutorialBook = e;
+                    break;
+                }
+            }
+        }
+        
+        if (touchingBook) {
+            if (this.currentTutorialText !== bookText) {
+                this.currentTutorialText = bookText;
+                this.tutorialTextProgress = 0;
+            }
+            this.tutorialWaveTimer += 0.05;
+            this.tutorialTexX -= 0.5; // scroll texture
+            if (this.tutorialMaskImage.complete && this.tutorialMaskImage.width > 0) {
+                // Keep negative offset within bounds of image for smooth scrolling
+                if (this.tutorialTexX <= -this.tutorialMaskImage.width) {
+                    this.tutorialTexX += this.tutorialMaskImage.width;
+                }
+            }
+            this.tutorialTextProgress += 0.5; // Typing speed
+        } else {
+            this.currentTutorialText = null;
+            this.currentTutorialBook = null;
+            this.tutorialTextProgress = 0;
+        }
+
     }
 
     render() {
@@ -915,6 +1021,204 @@ class Game {
         }
         
         this.ctx.restore();
+
+        // Draw Tutorial Book Banner UI
+        if (this.currentTutorialText && this.gameState === 'PLAYING') {
+            const waveX = Math.sin(this.tutorialWaveTimer * 0.8) * 5;
+            const bWidth = this.canvas.width - 128;
+            const bHeight = 150;
+            const bX = 64 + waveX;
+            const bY = 50 + Math.sin(this.tutorialWaveTimer) * 10;
+            
+            // Draw rope
+            if (this.tutorialRopeImage.complete && this.tutorialRopeImage.width > 0) {
+                // Rope at 64 and width-64 from screen edges
+                this.ctx.drawImage(this.tutorialRopeImage, 64 + waveX, -50, 16, bY + 50);
+                this.ctx.drawImage(this.tutorialRopeImage, this.canvas.width - 64 - 16 + waveX, -50, 16, bY + 50);
+            }
+            
+            // Draw background pattern (masked)
+            if (this.tutorialMaskImage.complete && this.tutorialMaskImage.width > 0) {
+                this.ctx.save();
+                this.ctx.beginPath();
+                this.ctx.roundRect(bX + 8, bY + 8, bWidth - 16, bHeight - 16, 16);
+                this.ctx.clip();
+                
+                // Draw scrolling mask
+                const pat = this.ctx.createPattern(this.tutorialMaskImage, 'repeat');
+                this.ctx.fillStyle = pat;
+                this.ctx.translate(this.tutorialTexX, this.tutorialTexX); // scroll both x and y
+                // Need to cover the whole bubble, considering negative translate
+                this.ctx.fillRect(-this.tutorialTexX + bX, -this.tutorialTexX + bY, bWidth + 64, bHeight + 64);
+                this.ctx.restore();
+            }
+            
+            // Draw border with safe 9-slice scaling
+            if (this.tutorialBorderImage.complete && this.tutorialBorderImage.width > 0 && this.tutorialBorderImage.height > 0) {
+                const img = this.tutorialBorderImage;
+                const sw = img.width;
+                const sh = img.height;
+                const cX = Math.min(16, Math.floor(sw / 2));
+                const cY = Math.min(16, Math.floor(sh / 2));
+                
+                const mSw = Math.max(0, sw - cX * 2);
+                const mSh = Math.max(0, sh - cY * 2);
+                const mDw = Math.max(0, bWidth - cX * 2);
+                const mDh = Math.max(0, bHeight - cY * 2);
+
+                if (mSw > 0 && mSh > 0 && mDw > 0 && mDh > 0) {
+                    // Top-left
+                    this.ctx.drawImage(img, 0, 0, cX, cY, bX, bY, cX, cY);
+                    // Top-middle
+                    this.ctx.drawImage(img, cX, 0, mSw, cY, bX + cX, bY, mDw, cY);
+                    // Top-right
+                    this.ctx.drawImage(img, sw - cX, 0, cX, cY, bX + bWidth - cX, bY, cX, cY);
+                    
+                    // Middle-left
+                    this.ctx.drawImage(img, 0, cY, cX, mSh, bX, bY + cY, cX, mDh);
+                    // Center
+                    this.ctx.drawImage(img, cX, cY, mSw, mSh, bX + cX, bY + cY, mDw, mDh);
+                    // Middle-right
+                    this.ctx.drawImage(img, sw - cX, cY, cX, mSh, bX + bWidth - cX, bY + cY, cX, mDh);
+                    
+                    // Bottom-left
+                    this.ctx.drawImage(img, 0, sh - cY, cX, cY, bX, bY + bHeight - cY, cX, cY);
+                    // Bottom-middle
+                    this.ctx.drawImage(img, cX, sh - cY, mSw, cY, bX + cX, bY + bHeight - cY, mDw, cY);
+                    // Bottom-right
+                    this.ctx.drawImage(img, sw - cX, sh - cY, cX, cY, bX + bWidth - cX, bY + bHeight - cY, cX, cY);
+                } else {
+                    // Fallback to stretching if image is too small for 9-slice
+                    this.ctx.drawImage(img, bX, bY, bWidth, bHeight);
+                }
+            }
+            
+            // Draw text
+            if (this.currentTutorialText) {
+                const charset = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789`?¿-";
+                
+                const formatKey = (key) => {
+                    if (!key) return "NONE";
+                    if (key.startsWith("Arrow")) return key.replace("Arrow", "").toUpperCase();
+                    if (key === " ") return "SPACE";
+                    return key.toUpperCase();
+                };
+                
+                let processedText = this.currentTutorialText.replace(/\\n/g, '\n');
+                
+                const macros = {
+                    '[J]': formatKey(this.settings.bindings.jump),
+                    '[S]': formatKey(this.settings.bindings.run),
+                    '[L]': formatKey(this.settings.bindings.left),
+                    '[R]': formatKey(this.settings.bindings.right),
+                    '[U]': formatKey(this.settings.bindings.up),
+                    '[D]': formatKey(this.settings.bindings.down),
+                    '[G]': formatKey(this.settings.bindings.grab)
+                };
+                
+                // Parse text into tokens of either string or key macro
+                let tokens = [];
+                let currentStr = "";
+                for (let i = 0; i < processedText.length; i++) {
+                    let matched = false;
+                    for (let m in macros) {
+                        if (processedText.substring(i, i + 3) === m) {
+                            if (currentStr.length > 0) tokens.push({ type: 'text', val: currentStr });
+                            tokens.push({ type: 'key', val: macros[m] });
+                            currentStr = "";
+                            i += 2;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        currentStr += processedText[i];
+                    }
+                }
+                if (currentStr.length > 0) tokens.push({ type: 'text', val: currentStr });
+                
+                let startX = bX + 40;
+                let charX = startX;
+                let charY = bY + 30; // Top-left alignment inside banner
+                
+                let charCount = 0;
+                
+                // Use regular for loop to allow breaking
+                for (let t = 0; t < tokens.length; t++) {
+                    const token = tokens[t];
+                    
+                    if (token.type === 'text') {
+                        for (let i = 0; i < token.val.length; i++) {
+                            charCount++;
+                            const char = token.val[i];
+                            if (char === '\n') {
+                                charX = startX;
+                                charY += 36;
+                                continue;
+                            }
+                            if (char === ' ') {
+                                charX += 16;
+                                continue;
+                            }
+                            
+                            const bounceY = Math.sin(this.tutorialWaveTimer * 5 + charCount) * 1.5;
+                            
+                            const charIdx = charset.indexOf(char);
+                            let imgToDraw = null;
+                            
+                            if (charIdx !== -1) {
+                                imgToDraw = this.tutorialFontImages[charIdx]; 
+                            }
+                            
+                            if (imgToDraw) {
+                                this.ctx.drawImage(imgToDraw, charX, charY + bounceY);
+                                charX += imgToDraw.width + 2;
+                            } else {
+                                this.ctx.save();
+                                this.ctx.fillStyle = '#000000';
+                                this.ctx.font = 'bold 24px "Outfit", sans-serif';
+                                this.ctx.textAlign = 'left';
+                                this.ctx.fillText(char, charX, charY + 24 + bounceY);
+                                this.ctx.restore();
+                                charX += 16;
+                            }
+                        }
+                    } else if (token.type === 'key') {
+                        charCount++;
+                        const bounceY = Math.sin(this.tutorialWaveTimer * 5 + charCount) * 1.5;
+                        const keyName = token.val;
+                        const img = this.getKeyImage(keyName);
+                        
+                        if (img && img.loaded && !img.error) {
+                            this.ctx.drawImage(img, charX, charY + 6 + bounceY); // Adjust Y for vertical alignment
+                            charX += img.width + 4;
+                        } else if (this.tutorialBlankKeyLoaded) {
+                            // Fallback to blank key
+                            const bImg = this.tutorialBlankKeyImage;
+                            this.ctx.drawImage(bImg, charX, charY + 6 + bounceY);
+                            
+                            this.ctx.save();
+                            this.ctx.fillStyle = '#000000';
+                            this.ctx.font = 'bold 14px "Outfit", sans-serif';
+                            this.ctx.textAlign = 'center';
+                            this.ctx.textBaseline = 'middle';
+                            this.ctx.fillText(keyName, charX + bImg.width/2, charY + 6 + bImg.height/2 + bounceY);
+                            this.ctx.restore();
+                            
+                            charX += bImg.width + 4;
+                        } else {
+                            this.ctx.save();
+                            this.ctx.fillStyle = '#000000';
+                            this.ctx.font = 'bold 24px "Outfit", sans-serif';
+                            this.ctx.textAlign = 'left';
+                            this.ctx.fillText(`[${keyName}]`, charX, charY + 24 + bounceY);
+                            this.ctx.restore();
+                            charX += 40;
+                        }
+                    }
+                }
+            }
+        }
 
         if (this.gameState === 'TITLE') {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';

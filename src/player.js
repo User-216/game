@@ -375,7 +375,7 @@ class Player {
         // Collision Resolution
         entities.forEach(entity => {
             if (entity.isDestroyed) return;
-            if (entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor')) return;
+            if (entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook') return;
 
             // Slope Handling
             if (entity.type === 'left-up' || entity.type === 'right-up') {
@@ -458,7 +458,7 @@ class Player {
             let targetWall = null;
 
             entities.forEach(entity => {
-                if (!entity.isDestroyed && entity.type !== 'hallway' && Physics.checkCollision(this, entity)) {
+                if (!entity.isDestroyed && entity.type !== 'hallway' && entity.type !== 'tutorialbook' && Physics.checkCollision(this, entity)) {
                     stillTouching = true;
                     targetWall = entity;
                 }
@@ -474,7 +474,7 @@ class Player {
 
                 // Find the wall we were just climbing (it should be very close horizontally)
                 entities.forEach(entity => {
-                    if (entity.isDestroyed || entity.type === 'hallway' || entity.type === 'slope') return;
+                    if (entity.isDestroyed || entity.type === 'hallway' || entity.type === 'tutorialbook' || entity.type === 'slope') return;
 
                     const isRightWall = this.climbSide === 1;
                     const wallX = isRightWall ? entity.x : entity.x + entity.width;
