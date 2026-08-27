@@ -607,8 +607,11 @@ class Player {
             
             if (m.sprite_index === 'spr_player_idle') {
                 const frames = this.sprites.spr_player_idle;
-                imgToDraw = frames[Math.floor(m.image_index) % frames.length];
-            } else if (this.mask_image && this.mask_image.complete) {
+                const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (this.mask_image && this.mask_image.complete && this.mask_image.naturalWidth > 0) {
                 imgToDraw = this.mask_image;
             }
 
@@ -674,25 +677,27 @@ class Player {
             const frameIndex = Math.floor(this.image_index) % frames.length;
             const img = frames[frameIndex];
             
-            const drawX = this.x;
-            const drawY = this.y;
-            
-            // Sprite is 100x100, mask bounding box is X:38, Y:35, W:26, H:45
-            // Top-left of sprite relative to the top-left of hitbox: X = -38, Y = -35.
-            // Center of hitbox relative to the sprite top-left: X=51, Y=57.5
-            ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
-            if (this.facingDir === -1) {
-                ctx.scale(-1, 1);
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
+                // Sprite is 100x100, mask bounding box is X:38, Y:35, W:26, H:45
+                // Top-left of sprite relative to the top-left of hitbox: X = -38, Y = -35.
+                // Center of hitbox relative to the sprite top-left: X=51, Y=57.5
+                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                // Draw the 100x100 image so its bounding box aligns with the player hitbox
+                ctx.drawImage(img, -51, -57.5, 100, 100);
             }
-            // Draw the 100x100 image so its bounding box aligns with the player hitbox
-            ctx.drawImage(img, -51, -57.5, 100, 100);
         } else {
             let pColor = this.color;
             if (this.isGroundPounding) pColor = this.color; // Match cyan aesthetic for GP
             if (this.isDrifting || this.isDrifting1) pColor = '#ffff00'; // Yellow for drifting
             if (this.isMachSliding) pColor = this.machSlideColor;
 
-            if (this.mask_image && this.mask_image.complete) {
+            if (this.mask_image && this.mask_image.complete && this.mask_image.naturalWidth > 0) {
                 const drawX = this.x;
                 const drawY = this.y;
                 ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
