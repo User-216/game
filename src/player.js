@@ -4,8 +4,8 @@ class Player {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.width = 30;
-        this.height = 40;
+        this.width = 26;
+        this.height = 45;
         this.vx = 0;
         this.vy = 0;
         this.speed = 0.5;
@@ -60,7 +60,7 @@ class Player {
         // Sprites
         this.sprite_index = 'spr_player_idle';
         this.image_index = 0;
-        this.image_speed = 0.25;
+        this.image_speed = 0.4;
         this.sprites = {
             spr_player_idle: []
         };
@@ -69,6 +69,10 @@ class Player {
             img.src = `player/spr_player_idle/spr_playerT_idle${i}.png`;
             this.sprites.spr_player_idle.push(img);
         }
+        
+        // Mask
+        this.mask_image = new Image();
+        this.mask_image.src = 'player/spr_player_mask.png';
     }
 
     update(keys, entities, audio) {
@@ -343,6 +347,9 @@ class Player {
                 this.machAfters.unshift({
                     x: this.x,
                     y: this.y,
+                    sprite_index: this.sprite_index,
+                    image_index: this.image_index,
+                    facingDir: this.facingDir,
                     color: color,
                     alpha: 0.8,
                     life: 20 // 20 frames lifespan
@@ -371,6 +378,9 @@ class Player {
             this.ghostAfters.unshift({
                 x: this.x,
                 y: this.y,
+                sprite_index: this.sprite_index,
+                image_index: this.image_index,
+                facingDir: this.facingDir,
                 alpha: 0.2,
                 life: 15 // Shorter life for a denser feel
             });
@@ -584,34 +594,76 @@ class Player {
     }
 
     render(ctx) {
+        if (!this.tintCanvas) {
+            this.tintCanvas = document.createElement('canvas');
+            this.tintCanvas.width = 100;
+            this.tintCanvas.height = 100;
+            this.tintCtx = this.tintCanvas.getContext('2d');
+        }
+
+        const drawAfterImage = (m, isMach) => {
+            ctx.globalAlpha = m.alpha;
+            let imgToDraw = null;
+            
+            if (m.sprite_index === 'spr_player_idle') {
+                const frames = this.sprites.spr_player_idle;
+                imgToDraw = frames[Math.floor(m.image_index) % frames.length];
+            } else if (this.mask_image && this.mask_image.complete) {
+                imgToDraw = this.mask_image;
+            }
+
+            if (imgToDraw) {
+                ctx.save();
+                ctx.translate(m.x + this.width / 2, m.y + this.height / 2);
+                if (m.facingDir === -1) ctx.scale(-1, 1);
+
+                if (isMach && m.color) {
+                    this.tintCtx.clearRect(0, 0, 100, 100);
+                    // 1. 원래 이미지 그리기
+                    this.tintCtx.globalCompositeOperation = 'source-over';
+                    this.tintCtx.drawImage(imgToDraw, 0, 0, 100, 100);
+                    
+                    // 2. source-in으로 실루엣만 단색(m.color)으로 채우기
+                    this.tintCtx.globalCompositeOperation = 'source-in';
+                    this.tintCtx.fillStyle = m.color;
+                    this.tintCtx.fillRect(0, 0, 100, 100);
+                    
+                    // 3. multiply로 원래 이미지를 다시 덮어씌워 검은색 윤곽선 보존하기
+                    this.tintCtx.globalCompositeOperation = 'multiply';
+                    this.tintCtx.drawImage(imgToDraw, 0, 0, 100, 100);
+                    
+                    // 원래 설정으로 복구
+                    this.tintCtx.globalCompositeOperation = 'source-over';
+                    
+                    ctx.drawImage(this.tintCanvas, -51, -57.5, 100, 100);
+                } else {
+                    ctx.drawImage(imgToDraw, -51, -57.5, 100, 100);
+                }
+                ctx.restore();
+            } else {
+                ctx.fillStyle = m.color || this.color;
+                ctx.fillRect(m.x, m.y, this.width, this.height);
+            }
+        };
+
         // Draw Mach Afterimages (with flickering effect)
         this.machAfters.forEach((m, index) => {
             // Flicker based on a global timer or unique ID
             const isFlickering = Math.floor(Date.now() / 50 + index) % 2 === 0;
             if (isFlickering) {
-                ctx.globalAlpha = m.alpha;
-                ctx.fillStyle = m.color;
-                ctx.fillRect(m.x, m.y, this.width, this.height);
+                drawAfterImage(m, true);
             }
         });
 
         // Draw Ghost Trail (Smooth fade)
         this.ghostAfters.forEach(m => {
-            ctx.globalAlpha = m.alpha;
-            ctx.fillStyle = this.color;
-            ctx.fillRect(m.x, m.y, this.width, this.height);
+            drawAfterImage(m, false);
         });
 
         ctx.globalAlpha = 1.0;
 
         // Draw Player
-        const isMachSpeed = Math.abs(this.vx) >= this.machThreshold;
-        const isFlashing = isMachSpeed && Math.floor(this.machFlashTimer / 3) % 2 === 0;
-
         ctx.save();
-        if (isFlashing) {
-            ctx.globalAlpha = 0.5; // Blinking effect
-        }
 
         if (this.isNoClip) {
             ctx.globalAlpha = 0.5; // Phantom effect
@@ -622,27 +674,34 @@ class Player {
             const frameIndex = Math.floor(this.image_index) % frames.length;
             const img = frames[frameIndex];
             
-            // Adjust offset or dimensions if the sprite is larger/smaller than hitbox. 
-            // We'll draw it to fill the hitbox.
             const drawX = this.x;
             const drawY = this.y;
             
+            // Sprite is 100x100, mask bounding box is X:38, Y:35, W:26, H:45
+            // Top-left of sprite relative to the top-left of hitbox: X = -38, Y = -35.
+            // Center of hitbox relative to the sprite top-left: X=51, Y=57.5
+            ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
             if (this.facingDir === -1) {
-                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
                 ctx.scale(-1, 1);
-                ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
-            } else {
-                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
-                ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
             }
+            // Draw the 100x100 image so its bounding box aligns with the player hitbox
+            ctx.drawImage(img, -51, -57.5, 100, 100);
         } else {
             let pColor = this.color;
             if (this.isGroundPounding) pColor = this.color; // Match cyan aesthetic for GP
             if (this.isDrifting || this.isDrifting1) pColor = '#ffff00'; // Yellow for drifting
             if (this.isMachSliding) pColor = this.machSlideColor;
 
-            ctx.fillStyle = pColor;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+            if (this.mask_image && this.mask_image.complete) {
+                const drawX = this.x;
+                const drawY = this.y;
+                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
+                if (this.facingDir === -1) ctx.scale(-1, 1);
+                ctx.drawImage(this.mask_image, -51, -57.5, 100, 100);
+            } else {
+                ctx.fillStyle = pColor;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
 
             // Eyes/Face to show direction
             ctx.fillStyle = 'white';
