@@ -56,6 +56,19 @@ class Player {
 
         // Ghost Trail (Smooth alpha fade for Ground Pound)
         this.ghostAfters = [];
+
+        // Sprites
+        this.sprite_index = 'spr_player_idle';
+        this.image_index = 0;
+        this.image_speed = 0.25;
+        this.sprites = {
+            spr_player_idle: []
+        };
+        for (let i = 1; i <= 9; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_idle/spr_playerT_idle${i}.png`;
+            this.sprites.spr_player_idle.push(img);
+        }
     }
 
     update(keys, entities, audio) {
@@ -535,6 +548,20 @@ class Player {
             this.vy = 0;
         }
 
+        // Determine sprite index
+        if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
+            this.sprite_index = 'spr_player_idle';
+        } else {
+            // 다른 상태에 대한 스프라이트가 아직 없으므로, 이동 중에도 임시로 idle 스프라이트 또는 빈 상태를 유지할 수 있습니다.
+            // 일단은 빈 상태('')로 리셋하지 않고 idle 스프라이트를 그대로 보여주거나, 
+            // 나중에 'spr_player_run' 등의 스프라이트가 추가되면 여기에서 처리합니다.
+            // this.sprite_index = ''; 
+        }
+        
+        if (this.sprite_index !== '') {
+            this.image_index += this.image_speed;
+        }
+
         // Manage Looping Running Sounds
         if (audio) {
             const absSpeed = Math.abs(this.vx);
@@ -590,18 +617,38 @@ class Player {
             ctx.globalAlpha = 0.5; // Phantom effect
         }
 
-        let pColor = this.color;
-        if (this.isGroundPounding) pColor = this.color; // Match cyan aesthetic for GP
-        if (this.isDrifting || this.isDrifting1) pColor = '#ffff00'; // Yellow for drifting
-        if (this.isMachSliding) pColor = this.machSlideColor;
+        if (this.sprite_index === 'spr_player_idle') {
+            const frames = this.sprites.spr_player_idle;
+            const frameIndex = Math.floor(this.image_index) % frames.length;
+            const img = frames[frameIndex];
+            
+            // Adjust offset or dimensions if the sprite is larger/smaller than hitbox. 
+            // We'll draw it to fill the hitbox.
+            const drawX = this.x;
+            const drawY = this.y;
+            
+            if (this.facingDir === -1) {
+                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
+                ctx.scale(-1, 1);
+                ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
+            } else {
+                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
+                ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
+            }
+        } else {
+            let pColor = this.color;
+            if (this.isGroundPounding) pColor = this.color; // Match cyan aesthetic for GP
+            if (this.isDrifting || this.isDrifting1) pColor = '#ffff00'; // Yellow for drifting
+            if (this.isMachSliding) pColor = this.machSlideColor;
 
-        ctx.fillStyle = pColor;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.fillStyle = pColor;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
 
-        // Eyes/Face to show direction
-        ctx.fillStyle = 'white';
-        const eyeX = this.facingDir >= 0 ? this.x + 20 : this.x + 5;
-        ctx.fillRect(eyeX, this.y + 10, 5, 5);
+            // Eyes/Face to show direction
+            ctx.fillStyle = 'white';
+            const eyeX = this.facingDir >= 0 ? this.x + 20 : this.x + 5;
+            ctx.fillRect(eyeX, this.y + 10, 5, 5);
+        }
         ctx.restore();
     }
 }
