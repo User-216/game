@@ -114,7 +114,10 @@ class Game {
         this.tutorialBorderImage.src = 'tutorial/spr_tutorialbubble/spr_tutorialbubble_1.png';
         
         this.tutorialMaskImage = new Image();
-        this.tutorialMaskImage.src = 'tutorial/spr_pizzagrannytexture.png';
+        this.tutorialMaskImage.src = 'tutorial/spr_tutorialbubble/spr_tutorialbubble_0.png';
+        
+        this.tutorialPatternImage = new Image();
+        this.tutorialPatternImage.src = 'tutorial/spr_pizzagrannytexture.png';
         
         this.tutorialRopeImage = new Image();
         this.tutorialRopeImage.src = 'tutorial/spr_tutorialbubble_rope.png';
@@ -953,10 +956,10 @@ class Game {
             }
             this.tutorialWaveTimer += 0.05;
             this.tutorialTexX -= 0.5; // scroll texture
-            if (this.tutorialMaskImage.complete && this.tutorialMaskImage.width > 0) {
+            if (this.tutorialPatternImage.complete && this.tutorialPatternImage.width > 0) {
                 // Keep negative offset within bounds of image for smooth scrolling
-                if (this.tutorialTexX <= -this.tutorialMaskImage.width) {
-                    this.tutorialTexX += this.tutorialMaskImage.width;
+                if (this.tutorialTexX <= -this.tutorialPatternImage.width) {
+                    this.tutorialTexX += this.tutorialPatternImage.width;
                 }
             }
             this.tutorialTextProgress += 0.5; // Typing speed
@@ -1024,9 +1027,12 @@ class Game {
 
         // Draw Tutorial Book Banner UI
         if (this.currentTutorialText && this.gameState === 'PLAYING') {
+            let processedText = this.currentTutorialText.replace(/\\n/g, '\n');
+            const linesCount = processedText.split('\n').length;
+            
             const waveX = Math.sin(this.tutorialWaveTimer * 0.8) * 5;
             const bWidth = this.canvas.width - 128;
-            const bHeight = 150;
+            const bHeight = Math.max(150, linesCount * 36 + 60);
             const bX = 64 + waveX;
             const bY = 50 + Math.sin(this.tutorialWaveTimer) * 10;
             
@@ -1038,59 +1044,63 @@ class Game {
             }
             
             // Draw background pattern (masked)
-            if (this.tutorialMaskImage.complete && this.tutorialMaskImage.width > 0) {
-                this.ctx.save();
-                this.ctx.beginPath();
-                this.ctx.roundRect(bX + 8, bY + 8, bWidth - 16, bHeight - 16, 16);
-                this.ctx.clip();
-                
-                // Draw scrolling mask
-                const pat = this.ctx.createPattern(this.tutorialMaskImage, 'repeat');
-                this.ctx.fillStyle = pat;
-                this.ctx.translate(this.tutorialTexX, this.tutorialTexX); // scroll both x and y
-                // Need to cover the whole bubble, considering negative translate
-                this.ctx.fillRect(-this.tutorialTexX + bX, -this.tutorialTexX + bY, bWidth + 64, bHeight + 64);
-                this.ctx.restore();
-            }
-            
-            // Draw border with safe 9-slice scaling
-            if (this.tutorialBorderImage.complete && this.tutorialBorderImage.width > 0 && this.tutorialBorderImage.height > 0) {
-                const img = this.tutorialBorderImage;
-                const sw = img.width;
-                const sh = img.height;
-                const cX = Math.min(16, Math.floor(sw / 2));
-                const cY = Math.min(16, Math.floor(sh / 2));
-                
-                const mSw = Math.max(0, sw - cX * 2);
-                const mSh = Math.max(0, sh - cY * 2);
-                const mDw = Math.max(0, bWidth - cX * 2);
-                const mDh = Math.max(0, bHeight - cY * 2);
-
-                if (mSw > 0 && mSh > 0 && mDw > 0 && mDh > 0) {
-                    // Top-left
-                    this.ctx.drawImage(img, 0, 0, cX, cY, bX, bY, cX, cY);
-                    // Top-middle
-                    this.ctx.drawImage(img, cX, 0, mSw, cY, bX + cX, bY, mDw, cY);
-                    // Top-right
-                    this.ctx.drawImage(img, sw - cX, 0, cX, cY, bX + bWidth - cX, bY, cX, cY);
-                    
-                    // Middle-left
-                    this.ctx.drawImage(img, 0, cY, cX, mSh, bX, bY + cY, cX, mDh);
-                    // Center
-                    this.ctx.drawImage(img, cX, cY, mSw, mSh, bX + cX, bY + cY, mDw, mDh);
-                    // Middle-right
-                    this.ctx.drawImage(img, sw - cX, cY, cX, mSh, bX + bWidth - cX, bY + cY, cX, mDh);
-                    
-                    // Bottom-left
-                    this.ctx.drawImage(img, 0, sh - cY, cX, cY, bX, bY + bHeight - cY, cX, cY);
-                    // Bottom-middle
-                    this.ctx.drawImage(img, cX, sh - cY, mSw, cY, bX + cX, bY + bHeight - cY, mDw, cY);
-                    // Bottom-right
-                    this.ctx.drawImage(img, sw - cX, sh - cY, cX, cY, bX + bWidth - cX, bY + bHeight - cY, cX, cY);
-                } else {
-                    // Fallback to stretching if image is too small for 9-slice
-                    this.ctx.drawImage(img, bX, bY, bWidth, bHeight);
+            if (this.tutorialPatternImage.complete && this.tutorialMaskImage.complete && this.tutorialBorderImage.complete) {
+                if (!this.tutorialOffscreenCanvas) {
+                    this.tutorialOffscreenCanvas = document.createElement('canvas');
+                    this.tutorialOffscreenCtx = this.tutorialOffscreenCanvas.getContext('2d');
                 }
+                
+                if (this.tutorialOffscreenCanvas.width !== bWidth || this.tutorialOffscreenCanvas.height !== bHeight) {
+                    this.tutorialOffscreenCanvas.width = bWidth;
+                    this.tutorialOffscreenCanvas.height = bHeight;
+                }
+                
+                const offCtx = this.tutorialOffscreenCtx;
+                offCtx.clearRect(0, 0, bWidth, bHeight);
+                
+                const draw9Slice = (ctx, img, dx, dy, dw, dh) => {
+                    const sw = img.width;
+                    const sh = img.height;
+                    const cX = Math.min(16, Math.floor(sw / 2));
+                    const cY = Math.min(16, Math.floor(sh / 2));
+                    const mSw = Math.max(0, sw - cX * 2);
+                    const mSh = Math.max(0, sh - cY * 2);
+                    const mDw = Math.max(0, dw - cX * 2);
+                    const mDh = Math.max(0, dh - cY * 2);
+                    if (mSw > 0 && mSh > 0 && mDw > 0 && mDh > 0) {
+                        ctx.drawImage(img, 0, 0, cX, cY, dx, dy, cX, cY);
+                        ctx.drawImage(img, cX, 0, mSw, cY, dx + cX, dy, mDw, cY);
+                        ctx.drawImage(img, sw - cX, 0, cX, cY, dx + dw - cX, dy, cX, cY);
+                        ctx.drawImage(img, 0, cY, cX, mSh, dx, dy + cY, cX, mDh);
+                        ctx.drawImage(img, cX, cY, mSw, mSh, dx + cX, dy + cY, mDw, mDh);
+                        ctx.drawImage(img, sw - cX, cY, cX, mSh, dx + dw - cX, dy + cY, cX, mDh);
+                        ctx.drawImage(img, 0, sh - cY, cX, cY, dx, dy + dh - cY, cX, cY);
+                        ctx.drawImage(img, cX, sh - cY, mSw, cY, dx + cX, dy + dh - cY, mDw, cY);
+                        ctx.drawImage(img, sw - cX, sh - cY, cX, cY, dx + dw - cX, dy + dh - cY, cX, cY);
+                    } else {
+                        ctx.drawImage(img, dx, dy, dw, dh);
+                    }
+                };
+
+                // Draw mask sprite 9-sliced
+                offCtx.globalCompositeOperation = 'source-over';
+                draw9Slice(offCtx, this.tutorialMaskImage, 0, 0, bWidth, bHeight);
+                
+                // Draw scrolling pattern masked to the bubble
+                offCtx.globalCompositeOperation = 'source-in';
+                const pat = offCtx.createPattern(this.tutorialPatternImage, 'repeat');
+                offCtx.fillStyle = pat;
+                offCtx.save();
+                offCtx.translate(this.tutorialTexX, this.tutorialTexX);
+                offCtx.fillRect(-this.tutorialTexX, -this.tutorialTexX, bWidth + 64, bHeight + 64);
+                offCtx.restore();
+                
+                // Draw border sprite 9-sliced on top
+                offCtx.globalCompositeOperation = 'source-over';
+                draw9Slice(offCtx, this.tutorialBorderImage, 0, 0, bWidth, bHeight);
+                
+                // Draw onto main canvas
+                this.ctx.drawImage(this.tutorialOffscreenCanvas, bX, bY);
             }
             
             // Draw text
@@ -1103,8 +1113,6 @@ class Game {
                     if (key === " ") return "SPACE";
                     return key.toUpperCase();
                 };
-                
-                let processedText = this.currentTutorialText.replace(/\\n/g, '\n');
                 
                 const macros = {
                     '[J]': formatKey(this.settings.bindings.jump),
@@ -1161,7 +1169,7 @@ class Game {
                                 continue;
                             }
                             
-                            const bounceY = Math.sin(this.tutorialWaveTimer * 5 + charCount) * 1.5;
+                            const bounceY = Math.sin(this.tutorialWaveTimer * 10 + charCount) * 1.5;
                             
                             const charIdx = charset.indexOf(char);
                             let imgToDraw = null;
@@ -1172,7 +1180,7 @@ class Game {
                             
                             if (imgToDraw) {
                                 this.ctx.drawImage(imgToDraw, charX, charY + bounceY);
-                                charX += imgToDraw.width + 2;
+                                charX += imgToDraw.width - 4;
                             } else {
                                 this.ctx.save();
                                 this.ctx.fillStyle = '#000000';
@@ -1185,7 +1193,7 @@ class Game {
                         }
                     } else if (token.type === 'key') {
                         charCount++;
-                        const bounceY = Math.sin(this.tutorialWaveTimer * 5 + charCount) * 1.5;
+                        const bounceY = Math.sin(this.tutorialWaveTimer * 10 + charCount) * 1.5;
                         const keyName = token.val;
                         const img = this.getKeyImage(keyName);
                         
@@ -1197,13 +1205,34 @@ class Game {
                             const bImg = this.tutorialBlankKeyImage;
                             this.ctx.drawImage(bImg, charX, charY + 6 + bounceY);
                             
-                            this.ctx.save();
-                            this.ctx.fillStyle = '#000000';
-                            this.ctx.font = 'bold 14px "Outfit", sans-serif';
-                            this.ctx.textAlign = 'center';
-                            this.ctx.textBaseline = 'middle';
-                            this.ctx.fillText(keyName, charX + bImg.width/2, charY + 6 + bImg.height/2 + bounceY);
-                            this.ctx.restore();
+                            let totalW = 0;
+                            for(let i=0; i<keyName.length; i++) {
+                               const c = keyName[i];
+                               const idx = charset.indexOf(c);
+                               if (c === ' ') totalW += 16;
+                               else if (idx !== -1 && this.tutorialFontImages[idx]) totalW += this.tutorialFontImages[idx].width - 4;
+                               else totalW += 16;
+                            }
+                            if (keyName.length > 0) totalW -= -2;
+
+                            let kx = charX + bImg.width/2 - totalW/2;
+                            let ky = charY - 2; // Align with regular text baseline but slightly higher
+                            for(let i=0; i<keyName.length; i++) {
+                               const c = keyName[i];
+                               if (c === ' ') { kx += 16; continue; }
+                               const idx = charset.indexOf(c);
+                               if (idx !== -1 && this.tutorialFontImages[idx]) {
+                                   this.ctx.drawImage(this.tutorialFontImages[idx], kx, ky + bounceY);
+                                   kx += this.tutorialFontImages[idx].width - 4;
+                               } else {
+                                   this.ctx.save();
+                                   this.ctx.fillStyle = '#000000';
+                                   this.ctx.font = 'bold 14px "Outfit", sans-serif';
+                                   this.ctx.fillText(c, kx, ky + 12 + bounceY);
+                                   this.ctx.restore();
+                                   kx += 16;
+                               }
+                            }
                             
                             charX += bImg.width + 4;
                         } else {
