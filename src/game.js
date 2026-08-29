@@ -280,6 +280,14 @@ class Game {
         addTouch('mbtn-run', 'run');
         addTouch('mbtn-grab', 'grab');
 
+        const btnPause = document.getElementById('mbtn-pause');
+        if (btnPause) {
+            btnPause.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.togglePause();
+            }, { passive: false });
+        }
+
         // Mouse Events for Editor
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
