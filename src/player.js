@@ -459,7 +459,7 @@ class Player {
         }
 
         // Suplex Grab Trigger
-        if (this.grabBufferTimer > 0 && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
+        if (this.grabBufferTimer > 0 && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
             this.isSuplexGrabbing = true;
             // TODO: 나중에 스프라이트가 추가되면 애니메이션 길이에 맞춰 취소되도록 수정할 예정
             this.suplexGrabTimer = 32; // 32 frames
@@ -675,6 +675,10 @@ class Player {
                             this.vx = 0; // 벽타기 중 천장에 부딪히면 수평 속도 0
                             this.isRunning = false; // 달리기 상태 취소
                             this.wasRunningLastFrame = false; // 다음 프레임에서 달리기 강제 부활 방지
+                            
+                            // 유저 요청: 벽타고 천장에 부딪히면 groundpound land 상태로 전환
+                            this.isGroundPoundLand = true;
+                            this.groundPoundLandTimer = 4;
                         }
                         if (entity.type === 'destroyable') {
                             entity.destroy();
@@ -826,7 +830,7 @@ class Player {
         }
 
         if (this.jumpBufferTimer > 0) {
-            if (this.isGrounded) {
+            if (this.isGrounded && !this.isGroundPoundLand) {
                 if (this.isCrouching) {
                     this.vy = -8;
                 } else {
