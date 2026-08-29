@@ -661,7 +661,7 @@ class Player {
                         if (this.isGroundPounding) {
                             this.isGroundPounding = false;
                             this.isGroundPoundLand = true;
-                            this.groundPoundLandTimer = 4;
+                            this.groundPoundLandTimer = 8;
                             this.requestScreenShake = 15; // Set screen shake intensity
                             if (audio) audio.playFile('sfx_groundpound', true);
                         } else {
@@ -678,7 +678,7 @@ class Player {
                             
                             // 유저 요청: 벽타고 천장에 부딪히면 groundpound land 상태로 전환
                             this.isGroundPoundLand = true;
-                            this.groundPoundLandTimer = 4;
+                            this.groundPoundLandTimer = 8;
                         }
                         if (entity.type === 'destroyable') {
                             entity.destroy();
