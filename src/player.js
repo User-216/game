@@ -271,7 +271,13 @@ class Player {
                     this.vx = runDir * this.runInitialSpeed;
                 }
                 // Gradually accelerate up to max speed
-                this.vx += runDir * this.runAccel;
+                if (runDir === 1 && this.vx < this.machMaxSpeed) {
+                    this.vx += this.runAccel;
+                    if (this.vx > this.machMaxSpeed) this.vx = this.machMaxSpeed;
+                } else if (runDir === -1 && this.vx > -this.machMaxSpeed) {
+                    this.vx -= this.runAccel;
+                    if (this.vx < -this.machMaxSpeed) this.vx = -this.machMaxSpeed;
+                }
             }
         }
 
@@ -349,7 +355,8 @@ class Player {
         const targetMaxSpeed = isCurrentlyRunning ? this.runMaxSpeed : this.maxSpeed;
 
         // Clamp speed (마하 슬라이드나 잡기, 구르기, 땅찍기 중에는 클램프 생략)
-        if (!this.isMachSliding && !this.isSuplexGrabbing && !this.isTumbling && !this.isGroundPounding) {
+        // 유저 요청: 달리기 중(isRunning)일 때는 벽타기로 얻은 높은 속도(예: 20)를 강제로 16으로 깎지 않고 유지
+        if (!this.isMachSliding && !this.isSuplexGrabbing && !this.isTumbling && !this.isGroundPounding && !this.isRunning) {
             if (this.vx > targetMaxSpeed) {
                 this.vx -= 0.5;
                 if (this.vx < targetMaxSpeed) this.vx = targetMaxSpeed;
