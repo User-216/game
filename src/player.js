@@ -1072,6 +1072,7 @@ class Player {
         ctx.textAlign = 'center';
         let debugState = this.state; // 'normal', 'crouch', 'tumble'
         if (this.isGroundPounding) debugState = 'groundpound';
+        else if (this.isGroundPoundLand) debugState = 'groundpound land';
         else if (this.isClimbing) debugState = 'climbing';
         else if (this.isMachSliding) debugState = 'machslide';
         else if (this.isDrifting || this.isDrifting1) debugState = 'drifting';
