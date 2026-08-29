@@ -680,6 +680,7 @@ class Player {
                         // 달리기 중 벽에 닿았을 때 자동으로 벽타기 트리거
                         if (!this.isClimbing && this.isRunning) {
                             this.isClimbing = true;
+                            this.isSuplexGrabbing = false; // 잡기 중이었다면 벽타기로 전환
                             // resolution.amount < 0 이면 벽이 오른쪽에 있음 -> climbSide = 1
                             this.climbSide = resolution.amount < 0 ? 1 : -1;
                             // 현재 수평 속도를 수직 등반 속도로 전환
