@@ -21,6 +21,18 @@ class Physics {
         const overlapX = Math.min(entity.x + entity.width, platform.x + platform.width) - Math.max(entity.x, platform.x);
         const overlapY = Math.min(entity.y + entity.height, platform.y + platform.height) - Math.max(entity.y, platform.y);
 
+        // If the entity is falling fast, their previous Y position might indicate a clear vertical collision
+        const prevBottom = (entity.y - (entity.vy || 0)) + entity.height;
+        const wasAbove = prevBottom <= platform.y + 0.1;
+
+        if (wasAbove && overlapY > 0) {
+            // Definitely a vertical collision from above
+            return {
+                axis: 'y',
+                amount: -overlapY
+            };
+        }
+
         if (overlapX < overlapY) {
             // Horizontal collision
             return {

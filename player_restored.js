@@ -24,10 +24,6 @@ class Player {
         this.isGroundPounding = false;
         this.isGroundPoundLand = false;
         this.groundPoundLandTimer = 0;
-        this.isCrouching = false;
-        this.isTumbling = false;
-        this.isSuplexGrabbing = false;
-        this.suplexGrabTimer = 0;
         this.requestScreenShake = 0;
         this.isClimbing = false;
         this.climbSide = 0; // -1 for left wall, 1 for right wall
@@ -40,9 +36,6 @@ class Player {
         this.wasRunningLastFrame = false;
         this.isNoClip = false;
         this.canJump = true;
-        this.jumpBufferTimer = 0;
-        this.canGrab = true;
-        this.grabBufferTimer = 0;
         this.facingDir = 1;
         this.insideHallway = false;
 
@@ -55,7 +48,7 @@ class Player {
 
         // Mach Afterimage (Pizza Tower style)
         this.machAfters = [];
-        this.machThreshold = 11.9;
+        this.machThreshold = 10;
         this.machColors = ['#ff0000', '#00ff00', '#bf00ff']; // Red, Green, Purple
         this.machColorIndex = 0;
         this.machFrameCount = 0;
@@ -65,7 +58,6 @@ class Player {
         this.ghostAfters = [];
 
         // Sprites
-        this.state = 'normal';
         this.sprite_index = 'spr_player_idle';
         this.image_index = 0;
         this.image_speed = 0.4;
@@ -81,38 +73,11 @@ class Player {
         // Mask
         this.mask_image = new Image();
         this.mask_image.src = 'player/spr_player_mask.png';
-        this.mask_image_crouch = new Image();
-        this.mask_image_crouch.src = 'player/spr_player_maskc.png';
-        this.frameCount = 0;
     }
 
     update(keys, entities, audio) {
-        this.frameCount++;
-        this.wasGrounded = this.isGrounded;
-        let isCurrentlyRunning = !!keys.actionRun;
-        
-        // 웅크리고 있을 때는 달리기 불가
-        if (this.isCrouching) {
-            isCurrentlyRunning = false;
-        }
-
-        // 공중에서는 달리기를 도중에 멈출 수 없음 (단, 벽에 부딪히거나 타는 중일 때는 제외)
-        if (!this.isGrounded && this.wasRunningLastFrame && !this.isClimbing && !this.isWalled) {
-            isCurrentlyRunning = true;
-        }
-
-        // 공중에서는 새로 달리기를 시작할 수 없고, 땅찍기 중에는 달리기가 취소됨
-        if (this.isGroundPounding) {
-            isCurrentlyRunning = false;
-        } else if (!this.isGrounded && !this.wasRunningLastFrame) {
-            isCurrentlyRunning = false;
-        }
-
-        // 구르기 중에는 달리기 취소 불가능
-        if (this.isTumbling) {
-            isCurrentlyRunning = true;
-        }
-
+        const currentMaxSpeed = keys.actionRun ? this.runMaxSpeed : this.maxSpeed;
+        const isCurrentlyRunning = !!keys.actionRun;
 
         // Noclip Trigger
         if (keys['1']) {
@@ -148,14 +113,14 @@ class Player {
             return;
         }
 
-        // Running cancel triggers: 땅에서 달리던 중 Shift를 떼면 슬라이드 발동 (구르기 중에는 제외)
-        if (this.wasRunningLastFrame && !isCurrentlyRunning && this.isGrounded && !this.isTumbling) {
+        // Running cancel triggers: 달리던 중 Shift를 떼면 발동
+        if (this.wasRunningLastFrame && !keys.actionRun) {
             if (audio) {
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
                 audio.playFile('sfx_break', true);
             }
-            if (Math.abs(this.vx) >= this.machThreshold && !this.isDrifting && !this.isDrifting1) {
+            if (Math.abs(this.vx) > 8 && !this.isDrifting && !this.isDrifting1) {
                 this.isMachSliding = true;
             }
         }
@@ -167,42 +132,19 @@ class Player {
 
         this.isRunning = isCurrentlyRunning;
 
-        // Suplex Grab 취소 로직: 돌진 방향과 반대 방향키를 누르면 즉시 취소
-        if (this.isSuplexGrabbing) {
-            if ((this.facingDir === 1 && keys.actionLeft) || (this.facingDir === -1 && keys.actionRight)) {
-                this.isSuplexGrabbing = false;
-                this.vx = 0; // 공중/지상 상관없이 즉시 정지 (관성 제거)
-            }
-        }
-
         // Horizontal Movement (드리프트나 마하 슬라이드 중이 아닐 때만 조작 가능)
-        if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping) {
+        if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding) {
             let effLeft = keys.actionLeft;
             let effRight = keys.actionRight;
             
-            // 구르기(tumble) 중에는 좌우 방향 전환 불가 (관성 유지)
-            if (this.isTumbling) {
-                effLeft = false;
-                effRight = false;
-            }
-            
-            // 공중에서 빠르게 달리는 중이면 방향 전환(키 입력)을 무시하고 현재 방향을 강제 유지 (다이브밤 중에는 예외)
-            if (!this.isGrounded && this.isRunning && Math.abs(this.vx) >= 6 && !this.isGroundPounding) {
-                effLeft = this.facingDir === -1;
-                effRight = this.facingDir === 1;
-            }
-            // 달리기 중인데 방향키를 안 누르고 있다면 바라보는 방향으로 자동 달리기 (다이브밤 중에는 자동 전진 금지)
-            else if (this.isRunning && !keys.actionLeft && !keys.actionRight && !this.isGroundPounding) {
+            // 달리기 중인데 방향키를 안 누르고 있다면 바라보는 방향으로 자동 달리기
+            if (this.isRunning && !keys.actionLeft && !keys.actionRight) {
                 if (this.facingDir === -1) effLeft = true;
                 else if (this.facingDir === 1) effRight = true;
             }
 
-            const activeMaxSpeed = this.isCrouching ? 4 : this.maxSpeed;
-
             if (effLeft) {
-                if (!this.isTumbling && !this.isSuplexGrabbing) this.facingDir = -1;
-                
-                if (this.isRunning && this.vx > 0 && this.vx < this.machThreshold) {
+                if (this.isRunning && this.vx > 0 && this.vx <= 8) {
                     this.vx = -6;
                 } else if (!this.isRunning && this.vx > 0) {
                     // 걷는 중 방향을 꺾을 때: 미끄러지지 않고 즉시 속도를 반대로 뒤집음
@@ -210,18 +152,13 @@ class Player {
                 } else {
                     const canSlowDown = !this.isRunning || this.vx <= 0;
                     if (canSlowDown) {
-                        if (this.vx > -activeMaxSpeed) {
+                        if (this.vx > -this.maxSpeed) {
                             this.vx -= this.speed;
-                        } else if (this.isCrouching && this.vx < -activeMaxSpeed) {
-                            // If they were moving fast and then crouch, slow them down to activeMaxSpeed
-                            this.vx += this.speed; 
                         }
                     }
                 }
             } else if (effRight) {
-                if (!this.isTumbling && !this.isSuplexGrabbing) this.facingDir = 1;
-
-                if (this.isRunning && this.vx < 0 && this.vx > -this.machThreshold) {
+                if (this.isRunning && this.vx < 0 && this.vx >= -8) {
                     this.vx = 6;
                 } else if (!this.isRunning && this.vx < 0) {
                     // 걷는 중 방향을 꺾을 때: 미끄러지지 않고 즉시 속도를 반대로 뒤집음
@@ -229,26 +166,19 @@ class Player {
                 } else {
                     const canSlowDown = !this.isRunning || this.vx >= 0;
                     if (canSlowDown) {
-                        if (this.vx < activeMaxSpeed) {
+                        if (this.vx < this.maxSpeed) {
                             this.vx += this.speed;
-                        } else if (this.isCrouching && this.vx > activeMaxSpeed) {
-                            // If they were moving fast and then crouch, slow them down to activeMaxSpeed
-                            this.vx -= this.speed;
                         }
                     }
                 }
             } else {
                 // 방향키를 누르지 않았을 때
-                if (this.isTumbling || this.isSuplexGrabbing || this.isGroundPounding) {
-                    // 구르기/잡기 돌진/다이브밤 중에는 감속 없이 속도 완전 유지
-                } else {
-                    this.vx = 0;
-                }
+                this.vx = 0;
             }
         }
 
         // Running acceleration logic
-        if (this.isRunning && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling && !this.isCrouching) {
+        if (this.isRunning && !this.isDrifting && !this.isDrifting1) {
             let effLeft = keys.actionLeft;
             let effRight = keys.actionRight;
             if (!keys.actionLeft && !keys.actionRight) {
@@ -268,9 +198,9 @@ class Player {
         }
 
         // Drifting Logic
-        // Trigger: isRunning AND fast AND pressing opposite direction AND grounded
-        const isPressingOpposite = (this.vx >= this.machThreshold && keys.actionLeft) || (this.vx <= -this.machThreshold && keys.actionRight);
-        if (this.isRunning && Math.abs(this.vx) >= this.machThreshold && isPressingOpposite && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling) {
+        // Trigger: isRunning AND fast AND pressing opposite direction
+        const isPressingOpposite = (this.vx > 8 && keys.actionLeft) || (this.vx < -8 && keys.actionRight);
+        if (this.isRunning && Math.abs(this.vx) > 8 && isPressingOpposite && !this.isDrifting && !this.isDrifting1) {
             if (Math.abs(this.vx) >= this.machThreshold) {
                 this.isDrifting = true;
             } else {
@@ -338,159 +268,21 @@ class Player {
             }
         }
 
-        const targetMaxSpeed = isCurrentlyRunning ? this.runMaxSpeed : this.maxSpeed;
-
-        // Clamp speed (마하 슬라이드나 잡기, 구르기, 땅찍기 중에는 클램프 생략)
-        if (!this.isMachSliding && !this.isSuplexGrabbing && !this.isTumbling && !this.isGroundPounding) {
-            if (this.vx > targetMaxSpeed) {
-                this.vx -= 0.5;
-                if (this.vx < targetMaxSpeed) this.vx = targetMaxSpeed;
-            } else if (this.vx < -targetMaxSpeed) {
-                this.vx += 0.5;
-                if (this.vx > -targetMaxSpeed) this.vx = -targetMaxSpeed;
-            }
+        // Clamp speed (마하 슬라이드 중에는 감속 중이므로 클램프 생략하거나 유연하게 처리)
+        if (!this.isMachSliding) {
+            if (this.vx > currentMaxSpeed) this.vx = currentMaxSpeed;
+            if (this.vx < -currentMaxSpeed) this.vx = -currentMaxSpeed;
         }
 
-        // Crouch & Tumble Logic
-        let wantCrouch = false;
-        let wantTumble = false;
-
-        if (keys.actionDown && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand) {
-            if (this.isSuplexGrabbing) {
-                // 잡기 돌진 중 아래를 누르면 돌진을 취소하고 즉시 구르기로 연계하며 속도를 12로 부스트
-                wantTumble = true;
-                this.isSuplexGrabbing = false;
-                this.suplexGrabTimer = 0;
-                this.vx = 12 * this.facingDir;
-            } else if (this.isTumbling) {
-                // Keep tumbling even if falling in air
-                wantTumble = true;
-            } else if (this.isGrounded) {
-                // 달리고 있거나 속도가 걷기 최대 속도(7)보다 빠를 때만 구르기 발동
-                if (Math.abs(this.vx) > this.maxSpeed) {
-                    wantTumble = true;
-                } else {
-                    wantCrouch = true;
-                }
-            } else if (!this.isGrounded) {
-                // 달리는 속도일 때만 공중 구르기(다이브) 발동, 아니면 그냥 엉덩이 찍기(crouch) 준비
-                if (Math.abs(this.vx) > this.maxSpeed) {
-                    wantTumble = true;
-                }
-            } else if (this.isCrouching) {
-                wantCrouch = true;
-            }
-        }
-
-        const isCurrentlySmall = this.isCrouching || this.isTumbling;
-        if (isCurrentlySmall && !wantCrouch && !wantTumble) {
-            // Check ceiling before uncrouching/untumbling
-            const headBox = { x: this.x, y: this.y - 22, width: 26, height: 22 };
-            let hitCeiling = false;
-            for (let entity of entities) {
-                if (entity.isDestroyed || entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'left-up' || entity.type === 'right-up') continue;
-                if (Physics.checkCollision(headBox, entity)) {
-                    hitCeiling = true;
-                    break;
-                }
-            }
-            if (hitCeiling) {
-                // Forced to stay small, keep current state
-                if (this.isTumbling) wantTumble = true;
-                else wantCrouch = true;
-            }
-        }
-
-        const willBeSmall = wantCrouch || wantTumble;
-        if (willBeSmall !== isCurrentlySmall) {
-            if (willBeSmall) {
-                this.height = 23;
-                this.y += 22; // shift down
-                // 공중에서 구르기(다이브) 시작 시, 위로 상승 중일 때는 뚝 떨어지지 않도록 보정
-                if (wantTumble && !this.isGrounded) {
-                    if (this.vy < 0) {
-                        // 위로 올라가고 있다면 상승 속도를 조금 줄여주기만 함
-                        this.vy *= 0.5;
-                    } else {
-                        // 아래로 떨어지는 중이거나 정점이라면 빠르게 내리꽂음
-                        this.vy = 10;
-                    }
-                }
-            } else {
-                this.height = 45;
-                this.y -= 22; // shift up
-            }
-        }
-
-        this.isCrouching = wantCrouch;
-        this.isTumbling = wantTumble;
-
-        if (this.isSuplexGrabbing) {
-            this.state = 'suplexgrab';
-        } else if (this.isTumbling) {
-            this.state = 'tumble';
-            // Tumble maintains momentum, no forced stop
-        } else if (this.isCrouching) {
-            this.state = 'crouch';
-            // 기어가기를 위해 강제 정지(this.vx = 0) 제거
-        } else {
-            this.state = 'normal';
-        }
-
-        if (!keys.actionGrab) {
-            this.canGrab = true;
-        }
-
-        if (this.grabBufferTimer > 0) {
-            this.grabBufferTimer--;
-        }
-
-        if (keys.actionGrab && this.canGrab) {
-            this.grabBufferTimer = 18; // 18 frames (0.3s) of grab buffer
-            this.canGrab = false; // Consume the grab press immediately
-        }
-
-        // Suplex Grab Trigger
-        if (this.grabBufferTimer > 0 && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
-            this.isSuplexGrabbing = true;
-            // TODO: 나중에 스프라이트가 추가되면 애니메이션 길이에 맞춰 취소되도록 수정할 예정
-            this.suplexGrabTimer = 32; // 32 frames
-            this.grabBufferTimer = 0; // Consume the buffer
-        }
-
-        // Suplex Grab Logic
-        if (this.isSuplexGrabbing) {
-            if (this.suplexGrabTimer > 0 || !this.isGrounded) {
-                if (this.suplexGrabTimer > 0) {
-                    this.suplexGrabTimer--;
-                }
-                let absVx = Math.abs(this.vx);
-                if (absVx < 8) {
-                    absVx = 8;
-                }
-                if (absVx < 10) {
-                    absVx += 0.5;
-                    if (absVx > 10) absVx = 10;
-                }
-                this.vx = absVx * this.facingDir;
-            } else {
-                this.isSuplexGrabbing = false;
-            }
-        }
-
-        // Ground Pound Trigger (점프/이동과 마찬가지로 드리프트, 벽타기 중에는 발동 불가, 구르기 중에도 발동 불가)
-        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isTumbling) {
+        // Ground Pound Trigger (점프/이동과 마찬가지로 드리프트 중에는 발동 불가)
+        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1) {
             this.isGroundPounding = true;
-            this.vy = -10; // Upward hop
-            // this.vx = 0;   // Cancel horizontal momentum (Removed to maintain speed)
+            this.vy = -18; // Upward hop
+            this.vx = 0;   // Cancel horizontal momentum
             if (audio) audio.play('groundpound');
         }
 
         // Apply Gravity / Ground Pound Descent / Climbing
-        if (this.isClimbing && !this.isRunning) {
-            this.isClimbing = false;
-        }
-
         if (this.isClimbing) {
             // Accelerate upward by 0.05 each frame.
             this.vy -= 0.05;
@@ -500,7 +292,7 @@ class Player {
             // Force player against the wall
             this.x += this.climbSide * 2;
         } else if (this.isGroundPounding) {
-            this.vy += 1.2; // Slightly reduced downward acceleration for better control
+            this.vy += 2; // Immediate heavy downward acceleration as requested
         } else if (this.isMachSliding && !this.isGrounded) {
             // 슬라이드 중 공중에 뜨면 슬라이드 중단 (또는 계속 유지할지 결정)
             // 여기선 관성을 위해 유지하되 중력 적용
@@ -509,14 +301,13 @@ class Player {
             this.vy += this.gravity;
         }
 
-        // Clamp falling speed to 20 (ground pound is capped at 40 to prevent collision clipping)
-        if (this.vy > 20 && !this.isGroundPounding) {
-            this.vy = 20;
-        } else if (this.isGroundPounding && this.vy > 40) {
-            this.vy = 40;
-        }
+        // Clamp falling speed to 20 as requested
+        if (this.vy > 20) this.vy = 20;
 
-        // Wall Slide friction removed
+        // Wall Slide friction
+        if (this.isWalled && this.vy > 0) {
+            this.vy *= 0.5; // Slow down fall
+        }
 
         if (this.isGroundPoundLand) {
             this.vx = 0;
@@ -530,13 +321,10 @@ class Player {
         this.x += this.vx;
         this.y += this.vy;
 
-        // 방향 업데이트 (드리프트나 벽타기, 구르기 중이 아닐 때만 키 입력에 따라 방향 결정)
-        if (!this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isWallJumping && !this.isTumbling) {
-            // 공중에서 달리는 중일 때는 방향 전환 불가
-            if (this.isGrounded || !this.isRunning) {
-                if (keys.actionLeft) this.facingDir = -1;
-                else if (keys.actionRight) this.facingDir = 1;
-            }
+        // 방향 업데이트 (드리프트 중이 아닐 때만 키 입력에 따라 방향 결정)
+        if (!this.isDrifting && !this.isDrifting1) {
+            if (keys.actionLeft) this.facingDir = -1;
+            else if (keys.actionRight) this.facingDir = 1;
         }
 
         // 다음 프레임을 위해 현재 달리기 상태 저장
@@ -548,13 +336,13 @@ class Player {
         this.wallSide = 0;
         // isGroundPounding will be reset upon hitting ground in collision resolution
 
-        // Mach Afterimage Update (마하 상태일 때만 잔상 생성)
-        if (Math.abs(this.vx) >= this.machThreshold) {
+        // Mach Afterimage Update (속도가 빠르거나, 등반 중이거나, 드리프트 또는 슬라이드 중일 때 잔상 생성)
+        if (Math.abs(this.vx) >= this.machThreshold || (this.isClimbing && Math.abs(this.vy) >= 8) || this.isDrifting || this.isDrifting1 || this.isMachSliding || (this.isGroundPounding && this.vy >= 20)) {
             this.machFlashTimer++;
             this.machFrameCount++;
 
-            // Create a new mach afterimage every 5 frames
-            if (this.machFrameCount % 5 === 0) {
+            // Create a new mach afterimage every 4 frames
+            if (this.machFrameCount % 4 === 0) {
                 const color = this.machColors[this.machColorIndex];
                 this.machAfters.unshift({
                     x: this.x,
@@ -562,8 +350,6 @@ class Player {
                     sprite_index: this.sprite_index,
                     image_index: this.image_index,
                     facingDir: this.facingDir,
-                    isCrouching: this.isCrouching,
-                    isTumbling: this.isTumbling,
                     color: color,
                     alpha: 0.8,
                     life: 20 // 20 frames lifespan
@@ -595,8 +381,6 @@ class Player {
                 sprite_index: this.sprite_index,
                 image_index: this.image_index,
                 facingDir: this.facingDir,
-                isCrouching: this.isCrouching,
-                isTumbling: this.isTumbling,
                 alpha: 0.2,
                 life: 15 // Shorter life for a denser feel
             });
@@ -611,36 +395,36 @@ class Player {
             }
         });
 
-        // Collision Resolution Pass 1: Normal AABB
+        // Collision Resolution
         entities.forEach(entity => {
             if (entity.isDestroyed) return;
-            if (entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'slope') return;
-            if (entity.type === 'left-up' || entity.type === 'right-up') return;
+            if (entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook') return;
+
+            // Slope Handling
+            if (entity.type === 'left-up' || entity.type === 'right-up') {
+                const slopeY = Physics.getSlopeHeight(this, entity);
+                if (slopeY !== null && this.y + this.height > slopeY - 5 && this.y + this.height <= slopeY + 20) {
+                    // Ground Pound transition to slope run
+                    if (this.isGroundPounding) {
+                        const speed = this.vy >= 20 ? 12 : 8;
+                        this.vx = (entity.type === 'left-up') ? -speed : speed;
+                        this.isGroundPounding = false;
+                    }
+                    this.y = slopeY - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+                return;
+            }
 
             // Normal AABB Support
             const resolution = Physics.resolveAABB(this, entity);
             if (resolution) {
-                // Step Up logic: If resolved horizontally, but feet are near the top of the block, convert to vertical
-                if (resolution.axis === 'x') {
-                    const overlapAtFeet = (this.y + this.height) - entity.y;
-                    if (overlapAtFeet > 0 && overlapAtFeet <= 25 && this.y < entity.y) {
-                        resolution.axis = 'y';
-                        resolution.amount = -overlapAtFeet;
-                    }
-                }
-
                 if (resolution.axis === 'y') {
                     if (resolution.amount < 0) {
-                        // Ground Pound breaks blocks beneath
-                        if (this.isGroundPounding && entity.type === 'destroyable') {
-                            entity.destroy();
-                            if (audio) audio.play('break');
-                            return; // Skip collision resolution to plow through
-                        }
                         // Collision on bottom (Grounded)
                         this.isGrounded = true;
                         this.vy = 0;
-                        this.isWallJumping = false; // 점프 취소
                         if (this.isGroundPounding) {
                             this.isGroundPounding = false;
                             this.isGroundPoundLand = true;
@@ -667,8 +451,8 @@ class Player {
                         entity.destroy();
                         if (audio) audio.play('break');
                     } else {
-                        // 달리기 중 벽에 닿았을 때 자동으로 벽타기 트리거
-                        if (!this.isClimbing && this.isRunning) {
+                        // 벽에 닿았을 때 자동으로 벽타기 트리거
+                        if (!this.isClimbing) {
                             this.isClimbing = true;
                             // resolution.amount < 0 이면 벽이 오른쪽에 있음 -> climbSide = 1
                             this.climbSide = resolution.amount < 0 ? 1 : -1;
@@ -678,49 +462,10 @@ class Player {
                         }
 
                         this.isWalled = true;
-                        this.isWallJumping = false; // 벽점프 후 벽에 닿으면 초기화
                         this.wallSide = resolution.amount < 0 ? 1 : -1;
                         if (!this.isClimbing) this.vx = 0;
                         this.x += resolution.amount;
                     }
-                }
-            }
-        });
-
-        // Collision Resolution Pass 2: Slopes
-        entities.forEach(entity => {
-            if (entity.isDestroyed) return;
-            if (entity.type === 'left-up' || entity.type === 'right-up') {
-                const slopeY = Physics.getSlopeHeight(this, entity);
-                
-                // If the player was grounded, allow a larger snap distance downward to prevent bouncing down slopes
-                const snapUp = this.wasGrounded ? 30 : 5;
-                
-                if (slopeY !== null && this.y + this.height > slopeY - snapUp && this.y + this.height <= slopeY + 20) {
-                    
-                    // IF we already resolved AABB and are standing on a block HIGHER than this slope, ignore the slope!
-                    if (this.isGrounded && this.y + this.height < slopeY - 0.1) {
-                        return;
-                    }
-                    
-                    // Ground Pound transition to slope roll
-                    if (this.isGroundPounding) {
-                        const speed = this.vy >= 20 ? 12 : 8;
-                        this.vx = (entity.type === 'left-up') ? -speed : speed;
-                        this.facingDir = (entity.type === 'left-up') ? -1 : 1;
-                        this.isGroundPounding = false;
-                        
-                        // 강제로 구르기(Tumble) 상태 돌입 시, 높이(Hitbox) 즉시 조정
-                        if (!this.isTumbling && !this.isCrouching) {
-                            this.height = 23;
-                            this.y += 22;
-                        }
-                        this.isTumbling = true;
-                    }
-                    this.y = slopeY - this.height;
-                    this.vy = 0;
-                    this.isGrounded = true;
-                    this.isWallJumping = false;
                 }
             }
         });
@@ -770,7 +515,6 @@ class Player {
                             this.vx = this.climbSide * climbSpeed; // 등반 속도를 수평 속도로 전환
                             this.isGrounded = true;
                             this.isClimbing = false;
-                            this.isWallJumping = false;
                             ledgeLanded = true;
                         }
                     }
@@ -790,22 +534,13 @@ class Player {
             this.canJump = true;
         }
 
-        if (this.jumpBufferTimer > 0) {
-            this.jumpBufferTimer--;
-        }
-
-        if (keys.actionJump && this.canJump && !this.isDrifting && !this.isDrifting1) {
-            this.jumpBufferTimer = 18; // 18 frames (0.3s) of jump buffer
-            this.canJump = false; // Consume the jump press immediately
-        }
-
-        if (this.jumpBufferTimer > 0) {
-            if (this.isGrounded) {
+        if (keys.actionJump && !this.isDrifting && !this.isDrifting1) {
+            if (this.isGrounded && this.canJump) {
                 this.vy = this.jumpForce;
                 this.isGrounded = false;
-                this.jumpBufferTimer = 0;
+                this.canJump = false;
                 if (audio) audio.play('jump');
-            } else if (this.isClimbing) {
+            } else if ((this.isWalled || this.isClimbing) && this.canJump) {
                 // Wall Jump (Stronger if climbing or high speed)
                 this.vy = this.jumpForce * 1.2;
                 this.vx = -this.wallSide * 12;
@@ -813,46 +548,14 @@ class Player {
                 this.isClimbing = false;
                 this.isDrifting = false;
                 this.isDrifting1 = false; // Cancel drift on jump
-                this.isWallJumping = true;
-                this.facingDir = -this.wallSide;
-                this.jumpBufferTimer = 0;
+                this.canJump = false;
                 if (audio) audio.play('jump');
-            } else if (this.isTumbling) {
-                // Divebomb: Cancel air tumble into a normal ground pound
-                this.isTumbling = false;
-                this.isGroundPounding = true;
-                this.height = 45;
-                this.y -= 22; // Restore size
-                
-                this.vy = -10; // 엉덩이 찍기 처음 쓸 때처럼 위로 살짝 뜨는 동작 추가
-                // this.vx = 0;  // 삭제: 벽타기 후 다이브밤 시 가속도 유지
-                this.jumpBufferTimer = 0;
-                if (audio) audio.play('groundpound');
             }
         }
 
         // Variable Jump Height
         if (!this.isGrounded && this.vy < 0 && !keys.actionJump && !this.isGroundPounding && !this.isClimbing) {
             this.vy = 0;
-        }
-
-        // Tumble Fast Fall: 구르기 중 절벽에서 떨어질 때 즉시 뚝 떨어지도록 설정
-        if (this.isTumbling && this.wasGrounded && !this.isGrounded) {
-            this.vy = 10; // 떨어지기 시작하는 순간 속도를 10으로 설정 (빠르고 묵직하게)
-        }
-
-        // Determine sprite index
-        if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
-            this.sprite_index = 'spr_player_idle';
-        } else {
-            // 다른 상태에 대한 스프라이트가 아직 없으므로, 이동 중에도 임시로 idle 스프라이트 또는 빈 상태를 유지할 수 있습니다.
-            // 일단은 빈 상태('')로 리셋하지 않고 idle 스프라이트를 그대로 보여주거나, 
-            // 나중에 'spr_player_run' 등의 스프라이트가 추가되면 여기에서 처리합니다.
-            // this.sprite_index = ''; 
-        }
-        
-        if (this.sprite_index !== '') {
-            this.image_index += this.image_speed;
         }
 
         // Determine sprite index
@@ -887,12 +590,6 @@ class Player {
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
             }
-        }
-
-        // 공중에서 잡기 돌진 중 땅에 닿았다면 즉시 돌진 종료
-        if (this.isSuplexGrabbing && !this.wasGrounded && this.isGrounded) {
-            this.isSuplexGrabbing = false;
-            this.suplexGrabTimer = 0;
         }
     }
 
@@ -941,25 +638,21 @@ class Player {
                     // 원래 설정으로 복구
                     this.tintCtx.globalCompositeOperation = 'source-over';
                     
-                    const offsetY = (m.isCrouching || m.isTumbling) ? -68.5 : -57.5;
-                    ctx.drawImage(this.tintCanvas, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.tintCanvas, -51, -57.5, 100, 100);
                 } else {
-                    const offsetY = (m.isCrouching || m.isTumbling) ? -68.5 : -57.5;
-                    ctx.drawImage(imgToDraw, -51, offsetY, 100, 100);
+                    ctx.drawImage(imgToDraw, -51, -57.5, 100, 100);
                 }
                 ctx.restore();
             } else {
                 ctx.fillStyle = m.color || this.color;
-                // m doesn't store width/height, but for colored blocks we can assume they match current state or just draw fixed box
-                const h = (m.isCrouching || m.isTumbling) ? 23 : 45;
-                ctx.fillRect(m.x, m.y, this.width, h);
+                ctx.fillRect(m.x, m.y, this.width, this.height);
             }
         };
 
         // Draw Mach Afterimages (with flickering effect)
         this.machAfters.forEach((m, index) => {
-            // Flicker precisely every 3 frames (all afterimages blink together)
-            const isFlickering = Math.floor(this.frameCount / 3) % 2 === 0;
+            // Flicker based on a global timer or unique ID
+            const isFlickering = Math.floor(Date.now() / 50 + index) % 2 === 0;
             if (isFlickering) {
                 drawAfterImage(m, true);
             }
@@ -989,13 +682,14 @@ class Player {
                 const drawY = this.y;
                 
                 // Sprite is 100x100, mask bounding box is X:38, Y:35, W:26, H:45
-                // Center of hitbox relative to the sprite top-left: X=51, Y=57.5 (or 68.5 if crouched/tumbled)
+                // Top-left of sprite relative to the top-left of hitbox: X = -38, Y = -35.
+                // Center of hitbox relative to the sprite top-left: X=51, Y=57.5
                 ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
                 if (this.facingDir === -1) {
                     ctx.scale(-1, 1);
                 }
-                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                // Draw the 100x100 image so its bounding box aligns with the player hitbox
+                ctx.drawImage(img, -51, -57.5, 100, 100);
             }
         } else {
             let pColor = this.color;
@@ -1020,23 +714,5 @@ class Player {
             ctx.fillRect(eyeX, this.y + 10, 5, 5);
         }
         ctx.restore();
-
-        // 디버깅 및 상태 확인용: 플레이어 머리 위에 현재 상태 표시
-        ctx.fillStyle = 'white';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        let debugState = this.state; // 'normal', 'crouch', 'tumble'
-        if (this.isGroundPounding) debugState = 'groundpound';
-        else if (this.isClimbing) debugState = 'climbing';
-        else if (this.isMachSliding) debugState = 'machslide';
-        else if (this.isDrifting || this.isDrifting1) debugState = 'drifting';
-        else if (this.isSuplexGrabbing) debugState = 'suplexgrab';
-        
-        // 배경을 살짝 깔아주면 글씨가 더 잘 보입니다.
-        const textWidth = ctx.measureText(debugState).width;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(this.x + this.width / 2 - textWidth / 2 - 2, this.y - 22, textWidth + 4, 16);
-        ctx.fillStyle = 'white';
-        ctx.fillText(debugState, this.x + this.width / 2, this.y - 10);
     }
 }

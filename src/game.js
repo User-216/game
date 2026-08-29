@@ -47,6 +47,9 @@ class Game {
         this.stateInfo = document.getElementById('state-info');
         this.uiOverlay = document.getElementById('ui-overlay');
         
+        this.lastTime = performance.now();
+        this.accumulator = 0;
+        
         this.settings = {
             language: 'en',
             masterVolume: 100,
@@ -58,14 +61,16 @@ class Game {
             vsync: true,
             textureFiltering: false,
             screenShake: true,
-            cameraSpeed: 20,
+            cameraSpeed: 100,
+            showHitboxes: false,
             bindings: {
                 left: 'ArrowLeft',
                 right: 'ArrowRight',
                 up: 'ArrowUp',
                 down: 'ArrowDown',
                 jump: 'z',
-                run: 'Shift'
+                run: 'Shift',
+                grab: 'x'
             }
         };
         this.bindingKeyFor = null;
@@ -105,7 +110,7 @@ class Game {
         
         this.isEditorMode = false;
         this.selectedType = 'platform';
-        this.gridSize = 40;
+        this.gridSize = 32;
         this.dragStart = null;
         this.mousePos = { x: 0, y: 0 };
         
@@ -176,7 +181,7 @@ class Game {
         this.setupMenuUI();
         this.translateUI();
 
-        this.loop();
+        this.loop(performance.now());
     }
 
     translateUI() {
@@ -531,8 +536,18 @@ class Game {
 
     getMouseInWorld(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const canvasX = e.clientX - rect.left;
-        const canvasY = e.clientY - rect.top;
+        
+        // CSS display size
+        const cssWidth = rect.width;
+        const cssHeight = rect.height;
+        
+        // Map CSS pixel to logical internal resolution
+        const scaleX = this.canvas.width / cssWidth;
+        const scaleY = this.canvas.height / cssHeight;
+        
+        const canvasX = (e.clientX - rect.left) * scaleX;
+        const canvasY = (e.clientY - rect.top) * scaleY;
+        
         return {
             x: canvasX + this.camera.x,
             y: canvasY + this.camera.y
@@ -824,6 +839,7 @@ class Game {
             this.keys.actionDown = !!this.keys[this.settings.bindings.down];
             this.keys.actionJump = !!this.keys[this.settings.bindings.jump];
             this.keys.actionRun = !!this.keys[this.settings.bindings.run];
+            this.keys.actionGrab = !!this.keys[this.settings.bindings.grab];
         }
 
         this.player.update(this.keys, this.entities, this.audio);
@@ -841,7 +857,9 @@ class Game {
         
         // Camera Follow (Lerp)
         let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
-        let targetY = this.player.y - this.canvas.height / 2 + this.player.height / 2;
+        // 웅크릴 때 높이가 변해도 카메라가 흔들리지 않도록 발밑(bottom) 기준으로 중앙을 계산 (기본 높이 45의 절반인 22.5 사용)
+        let playerBottom = this.player.y + this.player.height;
+        let targetY = playerBottom - 22.5 - this.canvas.height / 2;
         
         // Speed-based camera offset (look ahead in direction of movement when speed > 7)
         const playerSpeed = Math.abs(this.player.vx);
@@ -884,9 +902,9 @@ class Game {
         let currentStates = [];
         if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
         else if (this.player.isGroundPoundLand) currentStates.push(dict['state.groundpoundland']);
+        else if (!this.player.isGrounded) currentStates.push(dict['state.airborne']);
         else if (this.player.isRunning) currentStates.push(dict['state.running']);
-        else if (this.player.isGrounded) currentStates.push(dict['state.grounded']);
-        else currentStates.push(dict['state.airborne']);
+        else currentStates.push(dict['state.grounded']);
 
         if (this.player.isWalled && !this.player.isClimbing) currentStates.push(dict['state.climbing']);
         if (this.player.isGroundPounding) currentStates.push(dict['state.groundpound']);
@@ -1324,14 +1342,35 @@ class Game {
         }
     }
 
-    loop() {
-        this.update();
+    loop(currentTime) {
+        if (!this.lastTime) {
+            this.lastTime = currentTime;
+        }
+        
+        let deltaTime = currentTime - this.lastTime;
+        
+        // Prevent spiral of death if tab is inactive for a long time
+        if (deltaTime > 1000) {
+            deltaTime = 1000 / 60;
+        }
+
+        this.accumulator += deltaTime;
+        const timeStep = 1000 / 60;
+
+        while (this.accumulator >= timeStep) {
+            this.update();
+            this.accumulator -= timeStep;
+        }
+
         this.render();
+        this.lastTime = currentTime;
+
         if (this.settings.vsync) {
-            requestAnimationFrame(() => this.loop());
+            requestAnimationFrame((time) => this.loop(time));
         } else {
-            // Uncapped / Fallback 60 FPS
-            setTimeout(() => this.loop(), 1000 / 60);
+            setTimeout(() => {
+                this.loop(performance.now());
+            }, 1000 / 60);
         }
     }
 }
