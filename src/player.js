@@ -990,7 +990,8 @@ class Player {
                 
                 // Sprite is 100x100, mask bounding box is X:38, Y:35, W:26, H:45
                 // Center of hitbox relative to the sprite top-left: X=51, Y=57.5 (or 68.5 if crouched/tumbled)
-                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
+                // 소수점 픽셀로 인한 캐릭터 흐려짐 방지를 위해 위치 반올림
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 if (this.facingDir === -1) {
                     ctx.scale(-1, 1);
                 }
@@ -1006,18 +1007,18 @@ class Player {
             if (this.mask_image && this.mask_image.complete && this.mask_image.naturalWidth > 0) {
                 const drawX = this.x;
                 const drawY = this.y;
-                ctx.translate(drawX + this.width / 2, drawY + this.height / 2);
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 if (this.facingDir === -1) ctx.scale(-1, 1);
                 ctx.drawImage(this.mask_image, -51, -57.5, 100, 100);
             } else {
                 ctx.fillStyle = pColor;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(Math.round(this.x), Math.round(this.y), this.width, this.height);
             }
 
             // Eyes/Face to show direction
             ctx.fillStyle = 'white';
             const eyeX = this.facingDir >= 0 ? this.x + 20 : this.x + 5;
-            ctx.fillRect(eyeX, this.y + 10, 5, 5);
+            ctx.fillRect(Math.round(eyeX), Math.round(this.y + 10), 5, 5);
         }
         ctx.restore();
 

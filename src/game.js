@@ -1002,7 +1002,8 @@ class Game {
             shakeY = (Math.random() - 0.5) * this.cameraShake;
         }
         
-        this.ctx.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
+        // 카메라 위치를 반올림(Math.round)하여 소수점 픽셀로 인한 화면 전체 흐려짐(Sub-pixel blur) 방지
+        this.ctx.translate(Math.round(-this.camera.x + shakeX), Math.round(-this.camera.y + shakeY));
         
         // Optimization: Pre-calculate view bounds for culling
         const viewLeft = this.camera.x - 100;

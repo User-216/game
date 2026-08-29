@@ -38,6 +38,8 @@ body {
 canvas {
     background: radial-gradient(circle at 50% 50%, #1a1f2b 0%, #0b0e14 100%);
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }
 
 #ui-overlay {
