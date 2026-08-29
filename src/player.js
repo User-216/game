@@ -70,12 +70,19 @@ class Player {
         this.image_index = 0;
         this.image_speed = 0.4;
         this.sprites = {
-            spr_player_idle: []
+            spr_player_idle: [],
+            spr_player_walk: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
             img.src = `player/spr_player_idle/spr_playerT_idle${i}.png`;
             this.sprites.spr_player_idle.push(img);
+        }
+        
+        for (let i = 1; i <= 14; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_walk/spr_playerT_walk${i}.png`;
+            this.sprites.spr_player_walk.push(img);
         }
         
         // Mask
@@ -844,25 +851,10 @@ class Player {
         // Determine sprite index
         if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
             this.sprite_index = 'spr_player_idle';
+        } else if (this.isGrounded && Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isTumbling && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
+            this.sprite_index = 'spr_player_walk';
         } else {
-            // 다른 상태에 대한 스프라이트가 아직 없으므로, 이동 중에도 임시로 idle 스프라이트 또는 빈 상태를 유지할 수 있습니다.
-            // 일단은 빈 상태('')로 리셋하지 않고 idle 스프라이트를 그대로 보여주거나, 
-            // 나중에 'spr_player_run' 등의 스프라이트가 추가되면 여기에서 처리합니다.
-            // this.sprite_index = ''; 
-        }
-        
-        if (this.sprite_index !== '') {
-            this.image_index += this.image_speed;
-        }
-
-        // Determine sprite index
-        if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
-            this.sprite_index = 'spr_player_idle';
-        } else {
-            // 다른 상태에 대한 스프라이트가 아직 없으므로, 이동 중에도 임시로 idle 스프라이트 또는 빈 상태를 유지할 수 있습니다.
-            // 일단은 빈 상태('')로 리셋하지 않고 idle 스프라이트를 그대로 보여주거나, 
-            // 나중에 'spr_player_run' 등의 스프라이트가 추가되면 여기에서 처리합니다.
-            // this.sprite_index = ''; 
+            this.sprite_index = '';
         }
         
         if (this.sprite_index !== '') {
@@ -910,6 +902,12 @@ class Player {
             
             if (m.sprite_index === 'spr_player_idle') {
                 const frames = this.sprites.spr_player_idle;
+                const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (m.sprite_index === 'spr_player_walk') {
+                const frames = this.sprites.spr_player_walk;
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
@@ -991,6 +989,21 @@ class Player {
                 // Sprite is 100x100, mask bounding box is X:38, Y:35, W:26, H:45
                 // Center of hitbox relative to the sprite top-left: X=51, Y=57.5 (or 68.5 if crouched/tumbled)
                 // 소수점 픽셀로 인한 캐릭터 흐려짐 방지를 위해 위치 반올림
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_walk') {
+            const frames = this.sprites.spr_player_walk;
+            const frameIndex = Math.floor(this.image_index) % frames.length;
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
                 ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 if (this.facingDir === -1) {
                     ctx.scale(-1, 1);
