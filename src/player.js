@@ -483,7 +483,7 @@ class Player {
         }
 
         // Ground Pound Trigger (점프/이동과 마찬가지로 드리프트, 벽타기 중에는 발동 불가, 구르기 중에도 발동 불가)
-        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isTumbling) {
+        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isTumbling && !this.isCrouching) {
             this.isGroundPounding = true;
             this.vy = -10; // Upward hop
             // this.vx = 0;   // Cancel horizontal momentum (Removed to maintain speed)
