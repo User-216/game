@@ -670,7 +670,12 @@ class Player {
                         this.isClimbing = false;      // Reset Climbing
                     } else if (resolution.amount > 0) {
                         // Collision on top (Head butt)
-                        if (this.isClimbing) this.isClimbing = false; // Stop climbing on ceiling
+                        if (this.isClimbing) {
+                            this.isClimbing = false; // Stop climbing on ceiling
+                            this.vx = 0; // 벽타기 중 천장에 부딪히면 수평 속도 0
+                            this.isRunning = false; // 달리기 상태 취소
+                            this.wasRunningLastFrame = false; // 다음 프레임에서 달리기 강제 부활 방지
+                        }
                         if (entity.type === 'destroyable') {
                             entity.destroy();
                             if (audio) audio.play('break');
