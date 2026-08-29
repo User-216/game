@@ -249,6 +249,37 @@ class Game {
             this.keys[key.toUpperCase()] = false;
         });
 
+        // Mobile touch controls
+        const addTouch = (id, keyName) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const press = (e) => {
+                e.preventDefault();
+                btn.classList.add('active');
+                this.keys[this.settings.bindings[keyName]] = true;
+                if (this.gameState === 'TITLE' && keyName === 'jump') {
+                    // Start game on title screen with jump button
+                    this.keys['z'] = true;
+                }
+            };
+            const release = (e) => {
+                e.preventDefault();
+                btn.classList.remove('active');
+                this.keys[this.settings.bindings[keyName]] = false;
+            };
+            btn.addEventListener('touchstart', press, { passive: false });
+            btn.addEventListener('touchend', release, { passive: false });
+            btn.addEventListener('touchcancel', release, { passive: false });
+        };
+
+        addTouch('mbtn-up', 'up');
+        addTouch('mbtn-left', 'left');
+        addTouch('mbtn-down', 'down');
+        addTouch('mbtn-right', 'right');
+        addTouch('mbtn-jump', 'jump');
+        addTouch('mbtn-run', 'run');
+        addTouch('mbtn-grab', 'grab');
+
         // Mouse Events for Editor
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
