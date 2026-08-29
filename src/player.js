@@ -857,6 +857,12 @@ class Player {
             this.sprite_index = '';
         }
         
+        if (this.sprite_index === 'spr_player_walk') {
+            this.image_speed = Math.max(0.15, Math.abs(this.vx) * 0.08);
+        } else if (this.sprite_index === 'spr_player_idle') {
+            this.image_speed = 0.4;
+        }
+
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
         }
@@ -1045,6 +1051,8 @@ class Player {
         else if (this.isMachSliding) debugState = 'machslide';
         else if (this.isDrifting || this.isDrifting1) debugState = 'drifting';
         else if (this.isSuplexGrabbing) debugState = 'suplexgrab';
+        
+        debugState += ` [${this.sprite_index || 'none'}]`;
         
         // 배경을 살짝 깔아주면 글씨가 더 잘 보입니다.
         const textWidth = ctx.measureText(debugState).width;
