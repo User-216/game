@@ -603,8 +603,8 @@ class Player {
             }
         });
 
-        // Ghost Trail Update (Ground Pound or Grab specific)
-        if (this.isGroundPounding || this.isSuplexGrabbing) {
+        // Ghost Trail Update (Ground Pound, Grab, or Tumble specific)
+        if (this.isGroundPounding || this.isSuplexGrabbing || this.isTumbling) {
             // Add a ghost copy every frame for a super smooth trail
             this.ghostAfters.unshift({
                 x: this.x,
