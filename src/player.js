@@ -244,8 +244,8 @@ class Player {
                 }
             } else {
                 // 방향키를 누르지 않았을 때
-                if (this.isTumbling || this.isSuplexGrabbing || this.isGroundPounding) {
-                    // 구르기/잡기 돌진/다이브밤 중에는 감속 없이 속도 완전 유지
+                if (this.isTumbling || this.isSuplexGrabbing) {
+                    // 구르기/잡기 돌진 중에는 감속 없이 속도 완전 유지
                 } else {
                     this.vx = 0;
                 }
