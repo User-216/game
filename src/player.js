@@ -110,7 +110,7 @@ class Player {
         // 공중에서는 새로 달리기를 시작할 수 없고, 땅찍기 중에는 달리기가 취소됨
         if (this.isGroundPounding) {
             isCurrentlyRunning = false;
-        } else if (!this.isGrounded && !this.wasRunningLastFrame) {
+        } else if (!this.isGrounded && !this.wasRunningLastFrame && !this.isClimbing) {
             isCurrentlyRunning = false;
         }
 
