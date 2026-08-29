@@ -119,10 +119,7 @@ class Player {
             isCurrentlyRunning = true;
         }
 
-        // 잡기 중에는 달리기를 취소
-        if (this.isSuplexGrabbing) {
-            isCurrentlyRunning = false;
-        }
+        // (잡기 중 달리기 취소 코드 제거)
 
 
         // Noclip Trigger
