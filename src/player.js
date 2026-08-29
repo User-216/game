@@ -565,8 +565,8 @@ class Player {
         this.wallSide = 0;
         // isGroundPounding will be reset upon hitting ground in collision resolution
 
-        // Mach Afterimage Update (마하 상태일 때만 잔상 생성)
-        if (Math.abs(this.vx) >= this.machThreshold) {
+        // Mach Afterimage Update (순수 마하 달리기/점프 상태일 때만 잔상 생성)
+        if (Math.abs(this.vx) >= this.machThreshold && !this.isSuplexGrabbing && !this.isTumbling) {
             this.machFlashTimer++;
             this.machFrameCount++;
 
