@@ -103,10 +103,7 @@ class Player {
             isCurrentlyRunning = false;
         }
 
-        // 공중에서는 달리기를 도중에 멈출 수 없음 (단, 벽에 부딪히거나 타는 중일 때는 제외)
-        if (!this.isGrounded && this.wasRunningLastFrame && !this.isClimbing && !this.isWalled) {
-            isCurrentlyRunning = true;
-        }
+        // (이전에 있던 '공중에서 달리기 멈출 수 없음' 제한 해제)
 
         // 공중에서는 새로 달리기를 시작할 수 없고, 땅찍기 중에는 달리기가 취소됨
         if (this.isGroundPounding) {
