@@ -414,15 +414,9 @@ class Player {
             if (willBeSmall) {
                 this.height = 23;
                 this.y += 22; // shift down
-                // 공중에서 구르기(다이브) 시작 시, 위로 상승 중일 때는 뚝 떨어지지 않도록 보정
+                // 유저 요청: 공중에서 구르기(다이브) 시작 시 점프 중이더라도 항상 아래로 확 꽂히도록 수정
                 if (wantTumble && !this.isGrounded) {
-                    if (this.vy < 0) {
-                        // 위로 올라가고 있다면 상승 속도를 조금 줄여주기만 함
-                        this.vy *= 0.5;
-                    } else {
-                        // 아래로 떨어지는 중이거나 정점이라면 빠르게 내리꽂음
-                        this.vy = 10;
-                    }
+                    this.vy = 12; // 다이브 하강 속도를 10에서 12로 살짝 더 시원하게 꽂히도록 조정
                 }
             } else {
                 this.height = 45;
