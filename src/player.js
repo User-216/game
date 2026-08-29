@@ -853,8 +853,6 @@ class Player {
             this.sprite_index = 'spr_player_idle';
         } else if (this.isGrounded && Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isTumbling && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
             this.sprite_index = 'spr_player_walk';
-        } else {
-            this.sprite_index = '';
         }
         
         if (this.sprite_index === 'spr_player_walk') {
@@ -1052,7 +1050,9 @@ class Player {
         else if (this.isDrifting || this.isDrifting1) debugState = 'drifting';
         else if (this.isSuplexGrabbing) debugState = 'suplexgrab';
         
-        debugState += ` [${this.sprite_index || 'none'}]`;
+        if (this.sprite_index) {
+            debugState += ` [${this.sprite_index}]`;
+        }
         
         // 배경을 살짝 깔아주면 글씨가 더 잘 보입니다.
         const textWidth = ctx.measureText(debugState).width;
