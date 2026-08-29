@@ -271,13 +271,7 @@ class Player {
                     this.vx = runDir * this.runInitialSpeed;
                 }
                 // Gradually accelerate up to max speed
-                if (runDir === 1 && this.vx < this.machMaxSpeed) {
-                    this.vx += this.runAccel;
-                    if (this.vx > this.machMaxSpeed) this.vx = this.machMaxSpeed;
-                } else if (runDir === -1 && this.vx > -this.machMaxSpeed) {
-                    this.vx -= this.runAccel;
-                    if (this.vx < -this.machMaxSpeed) this.vx = -this.machMaxSpeed;
-                }
+                this.vx += runDir * this.runAccel;
             }
         }
 
@@ -355,8 +349,7 @@ class Player {
         const targetMaxSpeed = isCurrentlyRunning ? this.runMaxSpeed : this.maxSpeed;
 
         // Clamp speed (마하 슬라이드나 잡기, 구르기, 땅찍기 중에는 클램프 생략)
-        // 유저 요청: 달리기 중(isRunning)일 때는 마하 속도를 초과한 잉여 가속도를 즉시 깎지 않고 유지
-        if (!this.isMachSliding && !this.isSuplexGrabbing && !this.isTumbling && !this.isGroundPounding && !this.isRunning) {
+        if (!this.isMachSliding && !this.isSuplexGrabbing && !this.isTumbling && !this.isGroundPounding) {
             if (this.vx > targetMaxSpeed) {
                 this.vx -= 0.5;
                 if (this.vx < targetMaxSpeed) this.vx = targetMaxSpeed;
@@ -794,13 +787,7 @@ class Player {
                         // Check if our feet (y + height) are near the top of the wall (entity.y)
                         if (this.y + this.height > entity.y - ledgeThreshold && this.y + this.height <= entity.y + 10) {
                             // Snap to the top of the platform!
-                            let climbSpeed = Math.abs(this.vy);
-                            
-                            // 유저 요청: 벽을 다 타고 올라왔을 때 속도가 뚝 떨어지는 느낌을 방지하기 위해, 최소 달리기 최고 속도(16) 이상으로 확 튀어나가게 부스트!
-                            if (climbSpeed < this.machMaxSpeed) {
-                                climbSpeed = this.machMaxSpeed;
-                            }
-                            
+                            const climbSpeed = Math.abs(this.vy);
                             this.y = entity.y - this.height;
                             this.x += this.climbSide * 15; // Move onto the platform
                             this.vy = 0;
