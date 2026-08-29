@@ -805,7 +805,11 @@ class Player {
 
         if (this.jumpBufferTimer > 0) {
             if (this.isGrounded) {
-                this.vy = this.jumpForce;
+                if (this.isCrouching) {
+                    this.vy = -8;
+                } else {
+                    this.vy = this.jumpForce;
+                }
                 this.isGrounded = false;
                 this.jumpBufferTimer = 0;
                 if (audio) audio.play('jump');
