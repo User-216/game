@@ -817,7 +817,7 @@ class Player {
                 this.isClimbing = false;
                 this.isDrifting = false;
                 this.isDrifting1 = false; // Cancel drift on jump
-                this.isWallJumping = true;
+                // this.isWallJumping = true; // 유저 요청: 버그 방지를 위해 항상 false로 유지
                 this.facingDir = -this.wallSide;
                 this.jumpBufferTimer = 0;
                 if (audio) audio.play('jump');
