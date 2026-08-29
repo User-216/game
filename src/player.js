@@ -680,7 +680,7 @@ class Player {
                     this.y += resolution.amount;
                 } else {
                     // Collision on side (Wall)
-                    if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing)) {
+                    if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing)) {
                         entity.destroy();
                         if (audio) audio.play('break');
                     } else {
