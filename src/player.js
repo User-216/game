@@ -113,9 +113,14 @@ class Player {
             isCurrentlyRunning = false;
         }
 
-        // 구르기나 잡기 중에는 달리기 상태 강제 유지
-        if (this.isTumbling || this.isSuplexGrabbing) {
+        // 구르기 중에는 달리기 상태 강제 유지
+        if (this.isTumbling) {
             isCurrentlyRunning = true;
+        }
+
+        // 잡기 중에는 달리기를 취소
+        if (this.isSuplexGrabbing) {
+            isCurrentlyRunning = false;
         }
 
 
@@ -677,8 +682,8 @@ class Player {
                         entity.destroy();
                         if (audio) audio.play('break');
                     } else {
-                        // 달리기 중 벽에 닿았을 때 자동으로 벽타기 트리거
-                        if (!this.isClimbing && this.isRunning) {
+                        // 달리기 중 또는 잡기 중 벽에 닿았을 때 자동으로 벽타기 트리거
+                        if (!this.isClimbing && (this.isRunning || this.isSuplexGrabbing)) {
                             this.isClimbing = true;
                             this.isSuplexGrabbing = false; // 잡기 중이었다면 벽타기로 전환
                             // resolution.amount < 0 이면 벽이 오른쪽에 있음 -> climbSide = 1
