@@ -615,14 +615,14 @@ class Player {
                 isCrouching: this.isCrouching,
                 isTumbling: this.isTumbling,
                 alpha: 0.3,
-                life: 4 // 아주 빨리 사라지도록 수명 단축 (4프레임)
+                life: 8 // 다시 8프레임으로 복구
             });
         }
 
         // Update Ghost Trail Afterimages
         this.ghostAfters.forEach((m, index) => {
             m.life -= 1;
-            m.alpha = (m.life / 4) * 0.3;
+            m.alpha = (m.life / 8) * 0.3;
             if (m.life <= 0) {
                 this.ghostAfters.splice(index, 1);
             }
