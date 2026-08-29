@@ -113,8 +113,8 @@ class Player {
             isCurrentlyRunning = false;
         }
 
-        // 구르기 중에는 달리기 취소 불가능
-        if (this.isTumbling) {
+        // 구르기나 잡기 중에는 달리기 상태 강제 유지
+        if (this.isTumbling || this.isSuplexGrabbing) {
             isCurrentlyRunning = true;
         }
 
