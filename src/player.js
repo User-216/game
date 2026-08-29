@@ -1050,7 +1050,6 @@ class Player {
         if (this.sprite_index) {
             debugState += ` [${this.sprite_index}]`;
         }
-        debugState += ` [Run: ${this.isRunning}] [Climb: ${this.isClimbing}] [Wall: ${this.isWalled}] [WJmp: ${this.isWallJumping}]`;
         
         // 배경을 살짝 깔아주면 글씨가 더 잘 보입니다.
         const textWidth = ctx.measureText(debugState).width;
