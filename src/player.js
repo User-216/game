@@ -43,6 +43,7 @@ class Player {
         this.jumpBufferTimer = 0;
         this.canGrab = true;
         this.grabBufferTimer = 0;
+        this.canGroundPound = true;
         this.facingDir = 1;
         this.insideHallway = false;
 
@@ -482,9 +483,14 @@ class Player {
             }
         }
 
+        if (!keys.actionDown) {
+            this.canGroundPound = true;
+        }
+
         // Ground Pound Trigger (점프/이동과 마찬가지로 드리프트, 벽타기 중에는 발동 불가, 구르기 중에도 발동 불가)
-        if (keys.actionDown && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isTumbling && !this.isCrouching) {
+        if (keys.actionDown && this.canGroundPound && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isTumbling && !this.isCrouching) {
             this.isGroundPounding = true;
+            this.canGroundPound = false; // 소비
             this.vy = -10; // Upward hop
             // this.vx = 0;   // Cancel horizontal momentum (Removed to maintain speed)
             if (audio) audio.play('groundpound');
