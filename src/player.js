@@ -614,15 +614,15 @@ class Player {
                 facingDir: this.facingDir,
                 isCrouching: this.isCrouching,
                 isTumbling: this.isTumbling,
-                alpha: 0.2,
-                life: 15 // Shorter life for a denser feel
+                alpha: 0.3,
+                life: 4 // 다시 4프레임으로 수정
             });
         }
 
         // Update Ghost Trail Afterimages
         this.ghostAfters.forEach((m, index) => {
             m.life -= 1;
-            m.alpha = (m.life / 15) * 0.2;
+            m.alpha = (m.life / 4) * 0.3;
             if (m.life <= 0) {
                 this.ghostAfters.splice(index, 1);
             }
