@@ -256,7 +256,7 @@ class Player {
         }
 
         // Running acceleration logic
-        if (this.isRunning && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling && !this.isCrouching) {
+        if (this.isRunning && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling && !this.isCrouching && !this.isSuplexGrabbing) {
             let effLeft = keys.actionLeft;
             let effRight = keys.actionRight;
             if (!keys.actionLeft && !keys.actionRight) {
