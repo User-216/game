@@ -30,6 +30,7 @@ class Player {
         this.suplexGrabTimer = 0;
         this.requestScreenShake = 0;
         this.isClimbing = false;
+        this.wallClimbGraceTimer = 0;
         this.climbSide = 0; // -1 for left wall, 1 for right wall
         this.isDrifting = false;
         this.isDrifting1 = false;
@@ -501,8 +502,12 @@ class Player {
             if (audio) audio.play('groundpound');
         }
 
+        if (this.wallClimbGraceTimer > 0) {
+            this.wallClimbGraceTimer--;
+        }
+
         // Apply Gravity / Ground Pound Descent / Climbing
-        if (this.isClimbing && !this.isRunning) {
+        if (this.isClimbing && !this.isRunning && this.wallClimbGraceTimer <= 0) {
             this.isClimbing = false;
         }
 
@@ -685,6 +690,9 @@ class Player {
                         // 달리기 중 또는 잡기 중 벽에 닿았을 때 자동으로 벽타기 트리거
                         if (!this.isClimbing && (this.isRunning || this.isSuplexGrabbing)) {
                             this.isClimbing = true;
+                            if (this.isSuplexGrabbing) {
+                                this.wallClimbGraceTimer = 10; // 잡기에서 넘어온 경우 10프레임 유예
+                            }
                             this.isSuplexGrabbing = false; // 잡기 중이었다면 벽타기로 전환
                             // resolution.amount < 0 이면 벽이 오른쪽에 있음 -> climbSide = 1
                             this.climbSide = resolution.amount < 0 ? 1 : -1;
