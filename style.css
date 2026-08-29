@@ -255,7 +255,20 @@ input[type=range]::-webkit-slider-runnable-track {
     z-index: 100;
 }
 
-@media (max-width: 768px) {
+#portrait-warning {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #0b0e14;
+    color: white;
+    z-index: 9999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+@media (hover: none) and (pointer: coarse) {
     #mobile-controls {
         display: flex;
     }
@@ -263,6 +276,18 @@ input[type=range]::-webkit-slider-runnable-track {
         flex-direction: column;
         align-items: flex-start;
         font-size: 0.8rem;
+    }
+    .header h1 {
+        font-size: 1.2rem;
+    }
+}
+
+@media screen and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+    #game-container {
+        display: none !important;
+    }
+    #portrait-warning {
+        display: flex;
     }
 }
 
