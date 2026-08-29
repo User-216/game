@@ -492,7 +492,7 @@ class Player {
             this.isGroundPounding = true;
             this.canGroundPound = false; // 소비
             this.vy = -10; // Upward hop
-            // this.vx = 0;   // Cancel horizontal momentum (Removed to maintain speed)
+            this.vx = 0;   // 엉덩이 찍기 시 수평 이동 멈춤
             if (audio) audio.play('groundpound');
         }
 
@@ -839,7 +839,7 @@ class Player {
                 this.y -= 22; // Restore size
                 
                 this.vy = -10; // 엉덩이 찍기 처음 쓸 때처럼 위로 살짝 뜨는 동작 추가
-                // this.vx = 0;  // 삭제: 벽타기 후 다이브밤 시 가속도 유지
+                this.vx = 0;   // 엉덩이 찍기 시 수평 이동 멈춤
                 this.jumpBufferTimer = 0;
                 if (audio) audio.play('groundpound');
             }
