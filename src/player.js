@@ -876,7 +876,7 @@ class Player {
         }
 
         // Determine sprite index
-        if (!this.isGrounded && this.vy > 0 && !this.isClimbing && !this.isGroundPounding && !this.isTumbling && !this.isSuplexGrabbing) {
+        if (!this.isGrounded && this.vy > 0 && !this.isClimbing && !this.isGroundPounding && !this.isTumbling && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump') {
             this.sprite_index = 'spr_player_fall';
         } else if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
             this.sprite_index = 'spr_player_idle';
