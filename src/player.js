@@ -75,7 +75,8 @@ class Player {
             spr_player_idle: [],
             spr_player_walk: [],
             spr_player_fall: [],
-            spr_player_jump: []
+            spr_player_jump: [],
+            spr_player_land: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -101,6 +102,13 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_jump/spr_playerT_jump${i}.png`;
             this.sprites.spr_player_jump.push(img);
+        }
+
+        // Load land sprite (4 frames)
+        for (let i = 1; i <= 4; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_land/spr_playerT_land${i}.png`;
+            this.sprites.spr_player_land.push(img);
         }
         
         // Mask
@@ -890,12 +898,19 @@ class Player {
         }
 
         // Determine sprite index
+        if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
+            this.sprite_index = 'spr_player_land';
+            this.image_index = 0;
+        }
+        
         if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isTumbling && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump') {
             this.sprite_index = 'spr_player_fall';
-        } else if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
-            this.sprite_index = 'spr_player_idle';
-        } else if (this.isGrounded && Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isTumbling && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
-            this.sprite_index = 'spr_player_walk';
+        } else if (this.isGrounded && this.sprite_index !== 'spr_player_land') {
+            if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
+                this.sprite_index = 'spr_player_idle';
+            } else if (Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isTumbling && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
+                this.sprite_index = 'spr_player_walk';
+            }
         }
         
         if (this.sprite_index === 'spr_player_walk') {
@@ -906,6 +921,8 @@ class Player {
             this.image_speed = 0.4;
         } else if (this.sprite_index === 'spr_player_jump') {
             this.image_speed = 0.4; // 점프 애니메이션 속도
+        } else if (this.sprite_index === 'spr_player_land') {
+            this.image_speed = 0.4; // 착지 애니메이션 속도
         }
 
         if (this.sprite_index !== '') {
@@ -915,6 +932,12 @@ class Player {
         // 유저 요청: 점프 애니메이션 재생이 완료되면 떨어지는 애니메이션으로 자동 전환
         if (this.sprite_index === 'spr_player_jump' && this.image_index >= this.sprites.spr_player_jump.length) {
             this.sprite_index = 'spr_player_fall';
+            this.image_index = 0;
+        }
+
+        // 착지 애니메이션 재생이 완료되면 idle 애니메이션으로 자동 전환
+        if (this.sprite_index === 'spr_player_land' && this.image_index >= this.sprites.spr_player_land.length) {
+            this.sprite_index = 'spr_player_idle';
             this.image_index = 0;
         }
 
@@ -977,6 +1000,14 @@ class Player {
                 }
             } else if (m.sprite_index === 'spr_player_jump') {
                 const frames = this.sprites.spr_player_jump;
+                let frameIndex = Math.floor(m.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const frame = frames[frameIndex];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (m.sprite_index === 'spr_player_land') {
+                const frames = this.sprites.spr_player_land;
                 let frameIndex = Math.floor(m.image_index);
                 if (frameIndex >= frames.length) frameIndex = frames.length - 1;
                 const frame = frames[frameIndex];
@@ -1103,6 +1134,24 @@ class Player {
             let frameIndex = Math.floor(this.image_index);
             if (frameIndex >= frames.length) {
                 frameIndex = frames.length - 1; // 마지막 프레임에서 멈추게 (점프 자세 유지)
+            }
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_land') {
+            const frames = this.sprites.spr_player_land;
+            let frameIndex = Math.floor(this.image_index);
+            if (frameIndex >= frames.length) {
+                frameIndex = frames.length - 1; // 마지막 프레임 유지 (전환 전까지)
             }
             const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
