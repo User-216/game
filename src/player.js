@@ -73,7 +73,8 @@ class Player {
         this.image_speed = 0.4;
         this.sprites = {
             spr_player_idle: [],
-            spr_player_walk: []
+            spr_player_walk: [],
+            spr_player_fall: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -86,6 +87,11 @@ class Player {
             img.src = `player/spr_player_walk/spr_playerT_walk${i}.png`;
             this.sprites.spr_player_walk.push(img);
         }
+        
+        // Load fall sprite (gif)
+        let fallImg = new Image();
+        fallImg.src = `player/spr_player_fall/spr_playerT_fall.gif`;
+        this.sprites.spr_player_fall.push(fallImg);
         
         // Mask
         this.mask_image = new Image();
@@ -870,7 +876,9 @@ class Player {
         }
 
         // Determine sprite index
-        if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
+        if (!this.isGrounded && this.vy > 0 && !this.isClimbing && !this.isGroundPounding && !this.isTumbling && !this.isSuplexGrabbing) {
+            this.sprite_index = 'spr_player_fall';
+        } else if (this.isGrounded && Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
             this.sprite_index = 'spr_player_idle';
         } else if (this.isGrounded && Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isTumbling && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
             this.sprite_index = 'spr_player_walk';
@@ -880,6 +888,8 @@ class Player {
             this.image_speed = Math.max(0.15, Math.abs(this.vx) * 0.08);
         } else if (this.sprite_index === 'spr_player_idle') {
             this.image_speed = 0.4;
+        } else if (this.sprite_index === 'spr_player_fall') {
+            this.image_speed = 0.4; // gif의 경우 직접 제어하지 않지만 프레임이 넘어갈 수 있으므로 기본값 설정
         }
 
         if (this.sprite_index !== '') {
@@ -934,6 +944,11 @@ class Player {
             } else if (m.sprite_index === 'spr_player_walk') {
                 const frames = this.sprites.spr_player_walk;
                 const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (m.sprite_index === 'spr_player_fall') {
+                const frame = this.sprites.spr_player_fall[0];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
@@ -1025,6 +1040,19 @@ class Player {
             const frames = this.sprites.spr_player_walk;
             const frameIndex = Math.floor(this.image_index) % frames.length;
             const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_fall') {
+            const img = this.sprites.spr_player_fall[0];
             if (img && img.complete && img.naturalWidth > 0) {
                 const drawX = this.x;
                 const drawY = this.y;
