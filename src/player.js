@@ -922,7 +922,7 @@ class Player {
         } else if (this.sprite_index === 'spr_player_jump') {
             this.image_speed = 0.4; // 점프 애니메이션 속도
         } else if (this.sprite_index === 'spr_player_land') {
-            this.image_speed = 0.42; // 유저 요청: 착지 애니메이션 속도 조정
+            this.image_speed = 0.45; // 유저 요청: 착지 애니메이션 속도 재조정
         }
 
         if (this.sprite_index !== '') {
