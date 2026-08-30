@@ -104,8 +104,8 @@ class Player {
             this.sprites.spr_player_jump.push(img);
         }
 
-        // Load land sprite (4 frames)
-        for (let i = 1; i <= 4; i++) {
+        // Load land sprite (4 frames -> 마지막 프레임 제거 요청으로 3프레임만 로드)
+        for (let i = 1; i <= 3; i++) {
             let img = new Image();
             img.src = `player/spr_player_land/spr_playerT_land${i}.png`;
             this.sprites.spr_player_land.push(img);
