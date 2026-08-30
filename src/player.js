@@ -88,10 +88,12 @@ class Player {
             this.sprites.spr_player_walk.push(img);
         }
         
-        // Load fall sprite (gif)
-        let fallImg = new Image();
-        fallImg.src = `player/spr_player_fall/spr_playerT_fall.gif`;
-        this.sprites.spr_player_fall.push(fallImg);
+        // Load fall sprite (3 frames)
+        for (let i = 1; i <= 3; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_fall/spr_playerT_fall${i}.png`;
+            this.sprites.spr_player_fall.push(img);
+        }
         
         // Mask
         this.mask_image = new Image();
@@ -948,7 +950,8 @@ class Player {
                     imgToDraw = frame;
                 }
             } else if (m.sprite_index === 'spr_player_fall') {
-                const frame = this.sprites.spr_player_fall[0];
+                const frames = this.sprites.spr_player_fall;
+                const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
@@ -1052,7 +1055,9 @@ class Player {
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_fall') {
-            const img = this.sprites.spr_player_fall[0];
+            const frames = this.sprites.spr_player_fall;
+            const frameIndex = Math.floor(this.image_index) % frames.length;
+            const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
                 const drawX = this.x;
                 const drawY = this.y;
