@@ -912,6 +912,12 @@ class Player {
             this.image_index += this.image_speed;
         }
 
+        // 유저 요청: 점프 애니메이션 재생이 완료되면 떨어지는 애니메이션으로 자동 전환
+        if (this.sprite_index === 'spr_player_jump' && this.image_index >= this.sprites.spr_player_jump.length) {
+            this.sprite_index = 'spr_player_fall';
+            this.image_index = 0;
+        }
+
         // Manage Looping Running Sounds
         if (audio) {
             const absSpeed = Math.abs(this.vx);
