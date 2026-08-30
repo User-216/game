@@ -74,7 +74,8 @@ class Player {
         this.sprites = {
             spr_player_idle: [],
             spr_player_walk: [],
-            spr_player_fall: []
+            spr_player_fall: [],
+            spr_player_jump: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -93,6 +94,13 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_fall/spr_playerT_fall${i}.png`;
             this.sprites.spr_player_fall.push(img);
+        }
+
+        // Load jump sprite (5 frames)
+        for (let i = 1; i <= 5; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_jump/spr_playerT_jump${i}.png`;
+            this.sprites.spr_player_jump.push(img);
         }
         
         // Mask
@@ -840,6 +848,8 @@ class Player {
                 }
                 this.isGrounded = false;
                 this.jumpBufferTimer = 0;
+                this.sprite_index = 'spr_player_jump';
+                this.image_index = 0;
                 if (audio) audio.play('jump');
             } else if (this.isClimbing) {
                 // Wall Jump (Stronger if climbing or high speed)
@@ -852,6 +862,8 @@ class Player {
                 // this.isWallJumping = true; // 유저 요청: 버그 방지를 위해 항상 false로 유지
                 this.facingDir = -this.wallSide;
                 this.jumpBufferTimer = 0;
+                this.sprite_index = 'spr_player_jump';
+                this.image_index = 0;
                 if (audio) audio.play('jump');
             } else if (this.isTumbling) {
                 // Divebomb: Cancel air tumble into a normal ground pound
@@ -891,7 +903,9 @@ class Player {
         } else if (this.sprite_index === 'spr_player_idle') {
             this.image_speed = 0.4;
         } else if (this.sprite_index === 'spr_player_fall') {
-            this.image_speed = 0.4; // gif의 경우 직접 제어하지 않지만 프레임이 넘어갈 수 있으므로 기본값 설정
+            this.image_speed = 0.4;
+        } else if (this.sprite_index === 'spr_player_jump') {
+            this.image_speed = 0.4; // 점프 애니메이션 속도
         }
 
         if (this.sprite_index !== '') {
@@ -952,6 +966,14 @@ class Player {
             } else if (m.sprite_index === 'spr_player_fall') {
                 const frames = this.sprites.spr_player_fall;
                 const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (m.sprite_index === 'spr_player_jump') {
+                const frames = this.sprites.spr_player_jump;
+                let frameIndex = Math.floor(m.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const frame = frames[frameIndex];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
@@ -1057,6 +1079,25 @@ class Player {
         } else if (this.sprite_index === 'spr_player_fall') {
             const frames = this.sprites.spr_player_fall;
             const frameIndex = Math.floor(this.image_index) % frames.length;
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_jump') {
+            const frames = this.sprites.spr_player_jump;
+            // Stop at the last frame so it doesn't loop forever if intended, but let's loop by default
+            let frameIndex = Math.floor(this.image_index);
+            if (frameIndex >= frames.length) {
+                frameIndex = frames.length - 1; // 마지막 프레임에서 멈추게 (점프 자세 유지)
+            }
             const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
                 const drawX = this.x;
