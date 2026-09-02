@@ -112,8 +112,8 @@ class Player {
             this.sprites.spr_player_land.push(img);
         }
 
-        // Load roll sprite (3 frames)
-        for (let i = 1; i <= 3; i++) {
+        // Load roll sprite (4 frames)
+        for (let i = 1; i <= 4; i++) {
             let img = new Image();
             img.src = `player/spr_player_roll/spr_playerT_roll${i}.png`;
             this.sprites.spr_player_roll.push(img);
