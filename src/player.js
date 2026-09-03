@@ -928,8 +928,8 @@ class Player {
                 this.sprite_index = 'spr_player_idle';
             } else if (Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
                 this.sprite_index = 'spr_player_walk';
-            } else if (this.isRunning && Math.abs(this.vx) >= 8 && this.sprite_index !== 'spr_player_mach1' && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
-                this.sprite_index = 'spr_player_mach2';
+            } else if (this.isRunning && Math.abs(this.vx) > 0 && this.sprite_index !== 'spr_player_mach1' && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
+                this.sprite_index = 'spr_player_mach2'; // 유저 요청: 마하 1일 때도 일단 mach2 애니메이션 사용
             }
         }
         
