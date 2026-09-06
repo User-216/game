@@ -50,6 +50,42 @@ class Game {
         this.lastTime = performance.now();
         this.accumulator = 0;
         
+        this.pauseMenuOptions = ['RESUME', 'OPTIONS', 'RESTART', 'EXIT LEVEL'];
+        this.pauseMenuIndex = 0;
+        this.pauseBubbles = [];
+        
+        this.optionsMenuOptions = ['AUDIO', 'VIDEO', 'GAME', 'CONTROLS'];
+        this.optionsMenuIndex = 0;
+        this.optionsMenuLevel = 'MAIN'; // MAIN, AUDIO, VIDEO, GAME, CONTROLS
+        this.optionsScrollX = 0;
+        this.optionsScrollY = 0;
+        
+        this.optionsBGImages = [];
+        this.optionsBGLoaded = false;
+        let bgLoadedCount = 0;
+        for (let i = 0; i < 5; i++) {
+            let img = new Image();
+            img.src = `spr_optionsBG/spr_optionsBG_${i}.png`;
+            img.onload = () => {
+                bgLoadedCount++;
+                if (bgLoadedCount === 5) this.optionsBGLoaded = true;
+            };
+            this.optionsBGImages.push(img);
+        }
+
+        this.bigFontImages = [];
+        this.bigFontLoaded = false;
+        let loadedCount = 0;
+        for(let i = 0; i < 26; i++) {
+            let img = new Image();
+            img.src = `font/spr_bigfont/spr_bigfont_${i}.png`;
+            img.onload = () => {
+                loadedCount++;
+                if (loadedCount === 26) this.bigFontLoaded = true;
+            };
+            this.bigFontImages.push(img);
+        }
+        
         this.settings = {
             language: 'en',
             masterVolume: 100,
@@ -70,15 +106,7 @@ class Game {
                 down: 'ArrowDown',
                 jump: 'z',
                 run: 'Shift',
-                grab: 'x',
-                pause: 'Escape',
-                menuLeft: 'ArrowLeft',
-                menuRight: 'ArrowRight',
-                menuUp: 'ArrowUp',
-                menuDown: 'ArrowDown',
-                menuConfirm: 'z',
-                menuBack: 'x',
-                menuClear: 'c'
+                grab: 'x'
             }
         };
         this.bindingKeyFor = null;
@@ -135,29 +163,6 @@ class Game {
         this.tutorialRopeImage = new Image();
         this.tutorialRopeImage.src = 'tutorial/spr_tutorialbubble_rope.png';
         
-        // Load big font (spr_font)
-        this.bigFontImages = [];
-        this.bigFontLoadedCount = 0;
-        this.bigFontTotal = 67; // Assuming 67 chars based on drawText
-        for (let i = 0; i < this.bigFontTotal; i++) {
-            const img = new Image();
-            img.src = `font/spr_font_${i}.png`;
-            this.bigFontImages.push(img);
-        }
-
-        // Load options background
-        this.optionsBGImage = new Image();
-        this.optionsBGImage.src = 'spr_optionsBG/spr_optionsBG_0.png';
-
-        // Load control icons
-        this.controlIcons = {};
-        const iconNames = ['up', 'down', 'left', 'right', 'jump', 'run', 'grab', 'pause'];
-        iconNames.forEach((name, idx) => {
-            const img = new Image();
-            img.src = `spr_controlicons/spr_controlicons_${idx}.png`;
-            this.controlIcons[name] = img;
-        });
-
         // Load tutorial sprite font and tint to black
         this.tutorialFontImages = [];
         this.tutorialFontLoadedCount = 0;
@@ -192,9 +197,8 @@ class Game {
         this.tutorialKeyImages = {};
         this.getKeyImage = (keyName) => {
             if (this.tutorialKeyImages[keyName]) return this.tutorialKeyImages[keyName];
-            const lowerKey = keyName.toLowerCase();
             const img = new Image();
-            img.src = `tutorial/spr_tutorialkeyspecial/spr_tutorialkeyspecial_${lowerKey}.png`;
+            img.src = `tutorial/spr_tutorialkeyspecial/${keyName}.png`; // fallback if they exist
             img.loaded = false;
             img.error = false;
             img.onload = () => { img.loaded = true; };
@@ -203,24 +207,8 @@ class Game {
             return img;
         };
 
-        this.optionsBGs = [];
-        for(let i=0; i<=4; i++) {
-            const img = new Image();
-            img.src = `spr_optionsBG/spr_optionsBG_${i}.png`;
-            this.optionsBGs.push(img);
-        }
-
-        this.controlIcons = {};
-        const iconNames = ['dash', 'down', 'grab', 'groundpound', 'jump', 'left', 'pause', 'right', 'superjump', 'taunt', 'up'];
-        iconNames.forEach(name => {
-            const img = new Image();
-            img.src = `spr_controlicons/spr_controlicons_${name}.png`;
-            this.controlIcons[name] = img;
-        });
-
         this.tutorialTexX = 0;
         this.tutorialWaveTimer = 0;
-        this.bindingsScrollY = 0;
         this.currentTutorialText = null;
         this.currentTutorialBook = null;
 
@@ -263,15 +251,13 @@ class Game {
                 const key = e.key === ' ' ? 'Space' : e.key;
                 if (key === 'Escape') {
                     this.bindingKeyFor = null;
-                    const el = document.getElementById('bind-overlay');
-                    if (el) el.classList.add('hidden');
+                    document.getElementById('bind-overlay').classList.add('hidden');
                     return;
                 }
                 this.settings.bindings[this.bindingKeyFor] = key;
                 this.bindingKeyFor = null;
-                const el = document.getElementById('bind-overlay');
-                if (el) el.classList.add('hidden');
-                if (this.refreshControlList) this.refreshControlList();
+                document.getElementById('bind-overlay').classList.add('hidden');
+                this.refreshControlList();
                 return;
             }
 
@@ -415,9 +401,20 @@ class Game {
     togglePause() {
         if (this.gameState === 'PLAYING') {
             this.gameState = 'PAUSED';
+            this.pauseMenuIndex = 0;
+            this.pauseBubbles = [];
+            for (let i = 0; i < 30; i++) {
+                this.pauseBubbles.push({
+                    x: this.canvas.width / 2 + Math.random() * this.canvas.width / 2,
+                    y: Math.random() * this.canvas.height,
+                    r: Math.random() * 50 + 20,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2
+                });
+            }
             if (this.audio) this.audio.play('pause');
-            document.getElementById('pause-overlay').style.display = 'flex';
-            document.getElementById('pause-overlay').classList.remove('hidden');
+            document.getElementById('pause-overlay').style.display = 'none'; // Ensure DOM overlay is hidden
+            document.getElementById('pause-overlay').classList.add('hidden');
         } else if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
             this.gameState = 'PLAYING';
             if (this.audio) this.audio.play('unpause');
@@ -877,6 +874,201 @@ class Game {
     }
 
     update() {
+        if (this.gameState === 'TITLE') {
+            if (this.uiOverlay && this.uiOverlay.style.display !== 'none') {
+                this.uiOverlay.style.display = 'none';
+            }
+            if (this.keys['z'] || this.keys['Z']) {
+                this.gameState = 'PLAYING';
+                if (this.uiOverlay) this.uiOverlay.style.display = 'block';
+                this.keys['z'] = false;
+                this.keys['Z'] = false;
+            }
+            return;
+        }
+
+        if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
+            if (this.gameState === 'PAUSED') {
+                if (this.keys['ArrowUp'] && !this.prevKeysUp) {
+                    this.pauseMenuIndex = (this.pauseMenuIndex - 1 + this.pauseMenuOptions.length) % this.pauseMenuOptions.length;
+                    if (this.audio) this.audio.play('unpause'); 
+                }
+                if (this.keys['ArrowDown'] && !this.prevKeysDown) {
+                    this.pauseMenuIndex = (this.pauseMenuIndex + 1) % this.pauseMenuOptions.length;
+                    if (this.audio) this.audio.play('unpause'); 
+                }
+                if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
+                    const sel = this.pauseMenuOptions[this.pauseMenuIndex];
+                    if (sel === 'RESUME') {
+                        this.togglePause();
+                    } else if (sel === 'OPTIONS') {
+                        this.gameState = 'OPTIONS';
+                        this.optionsMenuIndex = 0;
+                        this.optionsMenuLevel = 'MAIN';
+                        document.getElementById('options-overlay').style.display = 'none'; // just in case
+                    } else if (sel === 'RESTART') {
+                        this.togglePause();
+                        this.loadRoom(this.currentRoom);
+                    } else if (sel === 'EXIT LEVEL') {
+                        this.togglePause();
+                        this.gameState = 'TITLE';
+                        if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+                    }
+                }
+                this.prevKeysUp = this.keys['ArrowUp'];
+                this.prevKeysDown = this.keys['ArrowDown'];
+                this.prevKeysZ = this.keys['z'] || this.keys['Z'] || this.keys['Enter'];
+
+                // Update bubbles
+                if (this.pauseBubbles) {
+                    this.pauseBubbles.forEach(b => {
+                        b.x += b.vx;
+                        b.y += b.vy;
+                        if (b.x < this.canvas.width/2 - 100) b.x = this.canvas.width/2 - 100;
+                        if (b.x > this.canvas.width + b.r) b.x = this.canvas.width/2 - 100;
+                        if (b.y < -b.r) b.y = this.canvas.height + b.r;
+                        if (b.y > this.canvas.height + b.r) b.y = -b.r;
+                    });
+                }
+            } else if (this.gameState === 'OPTIONS') {
+                this.optionsScrollX -= 0.5;
+                this.optionsScrollY -= 0.5;
+
+                let currentOptions = [];
+                if (this.optionsMenuLevel === 'MAIN') currentOptions = this.optionsMenuOptions;
+                else if (this.optionsMenuLevel === 'AUDIO') currentOptions = ['BACK', 'MASTER', 'MUSIC', 'SFX', 'UNFOCUS MUTE'];
+                else if (this.optionsMenuLevel === 'VIDEO') currentOptions = ['BACK', 'WINDOW MODE', 'RESOLUTION', 'VSYNC', 'TEXTURE FILTERING', 'HIDE HUD'];
+                else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
+                else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
+                else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
+                else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'ATTACK'];
+                else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
+                
+                if (this.keys['ArrowUp'] && !this.prevKeysUp) {
+                    this.optionsMenuIndex = (this.optionsMenuIndex - 1 + currentOptions.length) % currentOptions.length;
+                    if (this.audio) this.audio.play('unpause');
+                }
+                if (this.keys['ArrowDown'] && !this.prevKeysDown) {
+                    this.optionsMenuIndex = (this.optionsMenuIndex + 1) % currentOptions.length;
+                    if (this.audio) this.audio.play('unpause');
+                }
+                
+                // Settings adjust logic
+                const sel = currentOptions[this.optionsMenuIndex];
+                
+                // Initialize default custom properties if missing
+                if (this.settings.resolutions === undefined) this.settings.resolutions = ['960 X 540', '1280 X 720', '1920 X 1080'];
+                if (this.settings.resolutionIndex === undefined) this.settings.resolutionIndex = 0;
+                if (this.settings.windowMode === undefined) this.settings.windowMode = 'WINDOWED';
+                if (this.settings.hideHud === undefined) this.settings.hideHud = false;
+                if (this.settings.shakeIntens === undefined) this.settings.shakeIntens = 100;
+                if (this.settings.timer === undefined) this.settings.timer = false;
+                if (this.settings.dirSuperjump === undefined) this.settings.dirSuperjump = true;
+                if (this.settings.dirGroundpound === undefined) this.settings.dirGroundpound = true;
+                
+                if (this.keys['ArrowLeft']) {
+                    // Continuous sliders (change by 1 every frame while held)
+                    if (sel === 'MASTER') this.settings.masterVolume = Math.max(0, this.settings.masterVolume - 1);
+                    if (sel === 'MUSIC') this.settings.musicVolume = Math.max(0, this.settings.musicVolume - 1);
+                    if (sel === 'SFX') this.settings.sfxVolume = Math.max(0, this.settings.sfxVolume - 1);
+                    if (sel === 'SHAKE INTENS') this.settings.shakeIntens = Math.max(0, this.settings.shakeIntens - 1);
+
+                    // Discrete toggles (change only once per press)
+                    if (!this.prevKeysLeft) {
+                        if (sel === 'UNFOCUS MUTE') this.settings.unfocusedMute = !this.settings.unfocusedMute;
+                        if (sel === 'RESOLUTION') this.settings.resolutionIndex = Math.max(0, this.settings.resolutionIndex - 1);
+                        if (sel === 'VSYNC') this.settings.vsync = !this.settings.vsync;
+                        if (sel === 'TEXTURE FILTERING') this.settings.textureFiltering = !this.settings.textureFiltering;
+                        if (sel === 'HIDE HUD') this.settings.hideHud = !this.settings.hideHud;
+                        if (sel === 'TIMER') this.settings.timer = !this.settings.timer;
+                        if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
+                        if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
+                        if (this.audio && sel !== 'BACK') this.audio.play('unpause');
+                    }
+                }
+                
+                if (this.keys['ArrowRight']) {
+                    // Continuous sliders (change by 1 every frame while held)
+                    if (sel === 'MASTER') this.settings.masterVolume = Math.min(100, this.settings.masterVolume + 1);
+                    if (sel === 'MUSIC') this.settings.musicVolume = Math.min(100, this.settings.musicVolume + 1);
+                    if (sel === 'SFX') this.settings.sfxVolume = Math.min(100, this.settings.sfxVolume + 1);
+                    if (sel === 'SHAKE INTENS') this.settings.shakeIntens = Math.min(100, this.settings.shakeIntens + 1);
+
+                    // Discrete toggles (change only once per press)
+                    if (!this.prevKeysRight) {
+                        if (sel === 'UNFOCUS MUTE') this.settings.unfocusedMute = !this.settings.unfocusedMute;
+                        if (sel === 'RESOLUTION') this.settings.resolutionIndex = Math.min(this.settings.resolutions.length - 1, this.settings.resolutionIndex + 1);
+                        if (sel === 'VSYNC') this.settings.vsync = !this.settings.vsync;
+                        if (sel === 'TEXTURE FILTERING') this.settings.textureFiltering = !this.settings.textureFiltering;
+                        if (sel === 'HIDE HUD') this.settings.hideHud = !this.settings.hideHud;
+                        if (sel === 'TIMER') this.settings.timer = !this.settings.timer;
+                        if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
+                        if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
+                        if (this.audio && sel !== 'BACK') this.audio.play('unpause');
+                    }
+                }
+
+                if (this.keys['Escape'] && !this.prevKeysEsc) {
+                    if (this.optionsMenuLevel === 'MAIN') {
+                        this.gameState = 'PAUSED';
+                    } else if (this.optionsMenuLevel === 'KEYBOARD') {
+                        this.optionsMenuLevel = 'CONTROLS';
+                        this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'BINDINGS') {
+                        this.optionsMenuLevel = 'KEYBOARD';
+                        this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'WINDOW MODE') {
+                        this.optionsMenuLevel = 'VIDEO';
+                        this.optionsMenuIndex = 1;
+                    } else {
+                        this.optionsMenuLevel = 'MAIN';
+                        this.optionsMenuIndex = 0;
+                    }
+                    if (this.audio) this.audio.play('unpause');
+                }
+                if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
+                    if (this.optionsMenuLevel === 'MAIN') {
+                        this.optionsMenuLevel = currentOptions[this.optionsMenuIndex];
+                        this.optionsMenuIndex = 0;
+                    } else if (currentOptions[this.optionsMenuIndex] === 'BACK') {
+                        if (this.optionsMenuLevel === 'KEYBOARD') {
+                            this.optionsMenuLevel = 'CONTROLS';
+                        } else if (this.optionsMenuLevel === 'BINDINGS') {
+                            this.optionsMenuLevel = 'KEYBOARD';
+                        } else if (this.optionsMenuLevel === 'WINDOW MODE') {
+                            this.optionsMenuLevel = 'VIDEO';
+                            this.optionsMenuIndex = 1;
+                        } else {
+                            this.optionsMenuLevel = 'MAIN';
+                        }
+                        this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'CONTROLS' && currentOptions[this.optionsMenuIndex] === 'KEYBOARD') {
+                        this.optionsMenuLevel = 'KEYBOARD';
+                        this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'KEYBOARD' && currentOptions[this.optionsMenuIndex] === 'BINDINGS') {
+                        this.optionsMenuLevel = 'BINDINGS';
+                        this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'VIDEO' && currentOptions[this.optionsMenuIndex] === 'WINDOW MODE') {
+                        this.optionsMenuLevel = 'WINDOW MODE';
+                        this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'WINDOW MODE') {
+                        this.settings.windowMode = currentOptions[this.optionsMenuIndex];
+                        this.optionsMenuLevel = 'VIDEO';
+                        this.optionsMenuIndex = 1;
+                    }
+                    if (this.audio) this.audio.play('unpause');
+                }
+
+                this.prevKeysUp = this.keys['ArrowUp'];
+                this.prevKeysDown = this.keys['ArrowDown'];
+                this.prevKeysLeft = this.keys['ArrowLeft'];
+                this.prevKeysRight = this.keys['ArrowRight'];
+                this.prevKeysEsc = this.keys['Escape'];
+                this.prevKeysZ = this.keys['z'] || this.keys['Z'] || this.keys['Enter'];
+            }
+            return;
+        }
+
         if (this.transitionState === 'FADE_OUT') {
             this.transitionTimer++;
             this.transitionAlpha = this.transitionTimer / this.transitionDuration;
@@ -1133,8 +1325,301 @@ class Game {
         
         this.ctx.restore();
 
-        if (this.gameState === 'OPTIONS') {
-            this.renderOptions();
+        if (this.gameState === 'PAUSED' && this.bigFontLoaded) {
+            // Post-processing: Wave + Color Bleed + Darken
+            if (!this.pauseCanvas) {
+                this.pauseCanvas = document.createElement('canvas');
+                this.pauseCanvas.width = this.canvas.width;
+                this.pauseCanvas.height = this.canvas.height;
+                this.pauseCtx = this.pauseCanvas.getContext('2d');
+            }
+            this.pauseCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.pauseCtx.drawImage(this.canvas, 0, 0);
+
+            // Clear main canvas to black
+            this.ctx.fillStyle = 'black';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            const time = Date.now() / 1200; // Slower wave speed
+            const stripHeight = 4;
+            
+            // Pass 1: Base wave
+            this.ctx.globalAlpha = 1.0;
+            for (let y = 0; y < this.canvas.height; y += stripHeight) {
+                const waveX = Math.sin(y * 0.015 + time) * 8;
+                this.ctx.drawImage(this.pauseCanvas, 0, y, this.canvas.width, stripHeight, waveX, y, this.canvas.width, stripHeight);
+            }
+            
+            // Pass 2: Glitch / Bleed (Shifted horizontally)
+            this.ctx.globalCompositeOperation = 'lighter';
+            this.ctx.globalAlpha = 0.4;
+            for (let y = 0; y < this.canvas.height; y += stripHeight) {
+                const waveX = Math.sin(y * 0.015 + time) * 8;
+                this.ctx.drawImage(this.pauseCanvas, 0, y, this.canvas.width, stripHeight, waveX - 6, y, this.canvas.width, stripHeight);
+                this.ctx.drawImage(this.pauseCanvas, 0, y, this.canvas.width, stripHeight, waveX + 6, y, this.canvas.width, stripHeight);
+            }
+            
+            // Restore context state and Darken
+            this.ctx.globalCompositeOperation = 'source-over';
+            this.ctx.globalAlpha = 1.0;
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Darken overlay
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            // Draw dark background mask on right side using bubbles
+            this.ctx.fillStyle = 'black';
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 2;
+            
+            // Draw a base dark rect for the menu area
+            this.ctx.fillRect(this.canvas.width / 2 + 50, 0, this.canvas.width / 2, this.canvas.height);
+
+            // Draw bubbles acting as the border
+            if (this.pauseBubbles) {
+                this.pauseBubbles.forEach(b => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.stroke();
+                    this.ctx.beginPath();
+                    this.ctx.arc(b.x, b.y, b.r - 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                });
+            }
+
+            const drawText = (text, x, y, scale = 1, alpha = 1, center = true) => {
+                let cursorX = x;
+                if (typeof text !== 'string') text = String(text);
+                text = text.toUpperCase();
+                this.ctx.globalAlpha = alpha;
+                
+                // Calculate width for centering
+                if (center) {
+                    let totalWidth = 0;
+                    for (let i = 0; i < text.length; i++) {
+                        const char = text[i];
+                        if (char === ' ') totalWidth += 10 * scale;
+                        else {
+                            let charCode = -1;
+                            if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
+                            else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
+                            else if (char === '.') charCode = 36;
+                            
+                            if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                                totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
+                            }
+                        }
+                    }
+                    cursorX -= totalWidth / 2;
+                }
+
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    if (char === ' ') {
+                        cursorX += 10 * scale;
+                        continue;
+                    }
+                    let charCode = -1;
+                    if (char >= 'A' && char <= 'Z') {
+                        charCode = char.charCodeAt(0) - 65; // 0-25
+                    } else if (char >= '0' && char <= '9') {
+                        charCode = char.charCodeAt(0) - 48 + 26; // 26-35
+                    } else if (char === '.') {
+                        charCode = 36; // guess
+                    }
+
+                    if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                        const img = this.bigFontImages[charCode];
+                        if (img.naturalWidth > 0) {
+                            this.ctx.drawImage(img, cursorX, y, img.naturalWidth * scale, img.naturalHeight * scale);
+                            cursorX += (img.naturalWidth - 8) * scale;
+                        }
+                    }
+                }
+                this.ctx.globalAlpha = 1;
+            };
+
+            const startX = this.canvas.width / 2 + 150; // The right side of the screen
+            const startY = this.canvas.height / 2 - 120;
+            const lineSpace = 60;
+
+            for (let i = 0; i < this.pauseMenuOptions.length; i++) {
+                const opt = this.pauseMenuOptions[i];
+                const y = startY + i * lineSpace;
+                const isSelected = i === this.pauseMenuIndex;
+                
+                // Draw text
+                if (isSelected) {
+                    drawText(opt, startX + 20, y, 1, 1);
+                    // Draw arrow manually
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(startX, y + 25);
+                    this.ctx.lineTo(startX + 15, y + 25);
+                    this.ctx.lineTo(startX + 15, y + 15);
+                    this.ctx.lineTo(startX + 25, y + 30);
+                    this.ctx.lineTo(startX + 15, y + 45);
+                    this.ctx.lineTo(startX + 15, y + 35);
+                    this.ctx.lineTo(startX, y + 35);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                } else {
+                    drawText(opt, startX + 20, y, 1, 0.5);
+                }
+            }
+        } else if (this.gameState === 'OPTIONS' && this.bigFontLoaded) {
+            if (this.optionsBGLoaded) {
+                let bgIndex = 0;
+                if (this.optionsMenuLevel === 'AUDIO') bgIndex = 1;
+                else if (this.optionsMenuLevel === 'VIDEO') bgIndex = 2;
+                else if (this.optionsMenuLevel === 'GAME') bgIndex = 3;
+                else if (this.optionsMenuLevel === 'CONTROLS') bgIndex = 4;
+                else if (this.optionsMenuLevel === 'KEYBOARD') bgIndex = 4; // Use CONTROLS background
+
+                const baseBg = this.optionsBGImages[bgIndex];
+                if (baseBg && baseBg.complete && baseBg.naturalWidth > 0) {
+                    const w = baseBg.naturalWidth;
+                    const h = baseBg.naturalHeight;
+                    
+                    let offsetX = this.optionsScrollX % w;
+                    let offsetY = this.optionsScrollY % h;
+                    if (offsetX > 0) offsetX -= w;
+                    if (offsetY > 0) offsetY -= h;
+                    
+                    for (let x = offsetX - w; x < this.canvas.width; x += w) {
+                        for (let y = offsetY - h; y < this.canvas.height; y += h) {
+                            this.ctx.drawImage(baseBg, x, y, w, h);
+                        }
+                    }
+                } else {
+                    this.ctx.fillStyle = '#657b54'; 
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                }
+            } else {
+                this.ctx.fillStyle = '#657b54';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            const drawText = (text, x, y, scale = 1, alpha = 1, center = true) => {
+                let cursorX = x;
+                if (typeof text !== 'string') text = String(text);
+                text = text.toUpperCase();
+                this.ctx.globalAlpha = alpha;
+                
+                // Calculate width for centering
+                if (center) {
+                    let totalWidth = 0;
+                    for (let i = 0; i < text.length; i++) {
+                        const char = text[i];
+                        if (char === ' ') totalWidth += 10 * scale;
+                        else {
+                            let charCode = -1;
+                            if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
+                            else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
+                            else if (char === '.') charCode = 36;
+                            
+                            if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                                totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
+                            }
+                        }
+                    }
+                    cursorX -= totalWidth / 2;
+                }
+
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    if (char === ' ') {
+                        cursorX += 10 * scale;
+                        continue;
+                    }
+                    let charCode = -1;
+                    if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
+                    else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
+                    else if (char === '.') charCode = 36;
+                    
+                    if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                        const img = this.bigFontImages[charCode];
+                        if (img.naturalWidth > 0) {
+                            this.ctx.drawImage(img, cursorX, y, img.naturalWidth * scale, img.naturalHeight * scale);
+                            cursorX += (img.naturalWidth - 8) * scale;
+                        }
+                    }
+                }
+                this.ctx.globalAlpha = 1;
+            };
+
+            const startX = this.canvas.width / 2;
+            const startY = this.canvas.height / 2 - 100;
+            const lineSpace = 40;
+
+            let currentOptions = [];
+            if (this.optionsMenuLevel === 'MAIN') currentOptions = this.optionsMenuOptions;
+            else if (this.optionsMenuLevel === 'AUDIO') currentOptions = ['BACK', 'MASTER', 'MUSIC', 'SFX', 'UNFOCUS MUTE'];
+            else if (this.optionsMenuLevel === 'VIDEO') currentOptions = ['BACK', 'WINDOW MODE', 'RESOLUTION', 'VSYNC', 'TEXTURE FILTERING', 'HIDE HUD'];
+            else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
+            else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
+            else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
+            else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'ATTACK'];
+            else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
+
+            for (let i = 0; i < currentOptions.length; i++) {
+                const opt = currentOptions[i];
+                const y = startY + i * lineSpace;
+                const isSelected = i === this.optionsMenuIndex;
+                
+                const isMain = this.optionsMenuLevel === 'MAIN';
+                let textX = isMain ? startX : startX - 250;
+                
+                // For BINDINGS, we want the options to be centered (with BACK at top left)
+                if (this.optionsMenuLevel === 'BINDINGS') {
+                    if (opt === 'BACK') {
+                        textX = startX - 250;
+                    } else {
+                        textX = startX;
+                    }
+                }
+                
+                if (isSelected) {
+                    drawText(opt, textX, y, 1, 1, isMain || (this.optionsMenuLevel === 'BINDINGS' && opt !== 'BACK'));
+                } else {
+                    drawText(opt, textX, y, 1, 0.5, isMain || (this.optionsMenuLevel === 'BINDINGS' && opt !== 'BACK'));
+                }
+
+                // Draw setting value on the right
+                const valX = startX + 250;
+                let valueText = null;
+                let sliderValue = null; // 0 to 1
+                
+                if (opt === 'MASTER') sliderValue = this.settings.masterVolume / 100;
+                if (opt === 'MUSIC') sliderValue = this.settings.musicVolume / 100;
+                if (opt === 'SFX') sliderValue = this.settings.sfxVolume / 100;
+                if (opt === 'SHAKE INTENS') sliderValue = this.settings.shakeIntens / 100;
+                
+                if (opt === 'UNFOCUS MUTE') valueText = this.settings.unfocusedMute ? 'ON' : 'OFF';
+                if (opt === 'WINDOW MODE') valueText = this.settings.windowMode;
+                if (opt === 'RESOLUTION') valueText = this.settings.resolutions[this.settings.resolutionIndex];
+                if (opt === 'VSYNC') valueText = this.settings.vsync ? 'ON' : 'OFF';
+                if (opt === 'TEXTURE FILTERING') valueText = this.settings.textureFiltering ? 'ON' : 'OFF';
+                if (opt === 'HIDE HUD') valueText = this.settings.hideHud ? 'ON' : 'OFF';
+                if (opt === 'TIMER') valueText = this.settings.timer ? 'ON' : 'OFF';
+                if (opt === 'DIR SUPERJUMP') valueText = this.settings.dirSuperjump ? 'ON' : 'OFF';
+                if (opt === 'DIR GROUNDPOUND') valueText = this.settings.dirGroundpound ? 'ON' : 'OFF';
+                
+                const alpha = isSelected ? 1 : 0.5;
+                if (valueText !== null) {
+                    drawText(valueText, valX, y, 1, alpha, false);
+                } else if (sliderValue !== null) {
+                    this.ctx.globalAlpha = alpha;
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.fillRect(valX, y + 20, 200, 10); // Background line
+                    
+                    // The knob
+                    this.ctx.fillStyle = '#657b54'; // A distinct color for the knob, maybe green
+                    this.ctx.fillRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
+                    this.ctx.strokeStyle = 'white';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
+                    this.ctx.globalAlpha = 1;
+                }
+            }
         }
 
         // Draw Tutorial Book Banner UI
@@ -1223,7 +1708,6 @@ class Game {
                     if (!key) return "NONE";
                     if (key.startsWith("Arrow")) return key.replace("Arrow", "").toUpperCase();
                     if (key === " ") return "SPACE";
-                    if (key === "Escape") return "ESC";
                     return key.toUpperCase();
                 };
                 
@@ -1234,8 +1718,7 @@ class Game {
                     '[R]': formatKey(this.settings.bindings.right),
                     '[U]': formatKey(this.settings.bindings.up),
                     '[D]': formatKey(this.settings.bindings.down),
-                    '[G]': formatKey(this.settings.bindings.grab),
-                    '[P]': formatKey(this.settings.bindings.pause)
+                    '[G]': formatKey(this.settings.bindings.grab)
                 };
                 
                 // Parse text into tokens of either string or key macro
@@ -1467,226 +1950,6 @@ class Game {
             setTimeout(() => {
                 this.loop(performance.now());
             }, 1000 / 60);
-        }
-    }
-
-    updateOptions() {
-        if (this.optionsMenuLevel === 'BINDINGS') {
-            if (this.bindingKeyFor) {
-                // Intercept key down in setupInputs instead
-                // Decrease timer
-                if (!this.bindingTimer) this.bindingTimer = 180;
-                this.bindingTimer--;
-                if (this.bindingTimer <= 0) {
-                    this.bindingKeyFor = null;
-                }
-                return; // block other input
-            }
-
-            const actions = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'RUN', 'GRAB', 'PAUSE'];
-            if (this.keys.actionDown && !this.prevKeys.actionDown) {
-                this.menuIndex = (this.menuIndex + 1) % actions.length;
-            }
-            if (this.keys.actionUp && !this.prevKeys.actionUp) {
-                this.menuIndex = (this.menuIndex - 1 + actions.length) % actions.length;
-            }
-            
-            // Rebind logic handled by Z, C, F1 intercept
-            if (this.keys['z'] && !this.prevKeys['z']) {
-                this.bindingKeyFor = actions[this.menuIndex].toLowerCase();
-                this.bindingTimer = 180;
-            }
-            if (this.keys['c'] && !this.prevKeys['c']) {
-                this.settings.bindings[actions[this.menuIndex].toLowerCase()] = null;
-                this.saveSettings();
-            }
-            if (this.keys['F1'] && !this.prevKeys['F1']) {
-                this.settings.bindings = {
-                    up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
-                    jump: 'z', run: 'x', grab: 'c', pause: 'Escape'
-                };
-                this.saveSettings();
-            }
-
-            // Scroll calculation
-            const targetY = this.menuIndex * 40;
-            this.bindingsScrollY += (targetY - this.bindingsScrollY) * 0.2;
-
-            if (this.keys.actionBack && !this.prevKeys.actionBack) {
-                this.optionsMenuLevel = 'MAIN';
-                this.menuIndex = 0;
-            }
-        }
-    }
-
-    renderOptions() {
-        if (this.optionsMenuLevel === 'BINDINGS') {
-            if (this.optionsBGImage && this.optionsBGImage.complete && this.optionsBGImage.naturalWidth > 0) {
-                const pat = this.ctx.createPattern(this.optionsBGImage, 'repeat');
-                this.ctx.fillStyle = pat;
-                this.ctx.save();
-                this.ctx.translate(this.bindingsScrollY * 0.5, this.bindingsScrollY * 0.5);
-                this.ctx.fillRect(-this.canvas.width, -this.canvas.height, this.canvas.width * 3, this.canvas.height * 3);
-                this.ctx.restore();
-            } else {
-                this.ctx.fillStyle = '#b79717'; // Pizza tower yellow-brown
-                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            }
-
-            const drawText = (str, x, y) => {
-                let currentX = x;
-                for (let i = 0; i < str.length; i++) {
-                    const char = str[i];
-                    if (char === ' ' || char === '.') {
-                        currentX += 16;
-                        continue;
-                    }
-                    let charCode = char.charCodeAt(0) - 33;
-                    if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
-                    else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26; // After Z
-                    else if (char === '!') charCode = 36;
-                    else if (char === '¡') charCode = 37;
-                    else if (char === '¿') charCode = 38;
-                    else if (char === '?') charCode = 39;
-                    else if (char === ':') charCode = 40;
-                    else if (char === '+') charCode = 41;
-
-                    if (charCode >= 0 && charCode < 67 && this.bigFontImages && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
-                        this.ctx.drawImage(this.bigFontImages[charCode], currentX, y);
-                        currentX += this.bigFontImages[charCode].naturalWidth - 2;
-                    }
-                }
-            };
-
-            const drawSmallText = (text, x, y, alpha = 1, center = false) => {
-                this.ctx.globalAlpha = alpha;
-                const charset = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789`?¿-";
-                let totalW = 0;
-                if (center) {
-                    for(let i=0; i<text.length; i++) {
-                        const c = text[i];
-                        const idx = charset.indexOf(c);
-                        if (c === ' ') totalW += 16;
-                        else if (idx !== -1 && this.tutorialFontImages[idx] && this.tutorialFontImages[idx].complete) totalW += this.tutorialFontImages[idx].naturalWidth - 4;
-                        else totalW += 16;
-                    }
-                }
-                let kx = center ? x - totalW / 2 : x;
-                
-                for(let i=0; i<text.length; i++) {
-                    const c = text[i];
-                    if (c === ' ') { kx += 16; continue; }
-                    const idx = charset.indexOf(c);
-                    if (idx !== -1 && this.tutorialFontImages[idx] && this.tutorialFontImages[idx].complete) {
-                        this.ctx.drawImage(this.tutorialFontImages[idx], kx, y);
-                        kx += this.tutorialFontImages[idx].naturalWidth - 4;
-                    } else {
-                        this.ctx.save();
-                        this.ctx.fillStyle = '#000000';
-                        this.ctx.font = 'bold 14px "Outfit", sans-serif';
-                        this.ctx.textAlign = 'left';
-                        this.ctx.fillText(c, kx, y + 14);
-                        this.ctx.restore();
-                        kx += 16;
-                    }
-                }
-                this.ctx.globalAlpha = 1;
-            };
-
-            const drawKeyBox = (keyStr, x, y) => {
-                const kImg = this.getKeyImage(keyStr);
-                if (kImg && kImg.complete && kImg.naturalWidth > 0 && !kImg.error) {
-                    this.ctx.drawImage(kImg, x - kImg.naturalWidth / 2, y - kImg.naturalHeight / 2, kImg.naturalWidth, kImg.naturalHeight);
-                } else if (this.tutorialBlankKeyLoaded && this.tutorialBlankKeyImage.naturalWidth > 0) {
-                    const bImg = this.tutorialBlankKeyImage;
-                    this.ctx.drawImage(bImg, x - bImg.naturalWidth / 2, y - bImg.naturalHeight / 2, bImg.naturalWidth, bImg.naturalHeight);
-                    drawSmallText(keyStr, x, y - 12, this.ctx.globalAlpha, true);
-                } else {
-                    drawSmallText(keyStr, x, y - 10, this.ctx.globalAlpha, true);
-                }
-            };
-
-            const bLeftX = 50;
-            const bLeftY = this.canvas.height - 200;
-            drawKeyBox('F1', bLeftX + 16, bLeftY + 16);
-            drawText('RESET BINDS', bLeftX + 60, bLeftY + 28);
-            drawKeyBox('Z', bLeftX + 16, bLeftY + 66);
-            drawText('ADD BIND', bLeftX + 60, bLeftY + 78);
-            drawKeyBox('C', bLeftX + 16, bLeftY + 116);
-            drawText('REMOVE BIND', bLeftX + 60, bLeftY + 128);
-
-            const bindMap = {
-                'UP': { key: 'up', icon: 'up' }, 'DOWN': { key: 'down', icon: 'down' },
-                'LEFT': { key: 'left', icon: 'left' }, 'RIGHT': { key: 'right', icon: 'right' },
-                'JUMP': { key: 'jump', icon: 'jump' }, 'RUN': { key: 'run', icon: 'run' },
-                'GRAB': { key: 'grab', icon: 'grab' }, 'PAUSE': { key: 'pause', icon: 'pause' }
-            };
-
-            const actions = Object.keys(bindMap);
-            const listStartY = 150 - this.bindingsScrollY;
-            const startX = this.canvas.width / 2 - 150;
-
-            for (let i = 0; i < actions.length; i++) {
-                const action = actions[i];
-                const y = listStartY + i * 40;
-                
-                if (i === this.menuIndex) {
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                    this.ctx.fillRect(startX - 20, y - 20, 400, 40);
-                }
-
-                const bindInfo = bindMap[action];
-                if (this.controlIcons && this.controlIcons[bindInfo.icon]) {
-                    const iconImg = this.controlIcons[bindInfo.icon];
-                    if (iconImg.complete) {
-                        this.ctx.drawImage(iconImg, startX - 40, y - iconImg.naturalHeight / 2);
-                    }
-                }
-
-                drawText(action, startX, y + 10);
-                
-                let bindStr = this.settings.bindings[bindInfo.key];
-                if (bindStr) bindStr = bindStr.toUpperCase();
-                
-                if (bindStr) {
-                    drawKeyBox(bindStr, startX + 250, y);
-                }
-            }
-            
-            drawText('BACK', 200, 100);
-
-            if (this.bindingKeyFor) {
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                const drawTextCenter = (str, cx, cy) => {
-                    let totalW = 0;
-                    for (let i = 0; i < str.length; i++) {
-                        const char = str[i];
-                        if (char === ' ') { totalW += 16; continue; }
-                        let charCode = char.charCodeAt(0) - 33;
-                        if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
-                        else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
-                        else if (char === '!') charCode = 36;
-                        else if (char === '¡') charCode = 37;
-                        else if (char === '¿') charCode = 38;
-                        else if (char === '?') charCode = 39;
-                        else if (char === ':') charCode = 40;
-                        else if (char === '+') charCode = 41;
-                        else if (char === '.') { totalW += 16; continue; }
-
-                        if (charCode >= 0 && charCode < 67 && this.bigFontImages && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
-                            totalW += this.bigFontImages[charCode].naturalWidth - 2;
-                        } else {
-                            totalW += 16;
-                        }
-                    }
-                    drawText(str, cx - totalW / 2, cy);
-                };
-
-                drawTextCenter("PRESS ANY KEY", this.canvas.width / 2, this.canvas.height / 2 - 20);
-                drawTextCenter(`GOING BACK IN. . . ${Math.ceil(this.bindingTimer / 60)}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
-            }
         }
     }
 }
