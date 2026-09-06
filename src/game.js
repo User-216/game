@@ -70,7 +70,15 @@ class Game {
                 down: 'ArrowDown',
                 jump: 'z',
                 run: 'Shift',
-                grab: 'x'
+                grab: 'x',
+                pause: 'Escape',
+                menuLeft: 'ArrowLeft',
+                menuRight: 'ArrowRight',
+                menuUp: 'ArrowUp',
+                menuDown: 'ArrowDown',
+                menuConfirm: 'z',
+                menuBack: 'x',
+                menuClear: 'c'
             }
         };
         this.bindingKeyFor = null;
@@ -127,6 +135,29 @@ class Game {
         this.tutorialRopeImage = new Image();
         this.tutorialRopeImage.src = 'tutorial/spr_tutorialbubble_rope.png';
         
+        // Load big font (spr_font)
+        this.bigFontImages = [];
+        this.bigFontLoadedCount = 0;
+        this.bigFontTotal = 67; // Assuming 67 chars based on drawText
+        for (let i = 0; i < this.bigFontTotal; i++) {
+            const img = new Image();
+            img.src = `font/spr_font_${i}.png`;
+            this.bigFontImages.push(img);
+        }
+
+        // Load options background
+        this.optionsBGImage = new Image();
+        this.optionsBGImage.src = 'spr_optionsBG/spr_optionsBG_0.png';
+
+        // Load control icons
+        this.controlIcons = {};
+        const iconNames = ['up', 'down', 'left', 'right', 'jump', 'run', 'grab', 'pause'];
+        iconNames.forEach((name, idx) => {
+            const img = new Image();
+            img.src = `spr_controlicons/spr_controlicons_${idx}.png`;
+            this.controlIcons[name] = img;
+        });
+
         // Load tutorial sprite font and tint to black
         this.tutorialFontImages = [];
         this.tutorialFontLoadedCount = 0;
@@ -161,8 +192,9 @@ class Game {
         this.tutorialKeyImages = {};
         this.getKeyImage = (keyName) => {
             if (this.tutorialKeyImages[keyName]) return this.tutorialKeyImages[keyName];
+            const lowerKey = keyName.toLowerCase();
             const img = new Image();
-            img.src = `tutorial/spr_tutorialkeyspecial/${keyName}.png`; // fallback if they exist
+            img.src = `tutorial/spr_tutorialkeyspecial/spr_tutorialkeyspecial_${lowerKey}.png`;
             img.loaded = false;
             img.error = false;
             img.onload = () => { img.loaded = true; };
@@ -171,8 +203,24 @@ class Game {
             return img;
         };
 
+        this.optionsBGs = [];
+        for(let i=0; i<=4; i++) {
+            const img = new Image();
+            img.src = `spr_optionsBG/spr_optionsBG_${i}.png`;
+            this.optionsBGs.push(img);
+        }
+
+        this.controlIcons = {};
+        const iconNames = ['dash', 'down', 'grab', 'groundpound', 'jump', 'left', 'pause', 'right', 'superjump', 'taunt', 'up'];
+        iconNames.forEach(name => {
+            const img = new Image();
+            img.src = `spr_controlicons/spr_controlicons_${name}.png`;
+            this.controlIcons[name] = img;
+        });
+
         this.tutorialTexX = 0;
         this.tutorialWaveTimer = 0;
+        this.bindingsScrollY = 0;
         this.currentTutorialText = null;
         this.currentTutorialBook = null;
 
@@ -215,13 +263,15 @@ class Game {
                 const key = e.key === ' ' ? 'Space' : e.key;
                 if (key === 'Escape') {
                     this.bindingKeyFor = null;
-                    document.getElementById('bind-overlay').classList.add('hidden');
+                    const el = document.getElementById('bind-overlay');
+                    if (el) el.classList.add('hidden');
                     return;
                 }
                 this.settings.bindings[this.bindingKeyFor] = key;
                 this.bindingKeyFor = null;
-                document.getElementById('bind-overlay').classList.add('hidden');
-                this.refreshControlList();
+                const el = document.getElementById('bind-overlay');
+                if (el) el.classList.add('hidden');
+                if (this.refreshControlList) this.refreshControlList();
                 return;
             }
 
@@ -1083,6 +1133,10 @@ class Game {
         
         this.ctx.restore();
 
+        if (this.gameState === 'OPTIONS') {
+            this.renderOptions();
+        }
+
         // Draw Tutorial Book Banner UI
         if (this.currentTutorialText && this.gameState === 'PLAYING') {
             let processedText = this.currentTutorialText.replace(/\\n/g, '\n');
@@ -1169,6 +1223,7 @@ class Game {
                     if (!key) return "NONE";
                     if (key.startsWith("Arrow")) return key.replace("Arrow", "").toUpperCase();
                     if (key === " ") return "SPACE";
+                    if (key === "Escape") return "ESC";
                     return key.toUpperCase();
                 };
                 
@@ -1179,7 +1234,8 @@ class Game {
                     '[R]': formatKey(this.settings.bindings.right),
                     '[U]': formatKey(this.settings.bindings.up),
                     '[D]': formatKey(this.settings.bindings.down),
-                    '[G]': formatKey(this.settings.bindings.grab)
+                    '[G]': formatKey(this.settings.bindings.grab),
+                    '[P]': formatKey(this.settings.bindings.pause)
                 };
                 
                 // Parse text into tokens of either string or key macro
@@ -1411,6 +1467,226 @@ class Game {
             setTimeout(() => {
                 this.loop(performance.now());
             }, 1000 / 60);
+        }
+    }
+
+    updateOptions() {
+        if (this.optionsMenuLevel === 'BINDINGS') {
+            if (this.bindingKeyFor) {
+                // Intercept key down in setupInputs instead
+                // Decrease timer
+                if (!this.bindingTimer) this.bindingTimer = 180;
+                this.bindingTimer--;
+                if (this.bindingTimer <= 0) {
+                    this.bindingKeyFor = null;
+                }
+                return; // block other input
+            }
+
+            const actions = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'RUN', 'GRAB', 'PAUSE'];
+            if (this.keys.actionDown && !this.prevKeys.actionDown) {
+                this.menuIndex = (this.menuIndex + 1) % actions.length;
+            }
+            if (this.keys.actionUp && !this.prevKeys.actionUp) {
+                this.menuIndex = (this.menuIndex - 1 + actions.length) % actions.length;
+            }
+            
+            // Rebind logic handled by Z, C, F1 intercept
+            if (this.keys['z'] && !this.prevKeys['z']) {
+                this.bindingKeyFor = actions[this.menuIndex].toLowerCase();
+                this.bindingTimer = 180;
+            }
+            if (this.keys['c'] && !this.prevKeys['c']) {
+                this.settings.bindings[actions[this.menuIndex].toLowerCase()] = null;
+                this.saveSettings();
+            }
+            if (this.keys['F1'] && !this.prevKeys['F1']) {
+                this.settings.bindings = {
+                    up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
+                    jump: 'z', run: 'x', grab: 'c', pause: 'Escape'
+                };
+                this.saveSettings();
+            }
+
+            // Scroll calculation
+            const targetY = this.menuIndex * 40;
+            this.bindingsScrollY += (targetY - this.bindingsScrollY) * 0.2;
+
+            if (this.keys.actionBack && !this.prevKeys.actionBack) {
+                this.optionsMenuLevel = 'MAIN';
+                this.menuIndex = 0;
+            }
+        }
+    }
+
+    renderOptions() {
+        if (this.optionsMenuLevel === 'BINDINGS') {
+            if (this.optionsBGImage && this.optionsBGImage.complete && this.optionsBGImage.naturalWidth > 0) {
+                const pat = this.ctx.createPattern(this.optionsBGImage, 'repeat');
+                this.ctx.fillStyle = pat;
+                this.ctx.save();
+                this.ctx.translate(this.bindingsScrollY * 0.5, this.bindingsScrollY * 0.5);
+                this.ctx.fillRect(-this.canvas.width, -this.canvas.height, this.canvas.width * 3, this.canvas.height * 3);
+                this.ctx.restore();
+            } else {
+                this.ctx.fillStyle = '#b79717'; // Pizza tower yellow-brown
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            const drawText = (str, x, y) => {
+                let currentX = x;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str[i];
+                    if (char === ' ' || char === '.') {
+                        currentX += 16;
+                        continue;
+                    }
+                    let charCode = char.charCodeAt(0) - 33;
+                    if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
+                    else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26; // After Z
+                    else if (char === '!') charCode = 36;
+                    else if (char === '¡') charCode = 37;
+                    else if (char === '¿') charCode = 38;
+                    else if (char === '?') charCode = 39;
+                    else if (char === ':') charCode = 40;
+                    else if (char === '+') charCode = 41;
+
+                    if (charCode >= 0 && charCode < 67 && this.bigFontImages && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                        this.ctx.drawImage(this.bigFontImages[charCode], currentX, y);
+                        currentX += this.bigFontImages[charCode].naturalWidth - 2;
+                    }
+                }
+            };
+
+            const drawSmallText = (text, x, y, alpha = 1, center = false) => {
+                this.ctx.globalAlpha = alpha;
+                const charset = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789`?¿-";
+                let totalW = 0;
+                if (center) {
+                    for(let i=0; i<text.length; i++) {
+                        const c = text[i];
+                        const idx = charset.indexOf(c);
+                        if (c === ' ') totalW += 16;
+                        else if (idx !== -1 && this.tutorialFontImages[idx] && this.tutorialFontImages[idx].complete) totalW += this.tutorialFontImages[idx].naturalWidth - 4;
+                        else totalW += 16;
+                    }
+                }
+                let kx = center ? x - totalW / 2 : x;
+                
+                for(let i=0; i<text.length; i++) {
+                    const c = text[i];
+                    if (c === ' ') { kx += 16; continue; }
+                    const idx = charset.indexOf(c);
+                    if (idx !== -1 && this.tutorialFontImages[idx] && this.tutorialFontImages[idx].complete) {
+                        this.ctx.drawImage(this.tutorialFontImages[idx], kx, y);
+                        kx += this.tutorialFontImages[idx].naturalWidth - 4;
+                    } else {
+                        this.ctx.save();
+                        this.ctx.fillStyle = '#000000';
+                        this.ctx.font = 'bold 14px "Outfit", sans-serif';
+                        this.ctx.textAlign = 'left';
+                        this.ctx.fillText(c, kx, y + 14);
+                        this.ctx.restore();
+                        kx += 16;
+                    }
+                }
+                this.ctx.globalAlpha = 1;
+            };
+
+            const drawKeyBox = (keyStr, x, y) => {
+                const kImg = this.getKeyImage(keyStr);
+                if (kImg && kImg.complete && kImg.naturalWidth > 0 && !kImg.error) {
+                    this.ctx.drawImage(kImg, x - kImg.naturalWidth / 2, y - kImg.naturalHeight / 2, kImg.naturalWidth, kImg.naturalHeight);
+                } else if (this.tutorialBlankKeyLoaded && this.tutorialBlankKeyImage.naturalWidth > 0) {
+                    const bImg = this.tutorialBlankKeyImage;
+                    this.ctx.drawImage(bImg, x - bImg.naturalWidth / 2, y - bImg.naturalHeight / 2, bImg.naturalWidth, bImg.naturalHeight);
+                    drawSmallText(keyStr, x, y - 12, this.ctx.globalAlpha, true);
+                } else {
+                    drawSmallText(keyStr, x, y - 10, this.ctx.globalAlpha, true);
+                }
+            };
+
+            const bLeftX = 50;
+            const bLeftY = this.canvas.height - 200;
+            drawKeyBox('F1', bLeftX + 16, bLeftY + 16);
+            drawText('RESET BINDS', bLeftX + 60, bLeftY + 28);
+            drawKeyBox('Z', bLeftX + 16, bLeftY + 66);
+            drawText('ADD BIND', bLeftX + 60, bLeftY + 78);
+            drawKeyBox('C', bLeftX + 16, bLeftY + 116);
+            drawText('REMOVE BIND', bLeftX + 60, bLeftY + 128);
+
+            const bindMap = {
+                'UP': { key: 'up', icon: 'up' }, 'DOWN': { key: 'down', icon: 'down' },
+                'LEFT': { key: 'left', icon: 'left' }, 'RIGHT': { key: 'right', icon: 'right' },
+                'JUMP': { key: 'jump', icon: 'jump' }, 'RUN': { key: 'run', icon: 'run' },
+                'GRAB': { key: 'grab', icon: 'grab' }, 'PAUSE': { key: 'pause', icon: 'pause' }
+            };
+
+            const actions = Object.keys(bindMap);
+            const listStartY = 150 - this.bindingsScrollY;
+            const startX = this.canvas.width / 2 - 150;
+
+            for (let i = 0; i < actions.length; i++) {
+                const action = actions[i];
+                const y = listStartY + i * 40;
+                
+                if (i === this.menuIndex) {
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    this.ctx.fillRect(startX - 20, y - 20, 400, 40);
+                }
+
+                const bindInfo = bindMap[action];
+                if (this.controlIcons && this.controlIcons[bindInfo.icon]) {
+                    const iconImg = this.controlIcons[bindInfo.icon];
+                    if (iconImg.complete) {
+                        this.ctx.drawImage(iconImg, startX - 40, y - iconImg.naturalHeight / 2);
+                    }
+                }
+
+                drawText(action, startX, y + 10);
+                
+                let bindStr = this.settings.bindings[bindInfo.key];
+                if (bindStr) bindStr = bindStr.toUpperCase();
+                
+                if (bindStr) {
+                    drawKeyBox(bindStr, startX + 250, y);
+                }
+            }
+            
+            drawText('BACK', 200, 100);
+
+            if (this.bindingKeyFor) {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                const drawTextCenter = (str, cx, cy) => {
+                    let totalW = 0;
+                    for (let i = 0; i < str.length; i++) {
+                        const char = str[i];
+                        if (char === ' ') { totalW += 16; continue; }
+                        let charCode = char.charCodeAt(0) - 33;
+                        if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
+                        else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
+                        else if (char === '!') charCode = 36;
+                        else if (char === '¡') charCode = 37;
+                        else if (char === '¿') charCode = 38;
+                        else if (char === '?') charCode = 39;
+                        else if (char === ':') charCode = 40;
+                        else if (char === '+') charCode = 41;
+                        else if (char === '.') { totalW += 16; continue; }
+
+                        if (charCode >= 0 && charCode < 67 && this.bigFontImages && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                            totalW += this.bigFontImages[charCode].naturalWidth - 2;
+                        } else {
+                            totalW += 16;
+                        }
+                    }
+                    drawText(str, cx - totalW / 2, cy);
+                };
+
+                drawTextCenter("PRESS ANY KEY", this.canvas.width / 2, this.canvas.height / 2 - 20);
+                drawTextCenter(`GOING BACK IN. . . ${Math.ceil(this.bindingTimer / 60)}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+            }
         }
     }
 }
