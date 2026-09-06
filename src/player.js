@@ -1200,6 +1200,9 @@ class Player {
             drawAfterImage(m, false);
         });
 
+        // Reset globalAlpha before drawing effects so they don't inherit afterimage transparency
+        ctx.globalAlpha = 1.0;
+
         // Draw and update active effects
         for (let i = this.activeEffects.length - 1; i >= 0; i--) {
             const ef = this.activeEffects[i];
