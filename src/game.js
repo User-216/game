@@ -1207,6 +1207,7 @@ class Game {
             this.keys.actionJump = !!this.keys[this.settings.bindings.jump];
             this.keys.actionRun = !!this.keys[this.settings.bindings.run];
             this.keys.actionGrab = !!this.keys[this.settings.bindings.grab];
+            this.keys.actionTaunt = !!this.keys[this.settings.bindings.taunt];
         }
 
         this.player.update(this.keys, this.entities, this.audio);

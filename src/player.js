@@ -24,7 +24,12 @@ class Player {
         this.isGroundPounding = false;
         this.isGroundPoundLand = false;
         this.groundPoundLandTimer = 0;
+        
+        this.isTaunting = false;
+        this.tauntTimer = 0;
         this.isCrouching = false;
+        
+        this.canSuplexGrab = true;
         this.isTumbling = false;
         this.isSuplexGrabbing = false;
         this.suplexGrabTimer = 0;
@@ -138,6 +143,31 @@ class Player {
     update(keys, entities, audio) {
         this.frameCount++;
         this.wasGrounded = this.isGrounded;
+
+        if (this.isTaunting) {
+            this.tauntTimer--;
+            if (this.tauntTimer <= 0) {
+                this.isTaunting = false;
+            } else {
+                keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
+            }
+        } else if (keys.actionTaunt) {
+            this.isTaunting = true;
+            this.tauntTimer = 20;
+            if (audio) audio.play('taunt'); // Option to play taunt sound later
+            keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
+            
+            // Cancel other states
+            this.isClimbing = false;
+            this.isTumbling = false;
+            this.isSuplexGrabbing = false;
+            this.isGroundPounding = false;
+            this.isGroundPoundLand = false;
+            this.isDrifting = false;
+            this.isDrifting1 = false;
+            this.isMachSliding = false;
+        }
+
         let isCurrentlyRunning = !!keys.actionRun;
         
         // 웅크리고 있을 때는 달리기 불가
@@ -556,6 +586,9 @@ class Player {
             // 슬라이드 중 공중에 뜨면 슬라이드 중단 (또는 계속 유지할지 결정)
             // 여기선 관성을 위해 유지하되 중력 적용
             this.vy += this.gravity;
+        } else if (this.isTaunting) {
+            this.vx = 0;
+            this.vy = 0;
         } else {
             this.vy += this.gravity;
         }
@@ -914,7 +947,9 @@ class Player {
         }
 
         // Determine sprite index
-        if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
+        if (this.isTaunting) {
+            this.sprite_index = 'spr_player_idle'; // 현재 도발 스프라이트가 없으므로 idle 사용
+        } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
             this.sprite_index = 'spr_player_land';
             this.image_index = 0;
         }
