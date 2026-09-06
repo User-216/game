@@ -131,6 +131,17 @@ class Player {
             img.src = `player/spr_player_mach2/spr_playerT_mach${i}.png`;
             this.sprites.spr_player_mach2.push(img);
         }
+
+        this.effectSprites = {
+            spr_highjumpcloud2: []
+        };
+        for (let i = 0; i <= 6; i++) {
+            let img = new Image();
+            img.src = `effect/spr_highjumpcloud2/spr_highjumpcloud2_${i}.png`;
+            this.effectSprites.spr_highjumpcloud2.push(img);
+        }
+        
+        this.activeEffects = [];
         
         // Mask
         this.mask_image = new Image();
@@ -908,6 +919,15 @@ class Player {
                 this.sprite_index = 'spr_player_jump';
                 this.image_index = 0;
                 if (audio) audio.play('jump');
+                
+                // 유저 요청: 점프 뛰었을 때 구름 효과 추가
+                this.activeEffects.push({
+                    type: 'spr_highjumpcloud2',
+                    x: this.x + this.width / 2,
+                    y: this.y + this.height,
+                    image_index: 0,
+                    image_speed: 0.5 // 애니메이션 속도
+                });
             } else if (this.isClimbing) {
                 // Wall Jump (Stronger if climbing or high speed)
                 this.vy = this.jumpForce * 1.2;
@@ -1141,6 +1161,30 @@ class Player {
         this.ghostAfters.forEach(m => {
             drawAfterImage(m, false);
         });
+
+        // Draw and update active effects
+        for (let i = this.activeEffects.length - 1; i >= 0; i--) {
+            const ef = this.activeEffects[i];
+            const frames = this.effectSprites[ef.type];
+            if (frames && frames.length > 0) {
+                const frameIndex = Math.floor(ef.image_index);
+                if (frameIndex < frames.length) {
+                    const img = frames[frameIndex];
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.save();
+                        // 100x100 렌더링, 기준점을 x 중앙, y 바닥으로 잡기
+                        ctx.translate(ef.x, ef.y);
+                        ctx.drawImage(img, -50, -100, 100, 100);
+                        ctx.restore();
+                    }
+                    ef.image_index += ef.image_speed;
+                } else {
+                    this.activeEffects.splice(i, 1);
+                }
+            } else {
+                this.activeEffects.splice(i, 1);
+            }
+        }
 
         ctx.globalAlpha = 1.0;
 
