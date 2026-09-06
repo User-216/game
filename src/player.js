@@ -957,15 +957,16 @@ class Player {
                 this.sprite_index = 'spr_player_jump';
                 this.image_index = 0;
                 if (audio) audio.play('jump');
-                
-                // 유저 요청: 점프 뛰었을 때 구름 효과 추가
-                this.activeEffects.push({
-                    type: 'spr_highjumpcloud2',
-                    x: this.x + this.width / 2,
-                    y: this.y + this.height,
-                    image_index: 0,
-                    image_speed: 0.5 // 애니메이션 속도
-                });
+                // 유저 요청: 점프 뛰었을 때 구름 효과 추가 (단, 달리기 중에는 나오지 않게)
+                if (!this.isRunning) {
+                    this.activeEffects.push({
+                        type: 'spr_highjumpcloud2',
+                        x: this.x + this.width / 2,
+                        y: this.y + this.height,
+                        image_index: 0,
+                        image_speed: 0.5 // 애니메이션 속도
+                    });
+                }
             } else if (this.isClimbing) {
                 // Wall Jump (Stronger if climbing or high speed)
                 this.vy = this.jumpForce * 1.2;
