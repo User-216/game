@@ -159,12 +159,16 @@ class Player {
             this.tauntTimer--;
             if (this.tauntTimer <= 0) {
                 this.isTaunting = false;
+                this.vx = this.storedVx || 0;
+                this.vy = this.storedVy || 0;
             } else {
                 keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
             }
         } else if (keys.actionTaunt) {
             this.isTaunting = true;
             this.tauntTimer = 20;
+            this.storedVx = this.vx;
+            this.storedVy = this.vy;
             if (audio) audio.play('taunt'); // Option to play taunt sound later
             keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
             
