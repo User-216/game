@@ -208,7 +208,7 @@ class Player {
             this.activeEffects.push({
                 type: 'spr_taunteffect',
                 x: this.x + this.width / 2,
-                y: this.y + this.height + 50, // 이펙트를 아래로 50px 이동 (캐릭터 중심에 맞춤)
+                y: this.y + this.height + 20, // 이펙트를 약간 위로 올림 (50 -> 20)
                 image_index: 0,
                 image_speed: 0.45 
             });
