@@ -1130,6 +1130,13 @@ class Player {
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
             }
+            
+            // Suplex Dash Sound
+            if (this.isSuplexGrabbing) {
+                audio.playFile('sfx_suplexdash');
+            } else {
+                audio.stopFile('sfx_suplexdash');
+            }
         }
 
         // 공중에서 잡기 돌진 중 땅에 닿았다면 즉시 돌진 종료

@@ -10,12 +10,14 @@ class AudioManager {
             machslideboost: new Audio('sound/sfx_machslideboost.wav'),
             sfx_break: new Audio('sound/sfx_break.wav'),
             sfx_groundpound: new Audio('sound/sfx_groundpound.wav'),
-            sfx_step: new Audio('sound/sfx_step.wav')
+            sfx_step: new Audio('sound/sfx_step.wav'),
+            sfx_suplexdash: new Audio('sound/sfx_suplexdash.wav')
         };
         
         // Set loops where appropriate
         this.files.mach2.loop = true;
         this.files.mach3.loop = true;
+        this.files.sfx_suplexdash.loop = true;
 
         this.musicFiles = {};
         this.currentMusicName = null;
