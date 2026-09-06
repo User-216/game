@@ -180,6 +180,7 @@ class Player {
         this.machColorIndex = 0;
         this.walkEffectTimer = 0;
         this.runEffectTimer = 0;
+        this.prevKeysTaunt = false;
         
         // Load default sprite
         this.image = new Image();
@@ -200,7 +201,7 @@ class Player {
                 this.isTaunting = false;
             }
             return; // 도발 중에는 물리 엔진과 상태 업데이트를 완전히 정지 (달리기 상태 등 완벽 유지)
-        } else if (keys.actionTaunt) {
+        } else if (keys.actionTaunt && !this.prevKeysTaunt) {
             this.isTaunting = true;
             this.tauntTimer = 20;
             if (audio) audio.play('taunt'); 
@@ -212,8 +213,12 @@ class Player {
                 image_index: 0,
                 image_speed: 0.45 
             });
+            this.prevKeysTaunt = true; // 지금 방금 누른 상태 저장
             return; // 도발 시작 프레임도 업데이트 정지
         }
+        
+        // 도발 키 상태 저장 (계속 누르고 있는지 확인용)
+        this.prevKeysTaunt = keys.actionTaunt;
 
         let isCurrentlyRunning = !!keys.actionRun;
         
