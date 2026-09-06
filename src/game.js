@@ -86,6 +86,14 @@ class Game {
             this.bigFontImages.push(img);
         }
         
+        this.controlIcons = {};
+        const iconsToLoad = ['up', 'down', 'left', 'right', 'jump', 'grab', 'dash', 'superjump', 'groundpound', 'taunt'];
+        iconsToLoad.forEach(iconName => {
+            let img = new Image();
+            img.src = `spr_controlicons/spr_controlicons_${iconName}.png`;
+            this.controlIcons[iconName] = img;
+        });
+
         this.settings = {
             language: 'en',
             masterVolume: 100,
@@ -106,7 +114,18 @@ class Game {
                 down: 'ArrowDown',
                 jump: 'z',
                 run: 'Shift',
-                grab: 'x'
+                grab: 'x',
+                dash: 'Shift',
+                superjump: 'ArrowUp',
+                groundpound: 'ArrowDown',
+                taunt: 'c',
+                menu_left: 'ArrowLeft',
+                menu_right: 'ArrowRight',
+                menu_up: 'ArrowUp',
+                menu_down: 'ArrowDown',
+                menu_confirm: 'z',
+                menu_back: 'Escape',
+                menu_clear: 'Backspace'
             }
         };
         this.bindingKeyFor = null;
@@ -941,7 +960,7 @@ class Game {
                 else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
                 else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
                 else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
-                else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'ATTACK'];
+                else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
                 else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
                 
                 if (this.keys['ArrowUp'] && !this.prevKeysUp) {
@@ -1026,7 +1045,29 @@ class Game {
                     }
                     if (this.audio) this.audio.play('unpause');
                 }
-                if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
+                if (this.optionsMenuLevel === 'BINDINGS' && currentOptions[this.optionsMenuIndex] !== 'BACK') {
+                    if (this.keys['1'] && !this.prevKeys1) {
+                        this.settings.bindings = {
+                            left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
+                            jump: 'z', run: 'Shift', grab: 'x', dash: 'Shift', superjump: 'ArrowUp',
+                            groundpound: 'ArrowDown', taunt: 'c', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
+                            menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'Escape', menu_clear: 'Backspace'
+                        };
+                        if (this.audio) this.audio.play('unpause');
+                    }
+                    if ((this.keys['c'] || this.keys['C']) && !this.prevKeysC) {
+                        let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
+                        if (optStr === 'dash') optStr = 'run';
+                        this.settings.bindings[optStr] = '';
+                        if (this.audio) this.audio.play('unpause');
+                    }
+                    if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
+                        let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
+                        if (optStr === 'dash') optStr = 'run';
+                        this.bindingKeyFor = optStr;
+                        if (this.audio) this.audio.play('unpause');
+                    }
+                } else if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                     if (this.optionsMenuLevel === 'MAIN') {
                         this.optionsMenuLevel = currentOptions[this.optionsMenuIndex];
                         this.optionsMenuIndex = 0;
@@ -1065,6 +1106,8 @@ class Game {
                 this.prevKeysRight = this.keys['ArrowRight'];
                 this.prevKeysEsc = this.keys['Escape'];
                 this.prevKeysZ = this.keys['z'] || this.keys['Z'] || this.keys['Enter'];
+                this.prevKeys1 = this.keys['1'];
+                this.prevKeysC = this.keys['c'] || this.keys['C'];
             }
             return;
         }
@@ -1538,30 +1581,131 @@ class Game {
             else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
             else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
             else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
-            else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'ATTACK'];
+            else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
             else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
+
+            if (this.optionsMenuLevel === 'BINDINGS') {
+                const targetScrollY = (this.optionsMenuIndex > 0 ? (this.optionsMenuIndex - 1) : 0) * lineSpace;
+                this.optionsScrollY += (targetScrollY - this.optionsScrollY) * 0.2;
+            } else {
+                this.optionsScrollY = 0;
+            }
 
             for (let i = 0; i < currentOptions.length; i++) {
                 const opt = currentOptions[i];
-                const y = startY + i * lineSpace;
+                let y = startY + i * lineSpace;
                 const isSelected = i === this.optionsMenuIndex;
+                
+                if (this.optionsMenuLevel === 'BINDINGS') {
+                    if (opt === 'BACK') {
+                        drawText('BACK', startX - 350, startY - 100, 1, isSelected ? 1 : 0.5, false);
+                        if (i === 0) {
+                            drawText('1 RESET BINDS', startX - 350, startY + 100, 0.8, 1, false);
+                            drawText('Z ADD BIND', startX - 350, startY + 150, 0.8, 1, false);
+                            drawText('C CLEAR BINDS', startX - 350, startY + 200, 0.8, 1, false);
+                        }
+                        continue;
+                    }
+
+                    y -= this.optionsScrollY;
+                    let optStr = opt.toLowerCase().replace(' ', '_');
+                    if (optStr === 'dash') optStr = 'run';
+                    let drawCenter = startX - 50;
+                    
+                    if (this.controlIcons && this.controlIcons[optStr] && this.controlIcons[optStr].complete && this.controlIcons[optStr].naturalWidth > 0) {
+                        this.ctx.globalAlpha = isSelected ? 1 : 0.5;
+                        this.ctx.drawImage(this.controlIcons[optStr], drawCenter - 32, y - 20, 64, 64);
+                        this.ctx.globalAlpha = 1;
+                    } else {
+                        drawText(opt, drawCenter, y, 1, isSelected ? 1 : 0.5, true);
+                    }
+
+                    const boundKey = this.settings.bindings[optStr];
+                    if (boundKey || this.bindingKeyFor === optStr) {
+                        let displayKey = this.bindingKeyFor === optStr ? '?' : boundKey;
+                        if (displayKey.startsWith('Arrow')) {
+                            const arr = {'ArrowUp':'UP', 'ArrowDown':'DOWN', 'ArrowLeft':'LEFT', 'ArrowRight':'RIGHT'};
+                            displayKey = arr[displayKey] || displayKey.replace('Arrow', '').toUpperCase();
+                        } else if (displayKey === ' ') displayKey = 'SPACE';
+                        else displayKey = displayKey.toUpperCase();
+                        
+                        let tX = drawCenter + 150;
+                        let tY = y - 16;
+                        this.ctx.globalAlpha = isSelected ? 1 : 0.5;
+
+                        let specialIdx = -1;
+                        if (displayKey === 'SHIFT') specialIdx = 0;
+                        if (displayKey === 'SPACE') specialIdx = 1;
+                        if (displayKey === 'UP') specialIdx = 2;
+                        if (displayKey === 'DOWN') specialIdx = 3;
+                        if (displayKey === 'LEFT') specialIdx = 4;
+                        if (displayKey === 'RIGHT') specialIdx = 5;
+                        if (displayKey === 'Z') specialIdx = 6;
+                        if (displayKey === 'X') specialIdx = 7;
+                        
+                        let specialImg = null;
+                        if (specialIdx !== -1) {
+                            specialImg = this.getKeyImage('spr_tutorialkeyspecial_' + specialIdx);
+                        }
+                        
+                        if (specialImg && specialImg.loaded && !specialImg.error) {
+                            this.ctx.drawImage(specialImg, tX, tY);
+                        } else if (this.tutorialBlankKeyLoaded) {
+                            const bImg = this.tutorialBlankKeyImage;
+                            this.ctx.drawImage(bImg, tX, tY);
+                            
+                            const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
+                            let textW = 0;
+                            for (let k = 0; k < displayKey.length; k++) {
+                                const charIdx = charset.indexOf(displayKey[k]);
+                                if (displayKey[k] === ' ') textW += 16;
+                                else if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
+                                    textW += this.tutorialFontImages[charIdx].width - 4;
+                                } else {
+                                    textW += 16;
+                                }
+                            }
+                            if (displayKey.length > 0) textW -= -2;
+                            
+                            let kx = tX + bImg.width/2 - textW/2;
+                            let ky = tY - 8;
+                            
+                            for (let k = 0; k < displayKey.length; k++) {
+                                const c = displayKey[k];
+                                if (c === ' ') { kx += 16; continue; }
+                                const charIdx = charset.indexOf(c);
+                                if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
+                                    const imgToDraw = this.tutorialFontImages[charIdx];
+                                    this.ctx.drawImage(imgToDraw, kx, ky);
+                                    kx += imgToDraw.width - 4;
+                                } else {
+                                    this.ctx.fillStyle = '#000000';
+                                    this.ctx.font = 'bold 14px "Outfit", sans-serif';
+                                    this.ctx.textAlign = 'left';
+                                    this.ctx.textBaseline = 'top';
+                                    this.ctx.fillText(c, kx, ky + 12);
+                                    kx += 16;
+                                }
+                            }
+                        } else {
+                            this.ctx.fillStyle = 'white';
+                            this.ctx.font = 'bold 24px monospace';
+                            this.ctx.textAlign = 'center';
+                            this.ctx.textBaseline = 'middle';
+                            this.ctx.fillText(displayKey, tX + 30, tY + 20);
+                        }
+                        this.ctx.globalAlpha = 1;
+                    }
+                    continue;
+                }
                 
                 const isMain = this.optionsMenuLevel === 'MAIN';
                 let textX = isMain ? startX : startX - 250;
                 
-                // For BINDINGS, we want the options to be centered (with BACK at top left)
-                if (this.optionsMenuLevel === 'BINDINGS') {
-                    if (opt === 'BACK') {
-                        textX = startX - 250;
-                    } else {
-                        textX = startX;
-                    }
-                }
-                
                 if (isSelected) {
-                    drawText(opt, textX, y, 1, 1, isMain || (this.optionsMenuLevel === 'BINDINGS' && opt !== 'BACK'));
+                    drawText(opt, textX, y, 1, 1, isMain);
                 } else {
-                    drawText(opt, textX, y, 1, 0.5, isMain || (this.optionsMenuLevel === 'BINDINGS' && opt !== 'BACK'));
+                    drawText(opt, textX, y, 1, 0.5, isMain);
                 }
 
                 // Draw setting value on the right
@@ -1590,10 +1734,9 @@ class Game {
                 } else if (sliderValue !== null) {
                     this.ctx.globalAlpha = alpha;
                     this.ctx.fillStyle = 'white';
-                    this.ctx.fillRect(valX, y + 20, 200, 10); // Background line
+                    this.ctx.fillRect(valX, y + 20, 200, 10);
                     
-                    // The knob
-                    this.ctx.fillStyle = '#657b54'; // A distinct color for the knob, maybe green
+                    this.ctx.fillStyle = '#657b54';
                     this.ctx.fillRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
                     this.ctx.strokeStyle = 'white';
                     this.ctx.lineWidth = 2;
@@ -1683,7 +1826,7 @@ class Game {
             
             // Draw text
             if (this.currentTutorialText) {
-                const charset = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789`?¿-";
+                const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
                 
                 const formatKey = (key) => {
                     if (!key) return "NONE";
