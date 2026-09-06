@@ -135,7 +135,8 @@ class Player {
         this.effectSprites = {
             spr_highjumpcloud2: [],
             spr_taunteffect: [],
-            spr_landcloud: []
+            spr_landcloud: [],
+            spr_cloudeffect: []
         };
         for (let i = 0; i <= 6; i++) {
             let img = new Image();
@@ -155,9 +156,18 @@ class Player {
             this.effectSprites.spr_landcloud.push(img);
         }
         
-        this.activeEffects = [];
+        for (let i = 0; i <= 13; i++) {
+            let img = new Image();
+            img.src = `effect/spr_cloudeffect/spr_cloudeffect_${i}.png`;
+            this.effectSprites.spr_cloudeffect.push(img);
+        }
         
-        // Mask
+        this.activeEffects = [];
+        this.machColorIndex = 0;
+        this.walkEffectTimer = 0;
+        
+        // Load default sprite
+        this.image = new Image();
         this.mask_image = new Image();
         this.mask_image.src = 'player/spr_player_mask.png';
         this.mask_image_crouch = new Image();
@@ -199,11 +209,13 @@ class Player {
 
         // (이전에 있던 '공중에서 달리기 멈출 수 없음' 제한 해제)
 
-        // 공중에서는 새로 달리기를 시작할 수 없고, 땅찍기 중에는 달리기가 취소됨
+        // 공중에서는 새로 달리기를 시작할 수 없으나, 이미 속도가 마하 이상이면 달리기 재개 허용
         if (this.isGroundPounding) {
             isCurrentlyRunning = false;
         } else if (!this.isGrounded && !this.wasRunningLastFrame && !this.isClimbing) {
-            isCurrentlyRunning = false;
+            if (Math.abs(this.vx) < this.machThreshold) {
+                isCurrentlyRunning = false;
+            }
         }
 
         // 구르기 중에는 달리기 상태 강제 유지
@@ -1006,6 +1018,21 @@ class Player {
         
         if (this.sprite_index === 'spr_player_walk') {
             this.image_speed = Math.max(0.15, Math.abs(this.vx) * 0.08);
+            
+            // 유저 요청: 걸을 때 속도에 비례해서 먼지 이펙트 생성
+            if (this.isGrounded) {
+                this.walkEffectTimer += Math.abs(this.vx);
+                if (this.walkEffectTimer >= 30) {
+                    this.walkEffectTimer = 0;
+                    this.activeEffects.push({
+                        type: 'spr_cloudeffect',
+                        x: this.x + this.width / 2,
+                        y: this.y + this.height,
+                        image_index: 0,
+                        image_speed: 0.5 // 애니메이션 속도
+                    });
+                }
+            }
         } else if (this.sprite_index === 'spr_player_idle') {
             this.image_speed = 0.4;
         } else if (this.sprite_index === 'spr_player_fall') {
