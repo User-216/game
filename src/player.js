@@ -1072,13 +1072,15 @@ class Player {
                     
                     const absSpeed = Math.abs(this.vx);
                     let effectType = 'spr_dashcloud'; // mach1, mach2
+                    let offset = 0; // mach1, 2는 정중앙
                     if (absSpeed >= 12) {
                         effectType = 'spr_superdashcloud'; // mach3
+                        offset = 40; // mach3일 때만 등 뒤로 40픽셀 빼기
                     }
                     
                     this.activeEffects.push({
                         type: effectType,
-                        x: this.x + this.width / 2 - (this.facingDir * 40), // 캐릭터의 약간 뒤에서 생성되도록 오프셋 추가
+                        x: this.x + this.width / 2 - (this.facingDir * offset),
                         y: this.y + this.height,
                         image_index: 0,
                         image_speed: 0.5,
