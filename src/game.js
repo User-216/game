@@ -1782,7 +1782,7 @@ class Game {
                         // Assuming the track's full width is the movable area (or maybe padded a bit)
                         const movableW = track.width;
                         const thumbX = valX + (movableW * sliderValue) - thumb.width/2;
-                        const thumbY = y + 15 - thumb.height/2;
+                        const thumbY = y + 15 - thumb.height/2 - 8; // Offset by 8px to account for image padding
                         this.ctx.drawImage(thumb, thumbX, thumbY);
                     } else {
                         // Fallback
