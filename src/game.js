@@ -59,6 +59,7 @@ class Game {
         this.optionsMenuLevel = 'MAIN'; // MAIN, AUDIO, VIDEO, GAME, CONTROLS
         this.optionsScrollX = 0;
         this.optionsScrollY = 0;
+        this.bindingsScrollY = 0;
         
         this.optionsBGImages = [];
         this.optionsBGLoaded = false;
@@ -76,13 +77,15 @@ class Game {
         this.bigFontImages = [];
         this.bigFontLoaded = false;
         let loadedCount = 0;
-        for(let i = 0; i < 26; i++) {
+        for(let i = 0; i < 67; i++) {
             let img = new Image();
             img.src = `font/spr_bigfont/spr_bigfont_${i}.png`;
-            img.onload = () => {
+            const checkLoad = () => {
                 loadedCount++;
-                if (loadedCount === 26) this.bigFontLoaded = true;
+                if (loadedCount === 67) this.bigFontLoaded = true;
             };
+            img.onload = checkLoad;
+            img.onerror = checkLoad;
             this.bigFontImages.push(img);
         }
         
@@ -124,8 +127,8 @@ class Game {
                 menu_up: 'ArrowUp',
                 menu_down: 'ArrowDown',
                 menu_confirm: 'z',
-                menu_back: 'Escape',
-                menu_clear: 'Backspace'
+                menu_back: 'x',
+                menu_clear: 'c'
             }
         };
         this.bindingKeyFor = null;
@@ -216,8 +219,27 @@ class Game {
         this.tutorialKeyImages = {};
         this.getKeyImage = (keyName) => {
             if (this.tutorialKeyImages[keyName]) return this.tutorialKeyImages[keyName];
+            
+            let specialIdx = -1;
+            if (keyName === 'SHIFT') specialIdx = 0;
+            if (keyName === 'CONTROL' || keyName === 'CTRL') specialIdx = 1;
+            if (keyName === 'SPACE') specialIdx = 2;
+            if (keyName === 'UP') specialIdx = 3;
+            if (keyName === 'DOWN') specialIdx = 4;
+            if (keyName === 'RIGHT') specialIdx = 5;
+            if (keyName === 'LEFT') specialIdx = 6;
+            if (keyName === 'ESCAPE' || keyName === 'ESC') specialIdx = 7;
+            // Also support direct index for the bindings menu
+            if (keyName.startsWith('spr_tutorialkeyspecial_')) {
+                specialIdx = parseInt(keyName.split('_')[2]);
+            }
+            
             const img = new Image();
-            img.src = `tutorial/spr_tutorialkeyspecial/${keyName}.png`; // fallback if they exist
+            if (specialIdx !== -1) {
+                img.src = `tutorial/spr_tutorialkeyspecial/spr_tutorialkeyspecial_${specialIdx}.png`;
+            } else {
+                img.src = `tutorial/spr_tutorialkeyspecial/${keyName}.png`; // fallback
+            }
             img.loaded = false;
             img.error = false;
             img.onload = () => { img.loaded = true; };
@@ -952,6 +974,17 @@ class Game {
             } else if (this.gameState === 'OPTIONS') {
                 this.optionsScrollX -= 0.5;
                 this.optionsScrollY -= 0.5;
+                if (this.bindingKeyFor) {
+                    if (performance.now() - this.bindingLastTime >= 1000) {
+                        this.bindingTimeout--;
+                        this.bindingLastTime = performance.now();
+                        if (this.bindingTimeout <= 0) this.bindingKeyFor = null;
+                    }
+                    this.prevKeysZ = this.keys['z'] || this.keys['Z'] || this.keys['Enter'];
+                    this.prevKeysX = this.keys['x'] || this.keys['X'] || this.keys['Escape'];
+                    this.prevKeysC = this.keys['c'] || this.keys['C'];
+                    return;
+                }
 
                 let currentOptions = [];
                 if (this.optionsMenuLevel === 'MAIN') currentOptions = this.optionsMenuOptions;
@@ -1051,20 +1084,20 @@ class Game {
                             left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
                             jump: 'z', run: 'Shift', grab: 'x', dash: 'Shift', superjump: 'ArrowUp',
                             groundpound: 'ArrowDown', taunt: 'c', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
-                            menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'Escape', menu_clear: 'Backspace'
+                            menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'c'
                         };
                         if (this.audio) this.audio.play('unpause');
                     }
                     if ((this.keys['c'] || this.keys['C']) && !this.prevKeysC) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
-                        if (optStr === 'dash') optStr = 'run';
                         this.settings.bindings[optStr] = '';
                         if (this.audio) this.audio.play('unpause');
                     }
                     if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
-                        if (optStr === 'dash') optStr = 'run';
                         this.bindingKeyFor = optStr;
+                        this.bindingTimeout = 3;
+                        this.bindingLastTime = performance.now();
                         if (this.audio) this.audio.play('unpause');
                     }
                 } else if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
@@ -1422,10 +1455,8 @@ class Game {
                         const char = text[i];
                         if (char === ' ') totalWidth += 10 * scale;
                         else {
-                            let charCode = -1;
-                            if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
-                            else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
-                            else if (char === '.') charCode = 36;
+                            const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
+                            const charCode = charset.indexOf(char);
                             
                             if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
@@ -1441,14 +1472,8 @@ class Game {
                         cursorX += 10 * scale;
                         continue;
                     }
-                    let charCode = -1;
-                    if (char >= 'A' && char <= 'Z') {
-                        charCode = char.charCodeAt(0) - 65; // 0-25
-                    } else if (char >= '0' && char <= '9') {
-                        charCode = char.charCodeAt(0) - 48 + 26; // 26-35
-                    } else if (char === '.') {
-                        charCode = 36; // guess
-                    }
+                    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
+                    const charCode = charset.indexOf(char);
 
                     if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
                         const img = this.bigFontImages[charCode];
@@ -1496,7 +1521,7 @@ class Game {
                 else if (this.optionsMenuLevel === 'VIDEO') bgIndex = 2;
                 else if (this.optionsMenuLevel === 'GAME') bgIndex = 3;
                 else if (this.optionsMenuLevel === 'CONTROLS') bgIndex = 4;
-                else if (this.optionsMenuLevel === 'KEYBOARD') bgIndex = 4; // Use CONTROLS background
+                else if (this.optionsMenuLevel === 'KEYBOARD' || this.optionsMenuLevel === 'BINDINGS') bgIndex = 4; // Use CONTROLS background
 
                 const baseBg = this.optionsBGImages[bgIndex];
                 if (baseBg && baseBg.complete && baseBg.naturalWidth > 0) {
@@ -1535,10 +1560,8 @@ class Game {
                         const char = text[i];
                         if (char === ' ') totalWidth += 10 * scale;
                         else {
-                            let charCode = -1;
-                            if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
-                            else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
-                            else if (char === '.') charCode = 36;
+                            const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
+                            const charCode = charset.indexOf(char);
                             
                             if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
@@ -1554,10 +1577,8 @@ class Game {
                         cursorX += 10 * scale;
                         continue;
                     }
-                    let charCode = -1;
-                    if (char >= 'A' && char <= 'Z') charCode = char.charCodeAt(0) - 65;
-                    else if (char >= '0' && char <= '9') charCode = char.charCodeAt(0) - 48 + 26;
-                    else if (char === '.') charCode = 36;
+                    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
+                    const charCode = charset.indexOf(char);
                     
                     if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
                         const img = this.bigFontImages[charCode];
@@ -1586,9 +1607,7 @@ class Game {
 
             if (this.optionsMenuLevel === 'BINDINGS') {
                 const targetScrollY = (this.optionsMenuIndex > 0 ? (this.optionsMenuIndex - 1) : 0) * lineSpace;
-                this.optionsScrollY += (targetScrollY - this.optionsScrollY) * 0.2;
-            } else {
-                this.optionsScrollY = 0;
+                this.bindingsScrollY += (targetScrollY - this.bindingsScrollY) * 0.2;
             }
 
             for (let i = 0; i < currentOptions.length; i++) {
@@ -1600,21 +1619,44 @@ class Game {
                     if (opt === 'BACK') {
                         drawText('BACK', startX - 350, startY - 100, 1, isSelected ? 1 : 0.5, false);
                         if (i === 0) {
-                            drawText('1 RESET BINDS', startX - 350, startY + 100, 0.8, 1, false);
-                            drawText('Z ADD BIND', startX - 350, startY + 150, 0.8, 1, false);
-                            drawText('C CLEAR BINDS', startX - 350, startY + 200, 0.8, 1, false);
+                            const drawInstruction = (keyChar, textStr, x, y) => {
+                                if (this.tutorialBlankKeyLoaded) {
+                                    const bImg = this.tutorialBlankKeyImage;
+                                    this.ctx.drawImage(bImg, x, y - 20);
+                                    const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"';
+                                    const charIdx = charset.indexOf(keyChar);
+                                    if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
+                                        const imgToDraw = this.tutorialFontImages[charIdx];
+                                        const kx = x + bImg.width/2 - (imgToDraw.width - 4)/2;
+                                        const ky = y - 28;
+                                        this.ctx.drawImage(imgToDraw, kx, ky);
+                                    } else {
+                                        this.ctx.fillStyle = '#000000';
+                                        this.ctx.font = 'bold 14px "Outfit", sans-serif';
+                                        this.ctx.textAlign = 'center';
+                                        this.ctx.textBaseline = 'middle';
+                                        this.ctx.fillText(keyChar, x + bImg.width/2, y - 4);
+                                    }
+                                } else {
+                                    drawText(keyChar, x, y, 0.8, 1, false);
+                                }
+                                drawText(textStr, x + 50, y, 0.8, 1, false);
+                            };
+                            drawInstruction('1', 'RESET BINDS', startX - 350, this.canvas.height - 180);
+                            drawInstruction('Z', 'ADD BIND', startX - 350, this.canvas.height - 130);
+                            drawInstruction('C', 'CLEAR BINDS', startX - 350, this.canvas.height - 80);
                         }
                         continue;
                     }
 
-                    y -= this.optionsScrollY;
+                    y -= this.bindingsScrollY;
                     let optStr = opt.toLowerCase().replace(' ', '_');
-                    if (optStr === 'dash') optStr = 'run';
                     let drawCenter = startX - 50;
                     
                     if (this.controlIcons && this.controlIcons[optStr] && this.controlIcons[optStr].complete && this.controlIcons[optStr].naturalWidth > 0) {
                         this.ctx.globalAlpha = isSelected ? 1 : 0.5;
-                        this.ctx.drawImage(this.controlIcons[optStr], drawCenter - 32, y - 20, 64, 64);
+                        const icon = this.controlIcons[optStr];
+                        this.ctx.drawImage(icon, drawCenter - icon.naturalWidth/2, y - icon.naturalHeight/2);
                         this.ctx.globalAlpha = 1;
                     } else {
                         drawText(opt, drawCenter, y, 1, isSelected ? 1 : 0.5, true);
@@ -1622,7 +1664,7 @@ class Game {
 
                     const boundKey = this.settings.bindings[optStr];
                     if (boundKey || this.bindingKeyFor === optStr) {
-                        let displayKey = this.bindingKeyFor === optStr ? '?' : boundKey;
+                        let displayKey = this.bindingKeyFor === optStr ? '' : boundKey;
                         if (displayKey.startsWith('Arrow')) {
                             const arr = {'ArrowUp':'UP', 'ArrowDown':'DOWN', 'ArrowLeft':'LEFT', 'ArrowRight':'RIGHT'};
                             displayKey = arr[displayKey] || displayKey.replace('Arrow', '').toUpperCase();
@@ -1743,6 +1785,12 @@ class Game {
                     this.ctx.strokeRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
                     this.ctx.globalAlpha = 1;
                 }
+            }
+            if (this.bindingKeyFor) {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                drawText('PRESS ANY KEY', this.canvas.width / 2, this.canvas.height / 2 - 20, 1, 1, true);
+                drawText('GOING BACK IN... ' + this.bindingTimeout, this.canvas.width / 2, this.canvas.height / 2 + 40, 1, 1, true);
             }
         }
 
