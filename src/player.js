@@ -134,7 +134,8 @@ class Player {
 
         this.effectSprites = {
             spr_highjumpcloud2: [],
-            spr_taunteffect: []
+            spr_taunteffect: [],
+            spr_landcloud: []
         };
         for (let i = 0; i <= 6; i++) {
             let img = new Image();
@@ -146,6 +147,12 @@ class Player {
             let img = new Image();
             img.src = `effect/spr_taunteffect/spr_taunteffect_${i}.png`;
             this.effectSprites.spr_taunteffect.push(img);
+        }
+        
+        for (let i = 0; i <= 5; i++) {
+            let img = new Image();
+            img.src = `effect/spr_landcloud/spr_landcloud_${i}.png`;
+            this.effectSprites.spr_landcloud.push(img);
         }
         
         this.activeEffects = [];
@@ -1011,6 +1018,15 @@ class Player {
         } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
             this.sprite_index = 'spr_player_land';
             this.image_index = 0;
+            if (!this.isRunning) {
+                this.activeEffects.push({
+                    type: 'spr_landcloud',
+                    x: this.x + this.width / 2,
+                    y: this.y + this.height,
+                    image_index: 0,
+                    image_speed: 0.5
+                });
+            }
         }
         
         if (this.isTumbling) {
