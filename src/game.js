@@ -248,6 +248,16 @@ class Game {
             return img;
         };
 
+        this.sliderTrackImg = new Image();
+        this.sliderTrackImg.src = 'spr_slider.png';
+        this.sliderTrackImg.loaded = false;
+        this.sliderTrackImg.onload = () => { this.sliderTrackImg.loaded = true; };
+
+        this.sliderThumbImg = new Image();
+        this.sliderThumbImg.src = 'spr_slidericon2.png';
+        this.sliderThumbImg.loaded = false;
+        this.sliderThumbImg.onload = () => { this.sliderThumbImg.loaded = true; };
+
         this.tutorialTexX = 0;
         this.tutorialWaveTimer = 0;
         this.currentTutorialText = null;
@@ -1762,14 +1772,28 @@ class Game {
                     drawText(valueText, valX, y, 1, alpha, false);
                 } else if (sliderValue !== null) {
                     this.ctx.globalAlpha = alpha;
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.fillRect(valX, y + 20, 200, 10);
-                    
-                    this.ctx.fillStyle = '#657b54';
-                    this.ctx.fillRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
-                    this.ctx.strokeStyle = 'white';
-                    this.ctx.lineWidth = 2;
-                    this.ctx.strokeRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
+                    if (this.sliderTrackImg.loaded && this.sliderThumbImg.loaded) {
+                        const track = this.sliderTrackImg;
+                        const thumb = this.sliderThumbImg;
+                        // Draw track centered vertically with text
+                        this.ctx.drawImage(track, valX, y + 15 - track.height/2);
+                        // The track's visual length might be the full width. We use track.width.
+                        // Calculate thumb position along the track
+                        // Assuming the track's full width is the movable area (or maybe padded a bit)
+                        const movableW = track.width;
+                        const thumbX = valX + (movableW * sliderValue) - thumb.width/2;
+                        const thumbY = y + 15 - thumb.height/2;
+                        this.ctx.drawImage(thumb, thumbX, thumbY);
+                    } else {
+                        // Fallback
+                        this.ctx.fillStyle = 'white';
+                        this.ctx.fillRect(valX, y + 20, 200, 10);
+                        this.ctx.fillStyle = '#657b54';
+                        this.ctx.fillRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
+                        this.ctx.strokeStyle = 'white';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.strokeRect(valX + (200 * sliderValue) - 10, y + 10, 20, 30);
+                    }
                     this.ctx.globalAlpha = 1;
                 }
             }
