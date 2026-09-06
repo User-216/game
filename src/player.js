@@ -1030,7 +1030,7 @@ class Player {
                         y: this.y + this.height,
                         image_index: 0,
                         image_speed: 0.5, // 애니메이션 속도
-                        scale: 0.6 // 크기 축소 (1.0 -> 0.6)
+                        scale: 0.35 // 크기 축소 (0.6 -> 0.35)
                     });
                 }
             }
