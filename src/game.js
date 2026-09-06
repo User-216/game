@@ -1672,7 +1672,7 @@ class Game {
                         else displayKey = displayKey.toUpperCase();
                         
                         let tX = drawCenter + 150;
-                        let tY = y - 16;
+                        let tY = y - 6;
                         this.ctx.globalAlpha = isSelected ? 1 : 0.5;
 
                         let specialImg = this.getKeyImage(displayKey);
