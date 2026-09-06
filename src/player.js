@@ -162,9 +162,24 @@ class Player {
             this.effectSprites.spr_cloudeffect.push(img);
         }
         
+        this.effectSprites.spr_dashcloud = [];
+        for (let i = 0; i <= 4; i++) {
+            let img = new Image();
+            img.src = `effect/spr_dashcloud/spr_dashcloud_${i}.png`;
+            this.effectSprites.spr_dashcloud.push(img);
+        }
+        
+        this.effectSprites.spr_superdashcloud = [];
+        for (let i = 0; i <= 7; i++) {
+            let img = new Image();
+            img.src = `effect/spr_superdashcloud/spr_superdashcloud_${i}.png`;
+            this.effectSprites.spr_superdashcloud.push(img);
+        }
+        
         this.activeEffects = [];
         this.machColorIndex = 0;
         this.walkEffectTimer = 0;
+        this.runEffectTimer = 0;
         
         // Load default sprite
         this.image = new Image();
@@ -1049,6 +1064,29 @@ class Player {
         } else if (this.sprite_index === 'spr_player_mach2') {
             // 유저 요청: 속도에 따라 애니메이션 속도가 다르게 (빠를수록 애니메이션도 빠르게)
             this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04); 
+            
+            if (this.isGrounded) {
+                this.runEffectTimer += Math.abs(this.vx);
+                if (this.runEffectTimer >= 60) {
+                    this.runEffectTimer = 0;
+                    
+                    const absSpeed = Math.abs(this.vx);
+                    let effectType = 'spr_dashcloud'; // mach1, mach2
+                    if (absSpeed >= 12) {
+                        effectType = 'spr_superdashcloud'; // mach3
+                    }
+                    
+                    this.activeEffects.push({
+                        type: effectType,
+                        x: this.x + this.width / 2,
+                        y: this.y + this.height,
+                        image_index: 0,
+                        image_speed: 0.5,
+                        scale: 1.0,
+                        facingDir: this.facingDir
+                    });
+                }
+            }
         }
 
         if (this.sprite_index !== '') {
@@ -1223,6 +1261,9 @@ class Player {
                         ctx.save();
                         // 100x100 렌더링, 기준점을 x 중앙, y 바닥으로 잡기
                         ctx.translate(ef.x, ef.y);
+                        if (ef.facingDir === -1) {
+                            ctx.scale(-1, 1);
+                        }
                         const scale = ef.scale || 1.0;
                         const w = 100 * scale;
                         const h = 100 * scale;
