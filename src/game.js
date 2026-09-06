@@ -1675,20 +1675,7 @@ class Game {
                         let tY = y - 16;
                         this.ctx.globalAlpha = isSelected ? 1 : 0.5;
 
-                        let specialIdx = -1;
-                        if (displayKey === 'SHIFT') specialIdx = 0;
-                        if (displayKey === 'SPACE') specialIdx = 1;
-                        if (displayKey === 'UP') specialIdx = 2;
-                        if (displayKey === 'DOWN') specialIdx = 3;
-                        if (displayKey === 'LEFT') specialIdx = 4;
-                        if (displayKey === 'RIGHT') specialIdx = 5;
-                        if (displayKey === 'Z') specialIdx = 6;
-                        if (displayKey === 'X') specialIdx = 7;
-                        
-                        let specialImg = null;
-                        if (specialIdx !== -1) {
-                            specialImg = this.getKeyImage('spr_tutorialkeyspecial_' + specialIdx);
-                        }
+                        let specialImg = this.getKeyImage(displayKey);
                         
                         if (specialImg && specialImg.loaded && !specialImg.error) {
                             this.ctx.drawImage(specialImg, tX, tY);
