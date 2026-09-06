@@ -173,55 +173,21 @@ class Player {
             this.tauntTimer--;
             if (this.tauntTimer <= 0) {
                 this.isTaunting = false;
-                this.vx = this.storedVx || 0;
-                this.vy = this.storedVy || 0;
-                if (this.storedState) {
-                    Object.assign(this, this.storedState);
-                }
-            } else {
-                keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
             }
+            return; // 도발 중에는 물리 엔진과 상태 업데이트를 완전히 정지 (달리기 상태 등 완벽 유지)
         } else if (keys.actionTaunt) {
             this.isTaunting = true;
             this.tauntTimer = 20;
-            this.storedVx = this.vx;
-            this.storedVy = this.vy;
-            this.storedState = {
-                isRunning: this.isRunning,
-                isClimbing: this.isClimbing,
-                isTumbling: this.isTumbling,
-                isSuplexGrabbing: this.isSuplexGrabbing,
-                isGroundPounding: this.isGroundPounding,
-                isGroundPoundLand: this.isGroundPoundLand,
-                isDrifting: this.isDrifting,
-                isDrifting1: this.isDrifting1,
-                isMachSliding: this.isMachSliding,
-                sprite_index: this.sprite_index,
-                image_index: this.image_index,
-                facingDir: this.facingDir
-            };
+            if (audio) audio.play('taunt'); 
             
-            // 유저가 올려주신 도발 이펙트 추가
             this.activeEffects.push({
                 type: 'spr_taunteffect',
                 x: this.x + this.width / 2,
                 y: this.y + this.height,
                 image_index: 0,
-                image_speed: 0.45 // 20프레임 동안 9장 재생
+                image_speed: 0.45 
             });
-            
-            if (audio) audio.play('taunt'); // Option to play taunt sound later
-            keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
-            
-            // Cancel other states while taunting so they don't process
-            this.isClimbing = false;
-            this.isTumbling = false;
-            this.isSuplexGrabbing = false;
-            this.isGroundPounding = false;
-            this.isGroundPoundLand = false;
-            this.isDrifting = false;
-            this.isDrifting1 = false;
-            this.isMachSliding = false;
+            return; // 도발 시작 프레임도 업데이트 정지
         }
 
         let isCurrentlyRunning = !!keys.actionRun;
@@ -642,9 +608,6 @@ class Player {
             // 슬라이드 중 공중에 뜨면 슬라이드 중단 (또는 계속 유지할지 결정)
             // 여기선 관성을 위해 유지하되 중력 적용
             this.vy += this.gravity;
-        } else if (this.isTaunting) {
-            this.vx = 0;
-            this.vy = 0;
         } else {
             this.vy += this.gravity;
         }
@@ -1013,9 +976,7 @@ class Player {
         }
 
         // Determine sprite index
-        if (this.isTaunting) {
-            this.sprite_index = 'spr_player_idle'; // 현재 도발 스프라이트가 없으므로 idle 사용
-        } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
+        if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
             this.sprite_index = 'spr_player_land';
             this.image_index = 0;
             if (!this.isRunning) {
