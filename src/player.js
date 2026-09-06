@@ -1022,14 +1022,15 @@ class Player {
             // 유저 요청: 걸을 때 속도에 비례해서 먼지 이펙트 생성
             if (this.isGrounded) {
                 this.walkEffectTimer += Math.abs(this.vx);
-                if (this.walkEffectTimer >= 30) {
+                if (this.walkEffectTimer >= 80) { // 너무 빨리 나온다고 하셔서 30 -> 80으로 빈도 감소
                     this.walkEffectTimer = 0;
                     this.activeEffects.push({
                         type: 'spr_cloudeffect',
                         x: this.x + this.width / 2,
                         y: this.y + this.height,
                         image_index: 0,
-                        image_speed: 0.5 // 애니메이션 속도
+                        image_speed: 0.5, // 애니메이션 속도
+                        scale: 0.6 // 크기 축소 (1.0 -> 0.6)
                     });
                 }
             }
@@ -1220,7 +1221,10 @@ class Player {
                         ctx.save();
                         // 100x100 렌더링, 기준점을 x 중앙, y 바닥으로 잡기
                         ctx.translate(ef.x, ef.y);
-                        ctx.drawImage(img, -50, -100, 100, 100);
+                        const scale = ef.scale || 1.0;
+                        const w = 100 * scale;
+                        const h = 100 * scale;
+                        ctx.drawImage(img, -w/2, -h, w, h);
                         ctx.restore();
                     }
                     ef.image_index += ef.image_speed;
