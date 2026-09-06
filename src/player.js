@@ -960,7 +960,7 @@ class Player {
                 this.image_index = 0;
                 if (audio) audio.play('jump');
                 // 유저 요청: 점프 뛰었을 때 구름 효과 추가 (단, 달리기 중에는 나오지 않게)
-                if (!this.isRunning) {
+                if (!this.isRunning && !this.isSuplexGrabbing) {
                     this.activeEffects.push({
                         type: 'spr_highjumpcloud2',
                         x: this.x + this.width / 2,
@@ -1011,7 +1011,7 @@ class Player {
         if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
             this.sprite_index = 'spr_player_land';
             this.image_index = 0;
-            if (!this.isRunning) {
+            if (!this.isRunning && !this.isSuplexGrabbing) {
                 this.activeEffects.push({
                     type: 'spr_landcloud',
                     x: this.x + this.width / 2,
@@ -1041,7 +1041,7 @@ class Player {
             this.image_speed = Math.max(0.15, Math.abs(this.vx) * 0.08);
             
             // 유저 요청: 걸을 때 속도에 비례해서 먼지 이펙트 생성
-            if (this.isGrounded) {
+            if (this.isGrounded && !this.isSuplexGrabbing) {
                 this.walkEffectTimer += Math.abs(this.vx);
                 if (this.walkEffectTimer >= 80) { // 너무 빨리 나온다고 하셔서 30 -> 80으로 빈도 감소
                     this.walkEffectTimer = 0;
