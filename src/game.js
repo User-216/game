@@ -1364,26 +1364,7 @@ class Game {
             this.ctx.globalAlpha = 1.0;
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Darken overlay
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            // Draw dark background mask on right side using bubbles
-            this.ctx.fillStyle = 'black';
-            this.ctx.strokeStyle = 'white';
-            this.ctx.lineWidth = 2;
-            
-            // Draw a base dark rect for the menu area
-            this.ctx.fillRect(this.canvas.width / 2 + 50, 0, this.canvas.width / 2, this.canvas.height);
-
-            // Draw bubbles acting as the border
-            if (this.pauseBubbles) {
-                this.pauseBubbles.forEach(b => {
-                    this.ctx.beginPath();
-                    this.ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    this.ctx.stroke();
-                    this.ctx.beginPath();
-                    this.ctx.arc(b.x, b.y, b.r - 2, 0, Math.PI * 2);
-                    this.ctx.fill();
-                });
-            }
+            // Dark background mask and bubbles removed as requested by user
 
             const drawText = (text, x, y, scale = 1, alpha = 1, center = true) => {
                 let cursorX = x;
