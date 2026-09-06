@@ -1067,7 +1067,7 @@ class Player {
             
             if (this.isGrounded) {
                 this.runEffectTimer += Math.abs(this.vx);
-                if (this.runEffectTimer >= 60) {
+                if (this.runEffectTimer >= 150) { // 생성 주기 대폭 감소
                     this.runEffectTimer = 0;
                     
                     const absSpeed = Math.abs(this.vx);
@@ -1259,14 +1259,14 @@ class Player {
                     const img = frames[frameIndex];
                     if (img && img.complete && img.naturalWidth > 0) {
                         ctx.save();
-                        // 100x100 렌더링, 기준점을 x 중앙, y 바닥으로 잡기
+                        // 기준점을 x 중앙, y 바닥으로 잡기
                         ctx.translate(ef.x, ef.y);
                         if (ef.facingDir === -1) {
                             ctx.scale(-1, 1);
                         }
                         const scale = ef.scale || 1.0;
-                        const w = 100 * scale;
-                        const h = 100 * scale;
+                        const w = img.naturalWidth * scale;
+                        const h = img.naturalHeight * scale;
                         ctx.drawImage(img, -w/2, -h, w, h);
                         ctx.restore();
                     }
