@@ -133,12 +133,19 @@ class Player {
         }
 
         this.effectSprites = {
-            spr_highjumpcloud2: []
+            spr_highjumpcloud2: [],
+            spr_taunteffect: []
         };
         for (let i = 0; i <= 6; i++) {
             let img = new Image();
             img.src = `effect/spr_highjumpcloud2/spr_highjumpcloud2_${i}.png`;
             this.effectSprites.spr_highjumpcloud2.push(img);
+        }
+        
+        for (let i = 0; i <= 8; i++) {
+            let img = new Image();
+            img.src = `effect/spr_taunteffect/spr_taunteffect_${i}.png`;
+            this.effectSprites.spr_taunteffect.push(img);
         }
         
         this.activeEffects = [];
@@ -161,6 +168,9 @@ class Player {
                 this.isTaunting = false;
                 this.vx = this.storedVx || 0;
                 this.vy = this.storedVy || 0;
+                if (this.storedState) {
+                    Object.assign(this, this.storedState);
+                }
             } else {
                 keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
             }
@@ -169,10 +179,34 @@ class Player {
             this.tauntTimer = 20;
             this.storedVx = this.vx;
             this.storedVy = this.vy;
+            this.storedState = {
+                isRunning: this.isRunning,
+                isClimbing: this.isClimbing,
+                isTumbling: this.isTumbling,
+                isSuplexGrabbing: this.isSuplexGrabbing,
+                isGroundPounding: this.isGroundPounding,
+                isGroundPoundLand: this.isGroundPoundLand,
+                isDrifting: this.isDrifting,
+                isDrifting1: this.isDrifting1,
+                isMachSliding: this.isMachSliding,
+                sprite_index: this.sprite_index,
+                image_index: this.image_index,
+                facingDir: this.facingDir
+            };
+            
+            // 유저가 올려주신 도발 이펙트 추가
+            this.activeEffects.push({
+                type: 'spr_taunteffect',
+                x: this.x + this.width / 2,
+                y: this.y + this.height,
+                image_index: 0,
+                image_speed: 0.45 // 20프레임 동안 9장 재생
+            });
+            
             if (audio) audio.play('taunt'); // Option to play taunt sound later
             keys = { ...keys, actionLeft: false, actionRight: false, actionUp: false, actionDown: false, actionJump: false, actionRun: false, actionGrab: false, actionTaunt: false };
             
-            // Cancel other states
+            // Cancel other states while taunting so they don't process
             this.isClimbing = false;
             this.isTumbling = false;
             this.isSuplexGrabbing = false;
