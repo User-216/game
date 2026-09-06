@@ -1777,11 +1777,14 @@ class Game {
                         const thumb = this.sliderThumbImg;
                         // Draw track centered vertically with text
                         this.ctx.drawImage(track, valX, y + 15 - track.height/2);
-                        // The track's visual length might be the full width. We use track.width.
-                        // Calculate thumb position along the track
-                        // Assuming the track's full width is the movable area (or maybe padded a bit)
-                        const movableW = track.width;
-                        const thumbX = valX + (movableW * sliderValue) - thumb.width/2;
+                        // The track's visual length starts at 6px and ends at 218px
+                        const visualTrackStart = valX + 6;
+                        const visualTrackEnd = valX + 218;
+                        const movableW = visualTrackEnd - visualTrackStart;
+                        // Calculate thumb visual center along the track
+                        const thumbVisualTargetX = visualTrackStart + (movableW * sliderValue);
+                        // The face's visual center in the thumb image is at X=53.5
+                        const thumbX = thumbVisualTargetX - 53.5;
                         const thumbY = y + 15 - thumb.height/2 - 8; // Offset by 8px to account for image padding
                         this.ctx.drawImage(thumb, thumbX, thumbY);
                     } else {
