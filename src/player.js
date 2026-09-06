@@ -1032,6 +1032,7 @@ class Player {
                         image_speed: 0.5, // 애니메이션 속도
                         scale: 0.2 // 크기 축소 (0.35 -> 0.2)
                     });
+                    if (audio) audio.playFile('sfx_step', true); // 발걸음 소리 재생
                 }
             }
         } else if (this.sprite_index === 'spr_player_idle') {
