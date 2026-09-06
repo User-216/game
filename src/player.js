@@ -1078,7 +1078,7 @@ class Player {
                     
                     this.activeEffects.push({
                         type: effectType,
-                        x: this.x + this.width / 2,
+                        x: this.x + this.width / 2 - (this.facingDir * 40), // 캐릭터의 약간 뒤에서 생성되도록 오프셋 추가
                         y: this.y + this.height,
                         image_index: 0,
                         image_speed: 0.5,
