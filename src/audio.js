@@ -17,7 +17,6 @@ class AudioManager {
         // Set loops where appropriate
         this.files.mach2.loop = true;
         this.files.mach3.loop = true;
-        this.files.sfx_suplexdash.loop = true;
 
         this.musicFiles = {};
         this.currentMusicName = null;

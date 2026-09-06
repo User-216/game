@@ -579,9 +579,9 @@ class Player {
         // Suplex Grab Trigger
         if (this.grabBufferTimer > 0 && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
             this.isSuplexGrabbing = true;
-            // TODO: 나중에 스프라이트가 추가되면 애니메이션 길이에 맞춰 취소되도록 수정할 예정
             this.suplexGrabTimer = 32; // 32 frames
             this.grabBufferTimer = 0; // Consume the buffer
+            if (audio) audio.playFile('sfx_suplexdash', true); // 잡기 시작할 때 한 번만 재생 (forceRestart)
         }
 
         // Suplex Grab Logic
@@ -1131,10 +1131,8 @@ class Player {
                 audio.stopFile('mach3');
             }
             
-            // Suplex Dash Sound
-            if (this.isSuplexGrabbing) {
-                audio.playFile('sfx_suplexdash');
-            } else {
+            // 잡기가 종료되면 소리도 끊어줌
+            if (!this.isSuplexGrabbing) {
                 audio.stopFile('sfx_suplexdash');
             }
         }
