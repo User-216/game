@@ -1120,7 +1120,11 @@ class Player {
                     audio.playFile('mach3');
                     audio.stopFile('mach2');
                 } else if (absSpeed >= 8) {
-                    audio.playFile('mach2');
+                    if (this.isGrounded) {
+                        audio.playFile('mach2');
+                    } else {
+                        audio.stopFile('mach2');
+                    }
                     audio.stopFile('mach3');
                 } else {
                     audio.stopFile('mach2');
