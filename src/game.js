@@ -463,12 +463,12 @@ class Game {
                     vy: (Math.random() - 0.5) * 2
                 });
             }
-            if (this.audio) this.audio.play('sfx_pausestart');
+            if (this.audio) this.audio.playFile('sfx_pausestart', true);
             document.getElementById('pause-overlay').style.display = 'none'; // Ensure DOM overlay is hidden
             document.getElementById('pause-overlay').classList.add('hidden');
         } else if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
             this.gameState = 'PLAYING';
-            if (this.audio) this.audio.play('sfx_pausestart');
+            if (this.audio) this.audio.playFile('sfx_pausestart', true);
             document.getElementById('pause-overlay').style.display = 'none';
             document.getElementById('pause-overlay').classList.add('hidden');
             document.getElementById('options-overlay').style.display = 'none';
@@ -942,11 +942,11 @@ class Game {
             if (this.gameState === 'PAUSED') {
                 if (this.keys['ArrowUp'] && !this.prevKeysUp) {
                     this.pauseMenuIndex = (this.pauseMenuIndex - 1 + this.pauseMenuOptions.length) % this.pauseMenuOptions.length;
-                    if (this.audio) this.audio.play('sfx_step'); 
+                    if (this.audio) this.audio.playFile('sfx_step', true); 
                 }
                 if (this.keys['ArrowDown'] && !this.prevKeysDown) {
                     this.pauseMenuIndex = (this.pauseMenuIndex + 1) % this.pauseMenuOptions.length;
-                    if (this.audio) this.audio.play('sfx_step'); 
+                    if (this.audio) this.audio.playFile('sfx_step', true); 
                 }
                 if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                     const sel = this.pauseMenuOptions[this.pauseMenuIndex];
@@ -1008,11 +1008,11 @@ class Game {
                 
                 if (this.keys['ArrowUp'] && !this.prevKeysUp) {
                     this.optionsMenuIndex = (this.optionsMenuIndex - 1 + currentOptions.length) % currentOptions.length;
-                    if (this.audio) this.audio.play('sfx_step');
+                    if (this.audio) this.audio.playFile('sfx_step', true);
                 }
                 if (this.keys['ArrowDown'] && !this.prevKeysDown) {
                     this.optionsMenuIndex = (this.optionsMenuIndex + 1) % currentOptions.length;
-                    if (this.audio) this.audio.play('sfx_step');
+                    if (this.audio) this.audio.playFile('sfx_step', true);
                 }
                 
                 // Settings adjust logic
@@ -1045,7 +1045,7 @@ class Game {
                         if (sel === 'TIMER') this.settings.timer = !this.settings.timer;
                         if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
                         if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
-                        if (this.audio && sel !== 'BACK') this.audio.play('sfx_step');
+                        if (this.audio && sel !== 'BACK') this.audio.playFile('sfx_step', true);
                     }
                 }
                 
@@ -1066,7 +1066,7 @@ class Game {
                         if (sel === 'TIMER') this.settings.timer = !this.settings.timer;
                         if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
                         if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
-                        if (this.audio && sel !== 'BACK') this.audio.play('sfx_step');
+                        if (this.audio && sel !== 'BACK') this.audio.playFile('sfx_step', true);
                     }
                 }
 
@@ -1086,7 +1086,7 @@ class Game {
                         this.optionsMenuLevel = 'MAIN';
                         this.optionsMenuIndex = 0;
                     }
-                    if (this.audio) this.audio.play('sfx_step');
+                    if (this.audio) this.audio.playFile('sfx_step', true);
                 }
                 if (this.optionsMenuLevel === 'BINDINGS' && currentOptions[this.optionsMenuIndex] !== 'BACK') {
                     if (this.keys['1'] && !this.prevKeys1) {
@@ -1096,19 +1096,19 @@ class Game {
                             groundpound: 'ArrowDown', taunt: 'c', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
                             menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'c'
                         };
-                        if (this.audio) this.audio.play('sfx_step');
+                        if (this.audio) this.audio.playFile('sfx_step', true);
                     }
                     if ((this.keys['c'] || this.keys['C']) && !this.prevKeysC) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
                         this.settings.bindings[optStr] = '';
-                        if (this.audio) this.audio.play('sfx_step');
+                        if (this.audio) this.audio.playFile('sfx_step', true);
                     }
                     if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
                         this.bindingKeyFor = optStr;
                         this.bindingTimeout = 3;
                         this.bindingLastTime = performance.now();
-                        if (this.audio) this.audio.play('sfx_step');
+                        if (this.audio) this.audio.playFile('sfx_step', true);
                     }
                 } else if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                     if (this.optionsMenuLevel === 'MAIN') {
@@ -1140,7 +1140,7 @@ class Game {
                         this.optionsMenuLevel = 'VIDEO';
                         this.optionsMenuIndex = 1;
                     }
-                    if (this.audio) this.audio.play('sfx_step');
+                    if (this.audio) this.audio.playFile('sfx_step', true);
                 }
 
                 this.prevKeysUp = this.keys['ArrowUp'];
