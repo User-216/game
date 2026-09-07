@@ -666,7 +666,7 @@ class Player {
         this.y += this.vy;
 
         // 방향 업데이트 (드리프트나 벽타기, 구르기 중이 아닐 때만 키 입력에 따라 방향 결정)
-        if (!this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isWallJumping && !this.isTumbling) {
+        if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isTumbling && Math.abs(this.vx) < 12) {
             // 공중에서 달리는 중일 때는 방향 전환 불가
             if (this.isGrounded || !this.isRunning) {
                 if (keys.actionLeft) this.facingDir = -1;
