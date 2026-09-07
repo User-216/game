@@ -1045,7 +1045,7 @@ class Game {
                         if (sel === 'TIMER') this.settings.timer = !this.settings.timer;
                         if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
                         if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
-                        if (this.audio && sel !== 'BACK') this.audio.play('unpause');
+                        if (this.audio && sel !== 'BACK') this.audio.play('sfx_step');
                     }
                 }
                 
@@ -1066,7 +1066,7 @@ class Game {
                         if (sel === 'TIMER') this.settings.timer = !this.settings.timer;
                         if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
                         if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
-                        if (this.audio && sel !== 'BACK') this.audio.play('unpause');
+                        if (this.audio && sel !== 'BACK') this.audio.play('sfx_step');
                     }
                 }
 
@@ -1086,7 +1086,7 @@ class Game {
                         this.optionsMenuLevel = 'MAIN';
                         this.optionsMenuIndex = 0;
                     }
-                    if (this.audio) this.audio.play('unpause');
+                    if (this.audio) this.audio.play('sfx_step');
                 }
                 if (this.optionsMenuLevel === 'BINDINGS' && currentOptions[this.optionsMenuIndex] !== 'BACK') {
                     if (this.keys['1'] && !this.prevKeys1) {
@@ -1096,19 +1096,19 @@ class Game {
                             groundpound: 'ArrowDown', taunt: 'c', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
                             menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'c'
                         };
-                        if (this.audio) this.audio.play('unpause');
+                        if (this.audio) this.audio.play('sfx_step');
                     }
                     if ((this.keys['c'] || this.keys['C']) && !this.prevKeysC) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
                         this.settings.bindings[optStr] = '';
-                        if (this.audio) this.audio.play('unpause');
+                        if (this.audio) this.audio.play('sfx_step');
                     }
                     if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
                         this.bindingKeyFor = optStr;
                         this.bindingTimeout = 3;
                         this.bindingLastTime = performance.now();
-                        if (this.audio) this.audio.play('unpause');
+                        if (this.audio) this.audio.play('sfx_step');
                     }
                 } else if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                     if (this.optionsMenuLevel === 'MAIN') {
@@ -1140,7 +1140,7 @@ class Game {
                         this.optionsMenuLevel = 'VIDEO';
                         this.optionsMenuIndex = 1;
                     }
-                    if (this.audio) this.audio.play('unpause');
+                    if (this.audio) this.audio.play('sfx_step');
                 }
 
                 this.prevKeysUp = this.keys['ArrowUp'];
