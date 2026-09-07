@@ -296,10 +296,6 @@ class Player {
             }
         }
 
-        // 만약 슬라이드 중 다시 Shift와 방향키를 누르면 달리기로 복귀
-        if (this.isMachSliding && isCurrentlyRunning) {
-            this.isMachSliding = false;
-        }
 
         this.isRunning = isCurrentlyRunning;
 
@@ -384,7 +380,7 @@ class Player {
         }
 
         // Running acceleration logic
-        if (this.isRunning && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling && !this.isCrouching && !this.isSuplexGrabbing) {
+        if (this.isRunning && !this.isMachSliding && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling && !this.isCrouching && !this.isSuplexGrabbing) {
             let effLeft = keys.actionLeft;
             let effRight = keys.actionRight;
             if (!keys.actionLeft && !keys.actionRight) {
