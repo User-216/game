@@ -332,7 +332,7 @@ class Player {
             const activeMaxSpeed = this.isCrouching ? 4 : this.maxSpeed;
 
             if (effLeft) {
-                if (!this.isTumbling && !this.isSuplexGrabbing) this.facingDir = -1;
+                if (!this.isTumbling && !this.isSuplexGrabbing && Math.abs(this.vx) < 12) this.facingDir = -1;
                 
                 if (this.isRunning && this.vx > 0 && this.vx < this.machThreshold) {
                     this.vx = -6;
@@ -351,7 +351,7 @@ class Player {
                     }
                 }
             } else if (effRight) {
-                if (!this.isTumbling && !this.isSuplexGrabbing) this.facingDir = 1;
+                if (!this.isTumbling && !this.isSuplexGrabbing && Math.abs(this.vx) < 12) this.facingDir = 1;
 
                 if (this.isRunning && this.vx < 0 && this.vx > -this.machThreshold) {
                     this.vx = 6;
