@@ -1,4 +1,4 @@
-class AudioManager {
+﻿class AudioManager {
     constructor(settings) {
         this.settings = settings;
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -154,6 +154,49 @@ class AudioManager {
         if (audio && !audio.paused) {
             audio.pause();
             audio.currentTime = 0; // reset to beginning
+        }
+    }
+    pauseAll() {
+        if (this.ctx && this.ctx.state === 'running') {
+            this.ctx.suspend();
+        }
+        for (const key in this.files) {
+            const audio = this.files[key];
+            if (!audio.paused) {
+                audio.wasPlaying = true;
+                audio.pause();
+            } else {
+                audio.wasPlaying = false;
+            }
+        }
+        for (const key in this.musicFiles) {
+            const audio = this.musicFiles[key];
+            if (!audio.paused) {
+                audio.wasPlaying = true;
+                audio.pause();
+            } else {
+                audio.wasPlaying = false;
+            }
+        }
+    }
+
+    resumeAll() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+        for (const key in this.files) {
+            const audio = this.files[key];
+            if (audio.wasPlaying) {
+                audio.play().catch(e => console.log('Resume blocked:', e));
+                audio.wasPlaying = false;
+            }
+        }
+        for (const key in this.musicFiles) {
+            const audio = this.musicFiles[key];
+            if (audio.wasPlaying) {
+                audio.play().catch(e => console.log('Resume blocked:', e));
+                audio.wasPlaying = false;
+            }
         }
     }
 
