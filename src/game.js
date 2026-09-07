@@ -1,4 +1,4 @@
-const i18n = {
+﻿const i18n = {
     en: {
         'ui.speed': 'SPEED', 'ui.climb': 'CLIMB', 'ui.state': 'STATE', 'ui.room': 'ROOM',
         'tut.move': 'Move', 'tut.jump': 'Jump', 'tut.run': 'Run', 'tut.editor': 'Design Mode',
@@ -463,12 +463,12 @@ class Game {
                     vy: (Math.random() - 0.5) * 2
                 });
             }
-            if (this.audio) this.audio.play('pause');
+            if (this.audio) this.audio.play('sfx_pausestart');
             document.getElementById('pause-overlay').style.display = 'none'; // Ensure DOM overlay is hidden
             document.getElementById('pause-overlay').classList.add('hidden');
         } else if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
             this.gameState = 'PLAYING';
-            if (this.audio) this.audio.play('unpause');
+            if (this.audio) this.audio.play('sfx_pausestart');
             document.getElementById('pause-overlay').style.display = 'none';
             document.getElementById('pause-overlay').classList.add('hidden');
             document.getElementById('options-overlay').style.display = 'none';

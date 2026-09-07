@@ -11,6 +11,7 @@ class AudioManager {
             sfx_break: new Audio('sound/sfx_break.wav'),
             sfx_groundpound: new Audio('sound/sfx_groundpound.wav'),
             sfx_step: new Audio('sound/sfx_step.wav'),
+            sfx_pausestart: new Audio('sound/sfx_pausestart.wav'),
             sfx_suplexdash: new Audio('sound/sfx_suplexdash.wav')
         };
         
