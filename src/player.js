@@ -217,10 +217,14 @@ class Player {
             return; // 도발 시작 프레임도 업데이트 정지
         }
         
-        // 도발 키 상태 저장 (계속 누르고 있는지 확인용)
         this.prevKeysTaunt = keys.actionTaunt;
 
         let isCurrentlyRunning = !!keys.actionRun;
+        
+        // 공중에서는 달리기 취소 불가 (이전 프레임에 달리고 있었다면 강제 유지)
+        if (!this.isGrounded && this.wasRunningLastFrame) {
+            isCurrentlyRunning = true;
+        }
         
         // 웅크리고 있을 때는 달리기 불가
         if (this.isCrouching) {
