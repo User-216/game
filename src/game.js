@@ -942,11 +942,11 @@ class Game {
             if (this.gameState === 'PAUSED') {
                 if (this.keys['ArrowUp'] && !this.prevKeysUp) {
                     this.pauseMenuIndex = (this.pauseMenuIndex - 1 + this.pauseMenuOptions.length) % this.pauseMenuOptions.length;
-                    if (this.audio) this.audio.play('unpause'); 
+                    if (this.audio) this.audio.play('sfx_step'); 
                 }
                 if (this.keys['ArrowDown'] && !this.prevKeysDown) {
                     this.pauseMenuIndex = (this.pauseMenuIndex + 1) % this.pauseMenuOptions.length;
-                    if (this.audio) this.audio.play('unpause'); 
+                    if (this.audio) this.audio.play('sfx_step'); 
                 }
                 if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                     const sel = this.pauseMenuOptions[this.pauseMenuIndex];
@@ -1008,11 +1008,11 @@ class Game {
                 
                 if (this.keys['ArrowUp'] && !this.prevKeysUp) {
                     this.optionsMenuIndex = (this.optionsMenuIndex - 1 + currentOptions.length) % currentOptions.length;
-                    if (this.audio) this.audio.play('unpause');
+                    if (this.audio) this.audio.play('sfx_step');
                 }
                 if (this.keys['ArrowDown'] && !this.prevKeysDown) {
                     this.optionsMenuIndex = (this.optionsMenuIndex + 1) % currentOptions.length;
-                    if (this.audio) this.audio.play('unpause');
+                    if (this.audio) this.audio.play('sfx_step');
                 }
                 
                 // Settings adjust logic
