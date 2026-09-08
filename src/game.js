@@ -811,9 +811,20 @@ class Game {
         });
         code += `);`;
         
-        navigator.clipboard.writeText(code).then(() => {
-            alert("Level code copied to clipboard! Paste it into initRooms() in game.js");
-        });
+        let roomName = prompt("방 이름을 입력하세요 (예: tutorial_3):", "new_room");
+        if (!roomName) return;
+        
+        let finalCode = `window.roomData = window.roomData || {};\nwindow.roomData['${roomName}'] = function() {\n${code}\n};`;
+        
+        const blob = new Blob([finalCode], {type: 'text/javascript'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${roomName}.js`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        alert(`다운로드된 ${roomName}.js 파일을 폴더의 'room' 방 폴더에 넣어주세요!`);
     }
 
     initRooms() {
@@ -909,76 +920,69 @@ this.entities.push(
             };
         }
 
-        try {
-            const response = await fetch(`room/${roomName}.txt?t=${new Date().getTime()}`);
-            if (response.ok) {
-                const text = await response.text();
-                this.rooms[roomName] = () => {
-                    eval(text);
-                };
-            }
-        } catch (e) {
-            console.warn(`Could not load room/${roomName}.txt from server, using fallback.`);
-            if (window.location.protocol === 'file:') {
-                alert(`방 파일(room/${roomName}.txt)을 자동으로 불러올 수 없습니다! 브라우저 보안(CORS) 때문에 file:// 주소에서는 불러오기가 차단됩니다. VSCode의 Live Server 등을 이용해 로컬 서버를 켜서 실행해 주세요!`);
-            }
-        }
+        return new Promise((resolve) => {
+            const finishLoading = () => {
+                if (!this.rooms[roomName]) {
+                    console.error(`Room ${roomName} not found`);
+                    resolve();
+                    return;
+                }
+                
+                console.log(`Loading Room: ${roomName}`);
+                this.entities = [];
+                this.roomWidth = 0;
+                this.roomHeight = 0;
+                this.roomMusic = null;
+                this.rooms[roomName].call(this);
+                
+                if (this.audio) {
+                    this.audio.playMusic(this.roomMusic);
+                }
+                
+                let startX = 100;
+                let startY = 300;
+                
+                if (targetDoorId && targetDoorId !== 'null') {
+                    const doorObj = this.entities.find(e => e.type === `targetDoor_${targetDoorId}`);
+                    if (doorObj) {
+                        startX = doorObj.x + doorObj.width/2 - this.player.width/2;
+                        startY = doorObj.y + doorObj.height - this.player.height;
+                    }
+                }
+                
+                this.player.x = startX;
+                this.player.y = startY;
+                if (!preserveVelocity) {
+                    this.player.vx = 0;
+                    this.player.vy = 0;
+                }
+                
+                this.cameraX = this.player.x - this.canvas.width / 2;
+                this.cameraY = this.player.y - this.canvas.height / 2;
+                
+                this.currentRoom = roomName;
+                resolve();
+            };
 
-        if (!this.rooms[roomName]) {
-            console.error(`Room ${roomName} not found`);
-            return;
-        }
-        
-        console.log(`Loading Room: ${roomName}`);
-        this.entities = [];
-        this.roomWidth = 0;
-        this.roomHeight = 0;
-        this.roomMusic = null;
-        this.rooms[roomName]();
-        
-        if (this.audio) {
-            this.audio.playMusic(this.roomMusic);
-        }
-        
-        let startX = 100;
-        let startY = 300;
-        
-        if (targetDoorId && targetDoorId !== 'null') {
-            const doorObj = this.entities.find(e => e.type === `targetDoor_${targetDoorId}`);
-            if (doorObj) {
-                startX = doorObj.x + doorObj.width / 2 - this.player.width / 2;
-                startY = doorObj.y + doorObj.height - this.player.height;
-            }
-        }
-        
-        // Reset player
-        this.player.x = startX;
-        this.player.y = startY;
-        if (!preserveVelocity) {
-            this.player.vx = 0;
-            this.player.vy = 0;
-        }
-        this.player.isGrounded = false;
-        this.player.isClimbing = false;
-        this.player.isDrifting = false;
-        this.player.isDrifting1 = false;
-        this.player.insideHallway = true; // Mark as inside hallway to prevent immediate loop
-        
-        this.camera.x = this.player.x - this.canvas.width / 2;
-        this.camera.y = this.player.y - this.canvas.height / 2;
-        this.cameraShake = 0;
-        this.cameraSpeedOffset = 0;
-        this.currentRoom = roomName;
-    }
-
-    triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
-        if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
-        if (this.transitionState !== 'NONE') return;
-        this.transitionState = 'FADE_OUT';
-        this.transitionTimer = 0;
-        this.pendingRoom = roomName;
-        this.pendingDoor = targetDoorId;
-        this.pendingPreserveVelocity = preserveVelocity;
+            // Inject script to bypass CORS
+            let roomScript = document.getElementById('dynamic-room-script');
+            if (roomScript) roomScript.remove();
+            
+            roomScript = document.createElement('script');
+            roomScript.id = 'dynamic-room-script';
+            roomScript.src = `room/${roomName}.js?t=${new Date().getTime()}`;
+            roomScript.onload = () => {
+                if (window.roomData && window.roomData[roomName]) {
+                    this.rooms[roomName] = window.roomData[roomName];
+                }
+                finishLoading();
+            };
+            roomScript.onerror = () => {
+                console.warn(`Could not load room/${roomName}.js, using fallback.`);
+                finishLoading();
+            };
+            document.body.appendChild(roomScript);
+        });
     }
 
     update() {

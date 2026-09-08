@@ -1,3 +1,5 @@
+window.roomData = window.roomData || {};
+window.roomData['tutorial_1'] = function() {
 this.roomWidth = 2000;
 this.roomHeight = 10;
 this.entities.push(
@@ -17,3 +19,4 @@ this.entities.push(
     new TargetDoor_B(1632, 672, 32, 32),
     new Door(1632, 640, 32, 64, 'B', 'tutorial_2'),
 );
+};
