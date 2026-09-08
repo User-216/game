@@ -892,7 +892,7 @@ this.entities.push(
         };
     }
 
-    loadRoom(roomName, targetDoorId = 'A', preserveVelocity = false) {
+    async loadRoom(roomName, targetDoorId = 'A', preserveVelocity = false) {
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         
         // Save current room state to memory before switching
@@ -909,7 +909,22 @@ this.entities.push(
             };
         }
 
-        if (!this.rooms[roomName]) return;
+        try {
+            const response = await fetch(`room/${roomName}.txt?t=${new Date().getTime()}`);
+            if (response.ok) {
+                const text = await response.text();
+                this.rooms[roomName] = () => {
+                    eval(text);
+                };
+            }
+        } catch (e) {
+            console.warn(`Could not load room/${roomName}.txt from server, using fallback.`);
+        }
+
+        if (!this.rooms[roomName]) {
+            console.error(`Room ${roomName} not found`);
+            return;
+        }
         
         console.log(`Loading Room: ${roomName}`);
         this.entities = [];
