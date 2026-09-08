@@ -1087,9 +1087,9 @@ class Player {
         } else if (this.sprite_index === 'spr_player_roll') {
             this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06); // 구르기 애니메이션 속도 (속도에 비례)
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
-            this.image_speed = 0.45; // 애니메이션 속도 감소 (0.5 -> 0.45)
+            this.image_speed = 0.33; // 50ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_groundpound') {
-            this.image_speed = 0.45; // 애니메이션 속도 감소 (0.5 -> 0.45)
+            this.image_speed = 0.33; // 50ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_mach2') {
             // 유저 요청: 속도에 따라 애니메이션 속도가 다르게 (빠를수록 애니메이션도 빠르게)
             this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04); 
