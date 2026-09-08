@@ -132,6 +132,22 @@ class Player {
             this.sprites.spr_player_mach2.push(img);
         }
 
+        // Load ground pound start sprite (10 frames)
+        this.sprites.spr_player_groundpoundstart = [];
+        for (let i = 1; i <= 10; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_groundpoundstart/spr_playerT_groundpoundstart${i}.png`;
+            this.sprites.spr_player_groundpoundstart.push(img);
+        }
+
+        // Load ground pound sprite (3 frames)
+        this.sprites.spr_player_groundpound = [];
+        for (let i = 1; i <= 3; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_groundpound/spr_playerT_groundpound${i}.png`;
+            this.sprites.spr_player_groundpound.push(img);
+        }
+
         this.effectSprites = {
             spr_highjumpcloud2: [],
             spr_taunteffect: [],
@@ -614,6 +630,8 @@ class Player {
             this.canGroundPound = false; // 소비
             this.vy = -10; // Upward hop
             this.vx = 0;   // 엉덩이 찍기 시 수평 이동 멈춤
+            this.sprite_index = 'spr_player_groundpoundstart';
+            this.image_index = 0;
             if (audio) audio.play('groundpound');
         }
 
@@ -993,6 +1011,8 @@ class Player {
                 this.vy = -10; // 엉덩이 찍기 처음 쓸 때처럼 위로 살짝 뜨는 동작 추가
                 this.vx = 0;   // 엉덩이 찍기 시 수평 이동 멈춤
                 this.jumpBufferTimer = 0;
+                this.sprite_index = 'spr_player_groundpoundstart';
+                this.image_index = 0;
                 if (audio) audio.play('groundpound');
             }
         }
@@ -1066,6 +1086,10 @@ class Player {
             this.image_speed = 0.45; // 유저 요청: 착지 애니메이션 속도 재조정
         } else if (this.sprite_index === 'spr_player_roll') {
             this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06); // 구르기 애니메이션 속도 (속도에 비례)
+        } else if (this.sprite_index === 'spr_player_groundpoundstart') {
+            this.image_speed = 0.5;
+        } else if (this.sprite_index === 'spr_player_groundpound') {
+            this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_mach2') {
             // 유저 요청: 속도에 따라 애니메이션 속도가 다르게 (빠를수록 애니메이션도 빠르게)
             this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04); 
@@ -1109,6 +1133,12 @@ class Player {
         // 착지 애니메이션 재생이 완료되면 idle 애니메이션으로 자동 전환
         if (this.sprite_index === 'spr_player_land' && this.image_index >= this.sprites.spr_player_land.length) {
             this.sprite_index = 'spr_player_idle';
+            this.image_index = 0;
+        }
+
+        // 엉덩이 찍기 시작 애니메이션이 완료되면 내려찍기 애니메이션으로 전환
+        if (this.sprite_index === 'spr_player_groundpoundstart' && this.image_index >= this.sprites.spr_player_groundpoundstart.length) {
+            this.sprite_index = 'spr_player_groundpound';
             this.image_index = 0;
         }
 
