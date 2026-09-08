@@ -985,6 +985,16 @@ this.entities.push(
         });
     }
 
+    triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
+        if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
+        if (this.transitionState !== 'NONE') return;
+        this.transitionState = 'FADE_OUT';
+        this.transitionTimer = 0;
+        this.pendingRoom = roomName;
+        this.pendingDoor = targetDoorId;
+        this.pendingPreserveVelocity = preserveVelocity;
+    }
+
     update() {
         if (this.gameState === 'TITLE') {
             if (this.uiOverlay && this.uiOverlay.style.display !== 'none') {
