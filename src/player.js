@@ -1236,6 +1236,20 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
+            } else if (m.sprite_index === 'spr_player_groundpoundstart') {
+                const frames = this.sprites.spr_player_groundpoundstart;
+                let frameIndex = Math.floor(m.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const frame = frames[frameIndex];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (m.sprite_index === 'spr_player_groundpound') {
+                const frames = this.sprites.spr_player_groundpound;
+                const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
             } else if (this.mask_image && this.mask_image.complete && this.mask_image.naturalWidth > 0) {
                 imgToDraw = this.mask_image;
             }
