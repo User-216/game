@@ -1744,7 +1744,7 @@ class Game {
                             
                             for (let k = 0; k < displayKey.length; k++) {
                                 const c = displayKey[k];
-                                if (c === ' ') { kx += 10; continue; }
+                                if (c === ' ') { kx += 8; continue; }
                                 const charIdx = charset.indexOf(c);
                                 if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
                                     const imgToDraw = this.tutorialFontImages[charIdx];
@@ -1756,7 +1756,7 @@ class Game {
                                     this.ctx.textAlign = 'left';
                                     this.ctx.textBaseline = 'top';
                                     this.ctx.fillText(c, kx, ky + 12);
-                                    kx += 10;
+                                    kx += 8;
                                 }
                             }
                         } else {
@@ -1981,7 +1981,7 @@ class Game {
                                 continue;
                             }
                             if (char === ' ') {
-                                charX += 10;
+                                charX += 8;
                                 continue;
                             }
                             
@@ -1996,7 +1996,7 @@ class Game {
                             
                             if (imgToDraw) {
                                 this.ctx.drawImage(imgToDraw, charX, charY + bounceY);
-                                charX += imgToDraw.width - 8;
+                                charX += imgToDraw.width - 12;
                             } else {
                                 this.ctx.save();
                                 this.ctx.fillStyle = '#000000';
@@ -2004,7 +2004,7 @@ class Game {
                                 this.ctx.textAlign = 'left';
                                 this.ctx.fillText(char, charX, charY + 24 + bounceY);
                                 this.ctx.restore();
-                                charX += 10;
+                                charX += 8;
                             }
                         }
                     } else if (token.type === 'key') {
@@ -2025,9 +2025,9 @@ class Game {
                             for(let i=0; i<keyName.length; i++) {
                                const c = keyName[i];
                                const idx = charset.indexOf(c);
-                               if (c === ' ') totalW += 10;
-                               else if (idx !== -1 && this.tutorialFontImages[idx]) totalW += this.tutorialFontImages[idx].width - 8;
-                               else totalW += 10;
+                               if (c === ' ') totalW += 8;
+                               else if (idx !== -1 && this.tutorialFontImages[idx]) totalW += this.tutorialFontImages[idx].width - 12;
+                               else totalW += 8;
                             }
                             if (keyName.length > 0) totalW -= -2;
 
@@ -2035,18 +2035,18 @@ class Game {
                             let ky = charY - 2; // Align with regular text baseline but slightly higher
                             for(let i=0; i<keyName.length; i++) {
                                const c = keyName[i];
-                               if (c === ' ') { kx += 10; continue; }
+                               if (c === ' ') { kx += 8; continue; }
                                const idx = charset.indexOf(c);
                                if (idx !== -1 && this.tutorialFontImages[idx]) {
                                    this.ctx.drawImage(this.tutorialFontImages[idx], kx, ky + bounceY);
-                                   kx += this.tutorialFontImages[idx].width - 8;
+                                   kx += this.tutorialFontImages[idx].width - 12;
                                } else {
                                    this.ctx.save();
                                    this.ctx.fillStyle = '#000000';
                                    this.ctx.font = 'bold 14px "Outfit", sans-serif';
                                    this.ctx.fillText(c, kx, ky + 12 + bounceY);
                                    this.ctx.restore();
-                                   kx += 10;
+                                   kx += 8;
                                }
                             }
                             
