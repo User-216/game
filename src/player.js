@@ -1450,6 +1450,39 @@ class Player {
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
+        } else if (this.sprite_index === 'spr_player_groundpoundstart') {
+            const frames = this.sprites.spr_player_groundpoundstart;
+            let frameIndex = Math.floor(this.image_index);
+            if (frameIndex >= frames.length) {
+                frameIndex = frames.length - 1; 
+            }
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_groundpound') {
+            const frames = this.sprites.spr_player_groundpound;
+            const frameIndex = Math.floor(this.image_index) % frames.length;
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
         } else {
             let pColor = this.color;
             if (this.isGroundPounding) pColor = this.color; // Match cyan aesthetic for GP
