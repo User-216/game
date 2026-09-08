@@ -146,7 +146,23 @@ class Game {
         });
         this.settings.isFocused = document.hasFocus();
 
-        this.gameState = 'TITLE';
+        this.loadingScreenImages = [];
+        this.loadingScreenLoaded = false;
+        let lsLoadedCount = 0;
+        for (let i = 0; i < 2; i++) {
+            let img = new Image();
+            img.src = `이미지/spr_loadingscreen/spr_loadingscreen_${i}.png`;
+            img.onload = () => {
+                lsLoadedCount++;
+                if (lsLoadedCount === 2) {
+                    this.loadingScreenLoaded = true;
+                }
+            };
+            this.loadingScreenImages.push(img);
+        }
+        this.gameState = 'BOOT_LOADING';
+        this.bootLoadTimer = 0;
+        this.bootLoadDuration = 120; // 2 seconds at 60fps
 
         this.player = new Player(100, 300);
         this.entities = [];
@@ -996,6 +1012,16 @@ this.entities.push(
     }
 
     update() {
+        if (this.gameState === 'BOOT_LOADING') {
+            if (this.loadingScreenLoaded) {
+                this.bootLoadTimer++;
+            }
+            if (this.bootLoadTimer >= this.bootLoadDuration) {
+                this.gameState = 'TITLE';
+            }
+            return;
+        }
+
         if (this.gameState === 'TITLE') {
             if (this.uiOverlay && this.uiOverlay.style.display !== 'none') {
                 this.uiOverlay.style.display = 'none';
@@ -1436,6 +1462,45 @@ this.entities.push(
         this.ctx.imageSmoothingEnabled = this.settings.textureFiltering;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        if (this.gameState === 'BOOT_LOADING') {
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            if (this.loadingScreenLoaded) {
+                const img0 = this.loadingScreenImages[0];
+                const img1 = this.loadingScreenImages[1];
+                
+                const scale = Math.min(
+                    this.canvas.width / img0.width,
+                    this.canvas.height / img0.height
+                ) * 0.8; 
+                
+                const w0 = img0.width * scale;
+                const h0 = img0.height * scale;
+                const centerX = this.canvas.width / 2 - w0 / 2;
+                const centerY = this.canvas.height / 2 - h0 / 2;
+                
+                // Draw silhouette
+                this.ctx.drawImage(img0, centerX, centerY, w0, h0);
+                
+                // Draw colored image revealed from left to right
+                let progress = this.bootLoadTimer / this.bootLoadDuration;
+                if (progress > 1) progress = 1;
+                
+                const revealWidthSrc = img1.width * progress;
+                const revealWidthDest = w0 * progress;
+                
+                if (revealWidthSrc > 0) {
+                    this.ctx.drawImage(
+                        img1,
+                        0, 0, revealWidthSrc, img1.height,
+                        centerX, centerY, revealWidthDest, h0
+                    );
+                }
+            }
+            return;
+        }
+
         this.ctx.save();
         
         let shakeX = 0;
