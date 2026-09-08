@@ -824,24 +824,25 @@ class Game {
                 this.entities.push(new Door(400, 420, 50, 80, 'START', 'tutorial_1'));
             },
             'tutorial_1': () => {
-                this.roomWidth = 2000;
-                this.roomHeight = 10;
-                this.entities.push(
-                    new TargetDoor_A(480, 576, 32, 32),
-                    new Platform(192, 224, 96, 384, '#00aa9e66'),
-                    new TutorialBook(896, 576, 32, 32, "Press [J] to Jump!"),
-                    new Platform(672, 288, 128, 64, '#00aa9e66'),
-                    new Platform(288, 224, 512, 64, '#00aa9e66'),
-                    new TutorialBook(1216, 512, 32, 32, "Press [D] and [L][R] to crawl!"),
-                    new Platform(1056, 544, 352, 64, '#00aa9e66'),
-                    new Platform(192, 608, 1216, 96, '#00aa9e66'),
-                    new Platform(1312, 224, 96, 288, '#00aa9e66'),
-                    new Platform(672, 96, 736, 128, '#00aa9e66'),
-                    new Platform(1312, 704, 448, 64, '#00aa9e66'),
-                    new Platform(1760, 448, 64, 320, '#00aa9e66'),
-                    new Platform(1408, 384, 416, 64, '#00aa9e66'),
-                    new TargetDoor_B(1632, 672, 32, 32),
-                );
+this.roomWidth = 2000;
+this.roomHeight = 10;
+this.entities.push(
+    new TargetDoor_A(480, 576, 32, 32),
+    new Platform(192, 224, 96, 384, '#00aa9e66'),
+    new TutorialBook(896, 576, 32, 32, "Press [J] to Jump!"),
+    new Platform(672, 288, 128, 64, '#00aa9e66'),
+    new Platform(288, 224, 512, 64, '#00aa9e66'),
+    new TutorialBook(1216, 512, 32, 32, "Press [D] and [L][R] to crawl!"),
+    new Platform(1056, 544, 352, 64, '#00aa9e66'),
+    new Platform(192, 608, 1216, 96, '#00aa9e66'),
+    new Platform(1312, 224, 96, 288, '#00aa9e66'),
+    new Platform(672, 96, 736, 128, '#00aa9e66'),
+    new Platform(1312, 704, 448, 64, '#00aa9e66'),
+    new Platform(1760, 448, 64, 320, '#00aa9e66'),
+    new Platform(1408, 384, 416, 64, '#00aa9e66'),
+    new TargetDoor_B(1632, 672, 32, 32),
+    new Door(1632, 640, 32, 64, 'B', 'tutorial_2'),
+);
             },
             'A': () => {
                 // Room A: Central Hub
