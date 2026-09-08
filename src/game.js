@@ -865,7 +865,9 @@ class Game {
         };
     }
 
-    loadRoom(roomName, targetDoorId = null, preserveVelocity = false) {
+    loadRoom(roomName, targetDoorId = 'A', preserveVelocity = false) {
+        if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
+        
         // Save current room state to memory before switching
         if (this.currentRoom && this.rooms[this.currentRoom] && this.entities.length > 0) {
             const currentEntities = [...this.entities];
@@ -896,7 +898,7 @@ class Game {
         let startX = 100;
         let startY = 300;
         
-        if (targetDoorId) {
+        if (targetDoorId && targetDoorId !== 'null') {
             const doorObj = this.entities.find(e => e.type === `targetDoor_${targetDoorId}`);
             if (doorObj) {
                 startX = doorObj.x + doorObj.width / 2 - this.player.width / 2;
@@ -917,11 +919,15 @@ class Game {
         this.player.isDrifting1 = false;
         this.player.insideHallway = true; // Mark as inside hallway to prevent immediate loop
         
+        this.camera.x = this.player.x - this.canvas.width / 2;
+        this.camera.y = this.player.y - this.canvas.height / 2;
+        this.cameraShake = 0;
         this.cameraSpeedOffset = 0;
         this.currentRoom = roomName;
     }
 
-    triggerRoomTransition(roomName, targetDoorId = null, preserveVelocity = false) {
+    triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
+        if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         if (this.transitionState !== 'NONE') return;
         this.transitionState = 'FADE_OUT';
         this.transitionTimer = 0;
