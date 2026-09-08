@@ -2029,7 +2029,7 @@ class Game {
                                else if (idx !== -1 && this.tutorialFontImages[idx]) totalW += this.tutorialFontImages[idx].width - 12;
                                else totalW += 8;
                             }
-                            if (keyName.length > 0) totalW -= -2;
+                            if (keyName.length > 0) totalW += 12;
 
                             let kx = charX + bImg.width/2 - totalW/2;
                             let ky = charY - 2; // Align with regular text baseline but slightly higher
