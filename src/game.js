@@ -743,7 +743,13 @@ class Game {
                 let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
                 entity = new Hallway(x, y, w, h, tRoom, tDoor); 
                 break;
-            case 'door': entity = new Door(x, y, w, h, 'NEW', 'A'); break;
+            case 'door': 
+                let dRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
+                if (dRoom === null) break;
+                let dDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
+                if (dDoor === null) break;
+                entity = new Door(x, y, w, h, dDoor, dRoom); 
+                break;
             case 'targetDoor': 
                 let doorId = prompt("Target Door ID (A, B, C, D, E):", "A");
                 if (doorId === 'A') entity = new TargetDoor_A(x, y, w, h);
@@ -1322,7 +1328,7 @@ class Game {
         );
 
         if (overlappingDoor && this.keys.actionUp && this.player.isGrounded) {
-            this.triggerRoomTransition(overlappingDoor.targetRoom);
+            this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);
             this.keys[this.settings.bindings.up] = false; // Prevent immediate multi-entry
             this.keys.actionUp = false;
         }
