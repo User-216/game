@@ -238,7 +238,8 @@ class Player {
         let isCurrentlyRunning = !!keys.actionRun;
         
         // 공중에서는 달리기 취소 불가 (이전 프레임에 달리고 있었다면 강제 유지)
-        if (!this.isGrounded && this.wasRunningLastFrame) {
+        // 단, 벽타기 중일 때는 예외로 달리기 키를 놓으면 즉시 취소되도록 함
+        if (!this.isGrounded && this.wasRunningLastFrame && !this.isClimbing) {
             isCurrentlyRunning = true;
         }
         
