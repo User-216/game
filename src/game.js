@@ -164,7 +164,7 @@ class Game {
         this.pendingDoor = null;
         
         this.initRooms();
-        this.loadRoom('titlescreen');
+        this.loadRoom('tutorial_1');
         
         this.isEditorMode = false;
         this.selectedType = 'platform';
