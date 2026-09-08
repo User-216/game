@@ -1221,10 +1221,14 @@ this.entities.push(
             this.transitionAlpha = this.transitionTimer / this.transitionDuration;
             if (this.transitionTimer >= this.transitionDuration) {
                 this.transitionAlpha = 1;
-                this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity);
-                this.transitionState = 'FADE_IN';
-                this.transitionTimer = 0;
+                this.transitionState = 'LOADING_ROOM';
+                this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity).then(() => {
+                    this.transitionState = 'FADE_IN';
+                    this.transitionTimer = 0;
+                });
             }
+        } else if (this.transitionState === 'LOADING_ROOM') {
+            // do nothing while waiting for the promise
         } else if (this.transitionState === 'FADE_IN') {
             this.transitionTimer++;
             this.transitionAlpha = 1 - (this.transitionTimer / this.transitionDuration);
