@@ -919,6 +919,9 @@ this.entities.push(
             }
         } catch (e) {
             console.warn(`Could not load room/${roomName}.txt from server, using fallback.`);
+            if (window.location.protocol === 'file:') {
+                alert(`방 파일(room/${roomName}.txt)을 자동으로 불러올 수 없습니다! 브라우저 보안(CORS) 때문에 file:// 주소에서는 불러오기가 차단됩니다. VSCode의 Live Server 등을 이용해 로컬 서버를 켜서 실행해 주세요!`);
+            }
         }
 
         if (!this.rooms[roomName]) {
