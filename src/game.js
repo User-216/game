@@ -2089,7 +2089,7 @@ this.entities.push(
                                 continue;
                             }
                             if (char === ' ') {
-                                charX += 8;
+                                charX += 16; // Increased space width
                                 continue;
                             }
                             
@@ -2112,7 +2112,7 @@ this.entities.push(
                                 this.ctx.textAlign = 'left';
                                 this.ctx.fillText(char, charX, charY + 24 + bounceY);
                                 this.ctx.restore();
-                                charX += 8;
+                                charX += 14;
                             }
                         }
                     } else if (token.type === 'key') {
