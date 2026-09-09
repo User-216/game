@@ -339,7 +339,7 @@ class Player {
             // Check if we should attach
             let canAttach = false;
             if (!this.isTumbling && !this.isGroundPounding) {
-                if (keys.actionUp) { canAttach = true; }
+                if (keys.actionUp || this.vy < 0) { canAttach = true; }
                 else if (keys.actionDown) {
                     if (!this.isGrounded) { canAttach = true; }
                     else if (this.standingOnEntity && this.standingOnEntity.type === 'oneway') { canAttach = true; }
@@ -1679,5 +1679,6 @@ class Player {
         ctx.fillText(debugState, this.x + this.width / 2, this.y - 10);
     }
 }
+
 
 
