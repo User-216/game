@@ -362,8 +362,6 @@ class Player {
 
         if (this.isClimbingLadder) {
             this.isRunning = false;
-            this.isCrouching = false;
-            this.isTumbling = false;
             this.sprite_index = 'spr_player_idle';
             this.image_speed = (this.vy !== 0) ? 0.3 : 0;
             
@@ -1679,6 +1677,7 @@ class Player {
         ctx.fillText(debugState, this.x + this.width / 2, this.y - 10);
     }
 }
+
 
 
 
