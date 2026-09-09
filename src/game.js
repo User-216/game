@@ -1353,6 +1353,7 @@ this.entities.push(
                 video.muted = false;
                 
                 let frameReq = null;
+                let hasRespawned = false;
                 const processFrame = () => {
                     if (!this.isPlayingTransition) return;
                     if (video.paused && video.currentTime === 0) {
@@ -1360,6 +1361,11 @@ this.entities.push(
                         return;
                     }
                     if (video.ended) return;
+                    
+                    if (!hasRespawned && video.duration > 0 && video.currentTime >= video.duration * 0.5) {
+                        this.respawnPlayer();
+                        hasRespawned = true;
+                    }
                     
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     try {
@@ -1390,7 +1396,7 @@ this.entities.push(
                     if (frameReq) cancelAnimationFrame(frameReq);
                     canvas.style.display = 'none';
                     video.onended = null;
-                    this.respawnPlayer();
+                    if (!hasRespawned) this.respawnPlayer();
                     this.isPlayingTransition = false;
                 };
                 
