@@ -1451,9 +1451,14 @@ this.entities.push(
         let playerBottom = this.player.y + this.player.height;
         
         // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 제한
-        let limitBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
-        if (playerBottom > limitBottom - 100) {
-            playerBottom = limitBottom - 100;
+        let lowestEntityY = 0;
+        for (let e of this.entities) {
+            if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
+        }
+        // 화면 하단(카메라 바닥)이 가장 낮은 엔티티보다 너무 멀어지지 않도록 제한
+        let maxAllowedPlayerBottom = lowestEntityY + this.canvas.height / 2;
+        if (playerBottom > maxAllowedPlayerBottom) {
+            playerBottom = maxAllowedPlayerBottom;
         }
         
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
