@@ -1018,6 +1018,20 @@ this.entities.push(
         }
         this.player.vx = 0;
         this.player.vy = 0;
+        
+        // Instant camera snap
+        let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
+        let playerBottom = this.player.y + this.player.height;
+        let targetY = playerBottom - 22.5 - this.canvas.height / 2;
+        let maxX = this.roomWidth ? this.roomWidth - this.canvas.width : Infinity;
+        let maxY = this.roomHeight ? this.roomHeight - this.canvas.height : Infinity;
+        if (targetX < 0) targetX = 0;
+        if (targetY < 0) targetY = 0;
+        if (targetX > maxX) targetX = maxX;
+        if (targetY > Math.max(0, maxY)) targetY = Math.max(0, maxY);
+        
+        this.camera.x = targetX;
+        this.camera.y = targetY;
     }
 
     triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
@@ -1435,6 +1449,13 @@ this.entities.push(
         let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
         // 웅크릴 때 높이가 변해도 카메라가 흔들리지 않도록 발밑(bottom) 기준으로 중앙을 계산 (기본 높이 45의 절반인 22.5 사용)
         let playerBottom = this.player.y + this.player.height;
+        
+        // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 제한
+        const boundsBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
+        if (playerBottom > boundsBottom - 100) {
+            playerBottom = boundsBottom - 100;
+        }
+        
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
         
         // Speed-based camera offset (look ahead in direction of movement when speed > 7)
