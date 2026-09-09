@@ -418,8 +418,8 @@ class Game {
         const updateCursorSize = () => {
             const cursor = document.getElementById('tileset-cursor');
             if (cursor && img.naturalWidth > 0 && img.naturalHeight > 0) {
-                cursor.style.width = (32 / img.naturalWidth * 100) + '%';
-                cursor.style.height = (32 / img.naturalHeight * 100) + '%';
+                cursor.style.width = (16 / img.naturalWidth * 100) + '%';
+                cursor.style.height = (16 / img.naturalHeight * 100) + '%';
             }
         };
 
@@ -434,8 +434,8 @@ class Game {
             const px = (e.clientX - rect.left) * scaleX;
             const py = (e.clientY - rect.top) * scaleY;
             
-            this.selectedTileX = Math.floor(px / 32) * 32;
-            this.selectedTileY = Math.floor(py / 32) * 32;
+            this.selectedTileX = Math.floor(px / 16) * 16;
+            this.selectedTileY = Math.floor(py / 16) * 16;
             
             const cursor = document.getElementById('tileset-cursor');
             if (cursor) {
