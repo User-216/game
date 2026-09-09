@@ -1395,6 +1395,11 @@ this.entities.push(
                             if (g > 20 && g > maxRB + 10 && g > maxRB * 1.1) {
                                 frame.data[i + 3] = 0; // Transparent
                             }
+                            
+                            // Remove faint black / dark gray noise, but KEEP pure black (r,g,b < 10)
+                            if (r < 45 && g < 45 && b < 45 && (r > 10 || g > 10 || b > 10)) {
+                                frame.data[i + 3] = 0; // Transparent
+                            }
                         }
                         ctx.putImageData(frame, 0, 0);
                     } catch (e) {
