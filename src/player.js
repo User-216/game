@@ -701,7 +701,7 @@ class Player {
         }
 
         // Ground Pound Trigger (Eí”„/E´E™ê³¼ Eˆì°¬E€E€EEEœë¦¬ú°EŠ¸, E½úŸ€E° E‘ì—EEEœë™ Eˆê°€, E¬E´E° E‘ì—EEEœë™ Eˆê°€)
-        if (keys.actionDown && this.canGroundPound && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isTumbling && !this.isCrouching) {
+        if (keys.actionDown && this.canGroundPound && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isClimbingLadder && !this.isTumbling && !this.isCrouching) {
             this.isGroundPounding = true;
             this.canGroundPound = false; // EŒë¹E
             this.vy = -10; // Upward hop
@@ -853,7 +853,7 @@ class Player {
                     // approximate previous bottom
                     const prevBottom = this.y - this.vy + this.height;
                     // Skip collision if moving up or if already inside/below
-                    if (this.vy < 0 || prevBottom > entity.y + 0.1) {
+                    if (this.vy < 0 || prevBottom > entity.y + 0.1 || this.isClimbingLadder) {
                         return;
                     }
                     // Skip if resolution is not pushing the player upwards
