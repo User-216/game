@@ -763,6 +763,7 @@ class Game {
             case 'slope-left': entity = new Slope(x, y, w, h, 'left-up'); break;
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
+            case 'metal': entity = new Metal(x, y, w, h); break;
             case 'hallway': 
                 let tRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
                 let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
@@ -830,6 +831,7 @@ class Game {
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Destroyable) line += `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Hallway) line += `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
             else if (ent instanceof Door) line += `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if (ent instanceof TargetDoorBase) line += `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
