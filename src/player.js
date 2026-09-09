@@ -885,6 +885,10 @@ class Player {
                             entity.destroy();
                             if (audio) audio.play('break');
                             return; // Skip collision resolution to plow through
+                        } else if (this.isGroundPounding && entity.type === 'metal' && this.vy >= 20) {
+                            entity.destroy();
+                            if (audio) audio.play('break');
+                            return; // Skip collision resolution to plow through
                         }
                         // Collision on bottom (Grounded)
                         this.isGrounded = true;
@@ -924,6 +928,9 @@ class Player {
                 } else {
                     // Collision on side (Wall)
                     if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing)) {
+                        entity.destroy();
+                        if (audio) audio.play('break');
+                    } else if (entity.type === 'metal' && Math.abs(this.vx) >= 11.5) {
                         entity.destroy();
                         if (audio) audio.play('break');
                     } else {

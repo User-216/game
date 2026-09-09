@@ -157,6 +157,40 @@ class Destroyable extends Entity {
     }
 }
 
+class Metal extends Destroyable {
+    constructor(x, y, width, height) {
+        super(x, y, width, height, '#999999');
+        this.type = 'metal';
+    }
+
+    render(ctx) {
+        if (!this.isDestroyed) {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.strokeStyle = '#cccccc';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(this.x + 2, this.y + 2, this.width - 4, this.height - 4);
+            ctx.fillStyle = '#666666';
+            ctx.fillRect(this.x + 6, this.y + 6, 4, 4);
+            ctx.fillRect(this.x + this.width - 10, this.y + 6, 4, 4);
+            ctx.fillRect(this.x + 6, this.y + this.height - 10, 4, 4);
+            ctx.fillRect(this.x + this.width - 10, this.y + this.height - 10, 4, 4);
+        }
+        this.particles.forEach((p, index) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2;
+            p.life -= p.decay;
+            if (p.life <= 0) { this.particles.splice(index, 1); } else {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+        });
+        ctx.globalAlpha = 1.0;
+    }
+}
+
 class Hallway extends Entity {
     constructor(x, y, width, height, targetRoom = null, targetDoor = null) {
         super(x, y, width, height, 'transparent');
