@@ -1390,14 +1390,15 @@ this.entities.push(
                             const g = frame.data[i + 1];
                             const b = frame.data[i + 2];
                             
-                            // 1. Remove Green Screen (primary background)
-                            let maxRB = Math.max(r, b);
-                            if (g > 20 && g > maxRB + 10 && g > maxRB * 1.1) {
+                            let maxRGB = Math.max(r, g, b);
+                            
+                            // 1. Remove ANY green background
+                            if (g > 30 && g > r * 1.2 && g > b * 1.2) {
                                 frame.data[i + 3] = 0; // Transparent
                             } 
-                            // 2. Remove the fuzzy/faint dark gray/green noise on the edges of the wipe
+                            // 2. Remove dark gray/blue/faint black background (the color in the user's images)
                             // But KEEP pure black (wipe) and bright colors (text)
-                            else if (r < 50 && g < 50 && b < 50 && (r > 12 || g > 12 || b > 12)) {
+                            else if (maxRGB < 70 && maxRGB > 12) {
                                 frame.data[i + 3] = 0; // Transparent
                             }
                         }
