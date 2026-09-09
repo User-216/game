@@ -30,6 +30,21 @@ class Platform extends Entity {
     }
 }
 
+class OneWayPlatform extends Entity {
+    constructor(x, y, width, height, color = '#9e00aa66') { // Purple color
+        super(x, y, width, height, color);
+        this.type = 'oneway';
+    }
+
+    render(ctx) {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Draw a top border to indicate one-way direction
+        ctx.fillStyle = '#ffffff99';
+        ctx.fillRect(this.x, this.y, this.width, Math.min(this.height, 4));
+    }
+}
+
 class Slope extends Entity {
     constructor(x, y, width, height, slopeType = 'left-up', color = '#FF9FA266') {
         super(x, y, width, height, color);

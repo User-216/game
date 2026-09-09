@@ -788,8 +788,21 @@ class Player {
             // Normal AABB Support
             const resolution = Physics.resolveAABB(this, entity);
             if (resolution) {
+                if (entity.type === 'oneway') {
+                    // approximate previous bottom
+                    const prevBottom = this.y - this.vy + this.height;
+                    // Skip collision if moving up, if already inside/below, or if holding down+jump
+                    if (this.vy < 0 || prevBottom > entity.y + 0.1 || (keys.actionDown && keys.actionJump)) {
+                        return;
+                    }
+                    // Skip if resolution is not pushing the player upwards
+                    if (resolution.axis !== 'y' || resolution.amount >= 0) {
+                        return;
+                    }
+                }
+
                 // Step Up logic: If resolved horizontally, but feet are near the top of the block, convert to vertical
-                if (resolution.axis === 'x') {
+                if (resolution.axis === 'x' && entity.type !== 'oneway') {
                     const overlapAtFeet = (this.y + this.height) - entity.y;
                     if (overlapAtFeet > 0 && overlapAtFeet <= 25 && this.y < entity.y) {
                         resolution.axis = 'y';
@@ -982,16 +995,24 @@ class Player {
 
         if (this.jumpBufferTimer > 0) {
             if (this.isGrounded && !this.isGroundPoundLand) {
-                if (this.isCrouching) {
+                if (keys.actionDown) {
+                    // 유저 요청: 아래 키를 누른 채 점프하면 점프 대신 밑으로 떨어짐 (One-Way Platform 용)
+                    this.jumpBufferTimer = 0;
+                    this.isGrounded = false;
+                    this.canGroundPound = false; // 떨어지자마자 바로 그라운드 파운드 발동하는 것 방지
+                } else if (this.isCrouching) {
                     this.vy = -8;
                 } else {
                     this.vy = this.jumpForce;
                 }
-                this.isGrounded = false;
-                this.jumpBufferTimer = 0;
-                this.sprite_index = 'spr_player_jump';
-                this.image_index = 0;
-                if (audio) audio.play('jump');
+                
+                if (!keys.actionDown) {
+                    this.isGrounded = false;
+                    this.jumpBufferTimer = 0;
+                    this.sprite_index = 'spr_player_jump';
+                    this.image_index = 0;
+                    if (audio) audio.play('jump');
+                }
                 // 유저 요청: 점프 뛰었을 때 구름 효과 추가 (단, 달리기 중에는 나오지 않게)
                 if (!this.isRunning && !this.isSuplexGrabbing) {
                     this.activeEffects.push({
@@ -1191,6 +1212,8 @@ class Player {
             this.isSuplexGrabbing = false;
             this.suplexGrabTimer = 0;
         }
+        // 이전 프레임 키 상태 저장
+        this.prevKeysDown = keys.actionDown;
     }
 
     render(ctx) {

@@ -54,5 +54,7 @@ this.entities.push(
     new Platform(3296, 288, 576, 64, '#00aa9e66'),
     new TargetDoor_C(3712, 256, 32, 32),
     new Door(3712, 224, 32, 64, 'C', 'tutorial_3'),
+    new TutorialBook(1952, 896, 32, 32, "Press [S] to run! You can smash through blocks,\\nand if you run fast enough, you can even break steel blocks!"),
+    new TutorialBook(2944, 896, 32, 32, "You can jump while running, and when you're against a wall\\nyou can wall-run! Press [J] to perform a wall jump!"),
 );
 };
