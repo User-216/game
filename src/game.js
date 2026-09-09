@@ -1451,9 +1451,9 @@ this.entities.push(
         let playerBottom = this.player.y + this.player.height;
         
         // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 제한
-        const boundsBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
-        if (playerBottom > boundsBottom - 100) {
-            playerBottom = boundsBottom - 100;
+        let limitBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
+        if (playerBottom > limitBottom - 100) {
+            playerBottom = limitBottom - 100;
         }
         
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
