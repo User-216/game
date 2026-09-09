@@ -18,22 +18,22 @@ const i18n = {
         'state.drifting': 'DRIFTING', 'state.mach': 'MACH', 'title.press': '- Press Z to Start -'
     },
     ko: {
-        'ui.speed': 'Eë„', 'ui.climb': 'E±EE, 'ui.state': 'EEE', 'ui.room': 'E©',
-        'tut.move': 'E´EE, 'tut.jump': 'Eí”„', 'tut.run': 'E¬E¬E°', 'tut.editor': 'E”ìE¸ E¨EE,
-        'tut.hint': 'E½EìE Eí”„ E€E¥ / ú¨Œê´´ E€E¥ú±EE”ë¡ì„ E€E˜ì„¸EE',
-        'menu.paused': 'E¼Eœì •ì§€', 'menu.resume': 'EEEú±˜ê¸°', 'menu.options': 'E¤EE,
-        'menu.restart': 'E¬Eœì‘', 'menu.exit': 'úŸ€E´ú§€EE,
-        'opt.title': 'E¤EE, 'opt.game': 'EŒì„', 'opt.audio': 'E¤E”ì˜¤', 'opt.video': 'EE””E¤',
-        'opt.control': 'E°EE, 'opt.master_vol': 'EˆìŠ¤ú ° EŒëŸ‰', 'opt.music_vol': 'EŒì•… EŒëŸ‰',
-        'opt.sfx_vol': 'ú¶¨E¼EEEŒëŸ‰', 'opt.unfocused_mute': 'EE™œE± EEEŒìEE°', 'opt.resolution': 'ú±´EE„',
-        'opt.window': 'E½ E¨EE, 'opt.fullscreen': 'EE²´úµ”ë©´ EE™˜', 'opt.language': 'E¸E´',
-        'opt.vsync': 'E˜ì§EE™ê¸°úµEVSync)', 'opt.texture': 'ú¡ìŠ¤EEú±E„°EE, 'opt.screenshake': 'úµ”ë©´ ú¹”ë“¤E¼',
-        'opt.camera_speed': 'E´E”ë¼ E´EEEë„',
-        'opt.back': 'E¤EE, 'bind.press': 'EE¬´ ú¤EEEE¥´E¸EE..', 'bind.cancel': '(ESC E¨EE',
-        'state.idle': 'E€E°', 'state.climbing': 'E±E˜ì¤E, 'state.running': 'E¬E¬E”ì¤E,
-        'state.grounded': 'E€EE, 'state.airborne': 'EµEE, 'state.groundpound': 'Eê¸°',
-        'state.groundpoundland': 'Eê¸°E©E€',
-        'state.drifting': 'Eœë¦¬ú°EŠ¸', 'state.mach': 'Eˆí•˜', 'title.press': '- ZE¼ EŒëŸ¬ Eœì‘ -'
+        'ui.speed': 'ì†ë„', 'ui.climb': 'ë“±ë°˜', 'ui.state': 'ìƒíƒœ', 'ui.room': 'ë°©',
+        'tut.move': 'ì´ë™', 'tut.jump': 'ì í”„', 'tut.run': 'ë‹¬ë¦¬ê¸°', 'tut.editor': 'ë””ìì¸ ëª¨ë“œ',
+        'tut.hint': 'ë²½ì—ì„œ ì í”„ ê°€ëŠ¥ / íŒŒê´´ ê°€ëŠ¥í•œ ë¸”ë¡ì„ ë¶€ìˆ˜ì„¸ìš”!',
+        'menu.paused': 'ì¼ì‹œì •ì§€', 'menu.resume': 'ê³„ì†í•˜ê¸°', 'menu.options': 'ì„¤ì •',
+        'menu.restart': 'ì¬ì‹œì‘', 'menu.exit': 'íƒ€ì´í‹€ë¡œ',
+        'opt.title': 'ì„¤ì •', 'opt.game': 'ê²Œì„', 'opt.audio': 'ì˜¤ë””ì˜¤', 'opt.video': 'ë¹„ë””ì˜¤',
+        'opt.control': 'ì¡°ì‘', 'opt.master_vol': 'ë§ˆìŠ¤í„° ìŒëŸ‰', 'opt.music_vol': 'ìŒì•… ìŒëŸ‰',
+        'opt.sfx_vol': 'íš¨ê³¼ìŒ ìŒëŸ‰', 'opt.unfocused_mute': 'ë¹„í™œì„± ì‹œ ìŒì†Œê±°', 'opt.resolution': 'í•´ìƒë„',
+        'opt.window': 'ì°½ ëª¨ë“œ', 'opt.fullscreen': 'ì „ì²´í™”ë©´ ì „í™˜', 'opt.language': 'ì–¸ì–´',
+        'opt.vsync': 'ìˆ˜ì§ ë™ê¸°í™”(VSync)', 'opt.texture': 'í…ìŠ¤ì²˜ í•„í„°ë§', 'opt.screenshake': 'í™”ë©´ í”ë“¤ë¦¼',
+        'opt.camera_speed': 'ì¹´ë©”ë¼ ì´ë™ ì†ë„',
+        'opt.back': 'ë’¤ë¡œ', 'bind.press': 'ì•„ë¬´ í‚¤ë‚˜ ëˆ„ë¥´ì„¸ìš”...', 'bind.cancel': '(ESC ì·¨ì†Œ)',
+        'state.idle': 'ëŒ€ê¸°', 'state.climbing': 'ë“±ë°˜ì¤‘', 'state.running': 'ë‹¬ë¦¬ëŠ”ì¤‘',
+        'state.grounded': 'ì§€ìƒ', 'state.airborne': 'ê³µì¤‘', 'state.groundpound': 'ì°ê¸°',
+        'state.groundpoundland': 'ì°ê¸°ì°©ì§€',
+        'state.drifting': 'ë“œë¦¬í”„íŠ¸', 'state.mach': 'ë§ˆí•˜', 'title.press': '- Zë¥¼ ëˆŒëŸ¬ ì‹œì‘ -'
     }
 };
 
@@ -151,7 +151,7 @@ class Game {
         let lsLoadedCount = 0;
         for (let i = 0; i < 2; i++) {
             let img = new Image();
-            img.src = `E´E¸E€/spr_loadingscreen/spr_loadingscreen_${i}.png`;
+            img.src = `ì´ë¯¸ì§€/spr_loadingscreen/spr_loadingscreen_${i}.png`;
             img.onload = () => {
                 lsLoadedCount++;
                 if (lsLoadedCount === 2) {
@@ -831,7 +831,7 @@ class Game {
         });
         code += `);`;
         
-        let roomName = prompt("E© E´EE„ EE ¥ú±˜ì„¸EE(EE tutorial_3):", "new_room");
+        let roomName = prompt("ë°© ì´ë¦„ì„ ì…ë ¥í•˜ì„¸ìš” (ì˜ˆ: tutorial_3):", "new_room");
         if (!roomName) return;
         
         let finalCode = `window.roomData = window.roomData || {};\nwindow.roomData['${roomName}'] = function() {\n${code}\n};`;
@@ -844,7 +844,7 @@ class Game {
         a.click();
         URL.revokeObjectURL(url);
         
-        alert(`E¤E´Eœë“œEE${roomName}.js ú¨Œì¼EEú«´E”ì˜ 'room' E© ú«´E”ì— E£E´E¼E¸EE`);
+        alert(`ë‹¤ìš´ë¡œë“œëœ ${roomName}.js íŒŒì¼ì„ í´ë”ì˜ 'room' ë°© í´ë”ì— ë„£ì–´ì£¼ì„¸ìš”!`);
     }
 
     initRooms() {
@@ -1352,7 +1352,7 @@ this.entities.push(
         
         // Camera Follow (Lerp)
         let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
-        // EE¬E´ EEE’ì´E€ E€ú±´EEE´E”ë¼E€ ú¹”ë“¤E¬E€ EŠë„EEEœë°Ebottom) E°E€E¼EEE‘ì•™EEEE‚° (E°E¸ E’ì´ 45EEEˆë°˜ì¸ 22.5 E¬E©)
+        // ì›…í¬ë¦´ ë•Œ ë†’ì´ê°€ ë³€í•´ë„ ì¹´ë©”ë¼ê°€ í”ë“¤ë¦¬ì§€ ì•Šë„ë¡ ë°œë°‘(bottom) ê¸°ì¤€ìœ¼ë¡œ ì¤‘ì•™ì„ ê³„ì‚° (ê¸°ë³¸ ë†’ì´ 45ì˜ ì ˆë°˜ì¸ 22.5 ì‚¬ìš©)
         let playerBottom = this.player.y + this.player.height;
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
         
@@ -1536,7 +1536,7 @@ this.entities.push(
             shakeY = (Math.random() - 0.5) * this.cameraShake;
         }
         
-        // E´E”ë¼ EE¹˜ë¥¼ E˜ì˜¬E¼(Math.round)ú±˜ì—¬ EŒìEEEú°½E€EEE¸ú±Eúµ”ë©´ EE²´ ú¹ë ¤EESub-pixel blur) E©E€
+        // ì¹´ë©”ë¼ ìœ„ì¹˜ë¥¼ ë°˜ì˜¬ë¦¼(Math.round)í•˜ì—¬ ì†Œìˆ˜ì  í”½ì…€ë¡œ ì¸í•œ í™”ë©´ ì „ì²´ íë ¤ì§(Sub-pixel blur) ë°©ì§€
         this.ctx.translate(Math.round(-this.camera.x + shakeX), Math.round(-this.camera.y + shakeY));
         
         // Optimization: Pre-calculate view bounds for culling
@@ -2308,5 +2308,3 @@ this.entities.push(
 }
 
 new Game();
-
-
