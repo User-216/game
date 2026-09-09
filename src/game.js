@@ -1359,6 +1359,7 @@ this.entities.push(
             if (video && canvas) {
                 video.style.display = 'none';
                 canvas.style.display = 'block';
+                canvas.style.mixBlendMode = 'screen';
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
                 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -1393,6 +1394,10 @@ this.entities.push(
                             // Relaxed green screen chroma key
                             let maxRB = Math.max(r, b);
                             if (g > 50 && g > maxRB + 20 && g > maxRB * 1.1) {
+                                frame.data[i + 3] = 0; // Transparent
+                            }
+                            // Remove black background (if the video is a black screen template)
+                            if (r < 25 && g < 25 && b < 25) {
                                 frame.data[i + 3] = 0; // Transparent
                             }
                         }
