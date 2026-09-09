@@ -374,7 +374,7 @@ class Player {
             
             if (keys.actionJump && !this.prevKeysJump) {
                 this.isClimbingLadder = false;
-                this.vy = -this.jumpForce;
+                this.vy = this.jumpForce;
                 if (keys.actionLeft) this.vx = -4;
                 if (keys.actionRight) this.vx = 4;
                 if (audio) audio.play('jump');
