@@ -369,7 +369,7 @@ class Player {
             
             this.vx = 0;
             if (keys.actionUp) this.vy = -5;
-            else if (keys.actionDown) this.vy = 5;
+            else if (keys.actionDown) this.vy = 10;
             else this.vy = 0;
             
             if (keys.actionJump && !this.prevKeysJump) {
@@ -587,7 +587,7 @@ class Player {
         let wantCrouch = false;
         let wantTumble = false;
 
-        if (keys.actionDown && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand) {
+        if (keys.actionDown && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isClimbingLadder && !this.isGroundPounding && !this.isGroundPoundLand) {
             if (this.isSuplexGrabbing) {
                 // ・｡・ｰ ・護ｧ・・・・・椈・ｼ ・・･ｴ・ｴ ・護ｧ・揆 ・ｨ・醐葺・ ・餓亨 ・ｬ・ｴ・ｰ・・・ｰ・・葺・ｰ ・鷺巡・ｼ 12・・・・､孖ｸ
                 wantTumble = true;
