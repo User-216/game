@@ -133,7 +133,7 @@ h1 {
 }
 
 #editor-toolbar {
-    pointer-events: auto;
+    pointer-events: none;
     align-self: flex-center;
     padding: 1rem 2rem;
     border-radius: 20px;
@@ -165,6 +165,7 @@ h1 {
 }
 
 .tool-btn, .action-btn {
+    pointer-events: auto;
     padding: 0.5rem 1rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--glass-border);
@@ -210,7 +211,7 @@ h1 {
 
 /* Enable pointer events for specific UI containers */
 #tutorial, .stats, #editor-toolbar {
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .options-panel {

@@ -845,7 +845,7 @@ class Game {
     handleMouseDown(e) {
         if (!this.isEditorMode || e.button !== 0) return;
         
-        if (e.target.closest('#tileset-palette') || e.target.closest('#editor-toolbar')) return;
+        if (e.target.closest('#tileset-palette') || e.target.closest('.tool-btn') || e.target.closest('.action-btn')) return;
 
         const worldPos = this.getMouseInWorld(e);
         
