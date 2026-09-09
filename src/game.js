@@ -110,7 +110,7 @@ class Game {
         }
         
         this.controlIcons = {};
-        const iconsToLoad = ['up', 'down', 'left', 'right', 'jump', 'grab', 'dash', 'superjump', 'groundpound', 'taunt'];
+        const iconsToLoad = ['up', 'down', 'left', 'right', 'jump', 'grab', 'dash', 'superjump', 'groundpound', 'taunt', 'pause'];
         iconsToLoad.forEach(iconName => {
             let img = new Image();
             img.src = `spr_controlicons/spr_controlicons_${iconName}.png`;
