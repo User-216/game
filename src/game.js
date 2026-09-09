@@ -1369,13 +1369,20 @@ this.entities.push(
                             const r = frame.data[i + 0];
                             const g = frame.data[i + 1];
                             const b = frame.data[i + 2];
-                            // Green screen chroma key
-                            if (g > 90 && g > r * 1.3 && g > b * 1.3) {
+                            
+                            // Relaxed green screen chroma key
+                            let maxRB = Math.max(r, b);
+                            if (g > 50 && g > maxRB + 20 && g > maxRB * 1.1) {
                                 frame.data[i + 3] = 0; // Transparent
                             }
                         }
                         ctx.putImageData(frame, 0, 0);
-                    } catch (e) { }
+                    } catch (e) {
+                        console.error('Chroma key error:', e);
+                        ctx.fillStyle = 'red';
+                        ctx.font = '30px Arial';
+                        ctx.fillText('Canvas Error: ' + e.message, 50, 50);
+                    }
                     frameReq = requestAnimationFrame(processFrame);
                 };
                 
