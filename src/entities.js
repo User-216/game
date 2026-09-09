@@ -192,11 +192,13 @@ class Metal extends Destroyable {
 }
 
 class Tile extends Platform {
-    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png') {
+    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32) {
         super(x, y, width, height, 'transparent');
         this.type = 'tile';
         this.tx = tx;
         this.ty = ty;
+        this.sw = sw;
+        this.sh = sh;
         this.tileImageName = tileImageName;
         
         if (!Tile.images) Tile.images = {};
@@ -209,10 +211,10 @@ class Tile extends Platform {
     render(ctx) {
         const img = Tile.images[this.tileImageName];
         if (img && img.complete && img.naturalWidth > 0) {
-            for(let dx = 0; dx < this.width; dx += 32) {
-                for(let dy = 0; dy < this.height; dy += 32) {
-                    let drawW = Math.min(32, this.width - dx);
-                    let drawH = Math.min(32, this.height - dy);
+            for(let dx = 0; dx < this.width; dx += this.sw) {
+                for(let dy = 0; dy < this.height; dy += this.sh) {
+                    let drawW = Math.min(this.sw, this.width - dx);
+                    let drawH = Math.min(this.sh, this.height - dy);
                     ctx.drawImage(img, this.tx, this.ty, drawW, drawH, this.x + dx, this.y + dy, drawW, drawH);
                 }
             }

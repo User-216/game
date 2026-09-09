@@ -193,6 +193,8 @@ class Game {
         this.selectedType = 'platform';
         this.selectedTileX = 0;
         this.selectedTileY = 0;
+        this.selectedTileW = 16;
+        this.selectedTileH = 16;
         this.currentTilesetName = 'tile_tutorial.png';
         this.initTilesetPalette();
         this.gridSize = 32;
@@ -416,16 +418,6 @@ class Game {
         const img = document.getElementById('tileset-image');
         if (!img) return;
         
-        const updateCursorSize = () => {
-            const cursor = document.getElementById('tileset-cursor');
-            if (cursor && img.naturalWidth > 0 && img.naturalHeight > 0) {
-                cursor.style.width = (32 / img.naturalWidth * 100) + '%';
-                cursor.style.height = (32 / img.naturalHeight * 100) + '%';
-            }
-        };
-
-        img.onload = updateCursorSize;
-        
         const changeBtn = document.getElementById('change-tileset-btn');
         if (changeBtn) {
             changeBtn.addEventListener('click', () => {
@@ -436,25 +428,68 @@ class Game {
                 }
             });
         }
+
+        let isDraggingPalette = false;
+        let startX = 0;
+        let startY = 0;
+
+        const updateCursor = () => {
+            const cursor = document.getElementById('tileset-cursor');
+            if (cursor && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                cursor.style.left = (this.selectedTileX / img.naturalWidth * 100) + '%';
+                cursor.style.top = (this.selectedTileY / img.naturalHeight * 100) + '%';
+                cursor.style.width = (this.selectedTileW / img.naturalWidth * 100) + '%';
+                cursor.style.height = (this.selectedTileH / img.naturalHeight * 100) + '%';
+            }
+        };
+
+        img.onload = updateCursor;
         
-        img.addEventListener('click', (e) => {
+        img.addEventListener('mousedown', (e) => {
+            isDraggingPalette = true;
             const rect = img.getBoundingClientRect();
             if (rect.width === 0) return;
-            
             const scaleX = img.naturalWidth / rect.width;
             const scaleY = img.naturalHeight / rect.height;
             const px = (e.clientX - rect.left) * scaleX;
             const py = (e.clientY - rect.top) * scaleY;
             
-            this.selectedTileX = Math.floor(px / 32) * 32;
-            this.selectedTileY = Math.floor(py / 32) * 32;
+            startX = Math.floor(px / 32) * 32;
+            startY = Math.floor(py / 32) * 32;
             
-            const cursor = document.getElementById('tileset-cursor');
-            if (cursor) {
-                updateCursorSize();
-                cursor.style.left = (this.selectedTileX / img.naturalWidth * 100) + '%';
-                cursor.style.top = (this.selectedTileY / img.naturalHeight * 100) + '%';
-            }
+            this.selectedTileX = startX;
+            this.selectedTileY = startY;
+            this.selectedTileW = 32;
+            this.selectedTileH = 32;
+            
+            updateCursor();
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDraggingPalette) return;
+            const rect = img.getBoundingClientRect();
+            const scaleX = img.naturalWidth / rect.width;
+            const scaleY = img.naturalHeight / rect.height;
+            let px = (e.clientX - rect.left) * scaleX;
+            let py = (e.clientY - rect.top) * scaleY;
+            
+            px = Math.max(0, Math.min(img.naturalWidth - 1, px));
+            py = Math.max(0, Math.min(img.naturalHeight - 1, py));
+            
+            const currentX = Math.floor(px / 32) * 32;
+            const currentY = Math.floor(py / 32) * 32;
+            
+            this.selectedTileX = Math.min(startX, currentX);
+            this.selectedTileY = Math.min(startY, currentY);
+            this.selectedTileW = Math.abs(currentX - startX) + 32;
+            this.selectedTileH = Math.abs(currentY - startY) + 32;
+            
+            updateCursor();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDraggingPalette = false;
         });
     }
 
@@ -789,23 +824,22 @@ class Game {
     paintTile(wx, wy) {
         const x = this.snapToGrid(wx);
         const y = this.snapToGrid(wy);
-        const w = 32;
-        const h = 32;
+        const w = this.selectedTileW;
+        const h = this.selectedTileH;
         
         for (let i = this.entities.length - 1; i >= 0; i--) {
             let ent = this.entities[i];
             if (ent instanceof Tile && ent.x === x && ent.y === y && ent.width === w && ent.height === h) {
-                if (ent.tx === this.selectedTileX && ent.ty === this.selectedTileY) {
-                    return;
-                } else {
-                    ent.tx = this.selectedTileX;
-                    ent.ty = this.selectedTileY;
-                    return;
-                }
+                ent.tx = this.selectedTileX;
+                ent.ty = this.selectedTileY;
+                ent.sw = this.selectedTileW;
+                ent.sh = this.selectedTileH;
+                ent.tileImageName = this.currentTilesetName;
+                return;
             }
         }
         
-        this.entities.push(new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY, this.currentTilesetName));
+        this.entities.push(new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY, this.currentTilesetName, this.selectedTileW, this.selectedTileH));
     }
 
     handleMouseDown(e) {
@@ -866,7 +900,7 @@ class Game {
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
             case 'metal': entity = new Metal(x, y, w, h); break;
-            case 'tile': return new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY);
+            case 'tile': return new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY, this.currentTilesetName, this.selectedTileW, this.selectedTileH);
             case 'hallway': 
                 let tRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
                 let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
@@ -931,7 +965,7 @@ class Game {
             let line = `    `;
             if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
-            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}')`;
+            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 16}, ${ent.sh || 16})`;
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
