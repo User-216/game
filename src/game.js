@@ -454,13 +454,13 @@ class Game {
             const px = (e.clientX - rect.left) * scaleX;
             const py = (e.clientY - rect.top) * scaleY;
             
-            startX = Math.floor(px / 32) * 32;
-            startY = Math.floor(py / 32) * 32;
+            startX = Math.floor(px / 16) * 16;
+            startY = Math.floor(py / 16) * 16;
             
             this.selectedTileX = startX;
             this.selectedTileY = startY;
-            this.selectedTileW = 32;
-            this.selectedTileH = 32;
+            this.selectedTileW = 16;
+            this.selectedTileH = 16;
             
             updateCursor();
             e.preventDefault();
@@ -477,13 +477,13 @@ class Game {
             px = Math.max(0, Math.min(img.naturalWidth - 1, px));
             py = Math.max(0, Math.min(img.naturalHeight - 1, py));
             
-            const currentX = Math.floor(px / 32) * 32;
-            const currentY = Math.floor(py / 32) * 32;
+            const currentX = Math.floor(px / 16) * 16;
+            const currentY = Math.floor(py / 16) * 16;
             
             this.selectedTileX = Math.min(startX, currentX);
             this.selectedTileY = Math.min(startY, currentY);
-            this.selectedTileW = Math.abs(currentX - startX) + 32;
-            this.selectedTileH = Math.abs(currentY - startY) + 32;
+            this.selectedTileW = Math.abs(currentX - startX) + 16;
+            this.selectedTileH = Math.abs(currentY - startY) + 16;
             
             updateCursor();
         });
@@ -852,8 +852,9 @@ class Game {
     paintTile(wx, wy) {
         const x = this.snapToGrid(wx);
         const y = this.snapToGrid(wy);
-        const w = this.selectedTileW;
-        const h = this.selectedTileH;
+        const scale = 2;
+        const w = this.selectedTileW * scale;
+        const h = this.selectedTileH * scale;
         
         for (let i = this.entities.length - 1; i >= 0; i--) {
             let ent = this.entities[i];
