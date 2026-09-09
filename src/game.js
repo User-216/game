@@ -672,12 +672,15 @@ class Game {
     toggleEditorMode() {
         this.isEditorMode = !this.isEditorMode;
         const toolbar = document.getElementById('editor-toolbar');
+        const palette = document.getElementById('tileset-palette');
         if (this.isEditorMode) {
             toolbar.classList.remove('hidden');
             this.player.isNoClip = true; // Auto-noclip for building
+            if (palette && this.selectedType === 'tile') palette.classList.remove('hidden');
         } else {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
+            if (palette) palette.classList.add('hidden');
         }
     }
 
@@ -690,6 +693,14 @@ class Game {
                 btn.classList.remove('active');
             }
         });
+        const palette = document.getElementById('tileset-palette');
+        if (palette) {
+            if (type === 'tile') {
+                palette.classList.remove('hidden');
+            } else {
+                palette.classList.add('hidden');
+            }
+        }
     }
 
     flipSelectedTool() {
@@ -764,12 +775,7 @@ class Game {
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
             case 'metal': entity = new Metal(x, y, w, h); break;
-            case 'tile': 
-                let tName = prompt("Enter tile image filename (inside Tileset folder):", "tile.png");
-                if (tName) {
-                    entity = new Tile(x, y, w, h, tName);
-                }
-                break;
+            case 'tile': return new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY);
             case 'hallway': 
                 let tRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
                 let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
@@ -834,7 +840,7 @@ class Game {
             let line = `    `;
             if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
-            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.tileImageName}')`;
+            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty})`;
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
