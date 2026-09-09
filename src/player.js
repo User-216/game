@@ -325,7 +325,7 @@ class Player {
         // Ladder Logic
         let overlappingLadder = null;
         for (let entity of entities) {
-            if (entity.type === 'ladder' && !entity.isDestroyed && Physics.checkCollision(this, entity)) {
+            if (entity.type === 'ladder' && !entity.isDestroyed && Physics.checkCollision({x: this.x, y: this.y, width: this.width, height: this.height + 2}, entity)) {
                 overlappingLadder = entity;
                 break;
             }
@@ -1679,6 +1679,10 @@ class Player {
         ctx.fillText(debugState, this.x + this.width / 2, this.y - 10);
     }
 }
+
+
+
+
 
 
 
