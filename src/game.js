@@ -1431,7 +1431,7 @@ this.entities.push(
             this.transitionTimer += 1; // Assuming 60fps, video is ~28 frames. If it's too fast/slow, we can adjust.
             // Let's assume the transition plays at 30fps or 60fps? Usually 24-30 fps for these templates.
             // Game is 60fps, so advance 1 frame every 2 ticks.
-            if (this.transitionTimer % 4 === 0) {
+            if (this.transitionTimer % 3 === 0) {
                 this.transitionFrameIndex++;
             }
             
