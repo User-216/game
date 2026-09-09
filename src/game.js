@@ -1450,18 +1450,18 @@ this.entities.push(
         // 웅크릴 때 높이가 변해도 카메라가 흔들리지 않도록 발밑(bottom) 기준으로 중앙을 계산 (기본 높이 45의 절반인 22.5 사용)
         let playerBottom = this.player.y + this.player.height;
         
-        // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 제한
+        let targetY = playerBottom - 22.5 - this.canvas.height / 2;
+
+        // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 직접 Y좌표 제한
         let lowestEntityY = 0;
         for (let e of this.entities) {
             if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
         }
-        // 화면 하단(카메라 바닥)이 가장 낮은 엔티티보다 너무 멀어지지 않도록 제한
-        let maxAllowedPlayerBottom = lowestEntityY + this.canvas.height / 2;
-        if (playerBottom > maxAllowedPlayerBottom) {
-            playerBottom = maxAllowedPlayerBottom;
+        // 화면 하단(targetY + height)이 가장 낮은 엔티티보다 약간(100px)만 더 내려가게 제한
+        let maxTargetY = lowestEntityY + 100 - this.canvas.height;
+        if (targetY > maxTargetY) {
+            targetY = maxTargetY;
         }
-        
-        let targetY = playerBottom - 22.5 - this.canvas.height / 2;
         
         // Speed-based camera offset (look ahead in direction of movement when speed > 7)
         const playerSpeed = Math.abs(this.player.vx);
