@@ -148,6 +148,14 @@ class Player {
             this.sprites.spr_player_groundpound.push(img);
         }
 
+        // Load taunt sprite (8 frames)
+        this.sprites.spr_player_taunt = [];
+        for (let i = 1; i <= 8; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_taunt/spr_playerT_taunt${i}.png`;
+            this.sprites.spr_player_taunt.push(img);
+        }
+
         this.effectSprites = {
             spr_highjumpcloud2: [],
             spr_taunteffect: [],
@@ -220,6 +228,12 @@ class Player {
         } else if (keys.actionTaunt && !this.prevKeysTaunt) {
             this.isTaunting = true;
             this.tauntTimer = 20;
+            
+            // 유저 요청: 도발 시 spr_player_taunt로 변경 및 8개 중 랜덤 프레임 선택
+            this.sprite_index = 'spr_player_taunt';
+            this.image_index = Math.floor(Math.random() * 8);
+            this.image_speed = 0; // 프레임 고정
+            
             if (audio) audio.play('taunt'); 
             
             this.activeEffects.push({
@@ -1251,6 +1265,12 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
+            } else if (m.sprite_index === 'spr_player_taunt') {
+                const frames = this.sprites.spr_player_taunt;
+                const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
             } else if (this.mask_image && this.mask_image.complete && this.mask_image.naturalWidth > 0) {
                 imgToDraw = this.mask_image;
             }
@@ -1486,6 +1506,22 @@ class Player {
         } else if (this.sprite_index === 'spr_player_groundpound') {
             const frames = this.sprites.spr_player_groundpound;
             const frameIndex = Math.floor(this.image_index) % frames.length;
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_taunt') {
+            const frames = this.sprites.spr_player_taunt;
+            let frameIndex = Math.floor(this.image_index);
+            if (frameIndex >= frames.length) frameIndex = frames.length - 1; // 안전 장치
             const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
                 const drawX = this.x;
