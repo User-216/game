@@ -38,6 +38,26 @@ const i18n = {
 };
 
 class Game {
+    isKeyPressed(k) {
+        if (!k) return false;
+        return !!(this.keys[k] || this.keys[k.toLowerCase()] || this.keys[k.toUpperCase()]);
+    }
+    
+    isActionPressed(action) {
+        if (!this.settings || !this.settings.bindings) return false;
+        const k1 = this.settings.bindings[action];
+        const k2 = this.settings.bindings_2 ? this.settings.bindings_2[action] : null;
+        return this.isKeyPressed(k1) || this.isKeyPressed(k2);
+    }
+    
+    clearActionKey(action) {
+        if (!this.settings || !this.settings.bindings) return;
+        const k1 = this.settings.bindings[action];
+        const k2 = this.settings.bindings_2 ? this.settings.bindings_2[action] : null;
+        if (k1) { this.keys[k1] = false; this.keys[k1.toLowerCase()] = false; this.keys[k1.toUpperCase()] = false; }
+        if (k2) { this.keys[k2] = false; this.keys[k2.toLowerCase()] = false; this.keys[k2.toUpperCase()] = false; }
+    }
+
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
@@ -334,10 +354,15 @@ class Game {
                     document.getElementById('bind-overlay').classList.add('hidden');
                     return;
                 }
-                this.settings.bindings[this.bindingKeyFor] = key;
+                if (this.bindingColFor === 1) {
+                    if (!this.settings.bindings_2) this.settings.bindings_2 = {};
+                    this.settings.bindings_2[this.bindingKeyFor] = key;
+                } else {
+                    this.settings.bindings[this.bindingKeyFor] = key;
+                }
                 this.bindingKeyFor = null;
                 document.getElementById('bind-overlay').classList.add('hidden');
-                this.refreshControlList();
+                if (this.refreshControlList) this.refreshControlList();
                 return;
             }
 
@@ -1325,6 +1350,18 @@ this.entities.push(
                     this.optionsMenuIndex = (this.optionsMenuIndex + 1) % currentOptions.length;
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
+                if (this.optionsMenuLevel === 'BINDINGS' && currentOptions[this.optionsMenuIndex] !== 'BACK') {
+                    if (this.keys['ArrowLeft'] && !this.prevKeysLeft) {
+                        this.optionsMenuCol = 0;
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                    if (this.keys['ArrowRight'] && !this.prevKeysRight) {
+                        this.optionsMenuCol = 1;
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                } else {
+                    this.optionsMenuCol = 0;
+                }
                 
                 // Settings adjust logic
                 const sel = currentOptions[this.optionsMenuIndex];
@@ -1394,12 +1431,18 @@ this.entities.push(
                     }
                     if ((this.keys['c'] || this.keys['C']) && !this.prevKeysC) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
-                        this.settings.bindings[optStr] = '';
+                        if (this.optionsMenuCol === 1) {
+                            if (!this.settings.bindings_2) this.settings.bindings_2 = {};
+                            this.settings.bindings_2[optStr] = '';
+                        } else {
+                            this.settings.bindings[optStr] = '';
+                        }
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
                     if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
                         this.bindingKeyFor = optStr;
+                        this.bindingColFor = this.optionsMenuCol || 0;
                         this.bindingTimeout = 3;
                         this.bindingLastTime = performance.now();
                         if (this.audio) this.audio.playFile('sfx_step', true);
@@ -1525,14 +1568,14 @@ this.entities.push(
             this.keys.actionJump = false;
             this.keys.actionRun = false;
         } else {
-            this.keys.actionLeft = !!this.keys[this.settings.bindings.left];
-            this.keys.actionRight = !!this.keys[this.settings.bindings.right];
-            this.keys.actionUp = !!this.keys[this.settings.bindings.up];
-            this.keys.actionDown = !!this.keys[this.settings.bindings.down];
-            this.keys.actionJump = !!this.keys[this.settings.bindings.jump];
-            this.keys.actionRun = !!this.keys[this.settings.bindings.run];
-            this.keys.actionGrab = !!this.keys[this.settings.bindings.grab];
-            this.keys.actionTaunt = !!this.keys[this.settings.bindings.taunt];
+            this.keys.actionLeft = this.isActionPressed('left');
+            this.keys.actionRight = this.isActionPressed('right');
+            this.keys.actionUp = this.isActionPressed('up');
+            this.keys.actionDown = this.isActionPressed('down');
+            this.keys.actionJump = this.isActionPressed('jump');
+            this.keys.actionRun = this.isActionPressed('run');
+            this.keys.actionGrab = this.isActionPressed('grab');
+            this.keys.actionTaunt = this.isActionPressed('taunt');
         }
 
         this.player.update(this.keys, this.entities, this.audio);
@@ -1664,7 +1707,7 @@ this.entities.push(
 
         if (overlappingDoor && this.keys.actionUp && this.player.isGrounded) {
             this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);
-            this.keys[this.settings.bindings.up] = false; // Prevent immediate multi-entry
+            this.clearActionKey('up'); // Prevent immediate multi-entry
             this.keys.actionUp = false;
         }
 
@@ -2085,69 +2128,72 @@ this.entities.push(
                         drawText(opt, drawCenter, y, 1, isSelected ? 1 : 0.5, true);
                     }
 
-                    const boundKey = this.settings.bindings[optStr];
-                    if (boundKey || this.bindingKeyFor === optStr) {
-                        let displayKey = this.bindingKeyFor === optStr ? '' : boundKey;
-                        if (displayKey.startsWith('Arrow')) {
-                            const arr = {'ArrowUp':'UP', 'ArrowDown':'DOWN', 'ArrowLeft':'LEFT', 'ArrowRight':'RIGHT'};
-                            displayKey = arr[displayKey] || displayKey.replace('Arrow', '').toUpperCase();
-                        } else if (displayKey === ' ') displayKey = 'SPACE';
-                        else displayKey = displayKey.toUpperCase();
-                        
-                        let tX = drawCenter + 150;
-                        let tY = y - 6;
-                        this.ctx.globalAlpha = isSelected ? 1 : 0.5;
+                                        const renderBoundKey = (boundKeyVal, isBindingThis, colIndex) => {
+                        if (boundKeyVal || isBindingThis) {
+                            let displayKey = isBindingThis ? '' : boundKeyVal;
+                            if (displayKey.startsWith('Arrow')) {
+                                const arr = {'ArrowUp':'UP', 'ArrowDown':'DOWN', 'ArrowLeft':'LEFT', 'ArrowRight':'RIGHT'};
+                                displayKey = arr[displayKey] || displayKey.replace('Arrow', '').toUpperCase();
+                            } else if (displayKey === ' ') displayKey = 'SPACE';
+                            else displayKey = displayKey.toUpperCase();
+                            
+                            let tX = drawCenter + 150 + (colIndex * 150);
+                            let tY = y - 6;
+                            this.ctx.globalAlpha = (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4;
 
-                        let specialImg = this.getKeyImage(displayKey);
-                        
-                        if (specialImg && specialImg.loaded && !specialImg.error) {
-                            this.ctx.drawImage(specialImg, tX, tY);
-                        } else if (this.tutorialBlankKeyLoaded) {
-                            const bImg = this.tutorialBlankKeyImage;
-                            this.ctx.drawImage(bImg, tX, tY);
+                            let specialImg = this.getKeyImage(displayKey);
                             
-                            const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
-                            let textW = 0;
-                            for (let k = 0; k < displayKey.length; k++) {
-                                const charIdx = charset.indexOf(displayKey[k]);
-                                if (displayKey[k] === ' ') textW += 16;
-                                else if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
-                                    textW += this.tutorialFontImages[charIdx].width - 4;
-                                } else {
-                                    textW += 16;
+                            if (specialImg && specialImg.loaded && !specialImg.error) {
+                                this.ctx.drawImage(specialImg, tX, tY);
+                            } else if (this.tutorialBlankKeyLoaded) {
+                                const bImg = this.tutorialBlankKeyImage;
+                                this.ctx.drawImage(bImg, tX, tY);
+                                
+                                const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
+                                let textW = 0;
+                                for (let k = 0; k < displayKey.length; k++) {
+                                    const charIdx = charset.indexOf(displayKey[k]);
+                                    if (displayKey[k] === ' ') textW += 16;
+                                    else if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
+                                        textW += this.tutorialFontImages[charIdx].width - 4;
+                                    } else textW += 14;
                                 }
-                            }
-                            if (displayKey.length > 0) textW -= -2;
-                            
-                            let kx = tX + bImg.width/2 - textW/2;
-                            let ky = tY - 8;
-                            
-                            for (let k = 0; k < displayKey.length; k++) {
-                                const c = displayKey[k];
-                                if (c === ' ') { kx += 8; continue; }
-                                const charIdx = charset.indexOf(c);
-                                if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
-                                    const imgToDraw = this.tutorialFontImages[charIdx];
-                                    this.ctx.drawImage(imgToDraw, kx, ky);
-                                    kx += imgToDraw.width - 4;
-                                } else {
-                                    this.ctx.fillStyle = '#000000';
-                                    this.ctx.font = 'bold 14px "Outfit", sans-serif';
-                                    this.ctx.textAlign = 'left';
-                                    this.ctx.textBaseline = 'top';
-                                    this.ctx.fillText(c, kx, ky + 12);
-                                    kx += 8;
+                                
+                                let kx = tX + bImg.width/2 - textW/2;
+                                const ky = tY - 8;
+                                
+                                for (let k = 0; k < displayKey.length; k++) {
+                                    const charIdx = charset.indexOf(displayKey[k]);
+                                    if (displayKey[k] === ' ') {
+                                        kx += 16;
+                                    } else if (charIdx !== -1 && this.tutorialFontImages[charIdx]) {
+                                        const imgToDraw = this.tutorialFontImages[charIdx];
+                                        this.ctx.drawImage(imgToDraw, kx, ky);
+                                        kx += imgToDraw.width - 4;
+                                    } else {
+                                        this.ctx.fillStyle = '#000000';
+                                        this.ctx.font = 'bold 14px "Outfit", sans-serif';
+                                        this.ctx.textAlign = 'left';
+                                        this.ctx.textBaseline = 'middle';
+                                        this.ctx.fillText(displayKey[k], kx, tY + bImg.height/2);
+                                        kx += 14;
+                                    }
                                 }
+                            } else {
+                                drawText(`[${displayKey}]`, tX, y, 0.8, (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4, false);
                             }
+                            this.ctx.globalAlpha = 1;
                         } else {
-                            this.ctx.fillStyle = 'white';
-                            this.ctx.font = 'bold 24px monospace';
-                            this.ctx.textAlign = 'center';
-                            this.ctx.textBaseline = 'middle';
-                            this.ctx.fillText(displayKey, tX + 30, tY + 20);
+                            let tX = drawCenter + 150 + (colIndex * 150);
+                            drawText(`[---]`, tX, y, 0.8, (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4, false);
                         }
-                        this.ctx.globalAlpha = 1;
-                    }
+                    };
+
+                    const boundKey1 = this.settings.bindings[optStr];
+                    const boundKey2 = this.settings.bindings_2 ? this.settings.bindings_2[optStr] : '';
+                    renderBoundKey(boundKey1, this.bindingKeyFor === optStr && this.bindingColFor === 0, 0);
+                    renderBoundKey(boundKey2, this.bindingKeyFor === optStr && this.bindingColFor === 1, 1);
+
                     continue;
                 }
                 
