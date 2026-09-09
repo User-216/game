@@ -147,6 +147,13 @@ class Game {
         this.settings.isFocused = document.hasFocus();
 
         this.loadingScreenImages = [];
+        this.transitionImages = [];
+        this.transitionFrameCount = 28;
+        for (let i = 0; i < this.transitionFrameCount; i++) {
+            let img = new Image();
+            img.src = `spr_cooltransition/spr_cooltransition_${i}.png`;
+            this.transitionImages.push(img);
+        }
         this.loadingScreenLoaded = false;
         let lsLoadedCount = 0;
         for (let i = 0; i < 2; i++) {
@@ -1351,92 +1358,17 @@ this.entities.push(
         const boundsBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
         if (this.player.y > boundsBottom && !this.isPlayingTransition) {
             this.isPlayingTransition = true;
+            this.transitionFrameIndex = 0;
+            this.transitionTimer = 0;
+            this.hasRespawned = false;
             this.player.vx = 0;
             this.player.vy = 0;
             
             const video = document.getElementById('transitionVideo');
-            const canvas = document.getElementById('transitionCanvas');
-            if (video && canvas) {
-                video.style.display = 'none';
-                canvas.style.display = 'block';
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                
+            if (video) {
                 video.currentTime = 0;
                 video.muted = false;
-                
-                let frameReq = null;
-                let hasRespawned = false;
-                const processFrame = () => {
-                    if (!this.isPlayingTransition) return;
-                    if (video.paused && video.currentTime === 0) {
-                        frameReq = requestAnimationFrame(processFrame);
-                        return;
-                    }
-                    if (video.ended) return;
-                    
-                    if (!hasRespawned && video.duration > 0 && video.currentTime >= video.duration * 0.5) {
-                        this.respawnPlayer();
-                        hasRespawned = true;
-                    }
-                    
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    try {
-                        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const length = frame.data.length;
-                        for (let i = 0; i < length; i += 4) {
-                            const r = frame.data[i + 0];
-                            const g = frame.data[i + 1];
-                            const b = frame.data[i + 2];
-                            
-                            let maxRGB = Math.max(r, g, b);
-                            
-                            // 1. Remove ANY green background
-                            if (g > 30 && g > r * 1.2 && g > b * 1.2) {
-                                frame.data[i + 3] = 0; // Transparent
-                            } 
-                            // 2. Remove dark gray/blue/faint black background (the color in the user's images)
-                            // But KEEP pure black (wipe) and bright colors (text)
-                            else if (maxRGB < 70 && maxRGB > 12) {
-                                frame.data[i + 3] = 0; // Transparent
-                            }
-                        }
-                        ctx.putImageData(frame, 0, 0);
-                    } catch (e) {
-                        console.error('Chroma key error:', e);
-                        ctx.fillStyle = 'red';
-                        ctx.font = '30px Arial';
-                        ctx.fillText('Canvas Error: ' + e.message, 50, 50);
-                    }
-                    frameReq = requestAnimationFrame(processFrame);
-                };
-                
-                const onVideoEnd = () => {
-                    if (frameReq) cancelAnimationFrame(frameReq);
-                    canvas.style.display = 'none';
-                    video.onended = null;
-                    if (!hasRespawned) this.respawnPlayer();
-                    this.isPlayingTransition = false;
-                };
-                
-                video.onended = onVideoEnd;
-                
-                video.play().then(() => {
-                    processFrame();
-                }).catch(e => {
-                    console.warn('Unmuted play failed, trying muted...', e);
-                    video.muted = true;
-                    video.play().then(() => {
-                        processFrame();
-                    }).catch(e2 => {
-                        console.error('Video play failed entirely', e2);
-                        onVideoEnd();
-                    });
-                });
-            } else {
-                this.respawnPlayer();
-                this.isPlayingTransition = false;
+                video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
             }
         }
         
@@ -1495,6 +1427,25 @@ this.entities.push(
         this.camera.x += (targetX - this.camera.x) * lerpFactor;
         this.camera.y += (targetY - this.camera.y) * lerpFactor;
         
+        if (this.isPlayingTransition) {
+            this.transitionTimer += 1; // Assuming 60fps, video is ~28 frames. If it's too fast/slow, we can adjust.
+            // Let's assume the transition plays at 30fps or 60fps? Usually 24-30 fps for these templates.
+            // Game is 60fps, so advance 1 frame every 2 ticks.
+            if (this.transitionTimer % 2 === 0) {
+                this.transitionFrameIndex++;
+            }
+            
+            if (!this.hasRespawned && this.transitionFrameIndex >= this.transitionFrameCount / 2) {
+                this.respawnPlayer();
+                this.hasRespawned = true;
+            }
+            
+            if (this.transitionFrameIndex >= this.transitionFrameCount) {
+                this.isPlayingTransition = false;
+                if (!this.hasRespawned) this.respawnPlayer();
+            }
+        }
+
         // Update speed meters UI
         const lang = this.settings.language || 'ko';
         const dict = i18n[lang];
@@ -2338,6 +2289,14 @@ this.entities.push(
         if (this.transitionState !== 'NONE' && this.transitionAlpha > 0) {
             this.ctx.fillStyle = `rgba(0, 0, 0, ${this.transitionAlpha})`;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        if (this.isPlayingTransition && this.transitionImages && this.transitionImages.length > 0) {
+            let imgIndex = Math.min(this.transitionFrameIndex, this.transitionFrameCount - 1);
+            let img = this.transitionImages[imgIndex];
+            if (img && img.complete && img.naturalWidth !== 0) {
+                this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+            }
         }
     }
 
