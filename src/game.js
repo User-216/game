@@ -1271,15 +1271,15 @@ this.entities.push(
 
         if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
             if (this.gameState === 'PAUSED') {
-                if (this.keys['ArrowUp'] && !this.prevKeysUp) {
+                if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
                     this.pauseMenuIndex = (this.pauseMenuIndex - 1 + this.pauseMenuOptions.length) % this.pauseMenuOptions.length;
                     if (this.audio) this.audio.playFile('sfx_step', true); 
                 }
-                if (this.keys['ArrowDown'] && !this.prevKeysDown) {
+                if (this.isActionPressed('menu_down') && !this.prevKeysDown) {
                     this.pauseMenuIndex = (this.pauseMenuIndex + 1) % this.pauseMenuOptions.length;
                     if (this.audio) this.audio.playFile('sfx_step', true); 
                 }
-                if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
+                if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                     const sel = this.pauseMenuOptions[this.pauseMenuIndex];
                     if (sel === 'RESUME') {
                         this.togglePause();
@@ -1297,9 +1297,9 @@ this.entities.push(
                         if (this.uiOverlay) this.uiOverlay.style.display = 'none';
                     }
                 }
-                this.prevKeysUp = this.keys['ArrowUp'];
-                this.prevKeysDown = this.keys['ArrowDown'];
-                this.prevKeysZ = this.keys['z'] || this.keys['Z'] || this.keys['Enter'];
+                this.prevKeysUp = this.isActionPressed('menu_up');
+                this.prevKeysDown = this.isActionPressed('menu_down');
+                this.prevKeysZ = this.isActionPressed('menu_confirm');
 
                 // Update bubbles
                 if (this.pauseBubbles) {
@@ -1337,20 +1337,20 @@ this.entities.push(
                 else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
                 else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
                 
-                if (this.keys['ArrowUp'] && !this.prevKeysUp) {
+                if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
                     this.optionsMenuIndex = (this.optionsMenuIndex - 1 + currentOptions.length) % currentOptions.length;
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
-                if (this.keys['ArrowDown'] && !this.prevKeysDown) {
+                if (this.isActionPressed('menu_down') && !this.prevKeysDown) {
                     this.optionsMenuIndex = (this.optionsMenuIndex + 1) % currentOptions.length;
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
                 if (this.optionsMenuLevel === 'BINDINGS' && currentOptions[this.optionsMenuIndex] !== 'BACK') {
-                    if (this.keys['ArrowLeft'] && !this.prevKeysLeft) {
+                    if (this.isActionPressed('menu_left') && !this.prevKeysLeft) {
                         this.optionsMenuCol = 0;
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
-                    if (this.keys['ArrowRight'] && !this.prevKeysRight) {
+                    if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
                         this.optionsMenuCol = 1;
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
@@ -1424,7 +1424,7 @@ this.entities.push(
                         };
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
-                    if ((this.keys['c'] || this.keys['C']) && !this.prevKeysC) {
+                    if (this.isActionPressed('menu_clear') && !this.prevKeysC) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
                         if (this.optionsMenuCol === 1) {
                             if (!this.settings.bindings_2) this.settings.bindings_2 = {};
@@ -1434,7 +1434,7 @@ this.entities.push(
                         }
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
-                    if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
+                    if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                         let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
                         this.bindingKeyFor = optStr;
                         this.bindingColFor = this.optionsMenuCol || 0;
@@ -1442,7 +1442,7 @@ this.entities.push(
                         this.bindingLastTime = performance.now();
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
-                } else if ((this.keys['z'] || this.keys['Z'] || this.keys['Enter']) && !this.prevKeysZ) {
+                } else if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                     if (this.optionsMenuLevel === 'MAIN') {
                         this.optionsMenuLevel = currentOptions[this.optionsMenuIndex];
                         this.optionsMenuIndex = 0;
@@ -1475,8 +1475,7 @@ this.entities.push(
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
 
-                const menuBackKey = this.settings.bindings.menu_back || 'x';
-                const isBackPress = (this.keys[menuBackKey] || this.keys[menuBackKey.toLowerCase()] || this.keys[menuBackKey.toUpperCase()] || this.keys['Escape']) && !this.prevMenuBackKey;
+                const isBackPress = (this.isActionPressed('menu_back') || this.keys['Escape']) && !this.prevMenuBackKey;
                 
                 if (isBackPress && !this.bindingKeyFor) {
                     if (this.optionsMenuLevel !== 'MAIN') {
@@ -1499,17 +1498,16 @@ this.entities.push(
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
 
-                this.prevKeysUp = this.keys['ArrowUp'];
-                this.prevKeysDown = this.keys['ArrowDown'];
-                this.prevKeysLeft = this.keys['ArrowLeft'];
-                this.prevKeysRight = this.keys['ArrowRight'];
+                this.prevKeysUp = this.isActionPressed('menu_up');
+                this.prevKeysDown = this.isActionPressed('menu_down');
+                this.prevKeysLeft = this.isActionPressed('menu_left');
+                this.prevKeysRight = this.isActionPressed('menu_right');
                 this.prevKeysEsc = this.keys['Escape'];
-                this.prevKeysZ = this.keys['z'] || this.keys['Z'] || this.keys['Enter'];
+                this.prevKeysZ = this.isActionPressed('menu_confirm');
                 this.prevKeys1 = this.keys['1'];
-                this.prevKeysC = this.keys['c'] || this.keys['C'];
+                this.prevKeysC = this.isActionPressed('menu_clear');
                 
-                const mbk = this.settings.bindings.menu_back || 'x';
-                this.prevMenuBackKey = this.keys[mbk] || this.keys[mbk.toLowerCase()] || this.keys[mbk.toUpperCase()] || this.keys['Escape'];
+                this.prevMenuBackKey = this.isActionPressed('menu_back') || this.keys['Escape'];
             }
             return;
         }
@@ -2132,7 +2130,7 @@ this.entities.push(
                             } else if (displayKey === ' ') displayKey = 'SPACE';
                             else displayKey = displayKey.toUpperCase();
                             
-                            let tX = drawCenter + 150 + (colIndex * 150);
+                            let tX = drawCenter + 150 + (colIndex * 100);
                             let tY = y - 6;
                             this.ctx.globalAlpha = (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4;
 
@@ -2179,7 +2177,7 @@ this.entities.push(
                             }
                             this.ctx.globalAlpha = 1;
                         } else {
-                            let tX = drawCenter + 150 + (colIndex * 150);
+                            let tX = drawCenter + 150 + (colIndex * 100);
                             drawText(`[---]`, tX, y, 0.8, (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4, false);
                         }
                     };
