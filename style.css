@@ -145,6 +145,7 @@ h1 {
     min-width: 300px;
 }
 .toolbar-title {
+    pointer-events: auto;
     cursor: grab;
     user-select: none;
 }
