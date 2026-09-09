@@ -1341,13 +1341,47 @@ this.entities.push(
             this.player.vy = 0;
             
             const video = document.getElementById('transitionVideo');
-            if (video) {
-                video.style.display = 'block';
+            const canvas = document.getElementById('transitionCanvas');
+            if (video && canvas) {
+                video.style.display = 'none';
+                canvas.style.display = 'block';
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                
                 video.currentTime = 0;
                 video.muted = false;
                 
+                let frameReq = null;
+                const processFrame = () => {
+                    if (!this.isPlayingTransition) return;
+                    if (video.paused && video.currentTime === 0) {
+                        frameReq = requestAnimationFrame(processFrame);
+                        return;
+                    }
+                    if (video.ended) return;
+                    
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    try {
+                        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const length = frame.data.length;
+                        for (let i = 0; i < length; i += 4) {
+                            const r = frame.data[i + 0];
+                            const g = frame.data[i + 1];
+                            const b = frame.data[i + 2];
+                            // Green screen chroma key
+                            if (g > 90 && g > r * 1.3 && g > b * 1.3) {
+                                frame.data[i + 3] = 0; // Transparent
+                            }
+                        }
+                        ctx.putImageData(frame, 0, 0);
+                    } catch (e) { }
+                    frameReq = requestAnimationFrame(processFrame);
+                };
+                
                 const onVideoEnd = () => {
-                    video.style.display = 'none';
+                    if (frameReq) cancelAnimationFrame(frameReq);
+                    canvas.style.display = 'none';
                     video.onended = null;
                     this.respawnPlayer();
                     this.isPlayingTransition = false;
@@ -1355,10 +1389,14 @@ this.entities.push(
                 
                 video.onended = onVideoEnd;
                 
-                video.play().catch(e => {
+                video.play().then(() => {
+                    processFrame();
+                }).catch(e => {
                     console.warn('Unmuted play failed, trying muted...', e);
                     video.muted = true;
-                    video.play().catch(e2 => {
+                    video.play().then(() => {
+                        processFrame();
+                    }).catch(e2 => {
                         console.error('Video play failed entirely', e2);
                         onVideoEnd();
                     });
