@@ -142,6 +142,7 @@ class Game {
                 superjump: 'ArrowUp',
                 groundpound: 'ArrowDown',
                 taunt: 'c',
+                pause: 'Escape',
                 menu_left: 'ArrowLeft',
                 menu_right: 'ArrowRight',
                 menu_up: 'ArrowUp',
@@ -361,19 +362,20 @@ class Game {
                 return;
             }
 
-            if (e.key === 'Escape') {
-                if (this.gameState === 'OPTIONS') {
-                    this.keys['Escape'] = true;
-                } else {
-                    this.togglePause();
-                }
-                return;
-            }
-
             const key = e.key === ' ' ? 'Space' : e.key;
             this.keys[key] = true;
             this.keys[key.toLowerCase()] = true;
             this.keys[key.toUpperCase()] = true;
+
+            let k1 = this.settings.bindings.pause;
+            let k2 = this.settings.bindings_2 ? this.settings.bindings_2.pause : null;
+            let isPauseKey = false;
+            if (k1 && (key === k1 || key === k1.toLowerCase() || key === k1.toUpperCase())) isPauseKey = true;
+            if (k2 && (key === k2 || key === k2.toLowerCase() || key === k2.toUpperCase())) isPauseKey = true;
+            
+            if (isPauseKey && this.gameState !== 'OPTIONS') {
+                this.togglePause();
+            }
 
             if (e.key === 'e' || e.key === 'E') {
                 this.toggleEditorMode();
@@ -1334,7 +1336,7 @@ this.entities.push(
                 else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
                 else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
                 else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
-                else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
+                else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
                 else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
                 
                 if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
@@ -1419,7 +1421,7 @@ this.entities.push(
                         this.settings.bindings = {
                             left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
                             jump: 'z', run: 'Shift', grab: 'x', dash: 'Shift', superjump: 'ArrowUp',
-                            groundpound: 'ArrowDown', taunt: 'c', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
+                            groundpound: 'ArrowDown', taunt: 'c', pause: 'Escape', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
                             menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'c'
                         };
                         if (this.audio) this.audio.playFile('sfx_step', true);
@@ -2061,7 +2063,7 @@ this.entities.push(
             else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
             else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
             else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
-            else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
+            else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
             else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
 
             if (this.optionsMenuLevel === 'BINDINGS') {
