@@ -195,7 +195,10 @@
     
     <!-- Tileset Palette -->
     <div id="tileset-palette" class="glass hidden" style="position: absolute; right: 20px; top: 100px; width: 256px; max-height: 400px; overflow-y: auto; z-index: 100;">
-        <h4 style="margin:0 0 10px 0; color:white; text-align:center;">Tileset Palette</h4>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h4 style="margin:0; color:white;">Tileset</h4>
+            <button id="change-tileset-btn" style="background:#444; color:white; border:none; padding:4px 8px; cursor:pointer;">Change Image</button>
+        </div>
         <div style="position: relative; display: block; line-height: 0;">
             <img id="tileset-image" src="Tileset/tile_tutorial.png" style="display: block; width: 100%; cursor: crosshair; image-rendering: pixelated;" draggable="false" />
             <div id="tileset-cursor" style="position: absolute; border: 2px solid red; pointer-events: none; width: 32px; height: 32px; top: 0; left: 0; box-sizing: border-box; box-shadow: 0 0 4px black inset, 0 0 4px black;"></div>

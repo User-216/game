@@ -193,6 +193,7 @@ class Game {
         this.selectedType = 'platform';
         this.selectedTileX = 0;
         this.selectedTileY = 0;
+        this.currentTilesetName = 'tile_tutorial.png';
         this.initTilesetPalette();
         this.gridSize = 32;
         this.dragStart = null;
@@ -424,6 +425,17 @@ class Game {
         };
 
         img.onload = updateCursorSize;
+        
+        const changeBtn = document.getElementById('change-tileset-btn');
+        if (changeBtn) {
+            changeBtn.addEventListener('click', () => {
+                let tName = prompt("Enter tileset image filename (inside Tileset folder):", this.currentTilesetName);
+                if (tName) {
+                    this.currentTilesetName = tName;
+                    img.src = `Tileset/${tName}`;
+                }
+            });
+        }
         
         img.addEventListener('click', (e) => {
             const rect = img.getBoundingClientRect();
@@ -793,7 +805,7 @@ class Game {
             }
         }
         
-        this.entities.push(new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY));
+        this.entities.push(new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY, this.currentTilesetName));
     }
 
     handleMouseDown(e) {
@@ -919,7 +931,7 @@ class Game {
             let line = `    `;
             if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
-            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty})`;
+            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}')`;
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
