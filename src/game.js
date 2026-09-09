@@ -1390,14 +1390,14 @@ this.entities.push(
                             const g = frame.data[i + 1];
                             const b = frame.data[i + 2];
                             
-                            // Improved green screen chroma key (catches dark green spill)
+                            // 1. Remove Green Screen (primary background)
                             let maxRB = Math.max(r, b);
                             if (g > 20 && g > maxRB + 10 && g > maxRB * 1.1) {
                                 frame.data[i + 3] = 0; // Transparent
-                            }
-                            
-                            // Remove faint black / dark gray noise, but KEEP pure black (r,g,b < 10)
-                            if (r < 45 && g < 45 && b < 45 && (r > 10 || g > 10 || b > 10)) {
+                            } 
+                            // 2. Remove the fuzzy/faint dark gray/green noise on the edges of the wipe
+                            // But KEEP pure black (wipe) and bright colors (text)
+                            else if (r < 50 && g < 50 && b < 50 && (r > 12 || g > 12 || b > 12)) {
                                 frame.data[i + 3] = 0; // Transparent
                             }
                         }
