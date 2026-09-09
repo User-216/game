@@ -752,6 +752,7 @@ class Game {
         switch(this.selectedType) {
             case 'platform': entity = new Platform(x, y, w, h); break;
             case 'oneway': entity = new OneWayPlatform(x, y, w, h); break;
+            case 'ladder': entity = new Ladder(x, y, w, h); break;
             case 'slope-left': entity = new Slope(x, y, w, h, 'left-up'); break;
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
@@ -818,6 +819,7 @@ class Game {
         this.entities.forEach(ent => {
             let line = `    `;
             if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
+            else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Destroyable) line += `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;

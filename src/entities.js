@@ -45,6 +45,27 @@ class OneWayPlatform extends Entity {
     }
 }
 
+class Ladder extends Entity {
+    constructor(x, y, width, height, color = '#d2691e66') { // Chocolate/brown color
+        super(x, y, width, height, color);
+        this.type = 'ladder';
+    }
+
+    render(ctx) {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Draw ladder rungs
+        ctx.strokeStyle = '#ffffff99';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let yy = this.y + 10; yy < this.y + this.height; yy += 20) {
+            ctx.moveTo(this.x, yy);
+            ctx.lineTo(this.x + this.width, yy);
+        }
+        ctx.stroke();
+    }
+}
+
 class Slope extends Entity {
     constructor(x, y, width, height, slopeType = 'left-up', color = '#FF9FA266') {
         super(x, y, width, height, color);
