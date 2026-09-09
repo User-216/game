@@ -211,14 +211,11 @@ class Tile extends Platform {
     render(ctx) {
         const img = Tile.images[this.tileImageName];
         if (img && img.complete && img.naturalWidth > 0) {
-            const scale = 2;
-            for(let dx = 0; dx < this.width; dx += this.sw * scale) {
-                for(let dy = 0; dy < this.height; dy += this.sh * scale) {
-                    let drawW = Math.min(this.sw * scale, this.width - dx);
-                    let drawH = Math.min(this.sh * scale, this.height - dy);
-                    let srcW = drawW / scale;
-                    let srcH = drawH / scale;
-                    ctx.drawImage(img, this.tx, this.ty, srcW, srcH, this.x + dx, this.y + dy, drawW, drawH);
+            for(let dx = 0; dx < this.width; dx += this.sw) {
+                for(let dy = 0; dy < this.height; dy += this.sh) {
+                    let drawW = Math.min(this.sw, this.width - dx);
+                    let drawH = Math.min(this.sh, this.height - dy);
+                    ctx.drawImage(img, this.tx, this.ty, drawW, drawH, this.x + dx, this.y + dy, drawW, drawH);
                 }
             }
         } else {

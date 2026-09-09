@@ -852,9 +852,8 @@ class Game {
     paintTile(wx, wy) {
         const x = this.snapToGrid(wx);
         const y = this.snapToGrid(wy);
-        const scale = 2;
-        const w = this.selectedTileW * scale;
-        const h = this.selectedTileH * scale;
+        const w = this.selectedTileW;
+        const h = this.selectedTileH;
         
         for (let i = this.entities.length - 1; i >= 0; i--) {
             let ent = this.entities[i];
