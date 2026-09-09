@@ -2130,7 +2130,7 @@ this.entities.push(
                             } else if (displayKey === ' ') displayKey = 'SPACE';
                             else displayKey = displayKey.toUpperCase();
                             
-                            let tX = drawCenter + 150 + (colIndex * 100);
+                            let tX = drawCenter + 150 + (colIndex * 70);
                             let tY = y - 6;
                             this.ctx.globalAlpha = (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4;
 
@@ -2177,7 +2177,7 @@ this.entities.push(
                             }
                             this.ctx.globalAlpha = 1;
                         } else {
-                            let tX = drawCenter + 150 + (colIndex * 100);
+                            let tX = drawCenter + 150 + (colIndex * 70);
                             drawText(`[---]`, tX, y, 0.8, (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4, false);
                         }
                     };
