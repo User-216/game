@@ -15,7 +15,6 @@ this.entities.push(
     new Platform(896, 480, 448, 64, '#00aa9e66'),
     new Platform(1344, 704, 96, 64, '#00aa9e66'),
     new Platform(1280, 544, 64, 224, '#00aa9e66'),
-    new Destroyable(1440, 704, 64, 64),
     new TutorialBook(1216, 448, 32, 32, "Press [D] in midair to perform a Ground Pound!\\nCrash down with force and break the metal blocks!"),
     new Platform(1504, 160, 64, 608, '#00aa9e66'),
     new Platform(1056, 96, 512, 64, '#00aa9e66'),
@@ -39,10 +38,8 @@ this.entities.push(
     new Platform(1376, 992, 512, 64, '#00aa9e66'),
     new Platform(3200, 288, 96, 704, '#00aa9e66'),
     new Platform(2944, 224, 352, 64, '#00aa9e66'),
-    new Destroyable(2848, 160, 64, 64),
     new Platform(2848, 32, 96, 128, '#00aa9e66'),
     new Platform(2528, 512, 416, 64, '#00aa9e66'),
-    new Destroyable(2880, 448, 64, 64),
     new Slope(2592, 448, 96, 64, 'right-up'),
     new Platform(2528, 32, 64, 480, '#00aa9e66'),
     new Platform(2848, 224, 96, 224, '#00aa9e66'),
@@ -58,5 +55,8 @@ this.entities.push(
     new TutorialBook(2944, 896, 32, 32, "You can jump while running, and when you're against a wall\\nyou can wall-run! Press [J] to perform a wall jump!"),
     new Ladder(1344, 480, 32, 224, '#d2691e66'),
     new OneWayPlatform(1344, 480, 64, 32, '#9e00aa66'),
+    new Destroyable(1440, 704, 64, 64),
+    new Destroyable(2880, 448, 64, 64),
+    new Destroyable(2848, 160, 64, 64),
 );
 };
