@@ -191,6 +191,9 @@ class Game {
         
         this.isEditorMode = false;
         this.selectedType = 'platform';
+        this.selectedTileX = 0;
+        this.selectedTileY = 0;
+        this.initTilesetPalette();
         this.gridSize = 32;
         this.dragStart = null;
         this.mousePos = { x: 0, y: 0 };
@@ -405,6 +408,41 @@ class Game {
         this.canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.handleRightClick(e);
+        });
+    }
+
+    initTilesetPalette() {
+        const img = document.getElementById('tileset-image');
+        if (!img) return;
+        
+        const updateCursorSize = () => {
+            const cursor = document.getElementById('tileset-cursor');
+            if (cursor && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                cursor.style.width = (32 / img.naturalWidth * 100) + '%';
+                cursor.style.height = (32 / img.naturalHeight * 100) + '%';
+            }
+        };
+
+        img.onload = updateCursorSize;
+        
+        img.addEventListener('click', (e) => {
+            const rect = img.getBoundingClientRect();
+            if (rect.width === 0) return;
+            
+            const scaleX = img.naturalWidth / rect.width;
+            const scaleY = img.naturalHeight / rect.height;
+            const px = (e.clientX - rect.left) * scaleX;
+            const py = (e.clientY - rect.top) * scaleY;
+            
+            this.selectedTileX = Math.floor(px / 32) * 32;
+            this.selectedTileY = Math.floor(py / 32) * 32;
+            
+            const cursor = document.getElementById('tileset-cursor');
+            if (cursor) {
+                updateCursorSize();
+                cursor.style.left = (this.selectedTileX / img.naturalWidth * 100) + '%';
+                cursor.style.top = (this.selectedTileY / img.naturalHeight * 100) + '%';
+            }
         });
     }
 
