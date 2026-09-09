@@ -1335,8 +1335,38 @@ this.entities.push(
 
         // Out of bounds respawn
         const boundsBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
-        if (this.player.y > boundsBottom) {
-            this.respawnPlayer();
+        if (this.player.y > boundsBottom && !this.isPlayingTransition) {
+            this.isPlayingTransition = true;
+            this.player.vx = 0;
+            this.player.vy = 0;
+            
+            const video = document.getElementById('transitionVideo');
+            if (video) {
+                video.style.display = 'block';
+                video.currentTime = 0;
+                video.muted = false;
+                
+                const onVideoEnd = () => {
+                    video.style.display = 'none';
+                    video.onended = null;
+                    this.respawnPlayer();
+                    this.isPlayingTransition = false;
+                };
+                
+                video.onended = onVideoEnd;
+                
+                video.play().catch(e => {
+                    console.warn('Unmuted play failed, trying muted...', e);
+                    video.muted = true;
+                    video.play().catch(e2 => {
+                        console.error('Video play failed entirely', e2);
+                        onVideoEnd();
+                    });
+                });
+            } else {
+                this.respawnPlayer();
+                this.isPlayingTransition = false;
+            }
         }
         
         // Handle screen shake requests
