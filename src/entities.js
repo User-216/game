@@ -191,6 +191,33 @@ class Metal extends Destroyable {
     }
 }
 
+class Tile extends Platform {
+    constructor(x, y, width, height, tileImageName = 'tile.png') {
+        super(x, y, width, height, 'transparent');
+        this.type = 'tile';
+        this.tileImageName = tileImageName;
+        this.image = new Image();
+        this.image.src = `Tileset/${this.tileImageName}`;
+        this.imageLoaded = false;
+        
+        this.image.onload = () => {
+            this.imageLoaded = true;
+        };
+    }
+
+    render(ctx) {
+        if (this.imageLoaded) {
+            ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
+    }
+}
+
 class Hallway extends Entity {
     constructor(x, y, width, height, targetRoom = null, targetDoor = null) {
         super(x, y, width, height, 'transparent');
