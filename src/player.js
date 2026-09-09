@@ -18,6 +18,7 @@ class Player {
         this.jumpForce = -12;
 
         this.isGrounded = false;
+        this.standingOnEntity = null;
         this.isWalled = false;
         this.wallSide = 0; // -1 for left, 1 for right
         this.isRunning = false;
@@ -312,6 +313,7 @@ class Player {
             // Skip normal logic
             this.wasRunningLastFrame = false;
             this.isGrounded = false;
+        this.standingOnEntity = null;
             this.isWalled = false;
             this.isClimbing = false;
             this.isGroundPounding = false;
@@ -335,20 +337,26 @@ class Player {
 
         if (overlappingLadder && !this.isClimbingLadder) {
             // Check if we should attach
-            if ((keys.actionUp && !this.isGrounded) || (keys.actionUp && this.isGrounded) || (keys.actionDown && !this.isGrounded) || (keys.actionDown && this.isGrounded && this.y + this.height < overlappingLadder.y + 10)) {
-                if (keys.actionUp || keys.actionDown) {
-                    this.isClimbingLadder = true;
-                    this.vx = 0;
-                    this.vy = 0;
-                    this.isGroundPounding = false;
-                    this.isClimbing = false;
-                    this.isSuplexGrabbing = false;
-                    this.isMachSliding = false;
-                    this.isDrifting = false;
-                    this.isDrifting1 = false;
-                    this.isWalled = false;
-                    this.x = overlappingLadder.x + overlappingLadder.width / 2 - this.width / 2;
+            let canAttach = false;
+            if (!this.isTumbling && !this.isGroundPounding) {
+                if (keys.actionUp) { canAttach = true; }
+                else if (keys.actionDown) {
+                    if (!this.isGrounded) { canAttach = true; }
+                    else if (this.standingOnEntity && this.standingOnEntity.type === 'oneway') { canAttach = true; }
                 }
+            }
+            if (canAttach) {
+                this.isClimbingLadder = true;
+                this.vx = 0;
+                this.vy = 0;
+                this.isGroundPounding = false;
+                this.isClimbing = false;
+                this.isSuplexGrabbing = false;
+                this.isMachSliding = false;
+                this.isDrifting = false;
+                this.isDrifting1 = false;
+                this.isWalled = false;
+                this.x = overlappingLadder.x + overlappingLadder.width / 2 - this.width / 2;
             }
         }
 
@@ -773,6 +781,7 @@ class Player {
 
         // Reset states for collision
         this.isGrounded = false;
+        this.standingOnEntity = null;
         this.isWalled = false;
         this.wallSide = 0;
         // isGroundPounding will be reset upon hitting ground in collision resolution
@@ -881,6 +890,7 @@ class Player {
                         }
                         // Collision on bottom (Grounded)
                         this.isGrounded = true;
+                        this.standingOnEntity = entity;
                         this.vy = 0;
                         this.isWallJumping = false;
                         this.isClimbingLadder = false; // ・戦売 ・ｨ・・
@@ -977,6 +987,7 @@ class Player {
                     this.y = slopeY - this.height;
                     this.vy = 0;
                     this.isGrounded = true;
+                        this.standingOnEntity = entity;
                     this.isWallJumping = false;
                         this.isClimbingLadder = false;
                 }
@@ -1027,6 +1038,7 @@ class Player {
                             this.vy = 0;
                             this.vx = this.climbSide * climbSpeed; // ・ｱ・・・鷺巡・ｼ ・倆初 ・鷺巡・・・・劍
                             this.isGrounded = true;
+                        this.standingOnEntity = entity;
                             this.isClimbing = false;
                             this.isWallJumping = false;
                         this.isClimbingLadder = false;
@@ -1067,6 +1079,7 @@ class Player {
                 }
                 
                 this.isGrounded = false;
+        this.standingOnEntity = null;
                 this.jumpBufferTimer = 0;
                 this.sprite_index = 'spr_player_jump';
                 this.image_index = 0;
@@ -1666,3 +1679,5 @@ class Player {
         ctx.fillText(debugState, this.x + this.width / 2, this.y - 10);
     }
 }
+
+
