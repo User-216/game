@@ -1381,24 +1381,7 @@ this.entities.push(
                     }
                 }
 
-                if (this.keys['Escape'] && !this.prevKeysEsc) {
-                    if (this.optionsMenuLevel === 'MAIN') {
-                        this.gameState = 'PAUSED';
-                    } else if (this.optionsMenuLevel === 'KEYBOARD') {
-                        this.optionsMenuLevel = 'CONTROLS';
-                        this.optionsMenuIndex = 0;
-                    } else if (this.optionsMenuLevel === 'BINDINGS') {
-                        this.optionsMenuLevel = 'KEYBOARD';
-                        this.optionsMenuIndex = 0;
-                    } else if (this.optionsMenuLevel === 'WINDOW MODE') {
-                        this.optionsMenuLevel = 'VIDEO';
-                        this.optionsMenuIndex = 1;
-                    } else {
-                        this.optionsMenuLevel = 'MAIN';
-                        this.optionsMenuIndex = 0;
-                    }
-                    if (this.audio) this.audio.playFile('sfx_step', true);
-                }
+
                 if (this.optionsMenuLevel === 'BINDINGS' && currentOptions[this.optionsMenuIndex] !== 'BACK') {
                     if (this.keys['1'] && !this.prevKeys1) {
                         this.settings.bindings = {
