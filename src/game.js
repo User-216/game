@@ -773,9 +773,42 @@ class Game {
         return Math.floor(pos / this.gridSize) * this.gridSize;
     }
 
+
+    paintTile(wx, wy) {
+        const x = this.snapToGrid(wx);
+        const y = this.snapToGrid(wy);
+        const w = 32;
+        const h = 32;
+        
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            let ent = this.entities[i];
+            if (ent instanceof Tile && ent.x === x && ent.y === y && ent.width === w && ent.height === h) {
+                if (ent.tx === this.selectedTileX && ent.ty === this.selectedTileY) {
+                    return;
+                } else {
+                    ent.tx = this.selectedTileX;
+                    ent.ty = this.selectedTileY;
+                    return;
+                }
+            }
+        }
+        
+        this.entities.push(new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY));
+    }
+
     handleMouseDown(e) {
         if (!this.isEditorMode || e.button !== 0) return;
+        
+        if (e.target.closest('#tileset-palette') || e.target.closest('#editor-toolbar')) return;
+
         const worldPos = this.getMouseInWorld(e);
+        
+        if (this.selectedType === 'tile') {
+            this.isPaintingTile = true;
+            this.paintTile(worldPos.x, worldPos.y);
+            return;
+        }
+
         this.dragStart = {
             x: this.snapToGrid(worldPos.x),
             y: this.snapToGrid(worldPos.y)
@@ -785,9 +818,17 @@ class Game {
     handleMouseMove(e) {
         const worldPos = this.getMouseInWorld(e);
         this.mousePos = worldPos;
+        
+        if (this.isEditorMode && this.isPaintingTile && e.buttons === 1) {
+            this.paintTile(worldPos.x, worldPos.y);
+        }
     }
 
     handleMouseUp(e) {
+        if (this.isPaintingTile) {
+            this.isPaintingTile = false;
+            return;
+        }
         if (!this.isEditorMode || !this.dragStart || e.button !== 0) return;
         
         const worldPos = this.getMouseInWorld(e);
