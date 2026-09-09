@@ -206,8 +206,13 @@ class Tile extends Platform {
 
     render(ctx) {
         if (Tile.tilesetImage.complete && Tile.tilesetImage.naturalWidth > 0) {
-            // Draw 16x16 source image scaled to the block size (usually 32x32, which gives 2x scale)
-            ctx.drawImage(Tile.tilesetImage, this.tx, this.ty, 16, 16, this.x, this.y, this.width, this.height);
+            for(let dx = 0; dx < this.width; dx += 32) {
+                for(let dy = 0; dy < this.height; dy += 32) {
+                    let drawW = Math.min(32, this.width - dx);
+                    let drawH = Math.min(32, this.height - dy);
+                    ctx.drawImage(Tile.tilesetImage, this.tx, this.ty, drawW, drawH, this.x + dx, this.y + dy, drawW, drawH);
+                }
+            }
         } else {
             ctx.fillStyle = '#8B4513';
             ctx.fillRect(this.x, this.y, this.width, this.height);
