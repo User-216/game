@@ -11,7 +11,7 @@ const i18n = {
         'opt.window': 'Window Size', 'opt.fullscreen': 'Toggle Fullscreen', 'opt.language': 'Language',
         'opt.vsync': 'VSync', 'opt.texture': 'Texture Filtering', 'opt.screenshake': 'Screen Shake',
         'opt.camera_speed': 'Camera Speed',
-        'opt.back': 'Back', 'bind.press': 'Press any key...', 'bind.cancel': '(Escape to cancel)',
+        'opt.back': 'Back', 'bind.press': 'Press any key...', 'bind.cancel': '(Wait 3s to cancel)',
         'state.idle': 'IDLE', 'state.climbing': 'CLIMBING', 'state.running': 'RUNNING',
         'state.grounded': 'GROUNDED', 'state.airborne': 'AIRBORNE', 'state.groundpound': 'GROUNDPOUND',
         'state.groundpoundland': 'GROUNDPOUNDLAND',
@@ -29,7 +29,7 @@ const i18n = {
         'opt.window': '창 모드', 'opt.fullscreen': '전체화면 전환', 'opt.language': '언어',
         'opt.vsync': '수직 동기화(VSync)', 'opt.texture': '텍스처 필터링', 'opt.screenshake': '화면 흔들림',
         'opt.camera_speed': '카메라 이동 속도',
-        'opt.back': '뒤로', 'bind.press': '아무 키나 누르세요...', 'bind.cancel': '(ESC 취소)',
+        'opt.back': '뒤로', 'bind.press': '아무 키나 누르세요...', 'bind.cancel': '(3초 대기 시 취소)',
         'state.idle': '대기', 'state.climbing': '등반중', 'state.running': '달리는중',
         'state.grounded': '지상', 'state.airborne': '공중', 'state.groundpound': '찍기',
         'state.groundpoundland': '찍기착지',
@@ -349,11 +349,6 @@ class Game {
             if (this.bindingKeyFor) {
                 e.preventDefault();
                 const key = e.key === ' ' ? 'Space' : e.key;
-                if (key === 'Escape') {
-                    this.bindingKeyFor = null;
-                    document.getElementById('bind-overlay').classList.add('hidden');
-                    return;
-                }
                 if (this.bindingColFor === 1) {
                     if (!this.settings.bindings_2) this.settings.bindings_2 = {};
                     this.settings.bindings_2[this.bindingKeyFor] = key;
