@@ -192,7 +192,7 @@ class Metal extends Destroyable {
 }
 
 class Tile extends Platform {
-    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 16, sh = 16) {
+    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32) {
         super(x, y, width, height, 'transparent');
         this.type = 'tile';
         this.tx = tx;
