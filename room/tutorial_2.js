@@ -55,8 +55,9 @@ this.entities.push(
     new TutorialBook(2944, 896, 32, 32, "You can jump while running, and when you're against a wall\\nyou can wall-run! Press [J] to perform a wall jump!"),
     new Ladder(1344, 480, 32, 224, '#d2691e66'),
     new OneWayPlatform(1344, 480, 64, 32, '#9e00aa66'),
-    new Destroyable(1440, 704, 64, 64),
-    new Destroyable(2880, 448, 64, 64),
-    new Destroyable(2848, 160, 64, 64),
+    new Metal(1440, 704, 64, 64),
+    new Metal(2880, 448, 64, 64),
+    new Metal(2848, 160, 64, 64),
+    new Metal(2048, 128, 32, 32),
 );
 };

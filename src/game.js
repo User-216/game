@@ -342,7 +342,11 @@ class Game {
             }
 
             if (e.key === 'Escape') {
-                this.togglePause();
+                if (this.gameState === 'OPTIONS') {
+                    this.keys['Escape'] = true;
+                } else {
+                    this.togglePause();
+                }
                 return;
             }
 
@@ -359,6 +363,7 @@ class Game {
             }
         });
         window.addEventListener('keyup', (e) => {
+            if (e.key === 'Escape') this.keys['Escape'] = false;
             const key = e.key === ' ' ? 'Space' : e.key;
             this.keys[key] = false;
             this.keys[key.toLowerCase()] = false;
@@ -1449,6 +1454,30 @@ this.entities.push(
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
 
+                const menuBackKey = this.settings.bindings.menu_back || 'x';
+                const isBackPress = (this.keys[menuBackKey] || this.keys[menuBackKey.toLowerCase()] || this.keys[menuBackKey.toUpperCase()] || this.keys['Escape']) && !this.prevMenuBackKey;
+                
+                if (isBackPress && !this.bindingKeyFor) {
+                    if (this.optionsMenuLevel !== 'MAIN') {
+                        if (this.optionsMenuLevel === 'KEYBOARD') {
+                            this.optionsMenuLevel = 'CONTROLS';
+                        } else if (this.optionsMenuLevel === 'BINDINGS') {
+                            this.optionsMenuLevel = 'KEYBOARD';
+                        } else if (this.optionsMenuLevel === 'WINDOW MODE') {
+                            this.optionsMenuLevel = 'VIDEO';
+                            this.optionsMenuIndex = 1;
+                        } else {
+                            this.optionsMenuLevel = 'MAIN';
+                        }
+                        this.optionsMenuIndex = 0;
+                    } else {
+                        // In MAIN, go back to PAUSED
+                        this.gameState = 'PAUSED';
+                        this.optionsMenuIndex = 0;
+                    }
+                    if (this.audio) this.audio.playFile('sfx_step', true);
+                }
+
                 this.prevKeysUp = this.keys['ArrowUp'];
                 this.prevKeysDown = this.keys['ArrowDown'];
                 this.prevKeysLeft = this.keys['ArrowLeft'];
@@ -1457,6 +1486,9 @@ this.entities.push(
                 this.prevKeysZ = this.keys['z'] || this.keys['Z'] || this.keys['Enter'];
                 this.prevKeys1 = this.keys['1'];
                 this.prevKeysC = this.keys['c'] || this.keys['C'];
+                
+                const mbk = this.settings.bindings.menu_back || 'x';
+                this.prevMenuBackKey = this.keys[mbk] || this.keys[mbk.toLowerCase()] || this.keys[mbk.toUpperCase()] || this.keys['Escape'];
             }
             return;
         }

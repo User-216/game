@@ -18,5 +18,16 @@ this.entities.push(
     new Platform(1408, 384, 416, 64, '#00aa9e66'),
     new TargetDoor_B(1632, 672, 32, 32),
     new Door(1632, 640, 32, 64, 'B', 'tutorial_2'),
+    new Tile(288, 576, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(416, 576, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(544, 576, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(672, 576, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(800, 576, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(928, 576, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(1088, 512, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(1216, 512, 128, 320, 64, 32, 'pmo_beaker.png', 128, 320),
+    new Tile(1344, 512, 96, 256, 160, 32, 'pmo_beaker.png', 96, 256),
+    new Tile(1024, 512, 64, 128, 0, 32, 'pmo_beaker.png', 64, 128),
+    new Tile(352, 544, 160, 64, 0, 1120, 'pmo_beaker.png', 160, 64),
 );
 };
