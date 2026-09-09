@@ -494,6 +494,34 @@ class Game {
     }
 
     setupEditorUI() {
+        // Toolbar dragging logic
+        const toolbar = document.getElementById('editor-toolbar');
+        const title = toolbar.querySelector('.toolbar-title');
+        let isDraggingToolbar = false;
+        let toolbarOffsetX = 0;
+        let toolbarOffsetY = 0;
+
+        title.addEventListener('mousedown', (e) => {
+            isDraggingToolbar = true;
+            const rect = toolbar.getBoundingClientRect();
+            toolbarOffsetX = e.clientX - rect.left;
+            toolbarOffsetY = e.clientY - rect.top;
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDraggingToolbar) {
+                toolbar.style.left = (e.clientX - toolbarOffsetX) + 'px';
+                toolbar.style.top = (e.clientY - toolbarOffsetY) + 'px';
+                toolbar.style.bottom = 'auto'; // Override previous CSS
+                toolbar.style.transform = 'none'; // Override previous CSS
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDraggingToolbar = false;
+        });
+
         // Palette buttons
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -845,7 +873,7 @@ class Game {
     handleMouseDown(e) {
         if (!this.isEditorMode || e.button !== 0) return;
         
-        if (e.target.closest('#tileset-palette') || e.target.closest('.tool-btn') || e.target.closest('.action-btn')) return;
+        if (e.target.closest('#tileset-palette') || e.target.closest('#editor-toolbar')) return;
 
         const worldPos = this.getMouseInWorld(e);
         
