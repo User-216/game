@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('src', 'src'), ('assets', 'assets'), ('effect', 'effect'), ('font', 'font'), ('music', 'music'), ('player', 'player'), ('room', 'room'), ('sound', 'sound'), ('spr_controlicons', 'spr_controlicons'), ('spr_optionsBG', 'spr_optionsBG'), ('tutorial', 'tutorial'), ('index.html', '.'), ('style.css', '.'), ('spr_slider.png', '.'), ('spr_slidericon2.png', '.')],
+    datas=[('src', 'src'), ('assets', 'assets'), ('effect', 'effect'), ('font', 'font'), ('music', 'music'), ('player', 'player'), ('room', 'room'), ('sound', 'sound'), ('spr_controlicons', 'spr_controlicons'), ('spr_optionsBG', 'spr_optionsBG'), ('tutorial', 'tutorial'), ('style.css', '.'), ('index.html', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
