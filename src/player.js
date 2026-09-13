@@ -984,6 +984,7 @@ class Player {
         entities.forEach(entity => {
             if (entity.isDestroyed) return;
             if (entity.type === 'left-up' || entity.type === 'right-up') {
+                if (this.vy < 0 || this.isClimbing) return; // Do not snap to slopes when moving upwards (e.g., jumping or wall climbing)
                 const slopeY = Physics.getSlopeHeight(this, entity);
                 
                 // If the player was grounded, allow a larger snap distance downward to prevent bouncing down slopes
