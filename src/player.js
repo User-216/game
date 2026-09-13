@@ -1587,6 +1587,10 @@ class Player {
             if (img && img.complete && img.naturalWidth > 0) {
                 const drawX = this.x;
                 const drawY = this.y;
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
                 const offsetY = this.isCrouching || this.isTumbling ? -11 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
