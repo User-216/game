@@ -1182,7 +1182,7 @@ class Player {
             this.sprite_index = 'spr_player_roll';
         } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump') {
             this.sprite_index = 'spr_player_fall';
-        } else if (this.isGrounded && this.sprite_index !== 'spr_player_land') {
+        } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp) {
             if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
                 this.sprite_index = 'spr_player_idle';
             } else if (Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
