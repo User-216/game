@@ -1163,7 +1163,7 @@ class Player {
             if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
                 this.isRollGettingUp = false;
             }
-        } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
+        } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing && !this.isRunning) {
             this.sprite_index = 'spr_player_land';
             this.image_index = 0;
             if (!this.isRunning && !this.isSuplexGrabbing) {
