@@ -344,11 +344,10 @@ class Player {
         if (overlappingLadder && !this.isClimbingLadder) {
             // Check if we should attach
             let canAttach = false;
-            if (!this.isTumbling && !this.isGroundPounding) {
-                if (keys.actionUp && this.vy >= 0) { canAttach = true; }
+            if (!this.isTumbling && !this.isGroundPounding && this.isGrounded) {
+                if (keys.actionUp) { canAttach = true; }
                 else if (keys.actionDown) {
-                    if (!this.isGrounded) { canAttach = true; }
-                    else if (this.standingOnEntity && this.standingOnEntity.type === 'oneway') { canAttach = true; }
+                    if (this.standingOnEntity && this.standingOnEntity.type === 'oneway') { canAttach = true; }
                 }
             }
             if (canAttach) {
