@@ -90,7 +90,8 @@ class Player {
             spr_player_land: [],
             spr_player_roll: [],
             spr_player_mach2: [],
-            spr_player_rollgetup: []
+            spr_player_rollgetup: [],
+            spr_player_climbwall: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -135,6 +136,12 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_rollgetup/spr_playerT_rollgetup${i}.png`;
             this.sprites.spr_player_rollgetup.push(img);
+        }
+        // Load climbwall sprite (assume 3 frames for now, user needs to export to PNG)
+        for (let i = 1; i <= 3; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_climbwall/spr_playerT_climbwall${i}.png`;
+            this.sprites.spr_player_climbwall.push(img);
         }
 
         // Load mach2 sprite (7 frames)
@@ -1157,7 +1164,9 @@ class Player {
         }
 
         // Determine sprite index
-        if (this.isRollGettingUp) {
+        if (this.isClimbing) {
+            this.sprite_index = 'spr_player_climbwall';
+        } else if (this.isRollGettingUp) {
             this.sprite_index = 'spr_player_rollgetup';
             if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
                 this.isRollGettingUp = false;
@@ -1220,8 +1229,10 @@ class Player {
             this.image_speed = 0.45; // E E€ E”ì²­: E©E€ E Eˆë©”ì´EEEë„ E¬E°EE
         } else if (this.sprite_index === 'spr_player_roll') {
             this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06); // E¬E´E° E Eˆë©”ì´EEEë„ (Eë„EEEE¡€)
-        } else if (this.sprite_index === 'spr_player_rollgetup') {
+                } else if (this.sprite_index === 'spr_player_rollgetup') {
             this.image_speed = 0.5;
+        } else if (this.sprite_index === 'spr_player_climbwall') {
+            this.image_speed = (this.vy !== 0) ? 0.4 : 0;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_groundpound') {
@@ -1577,6 +1588,22 @@ class Player {
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+                } else if (this.sprite_index === 'spr_player_climbwall') {
+            const frames = this.sprites.spr_player_climbwall;
+            if (frames.length > 0) {
+                const frameIndex = Math.floor(this.image_index) % frames.length;
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    // If climbing on left wall (climbSide == -1), face right. If right wall (climbSide == 1), face left.
+                    if (this.climbSide === 1) {
+                        ctx.scale(-1, 1);
+                    }
+                    ctx.drawImage(img, -51, -57.5, 100, 100);
+                }
             }
         } else if (this.sprite_index === 'spr_player_rollgetup') {
             const frames = this.sprites.spr_player_rollgetup;
