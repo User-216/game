@@ -1232,7 +1232,7 @@ class Player {
                 } else if (this.sprite_index === 'spr_player_rollgetup') {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_climbwall') {
-            this.image_speed = (this.vy !== 0) ? 0.4 : 0;
+            this.image_speed = (this.vy !== 0) ? 0.65 : 0;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_groundpound') {
