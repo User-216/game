@@ -91,7 +91,8 @@ class Player {
             spr_player_roll: [],
             spr_player_mach2: [],
             spr_player_rollgetup: [],
-            spr_player_climbwall: []
+            spr_player_climbwall: [],
+            spr_player_groundpoundland: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -142,6 +143,12 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_climbwall/spr_playerT_climbwall${i}.png`;
             this.sprites.spr_player_climbwall.push(img);
+        }
+        // Load groundpoundland sprite
+        for (let i = 1; i <= 4; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_groundpoundland/spr_playerT_groundpoundland${i}.png`;
+            this.sprites.spr_player_groundpoundland.push(img);
         }
 
         // Load mach2 sprite (7 frames)
@@ -920,6 +927,7 @@ class Player {
                         if (this.isGroundPounding) {
                             this.isGroundPounding = false;
                             this.isGroundPoundLand = true;
+                            this.image_index = 0;
                             this.groundPoundLandTimer = 8;
                             this.requestScreenShake = 15; // Set screen shake intensity
                             if (audio) audio.playFile('sfx_groundpound', true);
@@ -937,6 +945,7 @@ class Player {
                             
                             // E E€ E”ì²­: E½úŸ€E  Eœìž¥EEE€Eªúºˆë©´ groundpound land EEEEEEE™˜
                             this.isGroundPoundLand = true;
+                            this.image_index = 0;
                             this.groundPoundLandTimer = 8;
                         }
                         if (entity.type === 'destroyable') {
@@ -1167,6 +1176,8 @@ class Player {
         // Determine sprite index
         if (this.isClimbing) {
             this.sprite_index = 'spr_player_climbwall';
+        } else if (this.isGroundPoundLand) {
+            this.sprite_index = 'spr_player_groundpoundland';
         } else if (this.isRollGettingUp) {
             this.sprite_index = 'spr_player_rollgetup';
             if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
@@ -1234,6 +1245,8 @@ class Player {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_climbwall') {
             this.image_speed = (this.vy !== 0) ? 0.65 : 0;
+        } else if (this.sprite_index === 'spr_player_groundpoundland') {
+            this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_groundpound') {
@@ -1386,6 +1399,14 @@ class Player {
             } else if (m.sprite_index === 'spr_player_mach2') {
                 const frames = this.sprites.spr_player_mach2;
                 const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (m.sprite_index === 'spr_player_groundpoundland') {
+                const frames = this.sprites.spr_player_groundpoundland;
+                let frameIndex = Math.floor(m.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const frame = frames[frameIndex];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
@@ -1663,6 +1684,21 @@ class Player {
                 const drawX = this.x;
                 const drawY = this.y;
                 
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_groundpoundland') {
+            const frames = this.sprites.spr_player_groundpoundland;
+            let frameIndex = Math.floor(this.image_index);
+            if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
                 ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 if (this.facingDir === -1) {
                     ctx.scale(-1, 1);
