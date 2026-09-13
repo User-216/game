@@ -1248,6 +1248,81 @@ this.entities.push(
     }
 
     update() {
+        if (navigator.getGamepads) {
+            const gps = navigator.getGamepads();
+            const gp = gps[0] || gps[1] || gps[2] || gps[3];
+            if (gp) {
+                if (!this.prevGamepadState) this.prevGamepadState = {};
+                const deadzone = 0.5;
+                const gpState = {
+                    jump: gp.buttons[0]?.pressed, // B button
+                    run: gp.buttons[5]?.pressed || gp.buttons[7]?.pressed, // R or ZR
+                    grab: gp.buttons[2]?.pressed, // Y button
+                    taunt: gp.buttons[3]?.pressed, // X button
+                    pause: gp.buttons[9]?.pressed || gp.buttons[8]?.pressed, // Start/+ or Select/-
+                    up: gp.buttons[12]?.pressed || (gp.axes[1] && gp.axes[1] < -deadzone),
+                    down: gp.buttons[13]?.pressed || (gp.axes[1] && gp.axes[1] > deadzone),
+                    left: gp.buttons[14]?.pressed || (gp.axes[0] && gp.axes[0] < -deadzone),
+                    right: gp.buttons[15]?.pressed || (gp.axes[0] && gp.axes[0] > deadzone)
+                };
+
+                const updateActionKey = (action, isPressed) => {
+                    const k1 = this.settings.bindings[action];
+                    const k2 = this.settings.bindings_2 ? this.settings.bindings_2[action] : null;
+                    if (isPressed) {
+                        if (k1) this.keys[k1] = true;
+                        if (k2) this.keys[k2] = true;
+                        this.keys[k1?.toLowerCase()] = true;
+                        this.keys[k1?.toUpperCase()] = true;
+                    } else if (this.prevGamepadState[action] && !isPressed) {
+                        if (k1) this.keys[k1] = false;
+                        if (k2) this.keys[k2] = false;
+                        this.keys[k1?.toLowerCase()] = false;
+                        this.keys[k1?.toUpperCase()] = false;
+                    }
+                    this.prevGamepadState[action] = isPressed;
+                };
+
+                if (gpState.pause && !this.prevGamepadState.pause && this.gameState !== 'OPTIONS' && this.gameState !== 'BOOT_LOADING' && this.gameState !== 'TITLE') {
+                    this.togglePause();
+                }
+
+                if (gpState.jump && !this.prevGamepadState.jump && this.gameState === 'TITLE') {
+                    this.keys['z'] = true;
+                } else if (!gpState.jump && this.prevGamepadState.jump && this.gameState === 'TITLE') {
+                    this.keys['z'] = false;
+                }
+                
+                if (gpState.jump && this.gameState === 'PAUSED') this.keys['z'] = true;
+                if (!gpState.jump && this.gameState === 'PAUSED' && this.prevGamepadState.jump) this.keys['z'] = false;
+
+                updateActionKey('jump', gpState.jump);
+                updateActionKey('run', gpState.run);
+                updateActionKey('grab', gpState.grab);
+                updateActionKey('taunt', gpState.taunt);
+                updateActionKey('up', gpState.up);
+                updateActionKey('down', gpState.down);
+                updateActionKey('left', gpState.left);
+                updateActionKey('right', gpState.right);
+                updateActionKey('menu_up', gpState.up);
+                updateActionKey('menu_down', gpState.down);
+                updateActionKey('menu_left', gpState.left);
+                updateActionKey('menu_right', gpState.right);
+                updateActionKey('menu_confirm', gpState.jump);
+                
+                let bBack = gp.buttons[1]?.pressed;
+                updateActionKey('menu_back', bBack);
+                if (bBack) this.keys['Escape'] = true;
+                else if (this.prevGamepadState.bBack && !bBack) this.keys['Escape'] = false;
+                this.prevGamepadState.bBack = bBack;
+
+                updateActionKey('menu_clear', gp.buttons[3]?.pressed);
+                
+                this.prevGamepadState.pause = gpState.pause;
+                this.prevGamepadState.jump = gpState.jump;
+            }
+        }
+
         if (this.gameState === 'BOOT_LOADING') {
             if (this.loadingScreenLoaded) {
                 this.bootLoadTimer++;

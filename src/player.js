@@ -89,7 +89,8 @@ class Player {
             spr_player_jump: [],
             spr_player_land: [],
             spr_player_roll: [],
-            spr_player_mach2: []
+            spr_player_mach2: [],
+            spr_player_rollgetup: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -129,6 +130,11 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_roll/spr_playerT_roll${i}.png`;
             this.sprites.spr_player_roll.push(img);
+        }
+        for (let i = 1; i <= 11; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_rollgetup/spr_playerT_rollgetup${i}.png`;
+            this.sprites.spr_player_rollgetup.push(img);
         }
 
         // Load mach2 sprite (7 frames)
@@ -646,6 +652,15 @@ class Player {
             }
         }
 
+        if (this.isTumbling && !wantTumble && this.isGrounded) {
+            this.isRollGettingUp = true;
+            this.image_index = 0;
+            this.sprite_index = 'spr_player_rollgetup';
+        }
+        if (wantTumble || !this.isGrounded) {
+            this.isRollGettingUp = false;
+        }
+
         this.isCrouching = wantCrouch;
         this.isTumbling = wantTumble;
 
@@ -1143,7 +1158,12 @@ class Player {
         }
 
         // Determine sprite index
-        if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
+        if (this.isRollGettingUp) {
+            this.sprite_index = 'spr_player_rollgetup';
+            if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
+                this.isRollGettingUp = false;
+            }
+        } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing) {
             this.sprite_index = 'spr_player_land';
             this.image_index = 0;
             if (!this.isRunning && !this.isSuplexGrabbing) {
@@ -1201,6 +1221,8 @@ class Player {
             this.image_speed = 0.45; // E E€ E”ì²­: E©E€ E Eˆë©”ì´EEEë„ E¬E°EE
         } else if (this.sprite_index === 'spr_player_roll') {
             this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06); // E¬E´E° E Eˆë©”ì´EEEë„ (Eë„EEEE¡€)
+        } else if (this.sprite_index === 'spr_player_rollgetup') {
+            this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_groundpound') {
@@ -1555,6 +1577,17 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_rollgetup') {
+            const frames = this.sprites.spr_player_rollgetup;
+            let frameIndex = Math.floor(this.image_index);
+            if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                const offsetY = this.isCrouching || this.isTumbling ? -11 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_roll') {
