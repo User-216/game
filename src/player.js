@@ -1598,8 +1598,8 @@ class Player {
                     const drawX = this.x;
                     const drawY = this.y;
                     ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
-                    // If climbing on left wall (climbSide == -1), face right. If right wall (climbSide == 1), face left.
-                    if (this.climbSide === 1) {
+                    // If climbing on left wall (climbSide == -1), face left (flip). If right wall (climbSide == 1), face right.
+                    if (this.climbSide === -1) {
                         ctx.scale(-1, 1);
                     }
                     ctx.drawImage(img, -51, -57.5, 100, 100);
