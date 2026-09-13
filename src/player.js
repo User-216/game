@@ -1293,7 +1293,10 @@ class Player {
         // Manage Looping Running Sounds
         if (audio) {
             const absSpeed = Math.abs(this.vx);
-            if (this.isRunning && !this.isMachSliding && !this.isDrifting && !this.isDrifting1 && !this.isWalled && !this.isClimbing && !this.isSuplexGrabbing && !this.isTumbling) {
+            if (this.isClimbing) {
+                audio.playFile('mach2');
+                audio.stopFile('mach3');
+            } else if (this.isRunning && !this.isMachSliding && !this.isDrifting && !this.isDrifting1 && !this.isWalled && !this.isSuplexGrabbing && !this.isTumbling) {
                 if (absSpeed >= 12) {
                     audio.playFile('mach3');
                     audio.stopFile('mach2');
