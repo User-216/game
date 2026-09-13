@@ -137,8 +137,8 @@ class Player {
             img.src = `player/spr_player_rollgetup/spr_playerT_rollgetup${i}.png`;
             this.sprites.spr_player_rollgetup.push(img);
         }
-        // Load climbwall sprite (assume 3 frames for now, user needs to export to PNG)
-        for (let i = 1; i <= 3; i++) {
+        // Load climbwall sprite
+        for (let i = 1; i <= 8; i++) {
             let img = new Image();
             img.src = `player/spr_player_climbwall/spr_playerT_climbwall${i}.png`;
             this.sprites.spr_player_climbwall.push(img);
