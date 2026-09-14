@@ -92,7 +92,8 @@ class Player {
             spr_player_mach2: [],
             spr_player_rollgetup: [],
             spr_player_climbwall: [],
-            spr_player_groundpoundland: []
+            spr_player_groundpoundland: [],
+            spr_player_suplexgrab: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -149,6 +150,12 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_groundpoundland/spr_playerT_groundpoundland${i}.png`;
             this.sprites.spr_player_groundpoundland.push(img);
+        }
+        // Load suplexgrab sprite
+        for (let i = 1; i <= 14; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_suplexgrab/spr_playerT_suplexgrab${i}.png`;
+            this.sprites.spr_player_suplexgrab.push(img);
         }
 
         // Load mach2 sprite (7 frames)
@@ -705,6 +712,7 @@ class Player {
         // Suplex Grab Trigger
         if (this.grabBufferTimer > 0 && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
             this.isSuplexGrabbing = true;
+            this.image_index = 0;
             this.suplexGrabTimer = 32; // 32 frames
             this.grabBufferTimer = 0; // Consume the buffer
             if (audio) audio.playFile('sfx_suplexdash', true); // ・｡・ｰ ・懍梠﨑 ・・﨑・・壱ｧ・・ｬ・・(forceRestart)
@@ -1176,6 +1184,8 @@ class Player {
         // Determine sprite index
         if (this.isClimbing) {
             this.sprite_index = 'spr_player_climbwall';
+        } else if (this.isSuplexGrabbing) {
+            this.sprite_index = 'spr_player_suplexgrab';
         } else if (this.isGroundPoundLand) {
             this.sprite_index = 'spr_player_groundpoundland';
         } else if (this.isRollGettingUp) {
@@ -1202,7 +1212,7 @@ class Player {
             this.sprite_index = 'spr_player_roll';
         } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump') {
             this.sprite_index = 'spr_player_fall';
-        } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand) {
+        } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand && !this.isSuplexGrabbing) {
             if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
                 this.sprite_index = 'spr_player_idle';
             } else if (Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
@@ -1245,8 +1255,10 @@ class Player {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_climbwall') {
             this.image_speed = (this.vy !== 0) ? 0.65 : 0;
-        } else if (this.sprite_index === 'spr_player_groundpoundland') {
+                } else if (this.sprite_index === 'spr_player_groundpoundland') {
             this.image_speed = 0.5;
+        } else if (this.sprite_index === 'spr_player_suplexgrab') {
+            this.image_speed = 0.45;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_groundpound') {
@@ -1399,6 +1411,14 @@ class Player {
             } else if (m.sprite_index === 'spr_player_mach2') {
                 const frames = this.sprites.spr_player_mach2;
                 const frame = frames[Math.floor(m.image_index) % frames.length];
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    imgToDraw = frame;
+                }
+            } else if (m.sprite_index === 'spr_player_suplexgrab') {
+                const frames = this.sprites.spr_player_suplexgrab;
+                let frameIndex = Math.floor(m.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const frame = frames[frameIndex];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
@@ -1689,6 +1709,21 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_suplexgrab') {
+            const frames = this.sprites.spr_player_suplexgrab;
+            let frameIndex = Math.floor(this.image_index);
+            if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+            const img = frames[frameIndex];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const drawX = this.x;
+                const drawY = this.y;
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                const offsetY = -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_groundpoundland') {
