@@ -1658,7 +1658,7 @@ class Player {
                 if (this.facingDir === -1) {
                     ctx.scale(-1, 1);
                 }
-                const offsetY = this.isCrouching || this.isTumbling ? -11 : -57.5;
+                const offsetY = -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_roll') {
