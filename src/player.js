@@ -713,17 +713,14 @@ class Player {
         if (this.grabBufferTimer > 0 && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
             this.isSuplexGrabbing = true;
             this.image_index = 0;
-            this.suplexGrabTimer = 32; // 32 frames
             this.grabBufferTimer = 0; // Consume the buffer
             if (audio) audio.playFile('sfx_suplexdash', true); // ・｡・ｰ ・懍梠﨑 ・・﨑・・壱ｧ・・ｬ・・(forceRestart)
         }
 
         // Suplex Grab Logic
         if (this.isSuplexGrabbing) {
-            if (this.suplexGrabTimer > 0 || !this.isGrounded) {
-                if (this.suplexGrabTimer > 0) {
-                    this.suplexGrabTimer--;
-                }
+            let animFinished = (this.sprite_index === 'spr_player_suplexgrab' && this.image_index >= this.sprites.spr_player_suplexgrab.length);
+            if (!animFinished || !this.isGrounded) {
                 let absVx = Math.abs(this.vx);
                 if (absVx < 8) {
                     absVx = 8;
