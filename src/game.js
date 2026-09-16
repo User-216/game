@@ -2628,9 +2628,8 @@ this.entities.push(
         
         ctx.globalAlpha = 0.5;
         if (this.selectedType === 'tile') {
-            const imgName = this.currentTilesetName || 'tile_tutorial.png';
-            if (typeof Tile !== 'undefined' && Tile.images && Tile.images[imgName] && Tile.images[imgName].complete && Tile.images[imgName].naturalWidth > 0) {
-                const img = Tile.images[imgName];
+            const img = document.getElementById('tileset-image');
+            if (img && img.complete && img.naturalWidth > 0) {
                 const sw = this.selectedTileW || 32;
                 const sh = this.selectedTileH || 32;
                 const tx = this.selectedTileX || 0;
