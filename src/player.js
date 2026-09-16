@@ -1320,7 +1320,7 @@ class Player {
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
         if (this.sprite_index === 'spr_player_mach3') {
-            this.machEffectIndex += 0.5;
+            this.machEffectIndex += 0.25;
         }
         }
 
