@@ -71,6 +71,7 @@ class Player {
         this.machThreshold = 11.9;
         this.machColors = ['#ff0000', '#00ff00', '#bf00ff']; // Red, Green, Purple
         this.machColorIndex = 0;
+        this.machEffectIndex = 0;
         this.machFrameCount = 0;
         this.machFlashTimer = 0;
 
@@ -250,6 +251,7 @@ class Player {
         
         this.activeEffects = [];
         this.machColorIndex = 0;
+        this.machEffectIndex = 0;
         this.walkEffectTimer = 0;
         this.runEffectTimer = 0;
         this.prevKeysTaunt = false;
@@ -1299,15 +1301,7 @@ class Player {
                         effectType = 'spr_superdashcloud';
                         offset = 40;
                         
-                        this.activeEffects.push({
-                            type: 'spr_mach_effect',
-                            x: this.x + this.width / 2,
-                            y: this.y + this.height + 20,
-                            image_index: 0,
-                            image_speed: 0.5,
-                            scale: 1.0,
-                            facingDir: this.facingDir
-                        });
+
                     }
                     
                     this.activeEffects.push({
@@ -1325,6 +1319,9 @@ class Player {
 
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
+        if (this.sprite_index === 'spr_player_mach3') {
+            this.machEffectIndex += 0.5;
+        }
         }
 
         // E E€ E”ì²­: Eí”„ E Eˆë©”ì´EEE¬Eì´ EE£Œë˜E´ E¨E´E€EEE Eˆë©”ì´E˜ìœ¼EEEë™ EE™˜
@@ -1612,6 +1609,17 @@ class Player {
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
+                
+                if (this.sprite_index === 'spr_player_mach3') {
+                    const effectFrames = this.effectSprites.spr_mach_effect;
+                    if (effectFrames && effectFrames.length > 0) {
+                        const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
+                        const efImg = effectFrames[efIndex];
+                        if (efImg && efImg.complete && efImg.naturalWidth > 0) {
+                            ctx.drawImage(efImg, -51, offsetY, 100, 100);
+                        }
+                    }
+                }
             }
         } else if (this.sprite_index === 'spr_player_walk') {
             const frames = this.sprites.spr_player_walk;
