@@ -1302,7 +1302,7 @@ class Player {
                         this.activeEffects.push({
                             type: 'spr_mach_effect',
                             x: this.x + this.width / 2,
-                            y: this.y + this.height,
+                            y: this.y + this.height + 20,
                             image_index: 0,
                             image_speed: 0.5,
                             scale: 1.0,
