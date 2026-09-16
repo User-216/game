@@ -90,6 +90,7 @@ class Player {
             spr_player_land: [],
             spr_player_roll: [],
             spr_player_mach2: [],
+            spr_player_mach3: [],
             spr_player_rollgetup: [],
             spr_player_climbwall: [],
             spr_player_groundpoundland: [],
@@ -163,6 +164,13 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_mach2/spr_playerT_mach${i}.png`;
             this.sprites.spr_player_mach2.push(img);
+        }
+        
+        // Load mach3 sprite (10 frames)
+        for (let i = 0; i <= 9; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_mach3/spr_playerT_mach3_${i}.png`;
+            this.sprites.spr_player_mach3.push(img);
         }
 
         // Load ground pound start sprite (10 frames)
@@ -1215,7 +1223,11 @@ class Player {
             } else if (Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
                 this.sprite_index = 'spr_player_walk';
             } else if (this.isRunning && Math.abs(this.vx) > 0 && this.sprite_index !== 'spr_player_mach1' && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
-                this.sprite_index = 'spr_player_mach2'; // E E€ E”ì²­: Eˆí•˜ 1E¼ EŒë„ E¼E¨ mach2 E Eˆë©”ì´EEE¬E©
+                if (Math.abs(this.vx) >= 12) {
+                    this.sprite_index = 'spr_player_mach3';
+                } else {
+                    this.sprite_index = 'spr_player_mach2';
+                } // E E€ E”ì²­: Eˆí•˜ 1E¼ EŒë„ E¼E¨ mach2 E Eˆë©”ì´EEE¬E©
             }
         }
         
@@ -1260,7 +1272,7 @@ class Player {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_groundpound') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
-        } else if (this.sprite_index === 'spr_player_mach2') {
+        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3') {
             // E E€ E”ì²­: Eë„EEE°E¼ E Eˆë©”ì´EEEë„E€ E¤E´EE(E E¼E˜ë¡EE Eˆë©”ì´E˜ë„ E E´EE
             this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04); 
             
@@ -1405,8 +1417,8 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
-            } else if (m.sprite_index === 'spr_player_mach2') {
-                const frames = this.sprites.spr_player_mach2;
+            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3') {
+                const frames = this.sprites[m.sprite_index];
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
@@ -1693,8 +1705,8 @@ class Player {
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
-        } else if (this.sprite_index === 'spr_player_mach2') {
-            const frames = this.sprites.spr_player_mach2;
+        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3') {
+            const frames = this.sprites[this.sprite_index];
             const frameIndex = Math.floor(this.image_index) % frames.length;
             const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
