@@ -1609,17 +1609,6 @@ class Player {
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
-                
-                if (this.sprite_index === 'spr_player_mach3') {
-                    const effectFrames = this.effectSprites.spr_mach_effect;
-                    if (effectFrames && effectFrames.length > 0) {
-                        const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
-                        const efImg = effectFrames[efIndex];
-                        if (efImg && efImg.complete && efImg.naturalWidth > 0) {
-                            ctx.drawImage(efImg, -51, offsetY, 100, 100);
-                        }
-                    }
-                }
             }
         } else if (this.sprite_index === 'spr_player_walk') {
             const frames = this.sprites.spr_player_walk;
@@ -1748,6 +1737,17 @@ class Player {
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
+                
+                if (this.sprite_index === 'spr_player_mach3') {
+                    const effectFrames = this.effectSprites.spr_mach_effect;
+                    if (effectFrames && effectFrames.length > 0) {
+                        const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
+                        const efImg = effectFrames[efIndex];
+                        if (efImg && efImg.complete && efImg.naturalWidth > 0) {
+                            ctx.drawImage(efImg, -51, offsetY, 100, 100);
+                        }
+                    }
+                }
             }
         } else if (this.sprite_index === 'spr_player_suplexgrab') {
             const frames = this.sprites.spr_player_suplexgrab;
