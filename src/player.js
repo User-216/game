@@ -1274,7 +1274,7 @@ class Player {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3') {
             // E E€ E”ì²­: Eë„EEE°E¼ E Eˆë©”ì´EEEë„E€ E¤E´EE(E E¼E˜ë¡EE Eˆë©”ì´E˜ë„ E E´EE
-            this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04); 
+            this.image_speed = 0.2 + (Math.abs(this.vx) * 0.02); 
             
             if (this.isGrounded) {
                 this.runEffectTimer += Math.abs(this.vx);
