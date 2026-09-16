@@ -2622,11 +2622,29 @@ this.entities.push(
             ctx.stroke();
         }
 
-        // Mouse snapped crosshair
+        // Mouse snapped crosshair (Preview)
         const snapX = this.snapToGrid(this.mousePos.x);
         const snapY = this.snapToGrid(this.mousePos.y);
-        ctx.fillStyle = '#00aa9e66';
-        ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
+        
+        ctx.globalAlpha = 0.5;
+        if (this.selectedType === 'tile') {
+            const imgName = this.currentTilesetName || 'tile_tutorial.png';
+            if (typeof Tile !== 'undefined' && Tile.images && Tile.images[imgName] && Tile.images[imgName].complete && Tile.images[imgName].naturalWidth > 0) {
+                const img = Tile.images[imgName];
+                const sw = this.selectedTileW || 32;
+                const sh = this.selectedTileH || 32;
+                const tx = this.selectedTileX || 0;
+                const ty = this.selectedTileY || 0;
+                ctx.drawImage(img, tx, ty, sw, sh, snapX, snapY, sw, sh);
+            } else {
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(snapX, snapY, this.selectedTileW || 32, this.selectedTileH || 32);
+            }
+        } else {
+            ctx.fillStyle = '#00aa9e';
+            ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
+        }
+        ctx.globalAlpha = 1.0;
 
         // Drag Preview
         if (this.dragStart) {
