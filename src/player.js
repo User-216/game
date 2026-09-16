@@ -241,6 +241,13 @@ class Player {
             this.effectSprites.spr_superdashcloud.push(img);
         }
         
+        this.effectSprites.spr_mach_effect = [];
+        for (let i = 1; i <= 6; i++) {
+            let img = new Image();
+            img.src = `effect/spr_mach_effect/spr_mach_effect${i}.png`;
+            this.effectSprites.spr_mach_effect.push(img);
+        }
+        
         this.activeEffects = [];
         this.machColorIndex = 0;
         this.walkEffectTimer = 0;
@@ -1289,8 +1296,18 @@ class Player {
                     let effectType = 'spr_dashcloud'; // mach1, mach2
                     let offset = 0; // mach1, 2ÅEÅEÅEïÏ§ëÏïô
                     if (absSpeed >= 12) {
-                        effectType = 'spr_superdashcloud'; // mach3
-                        offset = 40; // mach3ÅEº ÅEåÎßÅEÅE± ÅE§ÅEÅE40˙∞ΩÅEÄ ÅEºÅE∞
+                        effectType = 'spr_superdashcloud';
+                        offset = 40;
+                        
+                        this.activeEffects.push({
+                            type: 'spr_mach_effect',
+                            x: this.x + this.width / 2,
+                            y: this.y + this.height,
+                            image_index: 0,
+                            image_speed: 0.5,
+                            scale: 1.0,
+                            facingDir: this.facingDir
+                        });
                     }
                     
                     this.activeEffects.push({
