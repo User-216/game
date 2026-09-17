@@ -656,6 +656,7 @@ class Slime extends Entity {
         }
         
         let hitWall = false;
+        let hitWallEnt = null;
         
         // AABB with solid platforms
         for (let ent of game.entities) {
@@ -668,6 +669,7 @@ class Slime extends Entity {
                 
                 if (this.y + this.height > ent.y + 10 && this.y < ent.y + ent.height - 10) {
                     hitWall = true;
+                    hitWallEnt = ent;
                 }
             }
         }
@@ -678,8 +680,8 @@ class Slime extends Entity {
                 if (game.audio && game.audio.play) game.audio.play('break');
                 
                 // Spawn splatter on the wall
-                let wallX = this.vx > 0 ? this.x + this.width : this.x;
-                game.entities.push(new Splatter(wallX, this.y + this.height/2, null)); // Wall splatter
+                let wallX = this.vx > 0 ? this.x + this.width + 50 : this.x - 50; // shift fully into wall
+                game.entities.push(new Splatter(wallX, this.y + this.height/2, hitWallEnt)); // Wall splatter
                 return;
             } else if (this.state === 'walk') {
                 this.vx *= -1; // Turn around
