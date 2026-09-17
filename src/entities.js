@@ -527,6 +527,7 @@ class Slime extends Entity {
     }
 
     update(game) {
+        this.wasGrounded = this.isGrounded;
         if (this.state === 'walk') {
             this.image_index += this.image_speed;
             if (this.image_index >= this.sprites.length) {
@@ -639,7 +640,7 @@ class Slime extends Entity {
         
         // AABB with solid platforms
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway') continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -667,7 +668,7 @@ class Slime extends Entity {
         this.isGrounded = false;
         
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile') continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             // Handle oneway
             if (ent.type === 'oneway' && this.vy < 0) continue;
             
@@ -691,6 +692,26 @@ class Slime extends Entity {
                 } else if (this.vy < 0 && ent.type !== 'oneway') { // Hit ceiling
                     this.y = ent.y + ent.height;
                     this.vy = 0;
+                }
+            }
+        }
+        
+        // Collision Resolution Pass 2: Slopes
+        for (let ent of game.entities) {
+            if (ent.isDestroyed) continue;
+            if (ent.type === 'left-up' || ent.type === 'right-up') {
+                if (this.vy < 0) continue;
+                
+                const slopeY = Physics.getSlopeHeight(this, ent);
+                const snapUp = this.wasGrounded ? 30 : 5;
+                
+                if (slopeY !== null && this.y + this.height > slopeY - snapUp && this.y + this.height <= slopeY + 20) {
+                    if (this.isGrounded && this.y + this.height < slopeY - 0.1) {
+                        continue;
+                    }
+                    this.y = slopeY - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
                 }
             }
         }
