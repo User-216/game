@@ -636,10 +636,14 @@ class Slime extends Entity {
             
             // Apply friction
             if (this.isGrounded) {
-                this.vx *= 0.85; // Ground friction
+                if (this.state !== 'kicked') {
+                    this.vx *= 0.85; // Ground friction
+                }
                 if (Math.abs(this.vx) < 0.5) this.vx = 0;
             } else {
-                this.vx *= 0.98; // Slight air friction
+                if (this.state !== 'kicked') {
+                    this.vx *= 0.98; // Slight air friction
+                }
             }
             
             if (this.state === 'stunned') {
@@ -669,7 +673,15 @@ class Slime extends Entity {
         }
         
         if (hitWall || this.x < 0 || (game.roomWidth && this.x + this.width > game.roomWidth)) {
-            if (this.state === 'walk') {
+            if (this.state === 'kicked') {
+                this.markedForDeletion = true;
+                if (game.audio && game.audio.play) game.audio.play('break');
+                
+                // Spawn splatter on the wall
+                let wallX = this.vx > 0 ? this.x + this.width : this.x;
+                game.entities.push(new Splatter(wallX, this.y + this.height/2, null)); // Wall splatter
+                return;
+            } else if (this.state === 'walk') {
                 this.vx *= -1; // Turn around
                 this.facingDir = Math.sign(this.vx);
             } else {
@@ -864,30 +876,7 @@ class Slime extends Entity {
             }
         }
         
-        if (this.isGrounded && this.state === 'kicked') {
-            this.markedForDeletion = true;
-            if (game.audio && game.audio.play) game.audio.play('break');
-            
-            let floorY = this.y + this.height;
-            let floorEnt = null;
-            for (let step = 0; step < 50; step += 10) {
-                let checkY = floorY + step;
-                let foundFloor = false;
-                for (let ent of game.entities) {
-                    if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
-                    if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
-                        if (checkY >= ent.y && checkY <= ent.y + ent.height) {
-                            floorY = ent.y;
-                            floorEnt = ent;
-                            foundFloor = true;
-                            break;
-                        }
-                    }
-                }
-                if (foundFloor) break;
-            }
-            game.entities.push(new Splatter(this.x + this.width/2, floorY, floorEnt));
-        }
+        // Kicked slime dies on walls instead (handled in wall collision)
     }
 
     render(ctx) {
