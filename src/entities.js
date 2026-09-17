@@ -395,6 +395,8 @@ class Collect extends Entity {
         this.timer = Math.random() * 100;
         this.isSolid = false;
         this.isPlatform = false;
+        this.points = 10;
+        this.fontSize = 14;
     }
 
     update(game) {
@@ -433,14 +435,14 @@ class Collect extends Entity {
                 if (game.audio && game.audio.play) game.audio.play('sfx_collect'); 
                 
                 if (game.score === undefined) game.score = 0;
-                game.score += 10;
+                game.score += this.points;
                 
                 // Spawn floating text at the touched position
                 game.floatingTexts = game.floatingTexts || [];
                 game.floatingTexts.push({
                     x: this.x + this.width / 2,
                     y: this.y,
-                    text: '10',
+                    text: this.points.toString(),
                     alpha: 1.0,
                     vy: -1
                 });
@@ -473,9 +475,18 @@ class Collect extends Entity {
         ctx.stroke();
         
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 14px Arial';
+        ctx.font = 'bold ' + this.fontSize + 'px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('10', this.x + this.width / 2, this.y + this.height / 2);
+        ctx.fillText(this.points.toString(), this.x + this.width / 2, this.y + this.height / 2);
+    }
+}
+
+class BigCollect extends Collect {
+    constructor(x, y, w = 64, h = 64) {
+        super(x, y, w, h);
+        this.type = 'obj_bigcollect';
+        this.points = 100;
+        this.fontSize = 24;
     }
 }
