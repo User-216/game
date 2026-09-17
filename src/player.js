@@ -1328,7 +1328,7 @@ class Player {
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
         if (this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
-            this.machEffectIndex += 0.6;
+            this.machEffectIndex += 0.5;
         }
         }
 
