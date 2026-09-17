@@ -660,6 +660,8 @@ class Slime extends Entity {
                 const knockDir = p.facingDir || 1;
                 this.vx = 15 * knockDir;
                 
+                game.cameraShake = 20;
+                
                 game.combo = (game.combo || 0) + 1;
                 game.comboTimer = 60; // 1 second (60 frames)
                 
