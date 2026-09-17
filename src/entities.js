@@ -642,7 +642,7 @@ class Slime extends Entity {
         
         // AABB with solid platforms
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -670,7 +670,7 @@ class Slime extends Entity {
         this.isGrounded = false;
         
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             // Handle oneway
             if (ent.type === 'oneway' && this.vy < 0) continue;
             
@@ -724,7 +724,7 @@ class Slime extends Entity {
             let probeX = (this.vx > 0) ? this.x + this.width + 5 : this.x - 5;
             let probeY = this.y + this.height + 5;
             for (let ent of game.entities) {
-                if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile') continue;
+                if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'ladder' || ent.type === 'tile') continue;
                 
                 if (probeX >= ent.x && probeX <= ent.x + ent.width &&
                     probeY >= ent.y && probeY <= ent.y + ent.height) {
@@ -850,8 +850,8 @@ class BaddieSpawner extends Entity {
         super(x, y, width, height, 'transparent');
         this.type = 'obj_baddiespawner';
         this.baddieType = baddieType;
-        this.spawnTimer = 100; // Initial delay
-        this.spawnInterval = 300; // 5 seconds (at 60fps)
+        this.spawnTimer = 60; // Initial delay
+        this.spawnInterval = 60; // 5 seconds (at 60fps)
         this.currentBaddie = null;
         
         this.image = new Image();
