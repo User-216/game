@@ -490,3 +490,155 @@ class BigCollect extends Collect {
         this.fontSize = 24;
     }
 }
+
+
+class Slime extends Entity {
+    constructor(x, y, w = 40, h = 40) {
+        super(x, y, w, h);
+        this.type = 'obj_slime';
+        this.vx = 2; // Movement speed
+        this.vy = 0;
+        this.isGrounded = false;
+        this.isSolid = false;
+        this.isPlatform = false;
+        this.color = '#2ecc71'; // Green slime
+        this.bounceTimer = 0;
+    }
+
+    update(game) {
+        // Simple gravity
+        this.vy += 0.5;
+        if (this.vy > 12) this.vy = 12;
+        
+        // Simple animation timer
+        this.bounceTimer += 0.1;
+        
+        // Horizontal movement & collision
+        this.x += this.vx;
+        let hitWall = false;
+        
+        // AABB with solid platforms
+        for (let ent of game.entities) {
+            if (ent === this || ent.isDestroyed || (!ent.isSolid && !ent.isPlatform)) continue;
+            
+            // Basic AABB check
+            if (this.x < ent.x + ent.width &&
+                this.x + this.width > ent.x &&
+                this.y < ent.y + ent.height &&
+                this.y + this.height > ent.y) {
+                
+                // Only consider horizontal collisions for turning around if they hit the side
+                if (this.y + this.height > ent.y + 10 && this.y < ent.y + ent.height - 10) {
+                    hitWall = true;
+                }
+            }
+        }
+        
+        if (hitWall || this.x < 0 || (game.roomWidth && this.x + this.width > game.roomWidth)) {
+            this.vx *= -1; // Turn around
+            this.x += this.vx; // step out of wall
+        }
+        
+        // Vertical movement & collision
+        this.y += this.vy;
+        this.isGrounded = false;
+        
+        for (let ent of game.entities) {
+            if (ent === this || ent.isDestroyed || (!ent.isSolid && !ent.isPlatform)) continue;
+            
+            if (this.x < ent.x + ent.width &&
+                this.x + this.width > ent.x &&
+                this.y < ent.y + ent.height &&
+                this.y + this.height > ent.y) {
+                
+                if (this.vy > 0) { // Landing
+                    this.y = ent.y - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                } else if (this.vy < 0 && ent.isSolid) { // Hit ceiling
+                    this.y = ent.y + ent.height;
+                    this.vy = 0;
+                }
+            }
+        }
+        
+        // Collision with player
+        if (this.x < game.player.x + game.player.width &&
+            this.x + this.width > game.player.x &&
+            this.y < game.player.y + game.player.height &&
+            this.y + this.height > game.player.y) {
+            
+            // Check if player is attacking (dashing, mach, ground pound, falling)
+            const isAttacking = game.player.sprite_index.includes('mach') || 
+                                game.player.isGroundPounding || 
+                                game.player.isSuplexGrabbing ||
+                                (game.player.vy > 0 && game.player.y + game.player.height < this.y + 20); // jumping on it
+            
+            if (isAttacking) {
+                this.markedForDeletion = true;
+                if (game.score === undefined) game.score = 0;
+                game.score += 50;
+                
+                // Spawn score text
+                game.floatingTexts = game.floatingTexts || [];
+                game.floatingTexts.push({
+                    x: this.x + this.width / 2,
+                    y: this.y,
+                    text: '50',
+                    alpha: 1.0,
+                    vy: -1
+                });
+                
+                // If jumped on, bounce player
+                if (game.player.vy > 0 && !game.player.isGroundPounding) {
+                    game.player.vy = -10;
+                    game.player.sprite_index = 'spr_player_jump';
+                }
+                
+            } else {
+                // Hurt player (just knockback for now)
+                game.player.vx = (game.player.x < this.x) ? -10 : 10;
+                game.player.vy = -5;
+                game.player.sprite_index = 'spr_player_fall';
+                game.player.isMachSliding = false;
+                game.player.isDrifting = false;
+                game.player.isDrifting1 = false;
+                game.player.isGroundPounding = false;
+                game.player.isSuplexGrabbing = false;
+            }
+        }
+    }
+
+    render(ctx) {
+        const stretchY = Math.sin(this.bounceTimer) * 4;
+        const stretchX = -stretchY / 2;
+        
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.ellipse(
+            this.x + this.width / 2, 
+            this.y + this.height - (this.height/2 - stretchY/2), 
+            this.width / 2 + stretchX, 
+            this.height / 2 - stretchY, 
+            0, 0, Math.PI * 2
+        );
+        ctx.fill();
+        
+        ctx.strokeStyle = '#27ae60';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        const eyeOffset = (this.vx > 0) ? 5 : -5;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.x + this.width / 2 + eyeOffset - 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
+        ctx.arc(this.x + this.width / 2 + eyeOffset + 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(this.x + this.width / 2 + eyeOffset - 3, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
+        ctx.arc(this.x + this.width / 2 + eyeOffset + 7, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
