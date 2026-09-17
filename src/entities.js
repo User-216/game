@@ -817,10 +817,6 @@ class Slime extends Entity {
         
         let drawX = this.x;
         let drawY = this.y;
-        if (isScared) {
-            drawX += (Math.random() - 0.5) * 6;
-            drawY += (Math.random() - 0.5) * 6;
-        }
         
         if (this.sprites.length > 0) {
             const frameIndex = Math.floor(this.image_index) % this.sprites.length;
