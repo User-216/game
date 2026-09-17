@@ -1329,7 +1329,7 @@ class Player {
 
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
-        if (this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+        if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
             this.machEffectIndex += 0.5;
         }
         }
@@ -1449,7 +1449,7 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
-            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump') {
+            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump' || m.sprite_index === 'spr_player_rollgetup' || m.sprite_index === 'spr_player_roll') {
                 const frames = this.sprites[m.sprite_index];
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
@@ -1721,6 +1721,17 @@ class Player {
                 }
                 const offsetY = -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
+                
+                if (Math.abs(this.vx) >= 12) {
+                    const effectFrames = this.effectSprites.spr_mach_effect;
+                    if (effectFrames && effectFrames.length > 0) {
+                        const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
+                        const efImg = effectFrames[efIndex];
+                        if (efImg && efImg.complete && efImg.naturalWidth > 0) {
+                            ctx.drawImage(efImg, -51 - 40, offsetY, 100, 100);
+                        }
+                    }
+                }
             }
         } else if (this.sprite_index === 'spr_player_roll') {
             const frames = this.sprites.spr_player_roll;
@@ -1752,7 +1763,7 @@ class Player {
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
                 
-                if (this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+                if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
                     const effectFrames = this.effectSprites.spr_mach_effect;
                     if (effectFrames && effectFrames.length > 0) {
                         const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
