@@ -745,6 +745,18 @@ class Player {
             this.image_index = 0;
         }
 
+        // Drop Enemy
+        if (keys.actionDown && !this.prevKeysDown && this.isHoldingEnemy && this.isGrounded) {
+            this.isHoldingEnemy = false;
+            if (this.heldEnemy) {
+                this.heldEnemy.state = 'stunned';
+                this.heldEnemy.stunTimer = 60;
+                this.heldEnemy.vx = 0;
+                this.heldEnemy.vy = -2;
+                this.heldEnemy = null;
+            }
+        }
+        
         // Kick Windup Logic
         if (this.kickWindupTimer > 0) {
             this.kickWindupTimer--;
@@ -998,11 +1010,26 @@ class Player {
                         this.isClimbingLadder = false; // ・戦売 ・ｨ・・
                         if (this.isGroundPounding) {
                             this.isGroundPounding = false;
-                            this.isGroundPoundLand = true;
-                            this.image_index = 0;
-                            this.groundPoundLandTimer = 8;
-                            this.requestScreenShake = 15; // Set screen shake intensity
-                            if (audio) audio.playFile('sfx_groundpound', true);
+                            
+                            if (this.isHoldingEnemy) {
+                                // Piledriver Landing
+                                this.isHoldingEnemy = false;
+                                if (this.heldEnemy) {
+                                    this.heldEnemy.state = 'piledriver_die';
+                                    this.heldEnemy = null;
+                                }
+                                this.requestScreenShake = 25; // Massive shake
+                                if (audio) audio.play('break');
+                                this.vy = -12; // High bounce
+                                this.sprite_index = 'spr_player_jump';
+                                this.y -= 5;
+                            } else {
+                                this.isGroundPoundLand = true;
+                                this.image_index = 0;
+                                this.groundPoundLandTimer = 8;
+                                this.requestScreenShake = 15; // Set screen shake intensity
+                                if (audio) audio.playFile('sfx_groundpound', true);
+                            }
                         } else {
                             this.isGroundPounding = false; // Reset GP just in case
                         }
@@ -1079,6 +1106,25 @@ class Player {
                     }
                     
                     // Ground Pound transition to slope roll
+                    if (this.isGroundPounding) {
+                        this.isGroundPounding = false;
+                        if (this.isHoldingEnemy) {
+                            // Piledriver Landing on slope
+                            this.isHoldingEnemy = false;
+                            if (this.heldEnemy) {
+                                this.heldEnemy.state = 'piledriver_die';
+                                this.heldEnemy = null;
+                            }
+                            this.requestScreenShake = 25;
+                            if (audio) audio.play('break');
+                            this.vy = -12;
+                            this.vx = 5 * this.facingDir;
+                            this.sprite_index = 'spr_player_jump';
+                            this.y -= 5;
+                        } else {
+                            this.isGroundPounding = true;
+                        }
+                    }
                     if (this.isGroundPounding) {
                         const speed = this.vy >= 20 ? 12 : 8;
                         this.vx = (entity.type === 'left-up') ? -speed : speed;

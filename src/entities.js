@@ -550,6 +550,55 @@ class Slime extends Entity {
             this.image_index = 0;
         }
         
+        if (this.state === 'piledriver_die') {
+            // Grant Combo & Points
+            if (!this.spawnedBySpawner) {
+                game.combo = (game.combo || 0) + 1;
+                game.comboTimer = 60; 
+                const x = game.combo;
+                const pts = Math.floor(x * x * 0.25 + 10 * x);
+                if (game.score === undefined) game.score = 0;
+                game.score += pts;
+                
+                game.floatingTexts = game.floatingTexts || [];
+                game.floatingTexts.push({
+                    x: this.x + this.width / 2,
+                    y: this.y,
+                    text: pts.toString(),
+                    alpha: 1.0,
+                    vy: -1
+                });
+            } else if (game.combo > 0) {
+                game.comboTimer = 60;
+            }
+            
+            this.state = 'dead';
+            this.vx = 0;
+            this.vy = 5;
+            
+            // Raycast for floor splatter
+            let floorY = this.y + this.height;
+            let floorEnt = null;
+            for (let step = 0; step < 50; step += 10) {
+                let checkY = floorY + step;
+                let foundFloor = false;
+                for (let ent of game.entities) {
+                    if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                    if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
+                        if (checkY >= ent.y && checkY <= ent.y + ent.height) {
+                            floorY = ent.y;
+                            floorEnt = ent;
+                            foundFloor = true;
+                            break;
+                        }
+                    }
+                }
+                if (foundFloor) break;
+            }
+            game.entities.push(new Splatter(this.x + this.width/2, floorY, floorEnt));
+            return;
+        }
+        
         if (this.state === 'dead') {
             this.x += this.vx;
             this.y += this.vy;
