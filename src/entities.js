@@ -756,6 +756,26 @@ class Slime extends Entity {
             const killCondition = isMach3 || isGroundPound;
             
             if (killCondition) {
+                // Spawn splatter on the ground below
+                let floorY = this.y + this.height;
+                // Raycast down up to 200 pixels to find a solid platform
+                for (let step = 0; step < 200; step += 10) {
+                    let checkY = floorY + step;
+                    let foundFloor = false;
+                    for (let ent of game.entities) {
+                        if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner') continue;
+                        if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
+                            if (checkY >= ent.y && checkY <= ent.y + ent.height) {
+                                floorY = ent.y;
+                                foundFloor = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (foundFloor) break;
+                }
+                game.entities.push(new Splatter(this.x + this.width/2, floorY));
+
                 // Kill immediately (fly off screen)
                 this.state = 'dead';
                 this.vy = -15;
@@ -902,6 +922,30 @@ class BaddieSpawner extends Entity {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 2;
             ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
+    }
+}
+
+class Splatter extends Entity {
+    constructor(x, y) {
+        super(x, y, 100, 100, 'transparent');
+        this.type = 'obj_splatter';
+        this.image = new Image();
+        this.image.src = 'spr_slimeSplatter.png';
+        this.imageLoaded = false;
+        this.image.onload = () => { this.imageLoaded = true; };
+        // Center the splatter on x, and place it exactly at y
+        this.x = x - 50; 
+        this.y = y - 90; // Adjust so it sits on the ground
+    }
+    
+    update(game) {
+        // Splatters just stay on the ground
+    }
+    
+    render(ctx) {
+        if (this.imageLoaded) {
+            ctx.drawImage(this.image, this.x, this.y, 100, 100);
         }
     }
 }
