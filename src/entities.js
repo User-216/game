@@ -598,7 +598,7 @@ class Slime extends Entity {
         }
         
         // Collision with player
-        if (this.state !== 'stunned' && this.x < game.player.x + game.player.width &&
+        if (this.x < game.player.x + game.player.width &&
             this.x + this.width > game.player.x &&
             this.y < game.player.y + game.player.height &&
             this.y + this.height > game.player.y) {
@@ -609,7 +609,9 @@ class Slime extends Entity {
             const isStomp = p.vy > 0 && p.y + p.height < this.y + 20 && !p.isGroundPounding;
             const isGroundPound = p.isGroundPounding;
             
-            if (isMach3 || isGroundPound) {
+            const killCondition = isMach3 || isGroundPound || (this.state === 'stunned' && (isMach1or2 || isStomp));
+            
+            if (killCondition) {
                 // Kill immediately
                 this.markedForDeletion = true;
                 if (game.score === undefined) game.score = 0;
@@ -624,6 +626,11 @@ class Slime extends Entity {
                     vy: -1
                 });
                 
+                if (isStomp) {
+                    p.vy = -10;
+                    p.sprite_index = 'spr_player_jump';
+                }
+                
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
             } else if (isMach1or2 || isStomp) {
@@ -631,8 +638,8 @@ class Slime extends Entity {
                 this.state = 'stunned';
                 this.stunTimer = 100;
                 this.vy = -8;
-                // Determine knockback direction based on player relative position or facing dir
-                const knockDir = (this.x + this.width/2 > p.x + p.width/2) ? 1 : -1;
+                // Determine knockback direction based on player facing direction
+                const knockDir = p.facingDir || 1;
                 this.vx = 12 * knockDir;
                 
                 if (isStomp) {
@@ -642,7 +649,7 @@ class Slime extends Entity {
                 
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
-            } else {
+            } else if (this.state !== 'stunned') {
                 // Hurt player (just knockback for now)
                 p.vx = (p.x < this.x) ? -10 : 10;
                 p.vy = -5;
