@@ -745,7 +745,7 @@ class Player {
             
             // Spawn splatter at current position since it's "killed"
             let floorY = this.y + this.height;
-            game.entities.push(new Splatter(this.x + this.width/2, floorY, null));
+            entities.push(new Splatter(this.x + this.width/2, floorY, null));
             
             this.heldEnemy = null;
             this.grabBufferTimer = 0;
