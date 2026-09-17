@@ -750,8 +750,8 @@ class Player {
             this.kickWindupTimer--;
             
             // Slow down time/movement effect (anti-gravity & friction)
-            this.vx *= 0.5;
-            this.vy *= 0.5;
+            this.vx *= 0.85;
+            this.vy *= 0.85;
             if (this.vy > 0) this.vy -= this.gravity; // cancel gravity pulling down
             
             if (this.kickWindupTimer <= 0) {
