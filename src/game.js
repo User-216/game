@@ -1653,6 +1653,16 @@ this.entities.push(
         }
 
         this.player.update(this.keys, this.entities, this.audio);
+        
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            let ent = this.entities[i];
+            if (ent.update) {
+                ent.update(this);
+            }
+            if (ent.markedForDeletion) {
+                this.entities.splice(i, 1);
+            }
+        }
 
         if (this.floatingTexts) {
             for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
