@@ -1250,10 +1250,12 @@ this.entities.push(
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
         let maxX = this.roomWidth ? this.roomWidth - this.canvas.width : Infinity;
         let maxY = this.roomHeight ? this.roomHeight - this.canvas.height : Infinity;
-        if (targetX < 0) targetX = 0;
-        if (targetY < 0) targetY = 0;
-        if (targetX > maxX) targetX = maxX;
-        if (targetY > Math.max(0, maxY)) targetY = Math.max(0, maxY);
+        if (!this.isEditorMode) {
+            if (targetX < 0) targetX = 0;
+            if (targetY < 0) targetY = 0;
+            if (targetX > maxX) targetX = maxX;
+            if (targetY > Math.max(0, maxY)) targetY = Math.max(0, maxY);
+        }
         
         this.camera.x = targetX;
         this.camera.y = targetY;
@@ -1752,15 +1754,17 @@ this.entities.push(
         this.cameraSpeedOffset += (targetSpeedOffset - this.cameraSpeedOffset) * 0.02;
         targetX += this.cameraSpeedOffset;
         
-        if (this.roomWidth > 0) {
-            const maxX = Math.max(0, this.roomWidth - this.canvas.width);
-            if (targetX < 0) targetX = 0;
-            if (targetX > maxX) targetX = maxX;
-        }
-        if (this.roomHeight > 0) {
-            const maxY = Math.max(0, this.roomHeight - this.canvas.height);
-            if (targetY < 0) targetY = 0;
-            if (targetY > maxY) targetY = maxY;
+        if (!this.isEditorMode) {
+            if (this.roomWidth > 0) {
+                const maxX = Math.max(0, this.roomWidth - this.canvas.width);
+                if (targetX < 0) targetX = 0;
+                if (targetX > maxX) targetX = maxX;
+            }
+            if (this.roomHeight > 0) {
+                const maxY = Math.max(0, this.roomHeight - this.canvas.height);
+                if (targetY < 0) targetY = 0;
+                if (targetY > maxY) targetY = maxY;
+            }
         }
 
         const lerpFactor = (this.settings.cameraSpeed || 20) / 100;
