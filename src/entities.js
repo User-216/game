@@ -510,6 +510,18 @@ class Slime extends Entity {
     }
 
     update(game) {
+        if (this.state === 'dead') {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += 0.5; // gravity for arc
+            
+            // Delete when it falls way below screen
+            if (this.y > game.camera.y + game.canvas.height + 200) {
+                this.markedForDeletion = true;
+            }
+            return;
+        }
+        
         // Simple gravity
         this.vy += 0.5;
         if (this.vy > 12) this.vy = 12;
@@ -612,8 +624,11 @@ class Slime extends Entity {
             const killCondition = isMach3 || isGroundPound;
             
             if (killCondition) {
-                // Kill immediately
-                this.markedForDeletion = true;
+                // Kill immediately (fly off screen)
+                this.state = 'dead';
+                this.vy = -15;
+                const knockDir = p.facingDir || 1;
+                this.vx = 15 * knockDir;
                 if (game.score === undefined) game.score = 0;
                 game.score += 50;
                 
@@ -664,7 +679,7 @@ class Slime extends Entity {
     }
 
     render(ctx) {
-        if (this.state === 'stunned') {
+        if (this.state === 'stunned' || this.state === 'dead') {
             // Draw upside down or skewed
             ctx.save();
             ctx.translate(this.x + this.width/2, this.y + this.height/2);
@@ -673,8 +688,8 @@ class Slime extends Entity {
             ctx.translate(-(this.x + this.width/2), -(this.y + this.height/2));
         }
         
-        const stretchY = (this.state === 'stunned') ? 0 : Math.sin(this.bounceTimer) * 4;
-        const stretchX = (this.state === 'stunned') ? 0 : -stretchY / 2;
+        const stretchY = (this.state === 'stunned' || this.state === 'dead') ? 0 : Math.sin(this.bounceTimer) * 4;
+        const stretchX = (this.state === 'stunned' || this.state === 'dead') ? 0 : -stretchY / 2;
         
         ctx.fillStyle = this.color;
         ctx.beginPath();
@@ -693,7 +708,7 @@ class Slime extends Entity {
         
         const eyeOffset = (this.facingDir > 0) ? 5 : -5;
         
-        if (this.state === 'stunned') {
+        if (this.state === 'stunned' || this.state === 'dead') {
             // X eyes
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
@@ -722,7 +737,7 @@ class Slime extends Entity {
             ctx.fill();
         }
         
-        if (this.state === 'stunned') {
+        if (this.state === 'stunned' || this.state === 'dead') {
             ctx.restore();
         }
     }
