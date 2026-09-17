@@ -637,7 +637,7 @@ class Slime extends Entity {
                 // Stun / knockback
                 this.state = 'stunned';
                 this.stunTimer = 100;
-                this.vy = -8;
+                this.vy = -4;
                 // Determine knockback direction based on player facing direction
                 const knockDir = p.facingDir || 1;
                 this.vx = 12 * knockDir;
