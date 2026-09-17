@@ -503,6 +503,10 @@ class Slime extends Entity {
         this.isPlatform = false;
         this.color = '#2ecc71'; // Green slime
         this.bounceTimer = 0;
+        
+        this.state = 'walk'; // 'walk', 'stunned'
+        this.stunTimer = 0;
+        this.facingDir = 1;
     }
 
     update(game) {
@@ -510,24 +514,31 @@ class Slime extends Entity {
         this.vy += 0.5;
         if (this.vy > 12) this.vy = 12;
         
-        // Simple animation timer
         this.bounceTimer += 0.1;
         
-        // Horizontal movement & collision
-        this.x += this.vx;
+        if (this.state === 'walk') {
+            this.x += this.vx;
+            this.facingDir = Math.sign(this.vx) || 1;
+        } else if (this.state === 'stunned') {
+            this.x += this.vx;
+            this.stunTimer--;
+            if (this.stunTimer <= 0 && this.isGrounded) {
+                this.state = 'walk';
+                this.vx = 2 * this.facingDir;
+            }
+        }
+        
         let hitWall = false;
         
         // AABB with solid platforms
         for (let ent of game.entities) {
             if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway') continue;
             
-            // Basic AABB check
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
                 this.y < ent.y + ent.height &&
                 this.y + this.height > ent.y) {
                 
-                // Only consider horizontal collisions for turning around if they hit the side
                 if (this.y + this.height > ent.y + 10 && this.y < ent.y + ent.height - 10) {
                     hitWall = true;
                 }
@@ -535,7 +546,12 @@ class Slime extends Entity {
         }
         
         if (hitWall || this.x < 0 || (game.roomWidth && this.x + this.width > game.roomWidth)) {
-            this.vx *= -1; // Turn around
+            if (this.state === 'walk') {
+                this.vx *= -1; // Turn around
+                this.facingDir = Math.sign(this.vx);
+            } else {
+                this.vx *= -1; // Bounce off wall while stunned
+            }
             this.x += this.vx; // step out of wall
         }
         
@@ -555,7 +571,6 @@ class Slime extends Entity {
                 
                 if (this.vy > 0) { // Landing
                     if (ent.type === 'oneway') {
-                        // Only land if previously above
                         if (this.y - this.vy + this.height <= ent.y + 10) {
                             this.y = ent.y - this.height;
                             this.vy = 0;
@@ -574,23 +589,23 @@ class Slime extends Entity {
         }
         
         // Collision with player
-        if (this.x < game.player.x + game.player.width &&
+        if (this.state !== 'stunned' && this.x < game.player.x + game.player.width &&
             this.x + this.width > game.player.x &&
             this.y < game.player.y + game.player.height &&
             this.y + this.height > game.player.y) {
             
-            // Check if player is attacking (dashing, mach, ground pound, falling)
-            const isAttacking = game.player.sprite_index.includes('mach') || 
-                                game.player.isGroundPounding || 
-                                game.player.isSuplexGrabbing ||
-                                (game.player.vy > 0 && game.player.y + game.player.height < this.y + 20); // jumping on it
+            const p = game.player;
+            const isMach3 = p.sprite_index.includes('mach3') || p.sprite_index === 'spr_player_mach3jump';
+            const isMach1or2 = p.sprite_index.includes('mach2') || p.sprite_index === 'spr_player_suplexgrab' || p.sprite_index.includes('dash');
+            const isStomp = p.vy > 0 && p.y + p.height < this.y + 20 && !p.isGroundPounding;
+            const isGroundPound = p.isGroundPounding;
             
-            if (isAttacking) {
+            if (isMach3 || isGroundPound) {
+                // Kill immediately
                 this.markedForDeletion = true;
                 if (game.score === undefined) game.score = 0;
                 game.score += 50;
                 
-                // Spawn score text
                 game.floatingTexts = game.floatingTexts || [];
                 game.floatingTexts.push({
                     x: this.x + this.width / 2,
@@ -600,29 +615,50 @@ class Slime extends Entity {
                     vy: -1
                 });
                 
-                // If jumped on, bounce player
-                if (game.player.vy > 0 && !game.player.isGroundPounding) {
-                    game.player.vy = -10;
-                    game.player.sprite_index = 'spr_player_jump';
+                if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
+                
+            } else if (isMach1or2 || isStomp) {
+                // Stun / knockback
+                this.state = 'stunned';
+                this.stunTimer = 100;
+                this.vy = -8;
+                // Determine knockback direction based on player relative position or facing dir
+                const knockDir = (this.x + this.width/2 > p.x + p.width/2) ? 1 : -1;
+                this.vx = 12 * knockDir;
+                
+                if (isStomp) {
+                    p.vy = -10;
+                    p.sprite_index = 'spr_player_jump';
                 }
+                
+                if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
             } else {
                 // Hurt player (just knockback for now)
-                game.player.vx = (game.player.x < this.x) ? -10 : 10;
-                game.player.vy = -5;
-                game.player.sprite_index = 'spr_player_fall';
-                game.player.isMachSliding = false;
-                game.player.isDrifting = false;
-                game.player.isDrifting1 = false;
-                game.player.isGroundPounding = false;
-                game.player.isSuplexGrabbing = false;
+                p.vx = (p.x < this.x) ? -10 : 10;
+                p.vy = -5;
+                p.sprite_index = 'spr_player_fall';
+                p.isMachSliding = false;
+                p.isDrifting = false;
+                p.isDrifting1 = false;
+                p.isGroundPounding = false;
+                p.isSuplexGrabbing = false;
             }
         }
     }
 
     render(ctx) {
-        const stretchY = Math.sin(this.bounceTimer) * 4;
-        const stretchX = -stretchY / 2;
+        if (this.state === 'stunned') {
+            // Draw upside down or skewed
+            ctx.save();
+            ctx.translate(this.x + this.width/2, this.y + this.height/2);
+            // Flip upside down
+            ctx.scale(1, -1);
+            ctx.translate(-(this.x + this.width/2), -(this.y + this.height/2));
+        }
+        
+        const stretchY = (this.state === 'stunned') ? 0 : Math.sin(this.bounceTimer) * 4;
+        const stretchX = (this.state === 'stunned') ? 0 : -stretchY / 2;
         
         ctx.fillStyle = this.color;
         ctx.beginPath();
@@ -639,17 +675,39 @@ class Slime extends Entity {
         ctx.lineWidth = 2;
         ctx.stroke();
         
-        const eyeOffset = (this.vx > 0) ? 5 : -5;
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width / 2 + eyeOffset - 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
-        ctx.arc(this.x + this.width / 2 + eyeOffset + 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
-        ctx.fill();
+        const eyeOffset = (this.facingDir > 0) ? 5 : -5;
         
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width / 2 + eyeOffset - 3, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
-        ctx.arc(this.x + this.width / 2 + eyeOffset + 7, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
-        ctx.fill();
+        if (this.state === 'stunned') {
+            // X eyes
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x + this.width / 2 + eyeOffset - 8, this.y + 15 - 3);
+            ctx.lineTo(this.x + this.width / 2 + eyeOffset - 2, this.y + 15 + 3);
+            ctx.moveTo(this.x + this.width / 2 + eyeOffset - 2, this.y + 15 - 3);
+            ctx.lineTo(this.x + this.width / 2 + eyeOffset - 8, this.y + 15 + 3);
+            
+            ctx.moveTo(this.x + this.width / 2 + eyeOffset + 2, this.y + 15 - 3);
+            ctx.lineTo(this.x + this.width / 2 + eyeOffset + 8, this.y + 15 + 3);
+            ctx.moveTo(this.x + this.width / 2 + eyeOffset + 8, this.y + 15 - 3);
+            ctx.lineTo(this.x + this.width / 2 + eyeOffset + 2, this.y + 15 + 3);
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width / 2 + eyeOffset - 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
+            ctx.arc(this.x + this.width / 2 + eyeOffset + 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width / 2 + eyeOffset - 3, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
+            ctx.arc(this.x + this.width / 2 + eyeOffset + 7, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        if (this.state === 'stunned') {
+            ctx.restore();
+        }
     }
 }
