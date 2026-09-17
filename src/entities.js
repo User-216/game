@@ -764,23 +764,25 @@ class Slime extends Entity {
                 
                 game.cameraShake = 20;
                 
-                game.combo = (game.combo || 0) + 1;
-                game.comboTimer = 60; // 1 second (60 frames)
-                
-                const x = game.combo;
-                const pts = Math.floor(x * x * 0.25 + 10 * x);
-                
-                if (game.score === undefined) game.score = 0;
-                game.score += pts;
-                
-                game.floatingTexts = game.floatingTexts || [];
-                game.floatingTexts.push({
-                    x: this.x + this.width / 2,
-                    y: this.y,
-                    text: pts.toString(),
-                    alpha: 1.0,
-                    vy: -1
-                });
+                if (!this.spawnedBySpawner) {
+                    game.combo = (game.combo || 0) + 1;
+                    game.comboTimer = 60; // 1 second (60 frames)
+                    
+                    const x = game.combo;
+                    const pts = Math.floor(x * x * 0.25 + 10 * x);
+                    
+                    if (game.score === undefined) game.score = 0;
+                    game.score += pts;
+                    
+                    game.floatingTexts = game.floatingTexts || [];
+                    game.floatingTexts.push({
+                        x: this.x + this.width / 2,
+                        y: this.y,
+                        text: pts.toString(),
+                        alpha: 1.0,
+                        vy: -1
+                    });
+                }
                 
                 if (isStomp) {
                     p.vy = -10;
@@ -877,6 +879,7 @@ class BaddieSpawner extends Entity {
             if (this.spawnTimer <= 0) {
                 if (this.baddieType === 'obj_slime') {
                     const slime = new Slime(this.x, this.y, 40, 40);
+                    slime.spawnedBySpawner = true;
                     game.entities.push(slime);
                     this.currentBaddie = slime;
                     
