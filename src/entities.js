@@ -683,6 +683,8 @@ class Slime extends Entity {
                 this.markedForDeletion = true;
                 if (game.audio && game.audio.play) game.audio.play('break');
                 
+                game.player.requestScreenShake = 20; // Strong screen shake on wall crash!
+                
                 // Spawn splatter on the wall
                 let wallX = this.vx > 0 ? this.x + this.width + 50 : this.x - 50; // shift fully into wall
                 game.entities.push(new Splatter(wallX, this.y + this.height/2, hitWallEnt)); // Wall splatter

@@ -760,6 +760,7 @@ class Player {
                 this.heldEnemy.state = 'kicked';
                 this.heldEnemy.vx = 25 * this.facingDir;
                 this.heldEnemy.vy = 0;
+                this.requestScreenShake = 10; // Screen shake on kick!
                 
                 this.heldEnemy = null;
                 if (audio) audio.playFile('sfx_suplexdash', true);
