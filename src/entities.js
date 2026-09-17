@@ -863,9 +863,8 @@ class Slime extends Entity {
         }
         
         if (this.isGrounded && this.state === 'kicked') {
-            this.state = 'dead';
-            this.vy = -10;
-            this.vx = 5 * this.facingDir;
+            this.markedForDeletion = true;
+            if (game.audio && game.audio.play) game.audio.play('break');
             
             let floorY = this.y + this.height;
             let floorEnt = null;
