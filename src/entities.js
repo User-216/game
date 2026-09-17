@@ -609,6 +609,27 @@ class Slime extends Entity {
             }
         }
         
+        // Ledge detection
+        if (this.isGrounded && this.state === 'walk') {
+            let hasFloorAhead = false;
+            let probeX = (this.vx > 0) ? this.x + this.width + 5 : this.x - 5;
+            let probeY = this.y + this.height + 5;
+            for (let ent of game.entities) {
+                if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile') continue;
+                
+                if (probeX >= ent.x && probeX <= ent.x + ent.width &&
+                    probeY >= ent.y && probeY <= ent.y + ent.height) {
+                    hasFloorAhead = true;
+                    break;
+                }
+            }
+            if (!hasFloorAhead) {
+                this.vx *= -1;
+                this.facingDir = Math.sign(this.vx) || 1;
+                this.x += this.vx * 2;
+            }
+        }
+        
         // Collision with player
         if (this.x < game.player.x + game.player.width &&
             this.x + this.width > game.player.x &&
