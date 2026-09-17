@@ -1681,7 +1681,7 @@ this.entities.push(
         
         // Combo Timer Logic
         if (this.comboTimer > 0) {
-            this.comboTimer--;
+            this.comboTimer -= 0.5;
             if (this.comboTimer <= 0) {
                 this.combo = 0;
             }
