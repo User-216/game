@@ -939,7 +939,7 @@ class Splatter extends Entity {
         this.image.onload = () => { this.imageLoaded = true; };
         // Center the splatter on x, and place it exactly at y
         this.x = x - 50; 
-        this.y = y - 90; // Adjust so it sits on the ground
+        this.y = y - 10; // Adjust so it sits on the ground
     }
     
     update(game) {
