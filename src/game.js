@@ -1006,6 +1006,9 @@ class Game {
             case 'obj_slime':
                 entity = new Slime(x, y, w, h);
                 break;
+            case 'obj_baddiespawner':
+                entity = new BaddieSpawner(x, y, w, h);
+                break;
         }
 
         if (entity) {
@@ -1054,6 +1057,7 @@ class Game {
             else if (ent instanceof TargetDoorBase) line += `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof TutorialBook) line += `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             else if (ent instanceof Slime) line += `new Slime(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof BaddieSpawner) line += `new BaddieSpawner(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof BigCollect) line += `new BigCollect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Collect) line += `new Collect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             code += line + `,\n`;

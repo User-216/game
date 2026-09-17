@@ -844,3 +844,57 @@ class Slime extends Entity {
 
     }
 }
+
+class BaddieSpawner extends Entity {
+    constructor(x, y, width = 40, height = 40, baddieType = 'obj_slime') {
+        super(x, y, width, height, 'transparent');
+        this.type = 'obj_baddiespawner';
+        this.baddieType = baddieType;
+        this.spawnTimer = 100; // Initial delay
+        this.spawnInterval = 300; // 5 seconds (at 60fps)
+        this.currentBaddie = null;
+        
+        this.image = new Image();
+        this.image.src = 'spr_baddiespawner.png';
+        this.imageLoaded = false;
+        this.image.onload = () => { this.imageLoaded = true; };
+    }
+    
+    update(game) {
+        // If we have spawned a baddie, check if it's dead
+        if (this.currentBaddie) {
+            if (this.currentBaddie.isDestroyed || this.currentBaddie.markedForDeletion || this.currentBaddie.state === 'dead') {
+                this.currentBaddie = null;
+                this.spawnTimer = this.spawnInterval;
+            }
+        } else {
+            // Only spawn if near camera
+            const dx = (this.x + this.width/2) - (game.camera.x + game.canvas.width/2);
+            const dy = (this.y + this.height/2) - (game.camera.y + game.canvas.height/2);
+            if (Math.abs(dx) > game.canvas.width || Math.abs(dy) > game.canvas.height) return;
+            
+            this.spawnTimer--;
+            if (this.spawnTimer <= 0) {
+                if (this.baddieType === 'obj_slime') {
+                    const slime = new Slime(this.x, this.y, 40, 40);
+                    game.entities.push(slime);
+                    this.currentBaddie = slime;
+                    
+                    if (game.audio && game.audio.play) game.audio.play('jump');
+                }
+            }
+        }
+    }
+    
+    render(ctx) {
+        if (this.imageLoaded) {
+            ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = '#666';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
+    }
+}
