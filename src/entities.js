@@ -614,7 +614,7 @@ class Slime extends Entity {
         } else if (this.state === 'walk') {
             this.x += this.vx;
             this.facingDir = Math.sign(this.vx) || 1;
-        } else if (this.state === 'stunned') {
+        } else if (this.state === 'stunned' || this.state === 'kicked') {
             this.x += this.vx;
             
             // Off-screen death for stunned enemy (Combo!)
@@ -860,6 +860,32 @@ class Slime extends Entity {
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
             }
+        }
+        
+        if (this.isGrounded && this.state === 'kicked') {
+            this.state = 'dead';
+            this.vy = -10;
+            this.vx = 5 * this.facingDir;
+            
+            let floorY = this.y + this.height;
+            let floorEnt = null;
+            for (let step = 0; step < 50; step += 10) {
+                let checkY = floorY + step;
+                let foundFloor = false;
+                for (let ent of game.entities) {
+                    if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                    if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
+                        if (checkY >= ent.y && checkY <= ent.y + ent.height) {
+                            floorY = ent.y;
+                            floorEnt = ent;
+                            foundFloor = true;
+                            break;
+                        }
+                    }
+                }
+                if (foundFloor) break;
+            }
+            game.entities.push(new Splatter(this.x + this.width/2, floorY, floorEnt));
         }
     }
 

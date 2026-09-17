@@ -757,12 +757,9 @@ class Player {
             if (this.kickWindupTimer <= 0) {
                 // Execute Kick
                 this.isHoldingEnemy = false;
-                this.heldEnemy.state = 'dead';
+                this.heldEnemy.state = 'kicked';
                 this.heldEnemy.vx = 20 * this.facingDir;
                 this.heldEnemy.vy = -5;
-                
-                let floorY = this.y + this.height;
-                entities.push(new Splatter(this.x + this.width/2, floorY, null));
                 
                 this.heldEnemy = null;
                 if (audio) audio.playFile('sfx_suplexdash', true);
