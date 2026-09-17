@@ -2362,14 +2362,63 @@ this.entities.push(
             }
         }
 
-        // Draw Score
+        // Draw Score (Pizza Tower Style)
         if (this.score !== undefined) {
             this.ctx.save();
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.font = 'bold 36px "Outfit", sans-serif';
-            this.ctx.textAlign = 'left';
-            this.ctx.textBaseline = 'top';
-            this.ctx.fillText('SCORE: ' + this.score, 40, 40);
+            const scoreX = 130;
+            const scoreY = 70;
+            const radiusX = 100;
+            const radiusY = 30;
+            
+            // Bottom crust (thick 3D edge)
+            this.ctx.fillStyle = '#9b2200'; // dark red/orange bottom
+            this.ctx.beginPath();
+            this.ctx.ellipse(scoreX, scoreY + 12, radiusX + 6, radiusY + 6, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.stroke();
+
+            // Main crust
+            this.ctx.fillStyle = '#e86b24'; // orange crust
+            this.ctx.beginPath();
+            this.ctx.ellipse(scoreX, scoreY, radiusX + 6, radiusY + 6, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Inner cheese
+            this.ctx.fillStyle = '#fcd051'; // yellow cheese
+            this.ctx.beginPath();
+            this.ctx.ellipse(scoreX, scoreY, radiusX - 4, radiusY - 4, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+            
+            // Text
+            const scoreStr = this.score.toString();
+            this.ctx.font = 'bold 50px "Impact", "Outfit", sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            for (let i = 0; i < scoreStr.length; i++) {
+                let char = scoreStr[i];
+                let bounceY = Math.sin((Date.now() / 150) + i) * 6;
+                // Calculate position to center the text string
+                let cX = scoreX - (scoreStr.length * 14) + (i * 28) + 14; 
+                
+                // Black outline
+                this.ctx.lineWidth = 8;
+                this.ctx.strokeStyle = '#000000';
+                this.ctx.lineJoin = 'round';
+                this.ctx.strokeText(char, cX, scoreY - 20 + bounceY);
+                
+                // Shadow / bottom highlight inside text
+                this.ctx.fillStyle = '#783820'; // dark brown shadow
+                this.ctx.fillText(char, cX, scoreY - 17 + bounceY);
+                
+                // Main text color
+                this.ctx.fillStyle = '#db8449'; // light brown/orange
+                this.ctx.fillText(char, cX, scoreY - 20 + bounceY);
+            }
             this.ctx.restore();
         }
         
