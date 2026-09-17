@@ -609,7 +609,7 @@ class Slime extends Entity {
             const isStomp = p.vy > 0 && p.y + p.height < this.y + 20 && !p.isGroundPounding;
             const isGroundPound = p.isGroundPounding;
             
-            const killCondition = isMach3 || isGroundPound || (this.state === 'stunned' && (isMach1or2 || isStomp));
+            const killCondition = isMach3 || isGroundPound;
             
             if (killCondition) {
                 // Kill immediately
