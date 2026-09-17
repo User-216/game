@@ -563,8 +563,12 @@ class Slime extends Entity {
         }
         
         // Simple gravity
-        this.vy += 0.5;
-        if (this.vy > 12) this.vy = 12;
+        if (this.state !== 'kicked') {
+            this.vy += 0.5;
+            if (this.vy > 12) this.vy = 12;
+        } else {
+            this.vy = 0; // Fly straight!
+        }
         
         this.bounceTimer += 0.1;
         

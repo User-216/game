@@ -759,7 +759,7 @@ class Player {
                 this.isHoldingEnemy = false;
                 this.heldEnemy.state = 'kicked';
                 this.heldEnemy.vx = 25 * this.facingDir;
-                this.heldEnemy.vy = -7;
+                this.heldEnemy.vy = 0;
                 
                 this.heldEnemy = null;
                 if (audio) audio.playFile('sfx_suplexdash', true);
