@@ -41,6 +41,7 @@ class Player {
         this.suplexGrabTimer = 0;
         this.isHoldingEnemy = false;
         this.heldEnemy = null;
+        this.kickWindupTimer = 0;
         this.requestScreenShake = 0;
         this.isClimbing = false;
         this.wallClimbGraceTimer = 0;
@@ -736,22 +737,41 @@ class Player {
             this.canGrab = false; // Consume the grab press immediately
         }
 
-        // Kick Held Enemy
-        if (this.grabBufferTimer > 0 && this.isHoldingEnemy && this.heldEnemy) {
-            this.isHoldingEnemy = false;
-            this.heldEnemy.state = 'dead';
-            this.heldEnemy.vx = 20 * this.facingDir;
-            this.heldEnemy.vy = -5;
-            
-            // Spawn splatter at current position since it's "killed"
-            let floorY = this.y + this.height;
-            entities.push(new Splatter(this.x + this.width/2, floorY, null));
-            
-            this.heldEnemy = null;
+        // Kick Held Enemy Trigger
+        if (this.grabBufferTimer > 0 && this.isHoldingEnemy && this.heldEnemy && this.kickWindupTimer <= 0) {
+            this.kickWindupTimer = 15;
             this.grabBufferTimer = 0;
             this.sprite_index = 'spr_player_suplexgrab';
             this.image_index = 0;
-            if (audio) audio.playFile('sfx_suplexdash', true);
+        }
+
+        // Kick Windup Logic
+        if (this.kickWindupTimer > 0) {
+            this.kickWindupTimer--;
+            
+            // Slow down time/movement effect (anti-gravity & friction)
+            this.vx *= 0.5;
+            this.vy *= 0.5;
+            if (this.vy > 0) this.vy -= this.gravity; // cancel gravity pulling down
+            
+            if (this.kickWindupTimer <= 0) {
+                // Execute Kick
+                this.isHoldingEnemy = false;
+                this.heldEnemy.state = 'dead';
+                this.heldEnemy.vx = 20 * this.facingDir;
+                this.heldEnemy.vy = -5;
+                
+                let floorY = this.y + this.height;
+                entities.push(new Splatter(this.x + this.width/2, floorY, null));
+                
+                this.heldEnemy = null;
+                if (audio) audio.playFile('sfx_suplexdash', true);
+                
+                // Knockback player backwards
+                this.vx = -5 * this.facingDir;
+                this.vy = -5;
+                this.isGrounded = false;
+            }
         }
 
         // Suplex Grab Trigger
