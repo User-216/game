@@ -437,6 +437,14 @@ class Collect extends Entity {
                 if (game.score === undefined) game.score = 0;
                 game.score += this.points;
                 
+                if (game.combo > 0) {
+                    if (this.type === 'obj_bigcollect') {
+                        game.comboTimer = 60;
+                    } else {
+                        game.comboTimer = Math.min(60, (game.comboTimer || 0) + 20);
+                    }
+                }
+                
                 // Spawn floating text at the touched position
                 game.floatingTexts = game.floatingTexts || [];
                 game.floatingTexts.push({
@@ -653,7 +661,7 @@ class Slime extends Entity {
                 this.vx = 15 * knockDir;
                 
                 game.combo = (game.combo || 0) + 1;
-                game.comboTimer = 300; // 5 seconds
+                game.comboTimer = 60; // 1 second (60 frames)
                 
                 const x = game.combo;
                 const pts = Math.floor(x * x * 0.25 + 10 * x);

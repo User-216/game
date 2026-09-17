@@ -2531,7 +2531,7 @@ this.entities.push(
             // Draw combo timer bar
             const barWidth = 150;
             const barHeight = 10;
-            const timerRatio = this.comboTimer / 300;
+            const timerRatio = this.comboTimer / 60;
             
             this.ctx.fillStyle = '#000';
             this.ctx.fillRect(-barWidth, 15, barWidth, barHeight);
