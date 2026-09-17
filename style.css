@@ -334,3 +334,114 @@ input[type=range]::-webkit-slider-runnable-track {
     background: rgba(0, 242, 255, 0.5);
     transform: scale(0.9);
 }
+
+
+/* Pizza Tower Editor UI Style */
+#editor-toolbar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    border: 2px solid #fff;
+    color: #fff;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 0;
+    pointer-events: auto;
+    z-index: 1000;
+}
+
+.editor-topbar {
+    display: flex;
+    border-bottom: 2px solid #fff;
+}
+
+.editor-tab {
+    background: #000;
+    color: #fff;
+    border: none;
+    border-right: 2px solid #fff;
+    padding: 10px 15px;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.editor-tab:hover, .editor-tab.active {
+    background: #fff;
+    color: #000;
+}
+
+.editor-main {
+    display: flex;
+    height: 400px;
+}
+
+.editor-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 100px;
+    border-right: 2px solid #fff;
+}
+
+.sidebar-tab {
+    background: #000;
+    color: #fff;
+    border: none;
+    border-bottom: 2px solid #fff;
+    padding: 8px 5px;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.sidebar-tab:hover, .sidebar-tab.active {
+    background: #fff;
+    color: #000;
+}
+
+.palette-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 45px);
+    grid-template-rows: repeat(10, 45px);
+    gap: 2px;
+    padding: 5px;
+    background: #000;
+    overflow-y: auto;
+}
+
+.tool-btn {
+    background: #222;
+    color: #fff;
+    border: 1px solid #444;
+    font-size: 11px;
+    padding: 2px;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    word-break: break-all;
+}
+
+.tool-btn:hover, .tool-btn.active {
+    border: 2px solid #fff;
+    background: #444;
+}
+
+.editor-hint {
+    position: absolute;
+    top: 20px;
+    left: 450px;
+    color: #fff;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    font-size: 18px;
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none;
+    white-space: nowrap;
+}
