@@ -812,14 +812,6 @@ class Slime extends Entity {
     }
 
     render(ctx) {
-        if (this.state === 'stunned' || this.state === 'dead') {
-            // Draw upside down or skewed
-            ctx.save();
-            ctx.translate(this.x + this.width/2, this.y + this.height/2);
-            // Flip upside down
-            ctx.scale(1, -1);
-            ctx.translate(-(this.x + this.width/2), -(this.y + this.height/2));
-        }
         
         const isScared = this.state === 'scared';
         
