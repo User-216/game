@@ -738,7 +738,8 @@ class Slime extends Entity {
         }
         
         // Collision with player
-        if (this.x < game.player.x + game.player.width &&
+        if (this.state !== 'dead' && 
+            this.x < game.player.x + game.player.width &&
             this.x + this.width > game.player.x &&
             this.y < game.player.y + game.player.height &&
             this.y + this.height > game.player.y) {
