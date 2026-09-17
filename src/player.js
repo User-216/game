@@ -1271,8 +1271,10 @@ class Player {
             this.image_speed = 0.4;
         } else if (this.sprite_index === 'spr_player_fall') {
             this.image_speed = 0.4;
-        } else if (this.sprite_index === 'spr_player_jump' || this.sprite_index === 'spr_player_mach3jump') {
-            this.image_speed = 0.4; // Eí”„ E Eˆë©”ì´EEEë„
+        } else if (this.sprite_index === 'spr_player_jump') {
+            this.image_speed = 0.4;
+        } else if (this.sprite_index === 'spr_player_mach3jump') {
+            this.image_speed = 0.7; // Eí”„ E Eˆë©”ì´EEEë„
         } else if (this.sprite_index === 'spr_player_land') {
             this.image_speed = 0.45; // E E€ E”ì²­: E©E€ E Eˆë©”ì´EEEë„ E¬E°EE
         } else if (this.sprite_index === 'spr_player_roll') {
