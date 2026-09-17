@@ -382,3 +382,123 @@ class TutorialBook extends Entity {
     }
 }
 
+
+class Collect extends Entity {
+    constructor(x, y, w = 32, h = 32) {
+        super(x, y, w, h);
+        this.type = 'obj_collect';
+        this.state = 'idle'; // idle, following, collected
+        this.vx = 0;
+        this.vy = 0;
+        this.speed = 0;
+        this.uiX = 0;
+        this.uiY = 0;
+        this.baseY = y;
+        this.timer = Math.random() * 100;
+        this.isSolid = false;
+        this.isPlatform = false;
+        
+        // Load default sprite if available
+        this.img = new Image();
+        this.img.src = 'effect/spr_mach_effect/spr_mach_effect1.png'; // Placeholder if no coin sprite exists
+    }
+
+    update(game) {
+        if (this.state === 'idle') {
+            this.timer += 0.1;
+            this.y = this.baseY + Math.sin(this.timer) * 5;
+
+            const dx = (game.player.x + game.player.width / 2) - (this.x + this.width / 2);
+            const dy = (game.player.y + game.player.height / 2) - (this.y + this.height / 2);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 150) {
+                this.state = 'following';
+            }
+        } else if (this.state === 'following') {
+            const dx = (game.player.x + game.player.width / 2) - (this.x + this.width / 2);
+            const dy = (game.player.y + game.player.height / 2) - (this.y + this.height / 2);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 0) {
+                this.speed += 0.5;
+                this.vx = (dx / dist) * this.speed;
+                this.vy = (dy / dist) * this.speed;
+            }
+
+            this.x += this.vx;
+            this.y += this.vy;
+
+            // Collision with player
+            if (this.x < game.player.x + game.player.width &&
+                this.x + this.width > game.player.x &&
+                this.y < game.player.y + game.player.height &&
+                this.y + this.height > game.player.y) {
+                
+                this.state = 'collected';
+                if (game.audio) game.audio.play('sfx_collect'); // Assuming a sound might exist
+                
+                this.uiX = this.x - game.camera.x;
+                this.uiY = this.y - game.camera.y;
+            }
+        } else if (this.state === 'collected') {
+            // Fly to scoreboard (top left)
+            const targetX = 50;
+            const targetY = 50;
+
+            const dx = targetX - this.uiX;
+            const dy = targetY - this.uiY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 20) {
+                this.markedForDeletion = true;
+                if (game.score === undefined) game.score = 0;
+                game.score += 10;
+                
+                game.floatingTexts = game.floatingTexts || [];
+                game.floatingTexts.push({
+                    x: targetX + 20,
+                    y: targetY,
+                    text: '10',
+                    alpha: 1.0,
+                    vy: -2
+                });
+            } else {
+                this.uiX += (dx / dist) * 20;
+                this.uiY += (dy / dist) * 20;
+            }
+        }
+    }
+
+    render(ctx, camera) {
+        if (this.state === 'idle' || this.state === 'following') {
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(this.x - camera.x + this.width / 2, this.y - camera.y + this.height / 2, this.width / 2 - 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#f39c12';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('10', this.x - camera.x + this.width / 2, this.y - camera.y + this.height / 2);
+        } else if (this.state === 'collected') {
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(this.uiX + this.width / 2, this.uiY + this.height / 2, this.width / 2 - 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#f39c12';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('10', this.uiX + this.width / 2, this.uiY + this.height / 2);
+        }
+    }
+}

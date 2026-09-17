@@ -982,6 +982,9 @@ class Game {
                     entity = new TutorialBook(x, y, w, h, tutText);
                 }
                 break;
+            case 'obj_collect':
+                entity = new Collect(x, y, w, h);
+                break;
         }
 
         if (entity) {
@@ -1029,6 +1032,7 @@ class Game {
             else if (ent instanceof Door) line += `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if (ent instanceof TargetDoorBase) line += `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof TutorialBook) line += `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
+            else if (ent instanceof Collect) line += `new Collect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             code += line + `,\n`;
         });
         code += `);`;
@@ -1649,6 +1653,17 @@ this.entities.push(
         }
 
         this.player.update(this.keys, this.entities, this.audio);
+
+        if (this.floatingTexts) {
+            for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+                let ft = this.floatingTexts[i];
+                ft.y += ft.vy;
+                ft.alpha -= 0.02;
+                if (ft.alpha <= 0) {
+                    this.floatingTexts.splice(i, 1);
+                }
+            }
+        }
 
         // Out of bounds respawn
         const boundsBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
@@ -2335,6 +2350,30 @@ this.entities.push(
                 drawText('PRESS ANY KEY', this.canvas.width / 2, this.canvas.height / 2 - 20, 1, 1, true);
                 drawText('GOING BACK IN... ' + this.bindingTimeout, this.canvas.width / 2, this.canvas.height / 2 + 40, 1, 1, true);
             }
+        }
+
+        // Draw Score
+        if (this.score !== undefined) {
+            this.ctx.save();
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = 'bold 36px "Outfit", sans-serif';
+            this.ctx.textAlign = 'left';
+            this.ctx.textBaseline = 'top';
+            this.ctx.fillText('SCORE: ' + this.score, 40, 40);
+            this.ctx.restore();
+        }
+        
+        // Draw Floating Texts
+        if (this.floatingTexts) {
+            this.ctx.save();
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.font = 'bold 36px "Outfit", sans-serif';
+            for (let ft of this.floatingTexts) {
+                this.ctx.fillStyle = `rgba(255, 215, 0, ${ft.alpha})`; // Gold color
+                this.ctx.fillText(ft.text, ft.x, ft.y);
+            }
+            this.ctx.restore();
         }
 
         // Draw Tutorial Book Banner UI
