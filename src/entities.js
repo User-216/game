@@ -680,13 +680,39 @@ class Slime extends Entity {
         
         if (hitWall || this.x < 0 || (game.roomWidth && this.x + this.width > game.roomWidth)) {
             if (this.state === 'kicked') {
-                this.markedForDeletion = true;
+                this.state = 'dead';
                 if (game.audio && game.audio.play) game.audio.play('break');
                 
                 game.player.requestScreenShake = 20; // Strong screen shake on wall crash!
                 
+                // Grant Combo & Points
+                if (!this.spawnedBySpawner) {
+                    game.combo = (game.combo || 0) + 1;
+                    game.comboTimer = 60; 
+                    const x = game.combo;
+                    const pts = Math.floor(x * x * 0.25 + 10 * x);
+                    if (game.score === undefined) game.score = 0;
+                    game.score += pts;
+                    
+                    game.floatingTexts = game.floatingTexts || [];
+                    game.floatingTexts.push({
+                        x: this.x + this.width / 2,
+                        y: this.y,
+                        text: pts.toString(),
+                        alpha: 1.0,
+                        vy: -1
+                    });
+                } else if (game.combo > 0) {
+                    game.comboTimer = 60;
+                }
+                
+                // Bounce dead body off the wall
+                this.vx = -10 * this.facingDir;
+                this.vy = -10;
+                
                 // Spawn splatter on the wall
-                let wallX = this.vx > 0 ? this.x + this.width + 50 : this.x - 50; // shift fully into wall
+                let oldVx = 10 * this.facingDir;
+                let wallX = oldVx > 0 ? this.x + this.width + 50 : this.x - 50;
                 game.entities.push(new Splatter(wallX, this.y + this.height/2, hitWallEnt)); // Wall splatter
                 return;
             } else if (this.state === 'walk') {
