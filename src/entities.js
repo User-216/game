@@ -574,7 +574,7 @@ class Slime extends Entity {
             const p = game.player;
             const absV = Math.abs(p.vx);
             const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index === 'spr_player_mach3jump';
-            if (isMach3) {
+            if (isMach3 && !p.isTaunting) {
                 const dx = (p.x + p.width/2) - (this.x + this.width/2);
                 const dy = (p.y + p.height/2) - (this.y + this.height/2);
                 const dist = Math.sqrt(dx*dx + dy*dy);
