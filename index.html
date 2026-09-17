@@ -48,29 +48,29 @@
                 
                 <div class="editor-main">
                     <div class="editor-sidebar">
-                        <button class="sidebar-tab active">Solids</button>
-                        <button class="sidebar-tab">Objects</button>
-                        <button class="sidebar-tab">Triggers</button>
-                        <button class="sidebar-tab">Tiles</button>
+                        <button class="sidebar-tab active" data-target="solids">Solids</button>
+                        <button class="sidebar-tab" data-target="objects">Objects</button>
+                        <button class="sidebar-tab" data-target="triggers">Triggers</button>
+                        <button class="sidebar-tab" data-target="tiles">Tiles</button>
                     </div>
                     
                     <div class="palette-grid">
-                        <button class="tool-btn active" data-type="platform">SOLID</button>
-                        <button class="tool-btn" data-type="oneway">UP</button>
-                        <button class="tool-btn" data-type="ladder">LADR</button>
-                        <button class="tool-btn" data-type="slope-left">SL /</button>
-                        <button class="tool-btn" data-type="slope-right">SL \</button>
-                        <button class="tool-btn" data-type="destroyable">BRK</button>
-                        <button class="tool-btn" data-type="metal" style="background:#555">MTL</button>
-                        <button class="tool-btn" data-type="tile" style="background:#8B4513">TILE</button>
+                        <button class="tool-btn active" data-type="platform" data-category="solids">SOLID</button>
+                        <button class="tool-btn" data-type="oneway" data-category="solids">UP</button>
+                        <button class="tool-btn" data-type="ladder" data-category="solids">LADR</button>
+                        <button class="tool-btn" data-type="slope-left" data-category="solids">SL /</button>
+                        <button class="tool-btn" data-type="slope-right" data-category="solids">SL \</button>
+                        <button class="tool-btn" data-type="destroyable" data-category="solids">BRK</button>
+                        <button class="tool-btn" data-type="metal" style="background:#555" data-category="solids">MTL</button>
+                        <button class="tool-btn" data-type="tile" data-category="tiles" style="background:#8B4513; display:none;">TILE</button>
                         
-                        <button class="tool-btn" data-type="hallway">HALL</button>
-                        <button class="tool-btn" data-type="door">DOOR</button>
-                        <button class="tool-btn" data-type="targetDoor">T-DR</button>
-                        <button class="tool-btn" data-type="tutorialbook">BOOK</button>
+                        <button class="tool-btn" data-type="hallway" data-category="triggers" style="display:none;">HALL</button>
+                        <button class="tool-btn" data-type="door" data-category="objects" style="display:none;">DOOR</button>
+                        <button class="tool-btn" data-type="targetDoor" data-category="triggers" style="display:none;">T-DR</button>
+                        <button class="tool-btn" data-type="tutorialbook" data-category="objects" style="display:none;">BOOK</button>
                         
-                        <button class="tool-btn" data-type="obj_collect" style="background:#f1c40f; color:#000;">COL</button>
-                        <button class="tool-btn" data-type="obj_bigcollect" style="background:#e67e22; color:#fff;">BCOL</button>
+                        <button class="tool-btn" data-type="obj_collect" data-category="objects" style="background:#f1c40f; color:#000; display:none;">COL</button>
+                        <button class="tool-btn" data-type="obj_bigcollect" data-category="objects" style="background:#e67e22; color:#fff; display:none;">BCOL</button>
                     </div>
                 </div>
             </div>
@@ -89,6 +89,29 @@
                 });
                 window.addEventListener('DOMContentLoaded', () => {
                     observer.observe(document.getElementById('editor-toolbar'), { attributes: true, attributeFilter: ['class'] });
+                    
+                    // Category tab logic
+                    const sidebarTabs = document.querySelectorAll('.sidebar-tab');
+                    const toolBtns = document.querySelectorAll('#editor-toolbar .tool-btn');
+                    
+                    sidebarTabs.forEach(tab => {
+                        tab.addEventListener('click', () => {
+                            sidebarTabs.forEach(t => t.classList.remove('active'));
+                            tab.classList.add('active');
+                            const target = tab.dataset.target;
+                            
+                            toolBtns.forEach(btn => {
+                                if (btn.dataset.category === target) {
+                                    btn.style.display = 'flex';
+                                } else {
+                                    btn.style.display = 'none';
+                                }
+                            });
+                        });
+                    });
+                    
+                    // Trigger initial state
+                    document.querySelector('.sidebar-tab.active').click();
                 });
             </script>
 
