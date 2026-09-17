@@ -559,7 +559,7 @@ class Slime extends Entity {
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist < 300) {
                     this.state = 'scared';
-                    this.scaredTimer = 50;
+                    this.scaredTimer = 100;
                     this.vx = 0;
                     this.vy = -2; // hop up slightly
                     if (game.audio && game.audio.play) game.audio.play('jump');
