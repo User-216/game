@@ -2447,20 +2447,23 @@ this.entities.push(
                 // Use credits font for floating text
                 const textStr = ft.text.toString();
                 
-                // Calculate total width
+                // Calculate total width with tighter spacing
                 let totalW = 0;
+                const kerning = -16; // Much tighter spacing
                 let charImages = [];
                 for (let i = 0; i < textStr.length; i++) {
                     const charIdx = this.creditsFontMap.indexOf(textStr[i]);
                     if (charIdx !== -1 && this.creditsFontImages[charIdx]) {
                         const img = this.creditsFontImages[charIdx];
                         charImages.push(img);
-                        totalW += img.width || 30; // fallback width
+                        totalW += (img.width || 30) + kerning; 
                     } else {
                         charImages.push(null);
-                        totalW += 30;
+                        totalW += 30 + kerning;
                     }
                 }
+                
+                if (textStr.length > 0) totalW -= kerning;
                 
                 let screenX = ft.x - this.camera.x;
                 let screenY = ft.y - this.camera.y;
@@ -2470,7 +2473,7 @@ this.entities.push(
                     const img = charImages[i];
                     if (img && img.complete) {
                         this.ctx.drawImage(img, startX, screenY - img.height / 2);
-                        startX += img.width;
+                        startX += img.width + kerning;
                     } else {
                         // Fallback text drawing if image isn't loaded or character isn't mapped
                         this.ctx.font = 'bold 36px "Outfit", sans-serif';
@@ -2478,7 +2481,7 @@ this.entities.push(
                         this.ctx.textAlign = 'left';
                         this.ctx.textBaseline = 'middle';
                         this.ctx.fillText(textStr[i], startX, screenY);
-                        startX += 30;
+                        startX += 30 + kerning;
                     }
                 }
             }
