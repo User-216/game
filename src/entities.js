@@ -642,7 +642,7 @@ class Slime extends Entity {
         
         // AABB with solid platforms
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -670,7 +670,7 @@ class Slime extends Entity {
         this.isGrounded = false;
         
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             // Handle oneway
             if (ent.type === 'oneway' && this.vy < 0) continue;
             
@@ -724,7 +724,7 @@ class Slime extends Entity {
             let probeX = (this.vx > 0) ? this.x + this.width + 5 : this.x - 5;
             let probeY = this.y + this.height + 5;
             for (let ent of game.entities) {
-                if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'ladder' || ent.type === 'tile') continue;
+                if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile') continue;
                 
                 if (probeX >= ent.x && probeX <= ent.x + ent.width &&
                     probeY >= ent.y && probeY <= ent.y + ent.height) {
@@ -759,14 +759,16 @@ class Slime extends Entity {
                 // Spawn splatter on the ground below
                 let floorY = this.y + this.height;
                 // Raycast down up to 200 pixels to find a solid platform
+                let floorEnt = null;
                 for (let step = 0; step < 200; step += 10) {
                     let checkY = floorY + step;
                     let foundFloor = false;
                     for (let ent of game.entities) {
-                        if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner') continue;
+                        if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'obj_splatter') continue;
                         if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
                             if (checkY >= ent.y && checkY <= ent.y + ent.height) {
                                 floorY = ent.y;
+                                floorEnt = ent;
                                 foundFloor = true;
                                 break;
                             }
@@ -774,7 +776,7 @@ class Slime extends Entity {
                     }
                     if (foundFloor) break;
                 }
-                game.entities.push(new Splatter(this.x + this.width/2, floorY));
+                game.entities.push(new Splatter(this.x + this.width/2, floorY, floorEnt));
 
                 // Kill immediately (fly off screen)
                 this.state = 'dead';
@@ -927,9 +929,10 @@ class BaddieSpawner extends Entity {
 }
 
 class Splatter extends Entity {
-    constructor(x, y) {
+    constructor(x, y, floorEnt = null) {
         super(x, y, 100, 100, 'transparent');
         this.type = 'obj_splatter';
+        this.floorEnt = floorEnt;
         this.image = new Image();
         this.image.src = 'spr_slimeSplatter.png';
         this.imageLoaded = false;
@@ -945,7 +948,16 @@ class Splatter extends Entity {
     
     render(ctx) {
         if (this.imageLoaded) {
-            ctx.drawImage(this.image, this.x, this.y, 100, 100);
+            if (this.floorEnt) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(this.floorEnt.x, this.floorEnt.y, this.floorEnt.width, this.floorEnt.height);
+                ctx.clip();
+                ctx.drawImage(this.image, this.x, this.y, 100, 100);
+                ctx.restore();
+            } else {
+                ctx.drawImage(this.image, this.x, this.y, 100, 100);
+            }
         }
     }
 }
