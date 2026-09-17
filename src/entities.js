@@ -429,9 +429,9 @@ class Collect extends Entity {
                 this.y < game.player.y + game.player.height &&
                 this.y + this.height > game.player.y) {
                 
+                this.state = 'collected';
                 if (game.audio && game.audio.play) game.audio.play('sfx_collect'); 
                 
-                this.markedForDeletion = true;
                 if (game.score === undefined) game.score = 0;
                 game.score += 10;
                 
@@ -444,6 +444,21 @@ class Collect extends Entity {
                     alpha: 1.0,
                     vy: -1
                 });
+            }
+        } else if (this.state === 'collected') {
+            // Fly to scoreboard in world space (scoreboard center is at screen 130, 70)
+            const targetX = game.camera.x + 130;
+            const targetY = game.camera.y + 70;
+
+            const dx = targetX - this.x;
+            const dy = targetY - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 20) {
+                this.markedForDeletion = true;
+            } else {
+                this.x += (dx / dist) * 20;
+                this.y += (dy / dist) * 20;
             }
         }
     }
