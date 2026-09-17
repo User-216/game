@@ -536,6 +536,18 @@ class Slime extends Entity {
         
         this.bounceTimer += 0.1;
         
+        // Wake up on taunt
+        if (this.state === 'stunned' && game.player.isTaunting && game.player.tauntTimer === 20) {
+            const isOffScreen = (this.x + this.width < game.camera.x || this.x > game.camera.x + game.canvas.width ||
+                                 this.y + this.height < game.camera.y || this.y > game.camera.y + game.canvas.height);
+            if (!isOffScreen) {
+                this.state = 'walk';
+                this.stunTimer = 0;
+                this.vy = -5;
+                this.vx = 2 * this.facingDir;
+            }
+        }
+        
         if (this.state === 'walk') {
             this.x += this.vx;
             this.facingDir = Math.sign(this.vx) || 1;
