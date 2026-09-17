@@ -519,7 +519,7 @@ class Slime extends Entity {
         
         this.sprites = [];
         this.image_index = 0;
-        this.image_speed = 0.45;
+        this.image_speed = 1/3;
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
             img.src = `spr_slimewalk/spr_slimewalk${i}.png`;
