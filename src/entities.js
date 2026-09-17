@@ -549,6 +549,36 @@ class Slime extends Entity {
         }
         
         if (this.state === 'walk') {
+            // Check for player mach3 proximity (scared state)
+            const p = game.player;
+            const absV = Math.abs(p.vx);
+            const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index === 'spr_player_mach3jump';
+            if (isMach3) {
+                const dx = (p.x + p.width/2) - (this.x + this.width/2);
+                const dy = (p.y + p.height/2) - (this.y + this.height/2);
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 300) {
+                    this.state = 'scared';
+                    this.scaredTimer = 50;
+                    this.vx = 0;
+                    this.vy = -2; // hop up slightly
+                    if (game.audio && game.audio.play) game.audio.play('jump');
+                }
+            }
+        }
+        
+        if (this.state === 'scared') {
+            this.scaredTimer--;
+            // Wake up on taunt
+            if (game.player.isTaunting && game.player.tauntTimer === 20) {
+                this.state = 'walk';
+                this.vx = 2 * this.facingDir;
+            } else if (this.scaredTimer <= 0 && this.isGrounded) {
+                this.state = 'walk';
+                this.vx = 2 * this.facingDir;
+            }
+            this.x += this.vx;
+        } else if (this.state === 'walk') {
             this.x += this.vx;
             this.facingDir = Math.sign(this.vx) || 1;
         } else if (this.state === 'stunned') {
@@ -746,14 +776,22 @@ class Slime extends Entity {
             ctx.translate(-(this.x + this.width/2), -(this.y + this.height/2));
         }
         
+        const isScared = this.state === 'scared';
         const stretchY = (this.state === 'stunned' || this.state === 'dead') ? 0 : Math.sin(this.bounceTimer) * 4;
         const stretchX = (this.state === 'stunned' || this.state === 'dead') ? 0 : -stretchY / 2;
+        
+        let drawX = this.x;
+        let drawY = this.y;
+        if (isScared) {
+            drawX += (Math.random() - 0.5) * 6;
+            drawY += (Math.random() - 0.5) * 6;
+        }
         
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.ellipse(
-            this.x + this.width / 2, 
-            this.y + this.height - (this.height/2 - stretchY/2), 
+            drawX + this.width / 2, 
+            drawY + this.height - (this.height/2 - stretchY/2), 
             this.width / 2 + stretchX, 
             this.height / 2 - stretchY, 
             0, 0, Math.PI * 2
@@ -771,27 +809,41 @@ class Slime extends Entity {
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(this.x + this.width / 2 + eyeOffset - 8, this.y + 15 - 3);
-            ctx.lineTo(this.x + this.width / 2 + eyeOffset - 2, this.y + 15 + 3);
-            ctx.moveTo(this.x + this.width / 2 + eyeOffset - 2, this.y + 15 - 3);
-            ctx.lineTo(this.x + this.width / 2 + eyeOffset - 8, this.y + 15 + 3);
+            ctx.moveTo(drawX + this.width / 2 + eyeOffset - 8, drawY + 15 - 3);
+            ctx.lineTo(drawX + this.width / 2 + eyeOffset - 2, drawY + 15 + 3);
+            ctx.moveTo(drawX + this.width / 2 + eyeOffset - 2, drawY + 15 - 3);
+            ctx.lineTo(drawX + this.width / 2 + eyeOffset - 8, drawY + 15 + 3);
             
-            ctx.moveTo(this.x + this.width / 2 + eyeOffset + 2, this.y + 15 - 3);
-            ctx.lineTo(this.x + this.width / 2 + eyeOffset + 8, this.y + 15 + 3);
-            ctx.moveTo(this.x + this.width / 2 + eyeOffset + 8, this.y + 15 - 3);
-            ctx.lineTo(this.x + this.width / 2 + eyeOffset + 2, this.y + 15 + 3);
+            ctx.moveTo(drawX + this.width / 2 + eyeOffset + 2, drawY + 15 - 3);
+            ctx.lineTo(drawX + this.width / 2 + eyeOffset + 8, drawY + 15 + 3);
+            ctx.moveTo(drawX + this.width / 2 + eyeOffset + 8, drawY + 15 - 3);
+            ctx.lineTo(drawX + this.width / 2 + eyeOffset + 2, drawY + 15 + 3);
             ctx.stroke();
-        } else {
+        } else if (isScared) {
+            // Big scared eyes
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(this.x + this.width / 2 + eyeOffset - 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
-            ctx.arc(this.x + this.width / 2 + eyeOffset + 5, this.y + 15 + stretchY, 4, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width / 2 - 6, drawY + 15, 6, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width / 2 + 6, drawY + 15, 6, 0, Math.PI * 2);
             ctx.fill();
             
             ctx.fillStyle = '#000';
             ctx.beginPath();
-            ctx.arc(this.x + this.width / 2 + eyeOffset - 3, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
-            ctx.arc(this.x + this.width / 2 + eyeOffset + 7, this.y + 15 + stretchY, 1.5, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width / 2 - 6, drawY + 15, 2, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width / 2 + 6, drawY + 15, 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // normal eyes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(drawX + this.width / 2 + eyeOffset - 5, drawY + 15 + stretchY, 4, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width / 2 + eyeOffset + 5, drawY + 15 + stretchY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(drawX + this.width / 2 + eyeOffset - 3, drawY + 15 + stretchY, 1.5, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width / 2 + eyeOffset + 7, drawY + 15 + stretchY, 1.5, 0, Math.PI * 2);
             ctx.fill();
         }
         
