@@ -460,7 +460,7 @@ class Player {
         }
 
         // Horizontal Movement (・罹ｦｬ嵓・敢・・・逸葺 ・ｬ・ｼ・ｴ・・・卓擽 ・・巨 ・誤ｧ・・ｰ・・・・･)
-        if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isClimbingLadder) {
+        if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isClimbingLadder && this.kickWindupTimer <= 0 && (this.kickKnockbackTimer || 0) <= 0) {
             let effLeft = keys.actionLeft;
             let effRight = keys.actionRight;
             
@@ -771,7 +771,11 @@ class Player {
                 this.vx = -5 * this.facingDir;
                 this.vy = -5;
                 this.isGrounded = false;
+                this.kickKnockbackTimer = 15;
             }
+        }
+        if (this.kickKnockbackTimer > 0) {
+            this.kickKnockbackTimer--;
         }
 
         // Suplex Grab Trigger
