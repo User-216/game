@@ -561,7 +561,7 @@ class Slime extends Entity {
                     this.state = 'scared';
                     this.scaredTimer = 100;
                     this.vx = 0;
-                    this.vy = -2; // hop up slightly
+                    this.vy = -4; // hop up slightly
                     this.facingDir = (p.x < this.x) ? -1 : 1; // Face the player
                     if (game.audio && game.audio.play) game.audio.play('jump');
                 }
