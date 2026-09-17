@@ -573,13 +573,13 @@ class Slime extends Entity {
             }
             
             this.state = 'dead';
-            this.vx = 0;
-            this.vy = 5;
+            this.vx = Math.random() > 0.5 ? 5 : -5;
+            this.vy = -12;
             
             // Raycast for floor splatter
             let floorY = this.y + this.height;
             let floorEnt = null;
-            for (let step = 0; step < 50; step += 10) {
+            for (let step = 0; step < 200; step += 10) {
                 let checkY = floorY + step;
                 let foundFloor = false;
                 for (let ent of game.entities) {
