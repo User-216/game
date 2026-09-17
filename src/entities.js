@@ -642,10 +642,12 @@ class Slime extends Entity {
                 this.vx *= 0.98; // Slight air friction
             }
             
-            this.stunTimer--;
-            if (this.stunTimer <= 0 && this.isGrounded) {
-                this.state = 'walk';
-                this.vx = 2 * this.facingDir;
+            if (this.state === 'stunned') {
+                this.stunTimer--;
+                if (this.stunTimer <= 0 && this.isGrounded) {
+                    this.state = 'walk';
+                    this.vx = 2 * this.facingDir;
+                }
             }
         }
         
