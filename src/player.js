@@ -39,6 +39,8 @@ class Player {
             this.image_speed = (this.vy !== 0) ? 0.3 : 0;
         this.isSuplexGrabbing = false;
         this.suplexGrabTimer = 0;
+        this.isHoldingEnemy = false;
+        this.heldEnemy = null;
         this.requestScreenShake = 0;
         this.isClimbing = false;
         this.wallClimbGraceTimer = 0;
@@ -734,8 +736,26 @@ class Player {
             this.canGrab = false; // Consume the grab press immediately
         }
 
+        // Kick Held Enemy
+        if (this.grabBufferTimer > 0 && this.isHoldingEnemy && this.heldEnemy) {
+            this.isHoldingEnemy = false;
+            this.heldEnemy.state = 'dead';
+            this.heldEnemy.vx = 20 * this.facingDir;
+            this.heldEnemy.vy = -5;
+            
+            // Spawn splatter at current position since it's "killed"
+            let floorY = this.y + this.height;
+            game.entities.push(new Splatter(this.x + this.width/2, floorY, null));
+            
+            this.heldEnemy = null;
+            this.grabBufferTimer = 0;
+            this.sprite_index = 'spr_player_suplexgrab';
+            this.image_index = 0;
+            if (audio) audio.playFile('sfx_suplexdash', true);
+        }
+
         // Suplex Grab Trigger
-        if (this.grabBufferTimer > 0 && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
+        if (this.grabBufferTimer > 0 && !this.isHoldingEnemy && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
             this.isSuplexGrabbing = true;
             this.image_index = 0;
             this.grabBufferTimer = 0; // Consume the buffer

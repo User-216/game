@@ -528,6 +528,17 @@ class Slime extends Entity {
     }
 
     update(game) {
+        if (this.state === 'held') {
+            const p = game.player;
+            if (p.isHoldingEnemy && p.heldEnemy === this) {
+                this.x = p.x + p.width/2 - this.width/2;
+                this.y = p.y - this.height + 10;
+                this.vx = 0;
+                this.vy = 0;
+                this.facingDir = p.facingDir || 1;
+                return;
+            }
+        }
         if (this.hitCooldown > 0) this.hitCooldown--;
         this.wasGrounded = this.isGrounded;
         if (this.state === 'walk') {
@@ -747,6 +758,17 @@ class Slime extends Entity {
             this.y + this.height > game.player.y) {
             
             const p = game.player;
+            
+            if (p.isSuplexGrabbing && !p.isHoldingEnemy) {
+                this.state = 'held';
+                p.isHoldingEnemy = true;
+                p.heldEnemy = this;
+                p.isSuplexGrabbing = false;
+                this.hitCooldown = 15;
+                if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
+                return;
+            }
+            
             const absV = Math.abs(p.vx);
             const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index === 'spr_player_mach3jump';
             const isMach1or2 = (absV >= 8 && absV < 12) || p.sprite_index.includes('mach2') || p.sprite_index === 'spr_player_suplexgrab' || p.sprite_index.includes('dash');
