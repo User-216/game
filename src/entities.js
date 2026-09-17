@@ -764,6 +764,10 @@ class Slime extends Entity {
                 
                 game.cameraShake = 20;
                 
+                if (game.combo > 0) {
+                    game.comboTimer = 60; // 1 second (60 frames)
+                }
+                
                 if (!this.spawnedBySpawner) {
                     game.combo = (game.combo || 0) + 1;
                     game.comboTimer = 60; // 1 second (60 frames)
