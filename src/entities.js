@@ -939,7 +939,7 @@ class Splatter extends Entity {
         this.image.onload = () => { this.imageLoaded = true; };
         // Center the splatter on x, and place it exactly at y
         this.x = x - 50; 
-        this.y = y - 10; // Adjust so it sits on the ground
+        this.y = y - 45; // Adjust so it sits on the ground
     }
     
     update(game) {
@@ -948,16 +948,15 @@ class Splatter extends Entity {
     
     render(ctx) {
         if (this.imageLoaded) {
+            ctx.save();
+            ctx.globalAlpha = 0.7; // Make it a bit transparent
             if (this.floorEnt) {
-                ctx.save();
                 ctx.beginPath();
                 ctx.rect(this.floorEnt.x, this.floorEnt.y, this.floorEnt.width, this.floorEnt.height);
                 ctx.clip();
-                ctx.drawImage(this.image, this.x, this.y, 100, 100);
-                ctx.restore();
-            } else {
-                ctx.drawImage(this.image, this.x, this.y, 100, 100);
             }
+            ctx.drawImage(this.image, this.x, this.y, 100, 100);
+            ctx.restore();
         }
     }
 }
