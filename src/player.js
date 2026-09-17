@@ -251,7 +251,7 @@ class Player {
         }
         
         this.effectSprites.spr_mach_effect = [];
-        for (let i = 1; i <= 6; i++) {
+        for (let i = 1; i <= 10; i++) {
             let img = new Image();
             img.src = `effect/spr_mach_effect/spr_mach_effect${i}.png`;
             this.effectSprites.spr_mach_effect.push(img);
