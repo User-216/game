@@ -519,7 +519,7 @@ class Slime extends Entity {
         
         // AABB with solid platforms
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || (!ent.isSolid && !ent.isPlatform)) continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway') continue;
             
             // Basic AABB check
             if (this.x < ent.x + ent.width &&
@@ -544,7 +544,9 @@ class Slime extends Entity {
         this.isGrounded = false;
         
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || (!ent.isSolid && !ent.isPlatform)) continue;
+            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'ladder' || ent.type === 'tile') continue;
+            // Handle oneway
+            if (ent.type === 'oneway' && this.vy < 0) continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -552,10 +554,19 @@ class Slime extends Entity {
                 this.y + this.height > ent.y) {
                 
                 if (this.vy > 0) { // Landing
-                    this.y = ent.y - this.height;
-                    this.vy = 0;
-                    this.isGrounded = true;
-                } else if (this.vy < 0 && ent.isSolid) { // Hit ceiling
+                    if (ent.type === 'oneway') {
+                        // Only land if previously above
+                        if (this.y - this.vy + this.height <= ent.y + 10) {
+                            this.y = ent.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                        }
+                    } else {
+                        this.y = ent.y - this.height;
+                        this.vy = 0;
+                        this.isGrounded = true;
+                    }
+                } else if (this.vy < 0 && ent.type !== 'oneway') { // Hit ceiling
                     this.y = ent.y + ent.height;
                     this.vy = 0;
                 }
