@@ -92,6 +92,7 @@ class Player {
             spr_player_roll: [],
             spr_player_mach2: [],
             spr_player_mach3: [],
+            spr_player_mach3jump: [],
             spr_player_rollgetup: [],
             spr_player_climbwall: [],
             spr_player_groundpoundland: [],
@@ -172,6 +173,13 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_mach3/spr_playerT_mach3_${i}.png`;
             this.sprites.spr_player_mach3.push(img);
+        }
+        
+        // Load mach3jump sprite (9 frames)
+        for (let i = 1; i <= 9; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_mach3jump/spr_player_mach3_jump${i}.png`;
+            this.sprites.spr_player_mach3jump.push(img);
         }
 
         // Load ground pound start sprite (10 frames)
@@ -1139,7 +1147,7 @@ class Player {
                 this.isGrounded = false;
         this.standingOnEntity = null;
                 this.jumpBufferTimer = 0;
-                this.sprite_index = 'spr_player_jump';
+                this.sprite_index = (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3') ? 'spr_player_mach3jump' : 'spr_player_jump';
                 this.image_index = 0;
                 if (audio) audio.play('jump');
                 
@@ -1164,7 +1172,7 @@ class Player {
                 // this.isWallJumping = true; // E E€ E”ì²­: EE·¸ E©E€E¼ EE•´ ú±­EEfalseEEE E€
                 this.facingDir = -this.wallSide;
                 this.jumpBufferTimer = 0;
-                this.sprite_index = 'spr_player_jump';
+                this.sprite_index = (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3') ? 'spr_player_mach3jump' : 'spr_player_jump';
                 this.image_index = 0;
                 if (audio) audio.play('jump');
             } else if (this.isTumbling) {
@@ -1224,7 +1232,7 @@ class Player {
         
         if (this.isTumbling) {
             this.sprite_index = 'spr_player_roll';
-        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump') {
+        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump') {
             this.sprite_index = 'spr_player_fall';
         } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand && !this.isSuplexGrabbing) {
             if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
@@ -1263,7 +1271,7 @@ class Player {
             this.image_speed = 0.4;
         } else if (this.sprite_index === 'spr_player_fall') {
             this.image_speed = 0.4;
-        } else if (this.sprite_index === 'spr_player_jump') {
+        } else if (this.sprite_index === 'spr_player_jump' || this.sprite_index === 'spr_player_mach3jump') {
             this.image_speed = 0.4; // Eí”„ E Eˆë©”ì´EEEë„
         } else if (this.sprite_index === 'spr_player_land') {
             this.image_speed = 0.45; // E E€ E”ì²­: E©E€ E Eˆë©”ì´EEEë„ E¬E°EE
@@ -1319,7 +1327,7 @@ class Player {
 
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
-        if (this.sprite_index === 'spr_player_mach3') {
+        if (this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
             this.machEffectIndex += 0.4;
         }
         }
@@ -1435,7 +1443,7 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
-            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3') {
+            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump') {
                 const frames = this.sprites[m.sprite_index];
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
@@ -1723,7 +1731,7 @@ class Player {
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
             }
-        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3') {
+        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
             const frames = this.sprites[this.sprite_index];
             const frameIndex = Math.floor(this.image_index) % frames.length;
             const img = frames[frameIndex];
@@ -1738,7 +1746,7 @@ class Player {
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
                 
-                if (this.sprite_index === 'spr_player_mach3') {
+                if (this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
                     const effectFrames = this.effectSprites.spr_mach_effect;
                     if (effectFrames && effectFrames.length > 0) {
                         const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
