@@ -515,6 +515,7 @@ class Slime extends Entity {
         this.state = 'walk'; // 'walk', 'stunned'
         this.stunTimer = 0;
         this.facingDir = 1;
+        this.hitCooldown = 0;
         
         this.sprites = [];
         this.image_index = 0;
@@ -527,6 +528,7 @@ class Slime extends Entity {
     }
 
     update(game) {
+        if (this.hitCooldown > 0) this.hitCooldown--;
         this.wasGrounded = this.isGrounded;
         if (this.state === 'walk') {
             this.image_index += this.image_speed;
@@ -738,7 +740,7 @@ class Slime extends Entity {
         }
         
         // Collision with player
-        if (this.state !== 'dead' && 
+        if (this.state !== 'dead' && this.hitCooldown <= 0 &&
             this.x < game.player.x + game.player.width &&
             this.x + this.width > game.player.x &&
             this.y < game.player.y + game.player.height &&
@@ -785,6 +787,7 @@ class Slime extends Entity {
                     p.sprite_index = 'spr_player_jump';
                 }
                 
+                this.hitCooldown = 15;
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
             } else if (isMach1or2 || isStomp) {
@@ -801,6 +804,7 @@ class Slime extends Entity {
                     p.sprite_index = 'spr_player_jump';
                 }
                 
+                this.hitCooldown = 15;
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
             }
