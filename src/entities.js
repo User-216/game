@@ -629,14 +629,21 @@ class Slime extends Entity {
                 this.vy = -15;
                 const knockDir = p.facingDir || 1;
                 this.vx = 15 * knockDir;
+                
+                game.combo = (game.combo || 0) + 1;
+                game.comboTimer = 300; // 5 seconds
+                
+                const x = game.combo;
+                const pts = Math.floor(x * x * 0.25 + 10 * x);
+                
                 if (game.score === undefined) game.score = 0;
-                game.score += 50;
+                game.score += pts;
                 
                 game.floatingTexts = game.floatingTexts || [];
                 game.floatingTexts.push({
                     x: this.x + this.width / 2,
                     y: this.y,
-                    text: '50',
+                    text: pts.toString(),
                     alpha: 1.0,
                     vy: -1
                 });

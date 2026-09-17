@@ -1679,6 +1679,14 @@ this.entities.push(
 
         this.player.update(this.keys, this.entities, this.audio);
         
+        // Combo Timer Logic
+        if (this.comboTimer > 0) {
+            this.comboTimer--;
+            if (this.comboTimer <= 0) {
+                this.combo = 0;
+            }
+        }
+        
         for (let i = this.entities.length - 1; i >= 0; i--) {
             let ent = this.entities[i];
             if (ent.update) {
@@ -2497,6 +2505,40 @@ this.entities.push(
                     }
                 }
             }
+            this.ctx.restore();
+        }
+
+        // Draw combo
+        if (this.combo > 0) {
+            this.ctx.save();
+            this.ctx.textAlign = 'right';
+            
+            // Wiggle effect based on timer
+            const wiggleX = Math.sin(Date.now() / 50) * 2;
+            const wiggleY = Math.cos(Date.now() / 50) * 2;
+            
+            this.ctx.translate(this.canvas.width - 50 + wiggleX, 150 + wiggleY);
+            
+            this.ctx.fillStyle = '#ff0000';
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 4;
+            this.ctx.font = 'bold 32px Arial';
+            
+            const comboText = `${this.combo} COMBO!`;
+            this.ctx.strokeText(comboText, 0, 0);
+            this.ctx.fillText(comboText, 0, 0);
+            
+            // Draw combo timer bar
+            const barWidth = 150;
+            const barHeight = 10;
+            const timerRatio = this.comboTimer / 300;
+            
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(-barWidth, 15, barWidth, barHeight);
+            
+            this.ctx.fillStyle = `hsl(${timerRatio * 120}, 100%, 50%)`;
+            this.ctx.fillRect(-barWidth, 15, barWidth * timerRatio, barHeight);
+            
             this.ctx.restore();
         }
 
