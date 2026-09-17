@@ -1232,7 +1232,7 @@ class Player {
         
         if (this.isTumbling) {
             this.sprite_index = 'spr_player_roll';
-        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump') {
+        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3') {
             this.sprite_index = 'spr_player_fall';
         } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand && !this.isSuplexGrabbing) {
             if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
@@ -1335,6 +1335,10 @@ class Player {
         // E E€ E”ì²­: Eí”„ E Eˆë©”ì´EEE¬Eì´ EE£Œë˜E´ E¨E´E€EEE Eˆë©”ì´E˜ìœ¼EEEë™ EE™˜
         if (this.sprite_index === 'spr_player_jump' && this.image_index >= this.sprites.spr_player_jump.length) {
             this.sprite_index = 'spr_player_fall';
+            this.image_index = 0;
+        }
+        if (this.sprite_index === 'spr_player_mach3jump' && this.image_index >= this.sprites.spr_player_mach3jump.length) {
+            this.sprite_index = 'spr_player_mach3';
             this.image_index = 0;
         }
 
