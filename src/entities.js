@@ -554,6 +554,23 @@ class Slime extends Entity {
         } else if (this.state === 'stunned') {
             this.x += this.vx;
             
+            // Off-screen death for stunned enemy (Combo!)
+            const isOffScreen = (this.x + this.width < game.camera.x || this.x > game.camera.x + game.canvas.width ||
+                                 this.y + this.height < game.camera.y || this.y > game.camera.y + game.canvas.height);
+            if (isOffScreen) {
+                this.markedForDeletion = true;
+                
+                game.combo = (game.combo || 0) + 1;
+                game.comboTimer = 60; 
+                const x = game.combo;
+                const pts = Math.floor(x * x * 0.25 + 10 * x);
+                if (game.score === undefined) game.score = 0;
+                game.score += pts;
+                
+                if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
+                return;
+            }
+            
             // Apply friction
             if (this.isGrounded) {
                 this.vx *= 0.85; // Ground friction
