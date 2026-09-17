@@ -1294,7 +1294,7 @@ class Player {
             if (this.sprite_index === 'spr_player_mach2') {
                 this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04);
             } else {
-                this.image_speed = 0.2 + (Math.abs(this.vx) * 0.02);
+                this.image_speed = 0.5 + (Math.abs(this.vx) * 0.03); // Faster mach3 animation
             } 
             
             if (this.isGrounded) {
