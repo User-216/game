@@ -759,13 +759,15 @@ class Slime extends Entity {
                 // Spawn splatter on the ground below
                 let floorY = this.y + this.height;
                 // Raycast down up to 200 pixels to find a solid platform
+                let splatterOffset = p.vx * 3;
+                let splatterX = this.x + this.width/2 + splatterOffset;
                 let floorEnt = null;
                 for (let step = 0; step < 200; step += 10) {
                     let checkY = floorY + step;
                     let foundFloor = false;
                     for (let ent of game.entities) {
-                        if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'obj_splatter') continue;
-                        if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
+                        if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                        if (splatterX >= ent.x && splatterX <= ent.x + ent.width) {
                             if (checkY >= ent.y && checkY <= ent.y + ent.height) {
                                 floorY = ent.y;
                                 floorEnt = ent;
@@ -776,7 +778,7 @@ class Slime extends Entity {
                     }
                     if (foundFloor) break;
                 }
-                game.entities.push(new Splatter(this.x + this.width/2, floorY, floorEnt));
+                game.entities.push(new Splatter(splatterX, floorY, floorEnt));
 
                 // Kill immediately (fly off screen)
                 this.state = 'dead';
