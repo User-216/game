@@ -1728,7 +1728,7 @@ class Player {
                         const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
                         const efImg = effectFrames[efIndex];
                         if (efImg && efImg.complete && efImg.naturalWidth > 0) {
-                            ctx.drawImage(efImg, -51 - 40, offsetY, 100, 100);
+                            ctx.drawImage(efImg, -51, offsetY, 100, 100);
                         }
                     }
                 }
