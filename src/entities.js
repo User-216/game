@@ -429,34 +429,21 @@ class Collect extends Entity {
                 this.y < game.player.y + game.player.height &&
                 this.y + this.height > game.player.y) {
                 
-                this.state = 'collected';
                 if (game.audio && game.audio.play) game.audio.play('sfx_collect'); 
-            }
-        } else if (this.state === 'collected') {
-            // Fly to scoreboard in world space (scoreboard is at screen 40, 40)
-            const targetX = game.camera.x + 40;
-            const targetY = game.camera.y + 40;
-
-            const dx = targetX - this.x;
-            const dy = targetY - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < 20) {
+                
                 this.markedForDeletion = true;
                 if (game.score === undefined) game.score = 0;
                 game.score += 10;
                 
+                // Spawn floating text at the touched position
                 game.floatingTexts = game.floatingTexts || [];
                 game.floatingTexts.push({
-                    x: targetX,
-                    y: targetY,
+                    x: this.x + this.width / 2,
+                    y: this.y,
                     text: '10',
                     alpha: 1.0,
-                    vy: -2
+                    vy: -1
                 });
-            } else {
-                this.x += (dx / dist) * 20;
-                this.y += (dy / dist) * 20;
             }
         }
     }

@@ -259,6 +259,21 @@ class Game {
             this.tutorialFontImages.push(img);
         }
 
+        // Load credits font
+        this.creditsFontImages = [];
+        const creditsFontIndices = [
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,15,16,17,18,19,20,21,22,23,24,25,26,
+            27,28,29,30,31,32,33,34,35,36,37,38,39,40,42,43,44,45,46,47,48,49,50,
+            51,52,53,54,55,56,58,59,60,61,62,63,64,65,66,67,68,69,70
+        ];
+        this.creditsFontMap = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:!0123456789?'\"";
+        
+        for (let i = 0; i < creditsFontIndices.length; i++) {
+            let img = new Image();
+            img.src = 'font/spr_creditsfont/spr_creditsfont_' + creditsFontIndices[i] + '.png';
+            this.creditsFontImages.push(img);
+        }
+
         // Load blank key
         this.tutorialBlankKeyImage = new Image();
         this.tutorialBlankKeyImage.src = 'tutorial/spr_tutorialkey.png';
@@ -2425,12 +2440,47 @@ this.entities.push(
         // Draw Floating Texts
         if (this.floatingTexts) {
             this.ctx.save();
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.font = 'bold 36px "Outfit", sans-serif';
+            this.ctx.globalAlpha = 1.0; // The floating text alpha is handled by ctx.globalAlpha
             for (let ft of this.floatingTexts) {
-                this.ctx.fillStyle = `rgba(255, 215, 0, ${ft.alpha})`; // Gold color
-                this.ctx.fillText(ft.text, ft.x, ft.y);
+                this.ctx.globalAlpha = Math.max(0, ft.alpha);
+                
+                // Use credits font for floating text
+                const textStr = ft.text.toString();
+                
+                // Calculate total width
+                let totalW = 0;
+                let charImages = [];
+                for (let i = 0; i < textStr.length; i++) {
+                    const charIdx = this.creditsFontMap.indexOf(textStr[i]);
+                    if (charIdx !== -1 && this.creditsFontImages[charIdx]) {
+                        const img = this.creditsFontImages[charIdx];
+                        charImages.push(img);
+                        totalW += img.width || 30; // fallback width
+                    } else {
+                        charImages.push(null);
+                        totalW += 30;
+                    }
+                }
+                
+                let screenX = ft.x - this.camera.x;
+                let screenY = ft.y - this.camera.y;
+                let startX = screenX - totalW / 2;
+                
+                for (let i = 0; i < textStr.length; i++) {
+                    const img = charImages[i];
+                    if (img && img.complete) {
+                        this.ctx.drawImage(img, startX, screenY - img.height / 2);
+                        startX += img.width;
+                    } else {
+                        // Fallback text drawing if image isn't loaded or character isn't mapped
+                        this.ctx.font = 'bold 36px "Outfit", sans-serif';
+                        this.ctx.fillStyle = `rgba(255, 215, 0, 1.0)`;
+                        this.ctx.textAlign = 'left';
+                        this.ctx.textBaseline = 'middle';
+                        this.ctx.fillText(textStr[i], startX, screenY);
+                        startX += 30;
+                    }
+                }
             }
             this.ctx.restore();
         }
