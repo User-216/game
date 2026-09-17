@@ -703,16 +703,6 @@ class Slime extends Entity {
                 
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
-            } else if (this.state !== 'stunned') {
-                // Hurt player (just knockback for now)
-                p.vx = (p.x < this.x) ? -10 : 10;
-                p.vy = -5;
-                p.sprite_index = 'spr_player_fall';
-                p.isMachSliding = false;
-                p.isDrifting = false;
-                p.isDrifting1 = false;
-                p.isGroundPounding = false;
-                p.isSuplexGrabbing = false;
             }
         }
     }
