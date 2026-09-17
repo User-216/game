@@ -538,7 +538,7 @@ class Game {
     setupEditorUI() {
         // Toolbar dragging logic
         const toolbar = document.getElementById('editor-toolbar');
-        const title = toolbar.querySelector('.toolbar-title');
+        const title = toolbar.querySelector('.editor-topbar') || toolbar;
         let isDraggingToolbar = false;
         let toolbarOffsetX = 0;
         let toolbarOffsetY = 0;

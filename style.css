@@ -413,7 +413,7 @@ input[type=range]::-webkit-slider-runnable-track {
     overflow-y: auto;
 }
 
-.tool-btn {
+#editor-toolbar .tool-btn {
     background: #222;
     color: #fff;
     border: 1px solid #444;
@@ -428,7 +428,7 @@ input[type=range]::-webkit-slider-runnable-track {
     word-break: break-all;
 }
 
-.tool-btn:hover, .tool-btn.active {
+#editor-toolbar .tool-btn:hover, #editor-toolbar .tool-btn.active {
     border: 2px solid #fff;
     background: #444;
 }
