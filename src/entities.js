@@ -515,9 +515,27 @@ class Slime extends Entity {
         this.state = 'walk'; // 'walk', 'stunned'
         this.stunTimer = 0;
         this.facingDir = 1;
+        
+        this.sprites = [];
+        this.image_index = 0;
+        this.image_speed = 0.3;
+        for (let i = 1; i <= 9; i++) {
+            let img = new Image();
+            img.src = `spr_slimewalk/spr_slimewalk${i}.png`;
+            this.sprites.push(img);
+        }
     }
 
     update(game) {
+        if (this.state === 'walk') {
+            this.image_index += this.image_speed;
+            if (this.image_index >= this.sprites.length) {
+                this.image_index = 0;
+            }
+        } else {
+            this.image_index = 0;
+        }
+        
         if (this.state === 'dead') {
             this.x += this.vx;
             this.y += this.vy;
@@ -778,8 +796,6 @@ class Slime extends Entity {
         }
         
         const isScared = this.state === 'scared';
-        const stretchY = (this.state === 'stunned' || this.state === 'dead') ? 0 : Math.sin(this.bounceTimer) * 4;
-        const stretchX = (this.state === 'stunned' || this.state === 'dead') ? 0 : -stretchY / 2;
         
         let drawX = this.x;
         let drawY = this.y;
@@ -788,68 +804,29 @@ class Slime extends Entity {
             drawY += (Math.random() - 0.5) * 6;
         }
         
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.ellipse(
-            drawX + this.width / 2, 
-            drawY + this.height - (this.height/2 - stretchY/2), 
-            this.width / 2 + stretchX, 
-            this.height / 2 - stretchY, 
-            0, 0, Math.PI * 2
-        );
-        ctx.fill();
-        
-        ctx.strokeStyle = '#27ae60';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        const eyeOffset = (this.facingDir > 0) ? 5 : -5;
-        
-        if (this.state === 'stunned' || this.state === 'dead') {
-            // X eyes
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(drawX + this.width / 2 + eyeOffset - 8, drawY + 15 - 3);
-            ctx.lineTo(drawX + this.width / 2 + eyeOffset - 2, drawY + 15 + 3);
-            ctx.moveTo(drawX + this.width / 2 + eyeOffset - 2, drawY + 15 - 3);
-            ctx.lineTo(drawX + this.width / 2 + eyeOffset - 8, drawY + 15 + 3);
+        if (this.sprites.length > 0) {
+            const frameIndex = Math.floor(this.image_index) % this.sprites.length;
+            const img = this.sprites[frameIndex];
             
-            ctx.moveTo(drawX + this.width / 2 + eyeOffset + 2, drawY + 15 - 3);
-            ctx.lineTo(drawX + this.width / 2 + eyeOffset + 8, drawY + 15 + 3);
-            ctx.moveTo(drawX + this.width / 2 + eyeOffset + 8, drawY + 15 - 3);
-            ctx.lineTo(drawX + this.width / 2 + eyeOffset + 2, drawY + 15 + 3);
-            ctx.stroke();
-        } else if (isScared) {
-            // Big scared eyes
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.arc(drawX + this.width / 2 - 6, drawY + 15, 6, 0, Math.PI * 2);
-            ctx.arc(drawX + this.width / 2 + 6, drawY + 15, 6, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(drawX + this.width / 2 - 6, drawY + 15, 2, 0, Math.PI * 2);
-            ctx.arc(drawX + this.width / 2 + 6, drawY + 15, 2, 0, Math.PI * 2);
-            ctx.fill();
-        } else {
-            // normal eyes
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.arc(drawX + this.width / 2 + eyeOffset - 5, drawY + 15 + stretchY, 4, 0, Math.PI * 2);
-            ctx.arc(drawX + this.width / 2 + eyeOffset + 5, drawY + 15 + stretchY, 4, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(drawX + this.width / 2 + eyeOffset - 3, drawY + 15 + stretchY, 1.5, 0, Math.PI * 2);
-            ctx.arc(drawX + this.width / 2 + eyeOffset + 7, drawY + 15 + stretchY, 1.5, 0, Math.PI * 2);
-            ctx.fill();
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.save();
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                
+                if (this.facingDir === -1) {
+                    ctx.scale(-1, 1);
+                }
+                
+                if (this.state === 'stunned' || this.state === 'dead') {
+                    ctx.scale(1, -1);
+                }
+                
+                const offsetY = -57.5;
+                ctx.drawImage(img, -51, offsetY, 100, 100);
+                
+                ctx.restore();
+            }
         }
         
-        if (this.state === 'stunned' || this.state === 'dead') {
-            ctx.restore();
-        }
+
     }
 }
