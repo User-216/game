@@ -168,6 +168,10 @@ class Game {
         this.settings.isFocused = document.hasFocus();
 
         this.loadingScreenImages = [];
+        this.dlabLogoImage = new Image();
+        this.dlabLogoImage.src = 'spr_dlab_logo.png';
+        this.dlabLogoLoaded = false;
+        this.dlabLogoImage.onload = () => { this.dlabLogoLoaded = true; };
         this.transitionImages = [];
         this.transitionFrameCount = 28;
         for (let i = 0; i < this.transitionFrameCount; i++) {
@@ -1361,7 +1365,24 @@ this.entities.push(
                 this.bootLoadTimer++;
             }
             if (this.bootLoadTimer >= this.bootLoadDuration) {
-                this.gameState = 'TITLE';
+                this.gameState = 'LOGO';
+                this.logoState = 0;
+                this.logoTimer = 0;
+            }
+            return;
+        }
+        
+        if (this.gameState === 'LOGO') {
+            this.logoTimer++;
+            if (this.logoState === 0) {
+                if (this.logoTimer >= 120) { // 2 seconds
+                    this.logoState = 1;
+                    this.logoTimer = 0;
+                }
+            } else if (this.logoState === 1) {
+                if (this.logoTimer >= 120) { // 2 seconds
+                    this.gameState = 'TITLE';
+                }
             }
             return;
         }
@@ -1911,6 +1932,23 @@ this.entities.push(
         this.ctx.imageSmoothingEnabled = this.settings.textureFiltering;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        if (this.gameState === 'LOGO') {
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            if (this.logoState === 0) {
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '30px "Outfit", sans-serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText("Made with Antigravity Engine", this.canvas.width / 2, this.canvas.height / 2);
+            } else if (this.logoState === 1 && this.dlabLogoLoaded) {
+                const img = this.dlabLogoImage;
+                this.ctx.drawImage(img, this.canvas.width / 2 - img.width / 2, this.canvas.height / 2 - img.height / 2);
+            }
+            return;
+        }
+
         if (this.gameState === 'BOOT_LOADING') {
             this.ctx.fillStyle = '#000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
