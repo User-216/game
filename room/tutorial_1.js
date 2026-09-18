@@ -18,6 +18,5 @@ this.entities.push(
     new Platform(1408, 384, 416, 64, '#00aa9e66'),
     new TargetDoor_B(1632, 672, 32, 32),
     new Door(1632, 640, 32, 64, 'B', 'tutorial_2'),
-    ,
 );
 };

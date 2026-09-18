@@ -13,8 +13,6 @@ this.entities.push(
     new Platform(480, -768, 160, 320, '#00aa9e66'),
     new BaddieSpawner(32, -320, 32, 32),
     new BaddieSpawner(224, -320, 32, 32),
-    ,
-    ,
     new Slime(321.6205244772892, -328, 40, 40),
     new Slime(358.23901322721525, -328, 40, 40),
     new Slope(608, -352, 128, 64, 'right-up'),
