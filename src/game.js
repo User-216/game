@@ -1412,11 +1412,19 @@ this.entities.push(
                 this.introSkipPrompt = false;
             }
             
+            if (this.introSkipPrompt) {
+                this.introSkipTimer--;
+                if (this.introSkipTimer <= 0) {
+                    this.introSkipPrompt = false;
+                }
+            }
+            
             // Allow skipping video with Z key
             const isZPressed = this.keys['z'] || this.keys['Z'];
             if (isZPressed && !this.prevIntroZ) {
                 if (!this.introSkipPrompt) {
                     this.introSkipPrompt = true;
+                    this.introSkipTimer = 120; // 2 seconds at 60fps
                 } else {
                     this.introVideo.pause();
                     this.gameState = 'TITLE';
