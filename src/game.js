@@ -601,6 +601,48 @@ class Game {
             });
         }
 
+        // Load Room button
+        const loadRoomBtn = document.getElementById('load-room-btn');
+        const loadRoomInput = document.getElementById('load-room-input');
+        if (loadRoomBtn && loadRoomInput) {
+            loadRoomBtn.addEventListener('click', () => {
+                loadRoomInput.click();
+            });
+            loadRoomInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const text = ev.target.result;
+                    try {
+                        // Extract room name using regex
+                        const match = text.match(/window\.roomData\['([^']+)'\]/);
+                        if (!match) {
+                            alert("Could not parse room name from file. Make sure it's a valid room.js file.");
+                            return;
+                        }
+                        const roomName = match[1];
+                        
+                        // Execute the room script to define it
+                        const fn = new Function(text);
+                        fn();
+                        
+                        // Register and load
+                        if (window.roomData && window.roomData[roomName]) {
+                            this.rooms[roomName] = window.roomData[roomName];
+                            this.loadRoom(roomName);
+                            // Clear input so we can load same file again if needed
+                            loadRoomInput.value = '';
+                        }
+                    } catch(err) {
+                        alert("Error loading room: " + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
         // Set Room Size button
         const setSizeBtn = document.getElementById('set-size-btn');
         if (setSizeBtn) {
