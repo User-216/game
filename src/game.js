@@ -1936,6 +1936,14 @@ this.entities.push(
             this.ctx.fillStyle = '#000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
+            let alpha = 1;
+            if (this.logoTimer < 30) {
+                alpha = this.logoTimer / 30;
+            } else if (this.logoTimer > 90) {
+                alpha = (120 - this.logoTimer) / 30;
+            }
+            this.ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            
             if (this.logoState === 0) {
                 this.ctx.fillStyle = 'white';
                 this.ctx.font = '30px "Outfit", sans-serif';
@@ -1946,6 +1954,8 @@ this.entities.push(
                 const img = this.dlabLogoImage;
                 this.ctx.drawImage(img, this.canvas.width / 2 - img.width / 2, this.canvas.height / 2 - img.height / 2);
             }
+            
+            this.ctx.globalAlpha = 1.0; // Reset
             return;
         }
 
