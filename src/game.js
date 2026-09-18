@@ -364,6 +364,9 @@ class Game {
     }
 
     setupInputs() {
+        this.mouseClicked = false;
+        window.addEventListener('mousedown', () => { this.mouseClicked = true; });
+        window.addEventListener('touchstart', () => { this.mouseClicked = true; }, {passive: true});
         window.addEventListener('keydown', (e) => {
             if (this.bindingKeyFor) {
                 e.preventDefault();
@@ -1364,19 +1367,41 @@ this.entities.push(
                 this.bootLoadTimer++;
             }
             if (this.bootLoadTimer >= this.bootLoadDuration) {
+                this.gameState = 'CLICK_TO_START';
+                // Reset interaction triggers just in case
+                this.mouseClicked = false;
+            }
+            return;
+        }
+        
+        if (this.gameState === 'CLICK_TO_START') {
+            const isAnyKeyPressed = Object.values(this.keys).some(v => v);
+            let gpJump = false;
+            if (navigator.getGamepads) {
+                const gps = navigator.getGamepads();
+                const gp = gps[0] || gps[1] || gps[2] || gps[3];
+                if (gp && gp.buttons[0] && gp.buttons[0].pressed) gpJump = true;
+            }
+            
+            if (isAnyKeyPressed || this.mouseClicked || gpJump) {
                 this.gameState = 'LOGO';
                 this.introVideo.currentTime = 0;
+                this.introVideo.muted = false; // We have interaction now! Sound will work.
                 let playPromise = this.introVideo.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(e => {
-                        console.warn("Autoplay prevented, trying muted:", e);
+                        console.warn("Autoplay prevented despite interaction:", e);
                         this.introVideo.muted = true;
                         this.introVideo.play().catch(e2 => {
-                            console.error("Video failed to play entirely:", e2);
                             this.gameState = 'TITLE';
                         });
                     });
                 }
+                
+                // Reset keys to prevent instant skipping of the video
+                for (let k in this.keys) this.keys[k] = false;
+                this.mouseClicked = false;
+                this.prevIntroZ = false;
             }
             return;
         }
@@ -1950,6 +1975,22 @@ this.entities.push(
         this.ctx.imageSmoothingEnabled = this.settings.textureFiltering;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        if (this.gameState === 'CLICK_TO_START') {
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '30px "Outfit", sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            // Blinking effect
+            if (Math.floor(Date.now() / 500) % 2 === 0) {
+                this.ctx.fillText("Click or Press Any Key to Start", this.canvas.width / 2, this.canvas.height / 2);
+            }
+            return;
+        }
+
         if (this.gameState === 'LOGO') {
             this.ctx.fillStyle = '#000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
