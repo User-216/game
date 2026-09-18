@@ -1384,13 +1384,24 @@ this.entities.push(
         if (this.gameState === 'LOGO') {
             if (this.introVideo.ended || this.introVideo.error) {
                 this.gameState = 'TITLE';
+                this.introSkipPrompt = false;
             }
             
-            // Allow skipping video with any key
-            if (Object.values(this.keys).some(v => v)) {
-                this.introVideo.pause();
-                this.gameState = 'TITLE';
+            // Allow skipping video with Z key
+            const isZPressed = this.keys['z'] || this.keys['Z'];
+            if (isZPressed && !this.prevIntroZ) {
+                if (!this.introSkipPrompt) {
+                    this.introSkipPrompt = true;
+                } else {
+                    this.introVideo.pause();
+                    this.gameState = 'TITLE';
+                    this.introSkipPrompt = false;
+                    this.keys['z'] = false; // Prevent auto-starting the game
+                    this.keys['Z'] = false;
+                }
             }
+            this.prevIntroZ = isZPressed;
+            
             return;
         }
 
@@ -1952,6 +1963,43 @@ this.entities.push(
                 const h = this.introVideo.videoHeight * scale;
                 this.ctx.drawImage(this.introVideo, (this.canvas.width - w) / 2, (this.canvas.height - h) / 2, w, h);
             }
+            
+            if (this.introSkipPrompt) {
+                const btnX = 20;
+                const btnY = this.canvas.height - 50;
+                const btnW = 30;
+                const btnH = 30;
+                const radius = 6;
+                
+                // Draw Z button background
+                this.ctx.fillStyle = 'white';
+                this.ctx.strokeStyle = 'black';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.roundRect(btnX, btnY, btnW, btnH, radius);
+                this.ctx.fill();
+                this.ctx.stroke();
+                
+                // Draw Z letter
+                this.ctx.fillStyle = 'black';
+                this.ctx.font = 'bold 20px "Outfit", sans-serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText("Z", btnX + btnW / 2, btnY + btnH / 2 + 2);
+                
+                // Draw Skip text
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = 'bold 24px "Outfit", sans-serif';
+                this.ctx.textAlign = 'left';
+                
+                // Black outline/shadow for Skip
+                this.ctx.strokeStyle = 'black';
+                this.ctx.lineWidth = 4;
+                this.ctx.lineJoin = 'round';
+                this.ctx.strokeText("Skip", btnX + btnW + 10, btnY + btnH / 2 + 2);
+                this.ctx.fillText("Skip", btnX + btnW + 10, btnY + btnH / 2 + 2);
+            }
+            
             return;
         }
 
