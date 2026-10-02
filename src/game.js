@@ -436,10 +436,84 @@ class Game {
             btn.addEventListener('touchcancel', release, { passive: false });
         };
 
-        addTouch('mbtn-up', 'up');
-        addTouch('mbtn-left', 'left');
-        addTouch('mbtn-down', 'down');
-        addTouch('mbtn-right', 'right');
+        const joyZone = document.getElementById('joystick-zone');
+        const joyKnob = document.getElementById('joystick-knob');
+        if (joyZone && joyKnob) {
+            let joyActive = false;
+            let joyBaseX = 0;
+            let joyBaseY = 0;
+            let joyId = null;
+
+            const updateJoy = (clientX, clientY) => {
+                let dx = clientX - joyBaseX;
+                let dy = clientY - joyBaseY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const maxDist = 50; 
+                
+                if (dist > maxDist) {
+                    dx = (dx / dist) * maxDist;
+                    dy = (dy / dist) * maxDist;
+                }
+                joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                const threshold = 15;
+                if (dx < -threshold) { this.keys[this.settings.bindings['left']] = true; this.keys[this.settings.bindings['right']] = false; }
+                else if (dx > threshold) { this.keys[this.settings.bindings['right']] = true; this.keys[this.settings.bindings['left']] = false; }
+                else { this.keys[this.settings.bindings['left']] = false; this.keys[this.settings.bindings['right']] = false; }
+                
+                if (dy < -threshold) { this.keys[this.settings.bindings['up']] = true; this.keys[this.settings.bindings['down']] = false; }
+                else if (dy > threshold) { this.keys[this.settings.bindings['down']] = true; this.keys[this.settings.bindings['up']] = false; }
+                else { this.keys[this.settings.bindings['up']] = false; this.keys[this.settings.bindings['down']] = false; }
+            };
+
+            const resetJoy = () => {
+                joyActive = false;
+                joyId = null;
+                joyKnob.style.transform = `translate(0px, 0px)`;
+                this.keys[this.settings.bindings['left']] = false;
+                this.keys[this.settings.bindings['right']] = false;
+                this.keys[this.settings.bindings['up']] = false;
+                this.keys[this.settings.bindings['down']] = false;
+            };
+
+            joyZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (joyActive) return;
+                const touch = e.changedTouches[0];
+                joyActive = true;
+                joyId = touch.identifier;
+                
+                const rect = joyZone.getBoundingClientRect();
+                joyBaseX = rect.left + rect.width / 2;
+                joyBaseY = rect.top + rect.height / 2;
+                
+                updateJoy(touch.clientX, touch.clientY);
+            }, { passive: false });
+
+            joyZone.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (!joyActive) return;
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === joyId) {
+                        updateJoy(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                        break;
+                    }
+                }
+            }, { passive: false });
+
+            const endJoy = (e) => {
+                if (!joyActive) return;
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === joyId) {
+                        resetJoy();
+                        break;
+                    }
+                }
+            };
+
+            joyZone.addEventListener('touchend', endJoy, { passive: false });
+            joyZone.addEventListener('touchcancel', endJoy, { passive: false });
+        }
         addTouch('mbtn-jump', 'jump');
         addTouch('mbtn-run', 'run');
         addTouch('mbtn-grab', 'grab');
