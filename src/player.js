@@ -985,7 +985,7 @@ class Player {
                 // Step Up logic: If resolved horizontally, but feet are near the top of the block, convert to vertical
                 if (resolution.axis === 'x' && entity.type !== 'oneway') {
                     const overlapAtFeet = (this.y + this.height) - entity.y;
-                    if (overlapAtFeet > 0 && overlapAtFeet <= 25 && this.y < entity.y) {
+                    if (overlapAtFeet > 0 && overlapAtFeet <= 25 && this.y < entity.y && !this.isClimbing) {
                         resolution.axis = 'y';
                         resolution.amount = -overlapAtFeet;
                     }
