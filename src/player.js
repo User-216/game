@@ -839,6 +839,7 @@ class Player {
         }
 
         if (this.isClimbing) {
+            if (this.vy > -this.runMaxSpeed) this.vy = -this.runMaxSpeed;
             // Accelerate upward by 0.05 each frame.
             this.vy -= 0.05;
             // EE–¥ Eë„E¼ EœëŒ€ 20E¼EEEœí•œ (EE–¥E€ EŒìE E’ì´E€EE-20 E´ú±˜ë¡EE´E¤E€E€ EŠê²Eú±¨)
@@ -1074,7 +1075,7 @@ class Player {
                             this.climbSide = resolution.amount < 0 ? 1 : -1;
                             // ú´E¬ E˜í‰ Eë„E¼ E˜ì§EE±EEEë„EEEE™˜
                             this.vy = -Math.abs(this.vx);
-                            if (this.vy > -8) this.vy = -8; // EœìE Eˆê¸° E±EEEë„ E´E¥ (E úŸEE¬ú±­)
+                            if (this.vy > -this.runMaxSpeed) this.vy = -this.runMaxSpeed; // EœìE Eˆê¸° E±EEEë„ E´E¥ (E úŸEE¬ú±­)
                         }
 
                         this.isWalled = true;
