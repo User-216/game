@@ -1098,6 +1098,7 @@ class PaletteDresser extends Entity {
 
     update(game) {
         if (!game || !game.player) return;
+        this.game = game;
         
         // Simple AABB collision check with player
         const touching = (
@@ -1138,7 +1139,11 @@ class PaletteDresser extends Entity {
 
     render(ctx) {
         if (this.sprite && this.sprite.complete && this.sprite.naturalWidth > 0) {
-            ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
+            let imgToDraw = this.sprite;
+            if (this.game && this.game.player && this.game.player.paletteManager) {
+                imgToDraw = this.game.player.paletteManager.getTintedFrame(this.sprite, this.sprite.src);
+            }
+            ctx.drawImage(imgToDraw, this.x, this.y, this.width, this.height);
         } else {
             ctx.fillStyle = 'rgba(200, 100, 200, 0.5)';
             ctx.fillRect(this.x, this.y, this.width, this.height);
