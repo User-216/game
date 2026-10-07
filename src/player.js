@@ -127,7 +127,7 @@ class Player {
             this.sprites.spr_player_jump.push(img);
         }
 
-        // Load land sprite (4 frames -> Eˆì§€EEú°E ˆì„ Eœê±° E”ì²­E¼EE3ú°E ˆì„EEEœë“œ)
+        // Load land sprite (4 frames -> ãƒ»æº¢ï½§Â€ãƒ»ãƒ»åµ“ãƒ»ï¿½æº¢æ¡· ãƒ»æ‡‹ï½±ï½° ãƒ»è‚¥ï½²ï½­ãƒ»ï½¼ãƒ»ãƒ»3åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»ãƒ»ãƒ»ç½¹ç³–)
         for (let i = 1; i <= 3; i++) {
             let img = new Image();
             img.src = `player/spr_player_land/spr_playerT_land${i}.png`;
@@ -274,7 +274,7 @@ class Player {
         this.mask_image_crouch = new Image();
         this.mask_image_crouch.src = 'player/spr_player_maskc.png';
         this.frameCount = 0;
-        this.paletteManager = window.PaletteManager ? new window.PaletteManager() : null;
+        this.paletteManager = typeof PaletteManager !== 'undefined' ? new PaletteManager() : null;
     }
 
     update(keys, entities, audio) {
@@ -286,15 +286,15 @@ class Player {
             if (this.tauntTimer <= 0) {
                 this.isTaunting = false;
             }
-            return; // EE°EE‘ì—EEE¼E¬ E”ì§E³¼ EEE EE°E´ú¦¸E¼ EE Eˆ E•ì§€ (E¬E¬E° EEE E± EE²½ E E€)
+            return; // ãƒ»ãƒ»ï½°ãƒ»ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ï½¼ãƒ»ï½¬ ãƒ»è‚¥ï½§ãƒ»ï½³ï½¼ ãƒ»ãƒ»ãƒ» ãƒ»ãƒ»é­‚ãƒ»ï½´å­–ï½¸ãƒ»ï½¼ ãƒ»ãƒ»ï¿½ãƒ»æ¢­ ãƒ»è©ï½§Â€ (ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ãƒ»ãƒ» ãƒ»ï½± ãƒ»ãƒ»ï½²ï½½ ãƒ»ï¿½ãƒ»Â€)
         } else if (keys.actionTaunt && !this.prevKeysTaunt) {
             this.isTaunting = true;
             this.tauntTimer = 20;
             
-            // E E€ E”ì²­: EE°EEEspr_player_tauntEEE€E½ EE8EEEEEœë¤ ú°E ˆì„ E úŸE
+            // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»ãƒ»ï½°ãƒ»ãƒ»ãƒ»spr_player_tauntãƒ»ãƒ»ãƒ»Â€ãƒ»ï½½ ãƒ»ãƒ»8ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ç½¹å¢¾ åµ“ãƒ»ï¿½æº¢æ¡· ãƒ»ï¿½å¤‹ãƒ»
             this.sprite_index = 'spr_player_taunt';
             this.image_index = Math.floor(Math.random() * 8);
-            this.image_speed = 0; // ú°E ˆì„ E EE
+            this.image_speed = 0; // åµ“ãƒ»ï¿½æº¢æ¡· ãƒ»ï¿½ãƒ»ãƒ»
             
             if (audio) audio.play('taunt'); 
             
@@ -305,28 +305,28 @@ class Player {
                 image_index: 0,
                 image_speed: 0.45 
             });
-            this.prevKeysTaunt = true; // E€EEE©EEEE¥¸ EEE E€E¥
-            return; // EE°EEœì‘ ú°E ˆì„EEEE°E´ú¦¸ E•ì§€
+            this.prevKeysTaunt = true; // ãƒ»Â€ãƒ»ãƒ»ãƒ»ï½©ãƒ»ãƒ»ãƒ»ãƒ»ï½¥ï½¸ ãƒ»ãƒ»ãƒ» ãƒ»Â€ãƒ»ï½¥
+            return; // ãƒ»ãƒ»ï½°ãƒ»ãƒ»æ‡æ¢  åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»ãƒ»ãƒ»ãƒ»é­‚ãƒ»ï½´å­–ï½¸ ãƒ»è©ï½§Â€
         }
         
         this.prevKeysTaunt = keys.actionTaunt;
 
         let isCurrentlyRunning = !!keys.actionRun;
         
-        // EµE‘ì—EœëŠ” E¬E¬E° E¨EEEˆê°€ (E´EEú°E ˆì„EEE¬E¬E  Eˆì—ˆE¤E´ E•ì EE E€)
-        // E¨, E½úŸ€E° E‘ì¼ EŒëŠ” Eˆì™¸EEE¬E¬E° ú¤E¼ E“ìœ¼E´ E‰ì‹œ E¨EŒë˜EE¡Eú±¨
+        // ãƒ»ï½µãƒ»å“ä¹±ãƒ»ç½¹æ ª ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ï½¨ãƒ»ãƒ»ãƒ»ä¸€ï½°Â€ (ãƒ»ï½´ãƒ»ãƒ»åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï¿½ ãƒ»æº¢æ¥ãƒ»ï½¤ãƒ»ï½´ ãƒ»è©ï¿½ãƒ»ãƒ»ï¿½ãƒ»Â€)
+        // ãƒ»ï½¨, ãƒ»ï½½å¤‹Â€ãƒ»ï½° ãƒ»å“æ”µ ãƒ»èª¤æ ª ãƒ»æº¢åŒ£ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° å¢²ï½¤ãƒ»ï½¼ ãƒ»å—æ„ãƒ»ï½´ ãƒ»é¤“äº¨ ãƒ»ï½¨ãƒ»èª¤æ®ãƒ»ãƒ»ï½¡ãƒ»ï¨‘ï½¨
         if (!this.isGrounded && this.wasRunningLastFrame && !this.isClimbing) {
             isCurrentlyRunning = true;
         }
         
-        // EE¬E¬E  Eˆì„ EŒëŠ” E¬E¬E° Eˆê°€
+        // ãƒ»ãƒ»ã€“ãƒ»ï½¬ãƒ»ï¿½ ãƒ»æº¢æ† ãƒ»èª¤æ ª ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ä¸€ï½°Â€
         if (this.isCrouching) {
             isCurrentlyRunning = false;
         }
 
-        // (E´EE— Eˆë˜ 'EµE‘ì—EEE¬E¬E° Eˆì¶EEEEEŒ' Eœí•œ ú±´EE
+        // (ãƒ»ï½´ãƒ»ãƒ»ä¹± ãƒ»å£±è…° 'ãƒ»ï½µãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»æº¢ï½¶ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»æ†' ãƒ»æ‡¦å¾© ï¨‘ï½´ãƒ»ãƒ»
 
-        // EµE‘ì—EœëŠ” Eˆë¡EE¬E¬E°E¼ Eœì‘ú±  EEEEœ¼EE E´E¸ Eë„E€ Eˆí•˜ E´EE´E´ E¬E¬E° E¬EEú³ˆìš©
+        // ãƒ»ï½µãƒ»å“ä¹±ãƒ»ç½¹æ ª ãƒ»å£±ï½¡ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½°ãƒ»ï½¼ ãƒ»æ‡æ¢ ï¨‘ï¿½ ãƒ»ãƒ»ãƒ»ãƒ»æ„ãƒ»ãƒ» ãƒ»ï½´ãƒ»ï½¸ ãƒ»é·ºå·¡ãƒ»Â€ ãƒ»é€¸è‘º ãƒ»ï½´ãƒ»ãƒ»æ“½ãƒ»ï½´ ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ï½¬ãƒ»ãƒ»åµ­æº¢åœ¸
         if (this.isGroundPounding) {
             isCurrentlyRunning = false;
         } else if (!this.isGrounded && !this.wasRunningLastFrame && !this.isClimbing) {
@@ -335,12 +335,12 @@ class Player {
             }
         }
 
-        // E¬E´E° E‘ì—EEE¬E¬E° EEE E•ì EE E€
+        // ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½° ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ãƒ»ãƒ» ãƒ»è©ï¿½ãƒ»ãƒ»ï¿½ãƒ»Â€
         if (this.isTumbling) {
             isCurrentlyRunning = true;
         }
 
-        // (E¡E° EEE¬E¬E° E¨EEE”ë“œ Eœê±°)
+        // (ãƒ»ï½¡ãƒ»ï½° ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ï½¨ãƒ»ãƒ»ãƒ»ç½·ç³– ãƒ»æ‡‹ï½±ï½°)
 
 
         // Noclip Trigger
@@ -437,7 +437,7 @@ class Player {
             this.x += ((overlappingLadder.x + overlappingLadder.width / 2) - (this.x + this.width / 2)) * 0.2;
         }
 
-        // Running cancel triggers: EE—EEE¬E¬EEEEShiftE¼ E¼E´ E¬E¼E´EEEœë™ (E¬E´E° E‘ì—EEEœì™¸)
+        // Running cancel triggers: ãƒ»ãƒ»ä¹±ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ãƒ»ãƒ»ãƒ»Shiftãƒ»ï½¼ ãƒ»ï½¼ãƒ»ï½´ ãƒ»ï½¬ãƒ»ï½¼ãƒ»ï½´ãƒ»ãƒ»ãƒ»ç½¹å¾ (ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½° ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»æ‡åŒ£)
         if (this.wasRunningLastFrame && !isCurrentlyRunning && this.isGrounded && !this.isTumbling) {
             if (audio) {
                 audio.stopFile('mach2');
@@ -452,31 +452,31 @@ class Player {
 
         this.isRunning = isCurrentlyRunning;
 
-        // Suplex Grab E¨EEEœì§E EŒì§EE©ú²¥E¼ E˜ëŒ€ E©ú²¥ú¤E¼ EE¥´E´ E‰ì‹œ E¨EE
+        // Suplex Grab ãƒ»ï½¨ãƒ»ãƒ»ãƒ»æ‡ï½§ãƒ» ãƒ»è­·ï½§ãƒ»ãƒ»ï½©åµ‚ï½¥ãƒ»ï½¼ ãƒ»ä¿¯åŠ‡ ãƒ»ï½©åµ‚ï½¥å¢²ï½¤ãƒ»ï½¼ ãƒ»ãƒ»ï½¥ï½´ãƒ»ï½´ ãƒ»é¤“äº¨ ãƒ»ï½¨ãƒ»ãƒ»
         if (this.isSuplexGrabbing) {
             if ((this.facingDir === 1 && keys.actionLeft) || (this.facingDir === -1 && keys.actionRight)) {
                 this.isSuplexGrabbing = false;
-                this.vx = 0; // EµEEE€EEEE´€EE´ E‰ì‹œ E•ì§€ (E€E± Eœê±°)
+                this.vx = 0; // ãƒ»ï½µãƒ»ãƒ»ãƒ»Â€ãƒ»ãƒ»ãƒ»ãƒ»ï½´Â€ãƒ»ãƒ»æ“½ ãƒ»é¤“äº¨ ãƒ»è©ï½§Â€ (ãƒ»Â€ãƒ»ï½± ãƒ»æ‡‹ï½±ï½°)
             }
         }
 
-        // Horizontal Movement (Eœë¦¬ú°EŠ¸EEEˆí•˜ E¬E¼E´EEE‘ì´ EE‹ EŒë§EE°EEE€E¥)
+        // Horizontal Movement (ãƒ»ç½¹ï½¦ï½¬åµ“ãƒ»æ•¢ãƒ»ãƒ»ãƒ»é€¸è‘º ãƒ»ï½¬ãƒ»ï½¼ãƒ»ï½´ãƒ»ãƒ»ãƒ»å“æ“½ ãƒ»ãƒ»å·¨ ãƒ»èª¤ï½§ãƒ»ãƒ»ï½°ãƒ»ãƒ»ãƒ»Â€ãƒ»ï½¥)
         if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isClimbingLadder && this.kickWindupTimer <= 0 && (this.kickKnockbackTimer || 0) <= 0) {
             let effLeft = keys.actionLeft;
             let effRight = keys.actionRight;
             
-            // E¬E´E°(tumble) E‘ì—EEEŒìš° E©ú²¥ EE™˜ Eˆê°€ (E€E± E E€)
+            // ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½°(tumble) ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»è­·åˆ ãƒ»ï½©åµ‚ï½¥ ãƒ»ãƒ»åŠ ãƒ»ä¸€ï½°Â€ (ãƒ»Â€ãƒ»ï½± ãƒ»ï¿½ãƒ»Â€)
             if (this.isTumbling) {
                 effLeft = false;
                 effRight = false;
             }
             
-            // EµE‘ì—EEE E´EEE¬E¬EEE‘ì´E´ E©ú²¥ EE™˜(ú¤ EE ¥)EEE´Eœí•˜E  ú´E¬ E©ú²¥EEE•ì EE E€ (E¤E´EŒë°¤ E‘ì—EEEˆì™¸)
+            // ãƒ»ï½µãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ï¿½ãƒ»ï½´ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ãƒ»ãƒ»å“æ“½ãƒ»ï½´ ãƒ»ï½©åµ‚ï½¥ ãƒ»ãƒ»åŠ(å¢²ï½¤ ãƒ»ãƒ»ï¿½ï½¥)ãƒ»ãƒ»ãƒ»ï½´ãƒ»æ‡¦è‘ºãƒ»ï¿½ å¶¸ãƒ»æ¤ª ãƒ»ï½©åµ‚ï½¥ãƒ»ãƒ»ãƒ»è©ï¿½ãƒ»ãƒ»ï¿½ãƒ»Â€ (ãƒ»ï½¤ãƒ»ï½´ãƒ»èª¤ï½°ï½¤ ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»æº¢åŒ£)
             if (!this.isGrounded && this.isRunning && Math.abs(this.vx) >= 6 && !this.isGroundPounding) {
                 effLeft = this.facingDir === -1;
                 effRight = this.facingDir === 1;
             }
-            // E¬E¬E° E‘ì¸E° E©ú²¥ú¤E¼ EEEE¥´E  Eˆë‹¤E´ E”ë¼E´EEE©ú²¥E¼EEEë™ E¬E¬E° (E¤E´EŒë°¤ E‘ì—EEEë™ EE§EEˆì§€)
+            // ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»å“æ”¤ãƒ»ï½° ãƒ»ï½©åµ‚ï½¥å¢²ï½¤ãƒ»ï½¼ ãƒ»ãƒ»ãƒ»ãƒ»ï½¥ï½´ãƒ»ï¿½ ãƒ»å£±å…±ãƒ»ï½´ ãƒ»ç½·æ”µãƒ»ï½´ãƒ»ãƒ»ãƒ»ï½©åµ‚ï½¥ãƒ»ï½¼ãƒ»ãƒ»ãƒ»å°–å¾ ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° (ãƒ»ï½¤ãƒ»ï½´ãƒ»èª¤ï½°ï½¤ ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»å°–å¾ ãƒ»ãƒ»ï½§ãƒ»ãƒ»æº¢ï½§Â€)
             else if (this.isRunning && !keys.actionLeft && !keys.actionRight && !this.isGroundPounding) {
                 if (this.facingDir === -1) effLeft = true;
                 else if (this.facingDir === 1) effRight = true;
@@ -490,7 +490,7 @@ class Player {
                 if (this.isRunning && this.vx > 0 && this.vx < this.machThreshold) {
                     this.vx = -6;
                 } else if (!this.isRunning && this.vx > 0) {
-                    // E·EEEEE©ú²¥EEE¾EEEE E¸EEŸ¬E€E€ EŠê³  E‰ì‹œ Eë„E¼ E˜ëŒ€EEE¤E‘ìŒ
+                    // ãƒ»ï½·ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ï½©åµ‚ï½¥ãƒ»ãƒ»ãƒ»ï½¾ãƒ»ãƒ»ãƒ»ãƒ» ãƒ»ï½¸ãƒ»ãƒ»æ´³ãƒ»Â€ãƒ»Â€ ãƒ»ä¼ï½³ï¿½ ãƒ»é¤“äº¨ ãƒ»é·ºå·¡ãƒ»ï½¼ ãƒ»ä¿¯åŠ‡ãƒ»ãƒ»ãƒ»ï½¤ãƒ»å“æ†
                     this.vx = -this.vx;
                 } else {
                     const canSlowDown = !this.isRunning || this.vx <= 0;
@@ -509,7 +509,7 @@ class Player {
                 if (this.isRunning && this.vx < 0 && this.vx > -this.machThreshold) {
                     this.vx = 6;
                 } else if (!this.isRunning && this.vx < 0) {
-                    // E·EEEEE©ú²¥EEE¾EEEE E¸EEŸ¬E€E€ EŠê³  E‰ì‹œ Eë„E¼ E˜ëŒ€EEE¤E‘ìŒ
+                    // ãƒ»ï½·ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ï½©åµ‚ï½¥ãƒ»ãƒ»ãƒ»ï½¾ãƒ»ãƒ»ãƒ»ãƒ» ãƒ»ï½¸ãƒ»ãƒ»æ´³ãƒ»Â€ãƒ»Â€ ãƒ»ä¼ï½³ï¿½ ãƒ»é¤“äº¨ ãƒ»é·ºå·¡ãƒ»ï½¼ ãƒ»ä¿¯åŠ‡ãƒ»ãƒ»ãƒ»ï½¤ãƒ»å“æ†
                     this.vx = -this.vx;
                 } else {
                     const canSlowDown = !this.isRunning || this.vx >= 0;
@@ -523,9 +523,9 @@ class Player {
                     }
                 }
             } else {
-                // E©ú²¥ú¤E¼ EE¥´E€ EŠì•˜EEEE
+                // ãƒ»ï½©åµ‚ï½¥å¢²ï½¤ãƒ»ï½¼ ãƒ»ãƒ»ï½¥ï½´ãƒ»Â€ ãƒ»å–œè‘ºãƒ»ãƒ»ãƒ»ãƒ»
                 if (this.isTumbling || this.isSuplexGrabbing) {
-                    // E¬E´E°/E¡E° EŒì§EE‘ì—EEEìE EE´ Eë„ EE EE E€
+                    // ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½°/ãƒ»ï½¡ãƒ»ï½° ãƒ»è­·ï½§ãƒ»ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»å·ãƒ» ãƒ»ãƒ»æ“½ ãƒ»é·ºå·¡ ãƒ»ãƒ»ï¿½ãƒ»ãƒ»ï¿½ãƒ»Â€
                 } else {
                     this.vx = 0;
                 }
@@ -562,7 +562,7 @@ class Player {
                 this.isDrifting1 = true;
             }
             this.driftTimer = 35;
-            // Eœë¦¬ú°EŠ¸E€ Eë‚  EEú¦€E´E˜ê°EE©ú²¥ E€E¥ (ú´E¬ Eë„EEE˜ëŒ€ E©ú²¥)
+            // ãƒ»ç½¹ï½¦ï½¬åµ“ãƒ»æ•¢ãƒ»Â€ ãƒ»æ™¤ã‚ ãƒ»ãƒ»å­–Â€ãƒ»ï½´ãƒ»ä¿¾ï½°ãƒ»ãƒ»ï½©åµ‚ï½¥ ãƒ»Â€ãƒ»ï½¥ (å¶¸ãƒ»æ¤ª ãƒ»é·ºå·¡ãƒ»ãƒ»ãƒ»ä¿¯åŠ‡ ãƒ»ï½©åµ‚ï½¥)
             this.driftTargetDir = this.vx > 0 ? -1 : 1;
             if (audio) {
                 audio.stopFile('mach2');
@@ -572,7 +572,7 @@ class Player {
         }
 
         if (this.isDrifting) {
-            // Eë„E¼ 0.4E© EE–´E¤EEú±¨ (E©ú²¥EEEì¶°EE
+            // ãƒ»é·ºå·¡ãƒ»ï½¼ 0.4ãƒ»ï½© ãƒ»ãƒ»ç‰Ÿãƒ»ï½¤ãƒ»ãƒ»ï¨‘ï½¨ (ãƒ»ï½©åµ‚ï½¥ãƒ»ãƒ»ãƒ»æ¨Œï½¶ï½°ãƒ»ãƒ»
             if (this.vx > 0) {
                 this.vx -= 0.4;
                 if (this.vx < 0) this.vx = 0;
@@ -583,17 +583,17 @@ class Player {
 
             this.driftTimer--;
 
-            // EE£EE°E´: 35ú°E ˆì„E´ E¨EEE€E¬E  + EE— E¿EEEˆëŠ” EEEE¬E¼ ú±¨
+            // ãƒ»ãƒ»ï½£ãƒ»ãƒ»ï½°ãƒ»ï½´: 35åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»ï½´ ãƒ»ï½¨ãƒ»ãƒ»ãƒ»Â€ãƒ»ï½¬ãƒ»ï¿½ + ãƒ»ãƒ»ä¹± ãƒ»ï½¿ãƒ»ãƒ»ãƒ»å£±æ ª ãƒ»ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¼ ï¨‘ï½¨
             if (this.driftTimer <= 0 && this.isGrounded) {
                 this.isDrifting = false;
-                // Eœë¦¬ú°EŠ¸ EE£EEEE©ú­EE©ú²¥E¼EEEë„E¼ 12EEE¤EE
+                // ãƒ»ç½¹ï½¦ï½¬åµ“ãƒ»æ•¢ ãƒ»ãƒ»ï½£ãƒ»ãƒ»ãƒ»ãƒ»ï½©å²ºãƒ»ãƒ»ï½©åµ‚ï½¥ãƒ»ï½¼ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»ï½¼ 12ãƒ»ãƒ»ãƒ»ï½¤ãƒ»ãƒ»
                 this.vx = this.driftTargetDir * 12;
                 this.facingDir = this.driftTargetDir;
             }
         }
 
         if (this.isDrifting1) {
-            // Eë„E¼ 0.4E© EE–´E¤EEú±¨ (E•í•´EEE©EëŒ€EE
+            // ãƒ»é·ºå·¡ãƒ»ï½¼ 0.4ãƒ»ï½© ãƒ»ãƒ»ç‰Ÿãƒ»ï½¤ãƒ»ãƒ»ï¨‘ï½¨ (ãƒ»å€£ç´›ãƒ»ãƒ»ãƒ»ï½©ãƒ»æ™¤åŠ‡ãƒ»ãƒ»
             if (this.vx > 0) {
                 this.vx -= 0.4;
                 if (this.vx < 0) this.vx = 0;
@@ -604,10 +604,10 @@ class Player {
 
             this.driftTimer--;
 
-            // EE£EE°E´: 35ú°E ˆì„E´ E¨EEE€E¬E  + EE— E¿EEEˆëŠ” EEEE¬E¼ ú±¨
+            // ãƒ»ãƒ»ï½£ãƒ»ãƒ»ï½°ãƒ»ï½´: 35åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»ï½´ ãƒ»ï½¨ãƒ»ãƒ»ãƒ»Â€ãƒ»ï½¬ãƒ»ï¿½ + ãƒ»ãƒ»ä¹± ãƒ»ï½¿ãƒ»ãƒ»ãƒ»å£±æ ª ãƒ»ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¼ ï¨‘ï½¨
             if (this.driftTimer <= 0 && this.isGrounded) {
                 this.isDrifting1 = false;
-                // DRIFTING1 EE£EEEE©ú­EE©ú²¥E¼EEEë„E¼ 8EEE¤EE
+                // DRIFTING1 ãƒ»ãƒ»ï½£ãƒ»ãƒ»ãƒ»ãƒ»ï½©å²ºãƒ»ãƒ»ï½©åµ‚ï½¥ãƒ»ï½¼ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»ï½¼ 8ãƒ»ãƒ»ãƒ»ï½¤ãƒ»ãƒ»
                 this.vx = this.driftTargetDir * 8;
                 this.facingDir = this.driftTargetDir;
             }
@@ -617,7 +617,7 @@ class Player {
         if (this.isMachSliding) {
             this.vx *= this.machSlideFriction;
 
-            // Eë„E€ E®EE§€E°EEEE—EEE¨E´E€E´ EE£E(EëŠ” E¬E©Eì˜ E¤E¸ E°EE
+            // ãƒ»é·ºå·¡ãƒ»Â€ ãƒ»ï½®ãƒ»ãƒ»ï½§Â€ãƒ»ï½°ãƒ»ãƒ»ãƒ»ãƒ»ä¹±ãƒ»ãƒ»ãƒ»ï½¨ãƒ»ï½´ãƒ»Â€ãƒ»ï½´ ãƒ»ãƒ»ï½£ãƒ»(ãƒ»å°–æ ª ãƒ»ï½¬ãƒ»ï½©ãƒ»å·æ”ª ãƒ»ï½¤ãƒ»ï½¸ ãƒ»ï½°ãƒ»ãƒ»
             if (Math.abs(this.vx) < 1.5) {
                 this.isMachSliding = false;
             }
@@ -625,7 +625,7 @@ class Player {
 
         const targetMaxSpeed = isCurrentlyRunning ? this.runMaxSpeed : this.maxSpeed;
 
-        // Clamp speed (Eˆí•˜ E¬E¼E´Eœë‚˜ E¡E°, E¬E´E°, EE°ê¸° E‘ì—EEú´E¨ú°EEëµ)
+        // Clamp speed (ãƒ»é€¸è‘º ãƒ»ï½¬ãƒ»ï½¼ãƒ»ï½´ãƒ»ç½¹ï½˜ ãƒ»ï½¡ãƒ»ï½°, ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½°, ãƒ»ãƒ»ï½°ç¢•ï½¸ï½° ãƒ»å“ä¹±ãƒ»ãƒ»å¢ï½´ãƒ»ï½¨åµ“ãƒ»ãƒ»æ™¤æ¥«)
         if (!this.isMachSliding && !this.isSuplexGrabbing && !this.isTumbling && !this.isGroundPounding) {
             if (this.vx > targetMaxSpeed) {
                 this.vx -= 0.5;
@@ -642,7 +642,7 @@ class Player {
 
         if (keys.actionDown && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isClimbingLadder && !this.isGroundPounding && !this.isGroundPoundLand) {
             if (this.isSuplexGrabbing) {
-                // E¡E° EŒì§EEEEE˜E¼ EE¥´E´ EŒì§E„ E¨EŒí•˜E  E‰ì‹œ E¬E´E°EEE°EE•˜E° Eë„E¼ 12EEE€E¤ú¦¸
+                // ãƒ»ï½¡ãƒ»ï½° ãƒ»è­·ï½§ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»æ¤ˆãƒ»ï½¼ ãƒ»ãƒ»ï½¥ï½´ãƒ»ï½´ ãƒ»è­·ï½§ãƒ»æ† ãƒ»ï½¨ãƒ»é†è‘ºãƒ»ï¿½ ãƒ»é¤“äº¨ ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½°ãƒ»ãƒ»ãƒ»ï½°ãƒ»ãƒ»è‘ºãƒ»ï½° ãƒ»é·ºå·¡ãƒ»ï½¼ 12ãƒ»ãƒ»ãƒ»Â€ãƒ»ï½¤å­–ï½¸
                 wantTumble = true;
                 this.isSuplexGrabbing = false;
                 this.suplexGrabTimer = 0;
@@ -651,14 +651,14 @@ class Player {
                 // Keep tumbling even if falling in air
                 wantTumble = true;
             } else if (this.isGrounded) {
-                // E¬E¬E  Eˆê±°EEEë„E€ E·E° EœëŒ€ Eë„(7)E´E¤ E E¼ EŒë§EE¬E´E° Eœë™
+                // ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï¿½ ãƒ»ä¸€ï½±ï½°ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»Â€ ãƒ»ï½·ãƒ»ï½° ãƒ»ç½¹åŠ‡ ãƒ»é·ºå·¡(7)ãƒ»ï½´ãƒ»ï½¤ ãƒ»ï¿½ãƒ»ï½¼ ãƒ»èª¤ï½§ãƒ»ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½° ãƒ»ç½¹å¾
                 if (Math.abs(this.vx) > this.maxSpeed) {
                     wantTumble = true;
                 } else {
                     wantCrouch = true;
                 }
             } else if (!this.isGrounded) {
-                // E¬E¬EEEë„E¼ EŒë§EEµEEE¬E´E°(E¤E´EE Eœë™, EE‹ˆE´ E¸E¥ E‰ë©E´ Eê¸°(crouch) E€EE
+                // ãƒ»ï½¬ãƒ»ï½¬ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»ï½¼ ãƒ»èª¤ï½§ãƒ»ãƒ»ï½µãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½°(ãƒ»ï½¤ãƒ»ï½´ãƒ»ãƒ» ãƒ»ç½¹å¾, ãƒ»ãƒ»ç¬ˆãƒ»ï½´ ãƒ»ï½¸ãƒ»ï½¥ ãƒ»é›…æ˜†ãƒ»ï½´ ãƒ»ç¢•ï½¸ï½°(crouch) ãƒ»Â€ãƒ»ãƒ»
                 if (Math.abs(this.vx) > this.maxSpeed) {
                     wantTumble = true;
                 }
@@ -691,9 +691,9 @@ class Player {
             if (willBeSmall) {
                 this.height = 23;
                 this.y += 22; // shift down
-                // E E€ E”ì²­: EµE‘ì—EEE¬E´E°(E¤E´EE Eœì‘ EEEí”„ E‘ì´E”ë¼EEú±­EEEE˜EEúµEE‚íˆEE¡EE˜ì E
+                // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»ï½µãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½°(ãƒ»ï½¤ãƒ»ï½´ãƒ»ãƒ» ãƒ»æ‡æ¢  ãƒ»ãƒ»ãƒ»æˆ¦å£² ãƒ»å“æ“½ãƒ»ç½·æ”µãƒ»ãƒ»ï¨‘ï½­ãƒ»ãƒ»ãƒ»ãƒ»æ¤ˆãƒ»ãƒ»å¶¹ãƒ»ãƒ»ã‚æ¢­ãƒ»ãƒ»ï½¡ãƒ»ãƒ»å€‘ï¿½ãƒ»
                 if (wantTumble && !this.isGrounded) {
-                    this.vy = 12; // E¤E´EEú±˜ê°EEë„E¼ 10EìE 12EEE´EEEEEœì›ú±˜ê²EE‚íˆEE¡EE°EE
+                    this.vy = 12; // ãƒ»ï½¤ãƒ»ï½´ãƒ»ãƒ»ï¨‘ä¿¾ï½°ãƒ»ãƒ»é·ºå·¡ãƒ»ï½¼ 10ãƒ»å·ãƒ» 12ãƒ»ãƒ»ãƒ»ï½´ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»æ‡å¯³ï¨‘ä¿¾ï½²ãƒ»ãƒ»ã‚æ¢­ãƒ»ãƒ»ï½¡ãƒ»ãƒ»ï½°ãƒ»ãƒ»
                 }
             } else {
                 this.height = 45;
@@ -720,7 +720,7 @@ class Player {
             // Tumble maintains momentum, no forced stop
         } else if (this.isCrouching) {
             this.state = 'crouch';
-            // E°E´E€E°E¼ EE•´ E•ì EE•ì§€(this.vx = 0) Eœê±°
+            // ãƒ»ï½°ãƒ»ï½´ãƒ»Â€ãƒ»ï½°ãƒ»ï½¼ ãƒ»ãƒ»ç´› ãƒ»è©ï¿½ãƒ»ãƒ»è©ï½§Â€(this.vx = 0) ãƒ»æ‡‹ï½±ï½°
         } else {
             this.state = 'normal';
         }
@@ -794,7 +794,7 @@ class Player {
             this.isSuplexGrabbing = true;
             this.image_index = 0;
             this.grabBufferTimer = 0; // Consume the buffer
-            if (audio) audio.playFile('sfx_suplexdash', true); // E¡E° Eœì‘ú±  EEú±EEˆë§EE¬EE(forceRestart)
+            if (audio) audio.playFile('sfx_suplexdash', true); // ãƒ»ï½¡ãƒ»ï½° ãƒ»æ‡æ¢ ï¨‘ï¿½ ãƒ»ãƒ»ï¨‘ãƒ»ãƒ»å£±ï½§ãƒ»ãƒ»ï½¬ãƒ»ãƒ»(forceRestart)
         }
 
         // Suplex Grab Logic
@@ -819,12 +819,12 @@ class Player {
             this.canGroundPound = true;
         }
 
-        // Ground Pound Trigger (Eí”„/E´E™ê³¼ Eˆì°¬E€E€EEEœë¦¬ú°EŠ¸, E½úŸ€E° E‘ì—EEEœë™ Eˆê°€, E¬E´E° E‘ì—EEEœë™ Eˆê°€)
+        // Ground Pound Trigger (ãƒ»æˆ¦å£²/ãƒ»ï½´ãƒ»å‘Ÿï½³ï½¼ ãƒ»æº¢ï½°ï½¬ãƒ»Â€ãƒ»Â€ãƒ»ãƒ»ãƒ»ç½¹ï½¦ï½¬åµ“ãƒ»æ•¢, ãƒ»ï½½å¤‹Â€ãƒ»ï½° ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ç½¹å¾ ãƒ»ä¸€ï½°Â€, ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½° ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ç½¹å¾ ãƒ»ä¸€ï½°Â€)
         if (keys.actionDown && this.canGroundPound && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isClimbingLadder && !this.isTumbling && !this.isCrouching) {
             this.isGroundPounding = true;
-            this.canGroundPound = false; // EŒë¹E
+            this.canGroundPound = false; // ãƒ»èª¤ï½¹ãƒ»
             this.vy = -10; // Upward hop
-            this.vx = 0;   // E‰ë©E´ Eê¸° EEE˜í‰ E´EEEˆì¶¤
+            this.vx = 0;   // ãƒ»é›…æ˜†ãƒ»ï½´ ãƒ»ç¢•ï½¸ï½° ãƒ»ãƒ»ãƒ»å€†åˆ ãƒ»ï½´ãƒ»ãƒ»ãƒ»æº¢ï½¶ï½¤
             this.sprite_index = 'spr_player_groundpoundstart';
             this.image_index = 0;
             if (audio) audio.play('groundpound');
@@ -843,7 +843,7 @@ class Player {
             if (this.vy > -this.runMaxSpeed) this.vy = -this.runMaxSpeed;
             // Accelerate upward by 0.05 each frame.
             this.vy -= 0.05;
-            // EE–¥ Eë„E¼ EœëŒ€ 20E¼EEEœí•œ (EE–¥E€ EŒìE E’ì´E€EE-20 E´ú±˜ë¡EE´E¤E€E€ EŠê²Eú±¨)
+            // ãƒ»ãƒ»ç®• ãƒ»é·ºå·¡ãƒ»ï½¼ ãƒ»ç½¹åŠ‡ 20ãƒ»ï½¼ãƒ»ãƒ»ãƒ»æ‡¦å¾© (ãƒ»ãƒ»ç®•ãƒ»Â€ ãƒ»è­·ãƒ» ãƒ»å»·æ“½ãƒ»Â€ãƒ»ãƒ»-20 ãƒ»ï½´ï¨‘ä¿¯ï½¡ãƒ»ãƒ»ï½´ãƒ»ï½¤ãƒ»Â€ãƒ»Â€ ãƒ»ä¼ï½²ãƒ»ï¨‘ï½¨)
             if (this.vy < -20) this.vy = -20;
             this.vx = 0;
             // Force player against the wall
@@ -851,8 +851,8 @@ class Player {
         } else if (this.isGroundPounding) {
             this.vy += 1.2; // Slightly reduced downward acceleration for better control
         } else if (this.isClimbingLadder) {} else if (this.isMachSliding && !this.isGrounded) {
-            // E¬E¼E´EEEEEµE‘ì— E¨E´ E¬E¼E´EEE‘ë‹¨ (EëŠ” EEE E E€ú± E€ E°EE
-            // E¬E°E  E€E±EEEE•´ E E€ú±˜ë˜ E‘ë ¥ EEš©
+            // ãƒ»ï½¬ãƒ»ï½¼ãƒ»ï½´ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ï½µãƒ»å“ä¹± ãƒ»ï½¨ãƒ»ï½´ ãƒ»ï½¬ãƒ»ï½¼ãƒ»ï½´ãƒ»ãƒ»ãƒ»ç€§å¿ (ãƒ»å°–æ ª ãƒ»ãƒ»ãƒ» ãƒ»ï¿½ãƒ»Â€ï¨‘ï¿½ãƒ»Â€ ãƒ»ï½°ãƒ»ãƒ»
+            // ãƒ»ï½¬ãƒ»ï½°ãƒ»ï¿½ ãƒ»Â€ãƒ»ï½±ãƒ»ãƒ»ãƒ»ãƒ»ç´› ãƒ»ï¿½ãƒ»Â€ï¨‘ä¿¯æ® ãƒ»ç€§ï¿½ï½¥ ãƒ»ãƒ»åœ¸
             this.vy += this.gravity;
         } else {
             this.vy += this.gravity;
@@ -879,16 +879,16 @@ class Player {
         this.x += this.vx;
         this.y += this.vy;
 
-        // E©ú²¥ EE°E´ú¦¸ (Eœë¦¬ú°EŠ¸EEE½úŸ€E°, E¬E´E° E‘ì´ EE‹ EŒë§Eú¤ EE ¥EEE°E¼ E©ú²¥ E°EE
+        // ãƒ»ï½©åµ‚ï½¥ ãƒ»ãƒ»é­‚ãƒ»ï½´å­–ï½¸ (ãƒ»ç½¹ï½¦ï½¬åµ“ãƒ»æ•¢ãƒ»ãƒ»ãƒ»ï½½å¤‹Â€ãƒ»ï½°, ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½° ãƒ»å“æ“½ ãƒ»ãƒ»å·¨ ãƒ»èª¤ï½§ãƒ»å¢²ï½¤ ãƒ»ãƒ»ï¿½ï½¥ãƒ»ãƒ»ãƒ»ï½°ãƒ»ï½¼ ãƒ»ï½©åµ‚ï½¥ ãƒ»ï½°ãƒ»ãƒ»
         if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isTumbling && Math.abs(this.vx) < 12) {
-            // EµE‘ì—EEE¬E¬EEE‘ì¼ EŒëŠ” E©ú²¥ EE™˜ Eˆê°€
+            // ãƒ»ï½µãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½¬ãƒ»ãƒ»ãƒ»å“æ”µ ãƒ»èª¤æ ª ãƒ»ï½©åµ‚ï½¥ ãƒ»ãƒ»åŠ ãƒ»ä¸€ï½°Â€
             if (this.isGrounded || !this.isRunning) {
                 if (keys.actionLeft) this.facingDir = -1;
                 else if (keys.actionRight) this.facingDir = 1;
             }
         }
 
-        // E¤EEú°E ˆì„EEEE•´ ú´E¬ E¬E¬E° EEE E€E¥
+        // ãƒ»ï½¤ãƒ»ãƒ»åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»ãƒ»ãƒ»ãƒ»ç´› å¶¸ãƒ»æ¤ª ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ãƒ»ãƒ» ãƒ»Â€ãƒ»ï½¥
         this.wasRunningLastFrame = this.isRunning;
 
         // Reset states for collision
@@ -898,7 +898,7 @@ class Player {
         this.wallSide = 0;
         // isGroundPounding will be reset upon hitting ground in collision resolution
 
-        // Mach Afterimage Update (EœìE Eˆí•˜ E¬E¬E°/Eí”„ EEEE¼ EŒë§EE”ìƒ Eì„±)
+        // Mach Afterimage Update (ãƒ»æ‡ãƒ» ãƒ»é€¸è‘º ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½°/ãƒ»æˆ¦å£² ãƒ»ãƒ»ãƒ»ãƒ»ï½¼ ãƒ»èª¤ï½§ãƒ»ãƒ»è‚¥ãƒ¡ ãƒ»æ™§â”³)
         if (Math.abs(this.vx) >= this.machThreshold && !this.isSuplexGrabbing && !this.isTumbling) {
             this.machFlashTimer++;
             this.machFrameCount++;
@@ -948,7 +948,7 @@ class Player {
                 isCrouching: this.isCrouching,
                 isTumbling: this.isTumbling,
                 alpha: 0.3,
-                life: 8 // 8ú°E ˆì„E¼EEúŸ€ú´E
+                life: 8 // 8åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»ï½¼ãƒ»ãƒ»å¤‹Â€å¶¸ãƒ»
             });
         }
 
@@ -1009,7 +1009,7 @@ class Player {
                         this.standingOnEntity = entity;
                         this.vy = 0;
                         this.isWallJumping = false;
-                        this.isClimbingLadder = false; // Eí”„ E¨EE
+                        this.isClimbingLadder = false; // ãƒ»æˆ¦å£² ãƒ»ï½¨ãƒ»ãƒ»
                         if (this.isGroundPounding) {
                             this.isGroundPounding = false;
                             
@@ -1040,11 +1040,11 @@ class Player {
                         // Collision on top (Head butt)
                         if (this.isClimbing) {
                             this.isClimbing = false; // Stop climbing on ceiling
-                            this.vx = 0; // E½úŸ€E° EEEœì¥EEE€Eªúºˆë©´ E˜í‰ Eë„ 0
-                            this.isRunning = false; // E¬E¬E° EEE E¨EE
-                            this.wasRunningLastFrame = false; // E¤EEú°E ˆì„EìE E¬E¬E° E•ì EE€úµEE©E€
+                            this.vx = 0; // ãƒ»ï½½å¤‹Â€ãƒ»ï½° ãƒ»ãƒ»ãƒ»æ‡æ£—ãƒ»ãƒ»ãƒ»Â€ãƒ»ï½ªå¾·å£±ï½©ï½´ ãƒ»å€†åˆ ãƒ»é·ºå·¡ 0
+                            this.isRunning = false; // ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ãƒ»ãƒ» ãƒ»ï½¨ãƒ»ãƒ»
+                            this.wasRunningLastFrame = false; // ãƒ»ï½¤ãƒ»ãƒ»åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»å·ãƒ» ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»è©ï¿½ãƒ»ãƒ»Â€å¶¹ãƒ»ãƒ»ï½©ãƒ»Â€
                             
-                            // E E€ E”ì²­: E½úŸ€E  Eœì¥EEE€Eªúºˆë©´ groundpound land EEEEEEE™˜
+                            // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»ï½½å¤‹Â€ãƒ»ï¿½ ãƒ»æ‡æ£—ãƒ»ãƒ»ãƒ»Â€ãƒ»ï½ªå¾·å£±ï½©ï½´ groundpound land ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»åŠ
                             this.isGroundPoundLand = true;
                             this.image_index = 0;
                             this.groundPoundLandTimer = 8;
@@ -1065,23 +1065,23 @@ class Player {
                         entity.destroy();
                         if (audio) audio.play('break');
                     } else {
-                        // E¬E¬E° EEEëŠ” E¡E° EEE½EEE¿E˜ì„ EEEë™E¼EEE½úŸ€E° ú¦¸E¬E°
+                        // ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»ãƒ»ãƒ»å°–æ ª ãƒ»ï½¡ãƒ»ï½° ãƒ»ãƒ»ãƒ»ï½½ãƒ»ãƒ»ãƒ»ï½¿ãƒ»å€‘æ† ãƒ»ãƒ»ãƒ»å°–å¾ãƒ»ï½¼ãƒ»ãƒ»ãƒ»ï½½å¤‹Â€ãƒ»ï½° å­–ï½¸ãƒ»ï½¬ãƒ»ï½°
                         if (!this.isClimbing && (this.isRunning || this.isSuplexGrabbing)) {
                             this.isClimbing = true;
                             if (this.isSuplexGrabbing) {
-                                this.wallClimbGraceTimer = 10; // E¡E°EìE E˜ì–´E¨ E½E° 10ú°E ˆì„ E EE
+                                this.wallClimbGraceTimer = 10; // ãƒ»ï½¡ãƒ»ï½°ãƒ»å·ãƒ» ãƒ»å€‘ç‰Ÿãƒ»ï½¨ ãƒ»ï½½ãƒ»ï½° 10åµ“ãƒ»ï¿½æº¢æ¡· ãƒ»ï¿½ãƒ»ãƒ»
                             }
-                            this.isSuplexGrabbing = false; // E¡E° E‘ì´Eˆë‹¤E´ E½úŸ€E°EEEE™˜
-                            // resolution.amount < 0 E´E´ E½E´ E¤E¸E½EEEˆìŒ -> climbSide = 1
+                            this.isSuplexGrabbing = false; // ãƒ»ï½¡ãƒ»ï½° ãƒ»å“æ“½ãƒ»å£±å…±ãƒ»ï½´ ãƒ»ï½½å¤‹Â€ãƒ»ï½°ãƒ»ãƒ»ãƒ»ãƒ»åŠ
+                            // resolution.amount < 0 ãƒ»ï½´ãƒ»ï½´ ãƒ»ï½½ãƒ»ï½´ ãƒ»ï½¤ãƒ»ï½¸ãƒ»ï½½ãƒ»ãƒ»ãƒ»æº¢æ† -> climbSide = 1
                             this.climbSide = resolution.amount < 0 ? 1 : -1;
-                            // ú´E¬ E˜í‰ Eë„E¼ E˜ì§EE±EEEë„EEEE™˜
+                            // å¶¸ãƒ»æ¤ª ãƒ»å€†åˆ ãƒ»é·ºå·¡ãƒ»ï½¼ ãƒ»å€‘ï½§ãƒ»ãƒ»ï½±ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»ãƒ»ãƒ»ãƒ»åŠ
                             this.vy = -Math.abs(this.vx);
-                            if (this.vy > -this.runMaxSpeed) this.vy = -this.runMaxSpeed; // EœìE Eˆê¸° E±EEEë„ E´E¥ (E úŸEE¬ú±­)
+                            if (this.vy > -this.runMaxSpeed) this.vy = -this.runMaxSpeed; // ãƒ»æ‡ãƒ» ãƒ»ä¸€ï½¸ï½° ãƒ»ï½±ãƒ»ãƒ»ãƒ»é·ºå·¡ ãƒ»ï½´ãƒ»ï½¥ (ãƒ»ï¿½å¤‹ãƒ»ãƒ»ï½¬ï¨‘ï½­)
                         }
 
                         this.isWalled = true;
                         this.isWallJumping = false;
-                        this.isClimbingLadder = false; // E½Eí”„ ú·EE½EEE¿E¼E´ Eˆê¸°úµE
+                        this.isClimbingLadder = false; // ãƒ»ï½½ãƒ»æˆ¦å£² å¼¡ãƒ»ãƒ»ï½½ãƒ»ãƒ»ãƒ»ï½¿ãƒ»ï½¼ãƒ»ï½´ ãƒ»ä¸€ï½¸ï½°å¶¹ãƒ»
                         this.wallSide = resolution.amount < 0 ? 1 : -1;
                         if (!this.isClimbing) this.vx = 0;
                         this.x += resolution.amount;
@@ -1133,7 +1133,7 @@ class Player {
                         this.facingDir = (entity.type === 'left-up') ? -1 : 1;
                         this.isGroundPounding = false;
                         
-                        // E•ì œë¡EE¬E´E°(Tumble) EEE EŒì… EE E’ì´(Hitbox) E‰ì‹œ E°EE
+                        // ãƒ»è©ï¿½ç½¹ï½¡ãƒ»ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½°(Tumble) ãƒ»ãƒ»ãƒ» ãƒ»è­·æ¡¿ ãƒ»ãƒ» ãƒ»å»·æ“½(Hitbox) ãƒ»é¤“äº¨ ãƒ»ï½°ãƒ»ãƒ»
                         if (!this.isTumbling && !this.isCrouching) {
                             this.height = 23;
                             this.y += 22;
@@ -1192,7 +1192,7 @@ class Player {
                             this.y = entity.y - this.height;
                             this.x += this.climbSide * 15; // Move onto the platform
                             this.vy = 0;
-                            this.vx = this.climbSide * climbSpeed; // E±EEEë„E¼ E˜í‰ Eë„EEEE™˜
+                            this.vx = this.climbSide * climbSpeed; // ãƒ»ï½±ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»ï½¼ ãƒ»å€†åˆ ãƒ»é·ºå·¡ãƒ»ãƒ»ãƒ»ãƒ»åŠ
                             this.isGrounded = true;
                         this.standingOnEntity = entity;
                             this.isClimbing = false;
@@ -1241,14 +1241,14 @@ class Player {
                 this.image_index = 0;
                 if (audio) audio.play('jump');
                 
-                // E E€ E”ì²­: Eí”„ E°Eˆì„ EEE¬EEú¶¨E¼ E”ê°€ (E¨, E¬E¬E° E‘ì—EEE˜ì˜¤E€ EŠê²E
+                // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»æˆ¦å£² ãƒ»ï½°ãƒ»æº¢æ† ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ãƒ»å·ï½¨ãƒ»ï½¼ ãƒ»ç·‹ï½°Â€ (ãƒ»ï½¨, ãƒ»ï½¬ãƒ»ï½¬ãƒ»ï½° ãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»å€‘ä¸¶ãƒ»Â€ ãƒ»ä¼ï½²ãƒ»
                 if (!this.isRunning && !this.isSuplexGrabbing) {
                     this.activeEffects.push({
                         type: 'spr_highjumpcloud2',
                         x: this.x + this.width / 2,
                         y: this.y + this.height,
                         image_index: 0,
-                        image_speed: 0.5 // E Eˆë©”ì´EEEë„
+                        image_speed: 0.5 // ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»é·ºå·¡
                     });
                 }
             } else if (this.isClimbing) {
@@ -1259,7 +1259,7 @@ class Player {
                 this.isClimbing = false;
                 this.isDrifting = false;
                 this.isDrifting1 = false; // Cancel drift on jump
-                // this.isWallJumping = true; // E E€ E”ì²­: EE·¸ E©E€E¼ EE•´ ú±­EEfalseEEE E€
+                // this.isWallJumping = true; // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»ãƒ»ï½·ï½¸ ãƒ»ï½©ãƒ»Â€ãƒ»ï½¼ ãƒ»ãƒ»ç´› ï¨‘ï½­ãƒ»ãƒ»falseãƒ»ãƒ»ãƒ»ï¿½ãƒ»Â€
                 this.facingDir = -this.wallSide;
                 this.jumpBufferTimer = 0;
                 this.sprite_index = (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3') ? 'spr_player_mach3jump' : 'spr_player_jump';
@@ -1274,8 +1274,8 @@ class Player {
                 this.height = 45;
                 this.y -= 22; // Restore size
                 
-                this.vy = -10; // E‰ë©E´ Eê¸° E˜ìŒ E¸ EŒì²˜ëŸ¼ EE¡EE´EEE¨EEE™ì‘ E”ê°€
-                this.vx = 0;   // E‰ë©E´ Eê¸° EEE˜í‰ E´EEEˆì¶¤
+                this.vy = -10; // ãƒ»é›…æ˜†ãƒ»ï½´ ãƒ»ç¢•ï½¸ï½° ãƒ»å€‘æ† ãƒ»ï½¸ ãƒ»è­·ï½²ä¿¯æ¶µ ãƒ»ãƒ»ï½¡ãƒ»ãƒ»ï½´ãƒ»ãƒ»ãƒ»ï½¨ãƒ»ãƒ»ãƒ»å‘·æ¢  ãƒ»ç·‹ï½°Â€
+                this.vx = 0;   // ãƒ»é›…æ˜†ãƒ»ï½´ ãƒ»ç¢•ï½¸ï½° ãƒ»ãƒ»ãƒ»å€†åˆ ãƒ»ï½´ãƒ»ãƒ»ãƒ»æº¢ï½¶ï½¤
                 this.jumpBufferTimer = 0;
                 this.sprite_index = 'spr_player_groundpoundstart';
                 this.image_index = 0;
@@ -1288,9 +1288,9 @@ class Player {
             this.vy = 0;
         }
 
-        // Tumble Fast Fall: E¬E´E° EEEˆë²½EìE E¨E´EEEEE‰ì‹œ EEE¨E´E€EE¡EE¤EE
+        // Tumble Fast Fall: ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½° ãƒ»ãƒ»ãƒ»å£±ï½²ï½½ãƒ»å·ãƒ» ãƒ»ï½¨ãƒ»ï½´ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»é¤“äº¨ ãƒ»ãƒ»ãƒ»ï½¨ãƒ»ï½´ãƒ»Â€ãƒ»ãƒ»ï½¡ãƒ»ãƒ»ï½¤ãƒ»ãƒ»
         if (this.isTumbling && this.wasGrounded && !this.isGrounded) {
-            this.vy = 10; // E¨E´E€E° Eœì‘ú±˜ëŠ” Eœê°EEë„E¼ 10E¼EEE¤EE(E E´E  EµEE•˜EE
+            this.vy = 10; // ãƒ»ï½¨ãƒ»ï½´ãƒ»Â€ãƒ»ï½° ãƒ»æ‡æ¢ ï¨‘ä¿¯æ ª ãƒ»æ‡‹ï½°ãƒ»ãƒ»é·ºå·¡ãƒ»ï½¼ 10ãƒ»ï½¼ãƒ»ãƒ»ãƒ»ï½¤ãƒ»ãƒ»(ãƒ»ï¿½ãƒ»ï½´ãƒ»ï¿½ ãƒ»ï½µãƒ»ãƒ»è‘ºãƒ»ãƒ»
         }
 
         // Determine sprite index
@@ -1316,7 +1316,7 @@ class Player {
                     image_index: 0,
                     image_speed: 0.5
                 });
-                if (audio) audio.playFile('sfx_step', true); // E©E€ú±  EŒë„ EœìEE¬ E¬EE
+                if (audio) audio.playFile('sfx_step', true); // ãƒ»ï½©ãƒ»Â€ï¨‘ï¿½ ãƒ»èª¤å·¡ ãƒ»æ‡ãƒ»ãƒ»ï½¬ ãƒ»ï½¬ãƒ»ãƒ»
             }
         }
         
@@ -1334,27 +1334,27 @@ class Player {
                     this.sprite_index = 'spr_player_mach3';
                 } else {
                     this.sprite_index = 'spr_player_mach2';
-                } // E E€ E”ì²­: Eˆí•˜ 1E¼ EŒë„ E¼E¨ mach2 E Eˆë©”ì´EEE¬E©
+                } // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»é€¸è‘º 1ãƒ»ï½¼ ãƒ»èª¤å·¡ ãƒ»ï½¼ãƒ»ï½¨ mach2 ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»ï½¬ãƒ»ï½©
             }
         }
         
         if (this.sprite_index === 'spr_player_walk') {
             this.image_speed = Math.max(0.15, Math.abs(this.vx) * 0.08);
             
-            // E E€ E”ì²­: E¸EEEEEë„EEEE¡€ú±´EEE¼E€ E´úª™íŠ¸ Eì„±
+            // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»ï½¸ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»ãƒ»ãƒ»ãƒ»ï½¡Â€ï¨‘ï½´ãƒ»ãƒ»ãƒ»ï½¼ãƒ»Â€ ãƒ»ï½´å¯¬å‘°æ•¢ ãƒ»æ™§â”³
             if (this.isGrounded && !this.isSuplexGrabbing) {
                 this.walkEffectTimer += Math.abs(this.vx);
-                if (this.walkEffectTimer >= 80) { // Eˆë¬´ E¨E¬ E˜ì˜¨E¤E  ú±˜ìEEE30 -> 80E¼EEEˆë„ EìE
+                if (this.walkEffectTimer >= 80) { // ãƒ»å£±ï½¬ï½´ ãƒ»ï½¨ãƒ»ï½¬ ãƒ»å€‘ä¹–ãƒ»ï½¤ãƒ»ï¿½ ï¨‘å€‘ãƒ»ãƒ»ãƒ»30 -> 80ãƒ»ï½¼ãƒ»ãƒ»ãƒ»å£±å·¡ ãƒ»å·ãƒ»
                     this.walkEffectTimer = 0;
                     this.activeEffects.push({
                         type: 'spr_cloudeffect',
                         x: this.x + this.width / 2,
                         y: this.y + this.height,
                         image_index: 0,
-                        image_speed: 0.5, // E Eˆë©”ì´EEEë„
-                        scale: 1.0 // ú¬E° E•ìE (0.2 -> 1.0)
+                        image_speed: 0.5, // ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»é·ºå·¡
+                        scale: 1.0 // å¢ï½¬ãƒ»ï½° ãƒ»è©ãƒ» (0.2 -> 1.0)
                     });
-                    if (audio) audio.playFile('sfx_step', true); // Eœê±¸EEEŒë¦¬ E¬EE
+                    if (audio) audio.playFile('sfx_step', true); // ãƒ»æ‡‹ï½±ï½¸ãƒ»ãƒ»ãƒ»èª¤ï½¦ï½¬ ãƒ»ï½¬ãƒ»ãƒ»
                 }
             }
         } else if (this.sprite_index === 'spr_player_idle') {
@@ -1364,11 +1364,11 @@ class Player {
         } else if (this.sprite_index === 'spr_player_jump') {
             this.image_speed = 0.4;
         } else if (this.sprite_index === 'spr_player_mach3jump') {
-            this.image_speed = 0.7; // Eí”„ E Eˆë©”ì´EEEë„
+            this.image_speed = 0.7; // ãƒ»æˆ¦å£² ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»é·ºå·¡
         } else if (this.sprite_index === 'spr_player_land') {
-            this.image_speed = 0.45; // E E€ E”ì²­: E©E€ E Eˆë©”ì´EEEë„ E¬E°EE
+            this.image_speed = 0.45; // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»ï½©ãƒ»Â€ ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»é·ºå·¡ ãƒ»ï½¬ãƒ»ï½°ãƒ»ãƒ»
         } else if (this.sprite_index === 'spr_player_roll') {
-            this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06); // E¬E´E° E Eˆë©”ì´EEEë„ (Eë„EEEE¡€)
+            this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06); // ãƒ»ï½¬ãƒ»ï½´ãƒ»ï½° ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»é·ºå·¡ (ãƒ»é·ºå·¡ãƒ»ãƒ»ãƒ»ãƒ»ï½¡Â€)
                 } else if (this.sprite_index === 'spr_player_rollgetup') {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_climbwall') {
@@ -1382,7 +1382,7 @@ class Player {
         } else if (this.sprite_index === 'spr_player_groundpound') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
         } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3') {
-            // E E€ E”ì²­: Eë„EEE°E¼ E Eˆë©”ì´EEEë„E€ E¤E´EE(E E¼E˜ë¡EE Eˆë©”ì´E˜ë„ E E´EE
+            // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»é·ºå·¡ãƒ»ãƒ»ãƒ»ï½°ãƒ»ï½¼ ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»é·ºå·¡ãƒ»Â€ ãƒ»ï½¤ãƒ»ï½´ãƒ»ãƒ»(ãƒ»ï¿½ãƒ»ï½¼ãƒ»ä¿¯ï½¡ãƒ»ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ä¿¯å·¡ ãƒ»ï¿½ãƒ»ï½´ãƒ»ãƒ»
             if (this.sprite_index === 'spr_player_mach2') {
                 this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04);
             } else {
@@ -1391,12 +1391,12 @@ class Player {
             
             if (this.isGrounded) {
                 this.runEffectTimer += Math.abs(this.vx);
-                if (this.runEffectTimer >= 150) { // Eì„± E¼E° E€ú«­ EìE
+                if (this.runEffectTimer >= 150) { // ãƒ»æ™§â”³ ãƒ»ï½¼ãƒ»ï½° ãƒ»Â€å°ï½­ ãƒ»å·ãƒ»
                     this.runEffectTimer = 0;
                     
                     const absSpeed = Math.abs(this.vx);
                     let effectType = 'spr_dashcloud'; // mach1, mach2
-                    let offset = 0; // mach1, 2EEE•ì¤‘ì•™
+                    let offset = 0; // mach1, 2ãƒ»ãƒ»ãƒ»è©ï½¤å“è•—
                     if (absSpeed >= 12) {
                         effectType = 'spr_superdashcloud';
                         offset = 40;
@@ -1424,7 +1424,7 @@ class Player {
         }
         }
 
-        // E E€ E”ì²­: Eí”„ E Eˆë©”ì´EEE¬Eì´ EE£Œë˜E´ E¨E´E€EEE Eˆë©”ì´E˜ìœ¼EEEë™ EE™˜
+        // ãƒ»ï¿½ãƒ»Â€ ãƒ»è‚¥ï½²ï½­: ãƒ»æˆ¦å£² ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»ï½¬ãƒ»æ™§æ“½ ãƒ»ãƒ»ï½£èª¤æ®ãƒ»ï½´ ãƒ»ï½¨ãƒ»ï½´ãƒ»Â€ãƒ»ãƒ»ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»å€‘æ„ãƒ»ãƒ»ãƒ»å°–å¾ ãƒ»ãƒ»åŠ
         if (this.sprite_index === 'spr_player_jump' && this.image_index >= this.sprites.spr_player_jump.length) {
             this.sprite_index = 'spr_player_fall';
             this.image_index = 0;
@@ -1434,13 +1434,13 @@ class Player {
             this.image_index = 0;
         }
 
-        // E©E€ E Eˆë©”ì´EEE¬Eì´ EE£Œë˜E´ idle E Eˆë©”ì´E˜ìœ¼EEEë™ EE™˜
+        // ãƒ»ï½©ãƒ»Â€ ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»ãƒ»ãƒ»ï½¬ãƒ»æ™§æ“½ ãƒ»ãƒ»ï½£èª¤æ®ãƒ»ï½´ idle ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»å€‘æ„ãƒ»ãƒ»ãƒ»å°–å¾ ãƒ»ãƒ»åŠ
         if (this.sprite_index === 'spr_player_land' && this.image_index >= this.sprites.spr_player_land.length) {
             this.sprite_index = 'spr_player_idle';
             this.image_index = 0;
         }
 
-        // E‰ë©E´ Eê¸° Eœì‘ E Eˆë©”ì´E˜ì´ EE£Œë˜E´ E´E¤Eê¸° E Eˆë©”ì´E˜ìœ¼EEEE™˜
+        // ãƒ»é›…æ˜†ãƒ»ï½´ ãƒ»ç¢•ï½¸ï½° ãƒ»æ‡æ¢  ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»å€‘æ“½ ãƒ»ãƒ»ï½£èª¤æ®ãƒ»ï½´ ãƒ»ï½´ãƒ»ï½¤ãƒ»ç¢•ï½¸ï½° ãƒ»ï¿½ãƒ»å£±ï½©è‚¥æ“½ãƒ»å€‘æ„ãƒ»ãƒ»ãƒ»ãƒ»åŠ
         if (this.sprite_index === 'spr_player_groundpoundstart' && this.image_index >= this.sprites.spr_player_groundpoundstart.length) {
             this.sprite_index = 'spr_player_groundpound';
             this.image_index = 0;
@@ -1472,18 +1472,18 @@ class Player {
                 audio.stopFile('mach3');
             }
             
-            // E¡E°E€ EE£Œë˜E´ EŒë¦¬EEEŠì–´EE
+            // ãƒ»ï½¡ãƒ»ï½°ãƒ»Â€ ãƒ»ãƒ»ï½£èª¤æ®ãƒ»ï½´ ãƒ»èª¤ï½¦ï½¬ãƒ»ãƒ»ãƒ»å–œç‰Ÿãƒ»ãƒ»
             if (!this.isSuplexGrabbing) {
                 audio.stopFile('sfx_suplexdash');
             }
         }
 
-        // EµE‘ì—EEE¡E° EŒì§EEEEE— E¿E˜ë‹¤E´ E‰ì‹œ EŒì§EEE£E
+        // ãƒ»ï½µãƒ»å“ä¹±ãƒ»ãƒ»ãƒ»ï½¡ãƒ»ï½° ãƒ»è­·ï½§ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ä¹± ãƒ»ï½¿ãƒ»ä¿¯å…±ãƒ»ï½´ ãƒ»é¤“äº¨ ãƒ»è­·ï½§ãƒ»ãƒ»ãƒ»ï½£ãƒ»
         if (this.isSuplexGrabbing && !this.wasGrounded && this.isGrounded) {
             this.isSuplexGrabbing = false;
             this.suplexGrabTimer = 0;
         }
-        // E´EEú°E ˆì„ ú¤ EEE E€E¥
+        // ãƒ»ï½´ãƒ»ãƒ»åµ“ãƒ»ï¿½æº¢æ¡· å¢²ï½¤ ãƒ»ãƒ»ãƒ» ãƒ»Â€ãƒ»ï½¥
         this.prevKeysDown = keys.actionDown;
     }
 
@@ -1608,20 +1608,20 @@ class Player {
 
                 if (isMach && m.color) {
                     this.tintCtx.clearRect(0, 0, 100, 100);
-                    // 1. Eë˜ E´E¸E€ E¸E¬E°
+                    // 1. ãƒ»å°–æ¤ˆ ãƒ»ï½´ãƒ»ï½¸ãƒ»Â€ ãƒ»ï½¸ãƒ»ï½¬ãƒ»ï½°
                     this.tintCtx.globalCompositeOperation = 'source-over';
                     this.tintCtx.drawImage(imgToDraw, 0, 0, 100, 100);
                     
-                    // 2. source-inE¼EEE¤E¨E£EEE¨EEm.color)E¼EEEEš°E°
+                    // 2. source-inãƒ»ï½¼ãƒ»ãƒ»ãƒ»ï½¤ãƒ»ï½¨ãƒ»ï½£ãƒ»ãƒ»ãƒ»ï½¨ãƒ»ãƒ»m.color)ãƒ»ï½¼ãƒ»ãƒ»ãƒ»ãƒ»åˆãƒ»ï½°
                     this.tintCtx.globalCompositeOperation = 'source-in';
                     this.tintCtx.fillStyle = m.color;
                     this.tintCtx.fillRect(0, 0, 100, 100);
                     
-                    // 3. multiplyEEEë˜ E´E¸E€E¼ E¤EEE®E´EŒì›Œ E€E€EEE¤E½E  E´E´ú±˜ê¸°
+                    // 3. multiplyãƒ»ãƒ»ãƒ»å°–æ¤ˆ ãƒ»ï½´ãƒ»ï½¸ãƒ»Â€ãƒ»ï½¼ ãƒ»ï½¤ãƒ»ãƒ»ãƒ»ï½®ãƒ»ï½´ãƒ»è­·å¯¥ ãƒ»Â€ãƒ»Â€ãƒ»ãƒ»ãƒ»ï½¤ãƒ»ï½½ãƒ»ï¿½ ãƒ»ï½´ãƒ»ï½´ï¨‘ä¿¾ï½¸ï½°
                     this.tintCtx.globalCompositeOperation = 'multiply';
                     this.tintCtx.drawImage(imgToDraw, 0, 0, 100, 100);
                     
-                    // Eë˜ E¤E•ìœ¼EEEµE¬
+                    // ãƒ»å°–æ¤ˆ ãƒ»ï½¤ãƒ»è©æ„ãƒ»ãƒ»ãƒ»ï½µãƒ»ï½¬
                     this.tintCtx.globalCompositeOperation = 'source-over';
                     
                     const offsetY = (m.isCrouching || m.isTumbling) ? -68.5 : -57.5;
@@ -1666,7 +1666,7 @@ class Player {
                     const img = frames[frameIndex];
                     if (img && img.complete && img.naturalWidth > 0) {
                         ctx.save();
-                        // E°E€Eì„ x E‘ì•™, y E”ë‹¥E¼EEE¡E°
+                        // ãƒ»ï½°ãƒ»Â€ãƒ»å·æ† x ãƒ»å“è•—, y ãƒ»ç½·å‡¶ãƒ»ï½¼ãƒ»ãƒ»ãƒ»ï½¡ãƒ»ï½°
                         ctx.translate(ef.x, ef.y);
                         if (ef.facingDir === -1) {
                             ctx.scale(-1, 1);
@@ -1706,7 +1706,7 @@ class Player {
                 
                 // Sprite is 100x100, mask bounding box is X:38, Y:35, W:26, H:45
                 // Center of hitbox relative to the sprite top-left: X=51, Y=57.5 (or 68.5 if crouched/tumbled)
-                // EŒìEEEú°½E€EEE¸ú±EEë¦­ú ° ú¹ë ¤EEE©E€E¼ EE•´ EE¹EE˜ì˜¬E¼
+                // ãƒ»è­·ãƒ»ãƒ»ãƒ»åµ“ï½½ãƒ»Â€ãƒ»ãƒ»ãƒ»ï½¸ï¨‘ãƒ»ãƒ»å°–ï½¦ï½­å¥“ï½° å½§å°–ï¿½ï½¤ãƒ»ãƒ»ãƒ»ï½©ãƒ»Â€ãƒ»ï½¼ ãƒ»ãƒ»ç´› ãƒ»ãƒ»ï½¹ãƒ»ãƒ»å€‘è±«ãƒ»ï½¼
                 ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 if (this.facingDir === -1) {
                     ctx.scale(-1, 1);
@@ -1749,7 +1749,7 @@ class Player {
             // Stop at the last frame so it doesn't loop forever if intended, but let's loop by default
             let frameIndex = Math.floor(this.image_index);
             if (frameIndex >= frames.length) {
-                frameIndex = frames.length - 1; // Eˆì§€EEú°E ˆì„EìE Eˆì¶”ê²E(Eí”„ Eì„¸ E E€)
+                frameIndex = frames.length - 1; // ãƒ»æº¢ï½§Â€ãƒ»ãƒ»åµ“ãƒ»ï¿½æº¢æ¡·ãƒ»å·ãƒ» ãƒ»æº¢ï½¶ç·‹ï½²ãƒ»(ãƒ»æˆ¦å£² ãƒ»å·â”· ãƒ»ï¿½ãƒ»Â€)
             }
             const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
@@ -1767,7 +1767,7 @@ class Player {
             const frames = this.sprites.spr_player_land;
             let frameIndex = Math.floor(this.image_index);
             if (frameIndex >= frames.length) {
-                frameIndex = frames.length - 1; // Eˆì§€EEú°E ˆì„ E E€ (EE™˜ EE¹Œì§€)
+                frameIndex = frames.length - 1; // ãƒ»æº¢ï½§Â€ãƒ»ãƒ»åµ“ãƒ»ï¿½æº¢æ¡· ãƒ»ï¿½ãƒ»Â€ (ãƒ»ãƒ»åŠ ãƒ»ãƒ»ï½¹è­·ï½§Â€)
             }
             const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
@@ -1930,7 +1930,7 @@ class Player {
         } else if (this.sprite_index === 'spr_player_taunt') {
             const frames = this.sprites.spr_player_taunt;
             let frameIndex = Math.floor(this.image_index);
-            if (frameIndex >= frames.length) frameIndex = frames.length - 1; // Eˆì EE¥EE
+            if (frameIndex >= frames.length) frameIndex = frames.length - 1; // ãƒ»æº¢ï¿½ãƒ»ãƒ»ï½¥ãƒ»ãƒ»
             const img = frames[frameIndex];
             if (img && img.complete && img.naturalWidth > 0) {
                 const drawX = this.x;
@@ -1967,7 +1967,7 @@ class Player {
         }
         ctx.restore();
 
-        // E”ë²E¹EEEEEE úµ•ì¸E©: ú°Œë ˆì´E´ E¸E¬ EE— ú´E¬ EEE ú­œì‹œ
+        // ãƒ»ç½·ï½²ãƒ»ï½¹ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ãƒ» å¶¹è©æ”¤ãƒ»ï½©: åµ“èª¤ï¿½æº¢æ“½ãƒ»ï½´ ãƒ»ï½¸ãƒ»ï½¬ ãƒ»ãƒ»ä¹± å¶¸ãƒ»æ¤ª ãƒ»ãƒ»ãƒ» å²ºæ‡äº¨
         ctx.fillStyle = 'white';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
@@ -1983,7 +1983,7 @@ class Player {
             debugState += ` [${this.sprite_index}]`;
         }
         
-        // E°E½EEE´EEE”ì•„E¼E´ E€E¨E€ EEEEE´EE‹ˆE¤.
+        // ãƒ»ï½°ãƒ»ï½½ãƒ»ãƒ»ãƒ»ï½´ãƒ»ãƒ»ãƒ»è‚¥ç¬¦ãƒ»ï½¼ãƒ»ï½´ ãƒ»Â€ãƒ»ï½¨ãƒ»Â€ ãƒ»ãƒ»ãƒ»ãƒ»ãƒ»ï½´ãƒ»ãƒ»ç¬ˆãƒ»ï½¤.
         const textWidth = ctx.measureText(debugState).width;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(this.x + this.width / 2 - textWidth / 2 - 2, this.y - 22, textWidth + 4, 16);

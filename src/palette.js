@@ -90,3 +90,4 @@ class PaletteManager {
         }
     }
 }
+window.PaletteManager = PaletteManager;
