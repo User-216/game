@@ -1,4 +1,4 @@
-﻿
+
 
 class Entity {
     constructor(x, y, width, height, color) {
@@ -1080,6 +1080,82 @@ class Splatter extends Entity {
             }
             ctx.drawImage(this.image, this.x, this.y, 100, 100);
             ctx.restore();
+        }
+    }
+}
+
+class PaletteDresser extends Entity {
+    constructor(x, y, width = 64, height = 64) {
+        super(x, y, width, height, 'rgba(0,0,0,0)');
+        this.type = 'obj_palettedresser';
+        this.sprite = new Image();
+        this.sprite.src = 'player/spr_palettedresser.png';
+        
+        this.playerTouching = false;
+        this.prevUp = false;
+        this.prevDown = false;
+    }
+
+    update(game) {
+        if (!game || !game.player) return;
+        
+        // Simple AABB collision check with player
+        const touching = (
+            this.x < game.player.x + game.player.width &&
+            this.x + this.width > game.player.x &&
+            this.y < game.player.y + game.player.height &&
+            this.y + this.height > game.player.y
+        );
+
+        this.playerTouching = touching;
+        
+        if (touching) {
+            const upPressed = game.keys.actionUp || game.keys['ArrowUp'];
+            const downPressed = game.keys.actionDown || game.keys['ArrowDown'];
+            
+            if (upPressed && !this.prevUp) {
+                if (game.player.paletteManager) {
+                    let p = game.player.paletteManager.currentPalette;
+                    game.player.paletteManager.setPalette((p + 1) % 17);
+                    if (game.audio) game.audio.playFile('sfx_step', true);
+                }
+            }
+            if (downPressed && !this.prevDown) {
+                if (game.player.paletteManager) {
+                    let p = game.player.paletteManager.currentPalette;
+                    game.player.paletteManager.setPalette((p - 1 + 17) % 17);
+                    if (game.audio) game.audio.playFile('sfx_step', true);
+                }
+            }
+            
+            this.prevUp = upPressed;
+            this.prevDown = downPressed;
+        } else {
+            this.prevUp = false;
+            this.prevDown = false;
+        }
+    }
+
+    render(ctx, camera) {
+        if (this.sprite && this.sprite.complete && this.sprite.naturalWidth > 0) {
+            ctx.drawImage(this.sprite, this.x - camera.x, this.y - camera.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = 'rgba(200, 100, 200, 0.5)';
+            ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.strokeRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("DRESSER", this.x + this.width/2 - camera.x, this.y + this.height/2 - camera.y);
+        }
+
+        if (this.playerTouching) {
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("UP/DOWN", this.x + this.width/2 - camera.x, this.y - 10 - camera.y);
         }
     }
 }

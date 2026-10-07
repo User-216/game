@@ -1244,6 +1244,9 @@ class Game {
             case 'obj_bigcollect':
                 entity = new BigCollect(x, y, w, h);
                 break;
+            case 'obj_palettedresser':
+                entity = new PaletteDresser(x, y, w, h);
+                break;
             case 'obj_slime':
                 entity = new Slime(x, y, w, h);
                 break;
