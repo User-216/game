@@ -1143,7 +1143,13 @@ class PaletteDresser extends Entity {
             if (this.game && this.game.player && this.game.player.paletteManager) {
                 imgToDraw = this.game.player.paletteManager.getTintedFrame(this.sprite, this.sprite.src);
             }
-            ctx.drawImage(imgToDraw, this.x, this.y, this.width, this.height);
+            // Draw at natural size, aligning the bottom to the bounding box bottom
+            const drawW = this.sprite.naturalWidth;
+            const drawH = this.sprite.naturalHeight;
+            const drawX = this.x + (this.width - drawW) / 2;
+            const drawY = this.y + this.height - drawH;
+            
+            ctx.drawImage(imgToDraw, drawX, drawY, drawW, drawH);
         } else {
             ctx.fillStyle = 'rgba(200, 100, 200, 0.5)';
             ctx.fillRect(this.x, this.y, this.width, this.height);
