@@ -1,4 +1,4 @@
-﻿const i18n = {
+const i18n = {
     en: {
         'ui.speed': 'SPEED', 'ui.climb': 'CLIMB', 'ui.state': 'STATE', 'ui.room': 'ROOM',
         'tut.move': 'Move', 'tut.jump': 'Jump', 'tut.run': 'Run', 'tut.editor': 'Design Mode',
@@ -1731,10 +1731,32 @@ this.entities.push(
                     this.pauseMenuIndex = (this.pauseMenuIndex + 1) % this.pauseMenuOptions.length;
                     if (this.audio) this.audio.playFile('sfx_step', true); 
                 }
+                const sel = this.pauseMenuOptions[this.pauseMenuIndex];
+                if (sel === 'PALETTE') {
+                    if (this.isActionPressed('menu_left') && !this.prevKeysLeft) {
+                        if (this.player && this.player.paletteManager) {
+                            let p = this.player.paletteManager.currentPalette;
+                            this.player.paletteManager.setPalette((p - 1 + 17) % 17);
+                            if (this.audio) this.audio.playFile('sfx_step', true);
+                        }
+                    }
+                    if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
+                        if (this.player && this.player.paletteManager) {
+                            let p = this.player.paletteManager.currentPalette;
+                            this.player.paletteManager.setPalette((p + 1) % 17);
+                            if (this.audio) this.audio.playFile('sfx_step', true);
+                        }
+                    }
+                }
+
                 if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
-                    const sel = this.pauseMenuOptions[this.pauseMenuIndex];
                     if (sel === 'RESUME') {
                         this.togglePause();
+                    } else if (sel === 'PALETTE') {
+                        if (this.player && this.player.paletteManager) {
+                            this.player.paletteManager.setPalette((this.player.paletteManager.currentPalette + 1) % 17);
+                            if (this.audio) this.audio.playFile('sfx_step', true);
+                        }
                     } else if (sel === 'OPTIONS') {
                         this.gameState = 'OPTIONS';
                         this.optionsMenuIndex = 0;
