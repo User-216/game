@@ -1161,7 +1161,7 @@ class PaletteDresser extends Entity {
                     let oldP = game.player.paletteManager.currentPalette;
                     game.player.paletteManager.setPalette((oldP + 1) % 17);
                     if (game.audio) game.audio.playFile('sfx_step', true);
-                    for(let i=0; i<3; i++) game.entities.push(new PaletteDebris(game.player.x, game.player.y, oldP));
+                    game.entities.push(new PaletteDebris(game.player.x, game.player.y, oldP));
                 }
             }
             if (downPressed && !this.prevDown) {
@@ -1169,7 +1169,7 @@ class PaletteDresser extends Entity {
                     let oldP = game.player.paletteManager.currentPalette;
                     game.player.paletteManager.setPalette((oldP - 1 + 17) % 17);
                     if (game.audio) game.audio.playFile('sfx_step', true);
-                    for(let i=0; i<3; i++) game.entities.push(new PaletteDebris(game.player.x, game.player.y, oldP));
+                    game.entities.push(new PaletteDebris(game.player.x, game.player.y, oldP));
                 }
             }
             
