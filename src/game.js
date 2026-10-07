@@ -361,6 +361,9 @@ class Game {
     }
 
     enableLayoutEditMode(enable) {
+        const mc = document.getElementById('mobile-controls');
+        if (mc) mc.style.display = enable ? 'block' : '';
+        
         const elements = ['joystick-zone', 'mbtn-run', 'mbtn-grab', 'mbtn-jump', 'mbtn-pause'];
         
         elements.forEach(id => {
@@ -370,40 +373,48 @@ class Game {
             if (enable) {
                 el._origBorder = el.style.border; el.style.border = '2px dashed red';
                 
-                el._touchStart = (e) => {
+                el._dragStart = (e) => {
                     e.preventDefault();
                     el._dragging = true;
-                    const touch = e.touches[0];
-                    el._startX = touch.clientX - el.offsetLeft;
-                    el._startY = touch.clientY - el.offsetTop;
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    el._startX = clientX - el.offsetLeft;
+                    el._startY = clientY - el.offsetTop;
                 };
-                el._touchMove = (e) => {
+                el._dragMove = (e) => {
                     e.preventDefault();
                     if (!el._dragging) return;
-                    const touch = e.touches[0];
-                    el.style.left = (touch.clientX - el._startX) + 'px';
-                    el.style.top = (touch.clientY - el._startY) + 'px';
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    el.style.left = (clientX - el._startX) + 'px';
+                    el.style.top = (clientY - el._startY) + 'px';
                     el.style.bottom = 'auto';
                     el.style.right = 'auto';
                 };
-                el._touchEnd = (e) => {
+                el._dragEnd = (e) => {
+                    if (!el._dragging) return;
                     el._dragging = false;
-                    // Save to localStorage
                     let layout = {};
                     try { layout = JSON.parse(localStorage.getItem('mobileLayout') || '{}'); } catch(err) {}
                     layout[id] = { left: el.style.left, top: el.style.top };
                     localStorage.setItem('mobileLayout', JSON.stringify(layout));
                 };
                 
-                el.addEventListener('touchstart', el._touchStart, {passive: false});
-                el.addEventListener('touchmove', el._touchMove, {passive: false});
-                el.addEventListener('touchend', el._touchEnd, {passive: false});
+                el.addEventListener('touchstart', el._dragStart, {passive: false});
+                el.addEventListener('mousedown', el._dragStart, {passive: false});
+                document.addEventListener('touchmove', el._dragMove, {passive: false});
+                document.addEventListener('mousemove', el._dragMove, {passive: false});
+                document.addEventListener('touchend', el._dragEnd, {passive: false});
+                document.addEventListener('mouseup', el._dragEnd, {passive: false});
             } else {
                 el.style.border = el._origBorder || '';
-                if (el._touchStart) {
-                    el.removeEventListener('touchstart', el._touchStart);
-                    el.removeEventListener('touchmove', el._touchMove);
-                    el.removeEventListener('touchend', el._touchEnd);
+                if (el._dragStart) {
+                    el.removeEventListener('touchstart', el._dragStart);
+                    el.removeEventListener('mousedown', el._dragStart);
+                    document.removeEventListener('touchmove', el._dragMove);
+                    document.removeEventListener('mousemove', el._dragMove);
+                    document.removeEventListener('touchend', el._dragEnd);
+                    document.removeEventListener('mouseup', el._dragEnd);
                 }
             }
         });
