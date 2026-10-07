@@ -1110,8 +1110,8 @@ class PaletteDresser extends Entity {
         this.playerTouching = touching;
         
         if (touching) {
-            const upPressed = game.keys.actionUp || game.keys['ArrowUp'];
-            const downPressed = game.keys.actionDown || game.keys['ArrowDown'];
+            const upPressed = game.isActionPressed ? game.isActionPressed('up') : (game.keys.actionUp || game.keys['ArrowUp']);
+            const downPressed = game.isActionPressed ? game.isActionPressed('down') : (game.keys.actionDown || game.keys['ArrowDown']);
             
             if (upPressed && !this.prevUp) {
                 if (game.player.paletteManager) {
@@ -1136,26 +1136,26 @@ class PaletteDresser extends Entity {
         }
     }
 
-    render(ctx, camera) {
+    render(ctx) {
         if (this.sprite && this.sprite.complete && this.sprite.naturalWidth > 0) {
-            ctx.drawImage(this.sprite, this.x - camera.x, this.y - camera.y, this.width, this.height);
+            ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
         } else {
             ctx.fillStyle = 'rgba(200, 100, 200, 0.5)';
-            ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
+            ctx.fillRect(this.x, this.y, this.width, this.height);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.strokeRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
             
             ctx.fillStyle = 'white';
             ctx.font = '14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText("DRESSER", this.x + this.width/2 - camera.x, this.y + this.height/2 - camera.y);
+            ctx.fillText("DRESSER", this.x + this.width/2, this.y + this.height/2);
         }
 
         if (this.playerTouching) {
             ctx.fillStyle = 'white';
             ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText("UP/DOWN", this.x + this.width/2 - camera.x, this.y - 10 - camera.y);
+            ctx.fillText("UP/DOWN", this.x + this.width/2, this.y - 10);
         }
     }
 }
