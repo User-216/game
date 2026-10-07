@@ -353,17 +353,26 @@ class Game {
     }
 
     resize() {
-        if (this.settings && this.settings.resolution !== 'native') {
-            const [w, h] = this.settings.resolution.split('x').map(Number);
-            this.canvas.width = w;
-            this.canvas.height = h;
-        } else {
-            this.canvas.width = window.innerWidth;
-            this.canvas.height = window.innerHeight;
-        }
+        this.canvas.width = 960;
+        this.canvas.height = 540;
+        this.canvas.style.width = '100vw';
+        this.canvas.style.height = '100vh';
+        this.canvas.style.objectFit = 'contain';
     }
 
     setupInputs() {
+        const tCanv = document.getElementById('transitionCanvas');
+        if (tCanv) {
+            tCanv.style.width = '100vw';
+            tCanv.style.height = '100vh';
+            tCanv.style.objectFit = 'contain';
+        }
+        const tVid = document.getElementById('transitionVideo');
+        if (tVid) {
+            tVid.style.width = '100vw';
+            tVid.style.height = '100vh';
+            tVid.style.objectFit = 'contain';
+        }
         this.mouseClicked = false;
         window.addEventListener('mousedown', () => { this.mouseClicked = true; });
         window.addEventListener('touchstart', () => { this.mouseClicked = true; }, {passive: true});
@@ -879,10 +888,6 @@ class Game {
         });
 
         // Video
-        document.getElementById('resolution-select').addEventListener('change', (e) => {
-            this.settings.resolution = e.target.value;
-            this.resize();
-        });
         
         const vsyncSelect = document.getElementById('vsync-select');
         vsyncSelect.value = this.settings.vsync ? "on" : "off";
