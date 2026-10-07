@@ -2044,6 +2044,21 @@ this.entities.push(
                         this.settings.windowMode = currentOptions[this.optionsMenuIndex];
                         this.optionsMenuLevel = 'VIDEO';
                         this.optionsMenuIndex = 1;
+                        
+                        // Apply Window Mode
+                        if (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS') {
+                            if (!document.fullscreenElement) {
+                                document.documentElement.requestFullscreen().catch(err => {
+                                    console.log("Error attempting to enable fullscreen:", err);
+                                });
+                            }
+                        } else if (this.settings.windowMode === 'WINDOWED') {
+                            if (document.fullscreenElement) {
+                                document.exitFullscreen().catch(err => {
+                                    console.log("Error attempting to exit fullscreen:", err);
+                                });
+                            }
+                        }
                     }
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
