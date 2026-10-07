@@ -1084,6 +1084,43 @@ class Splatter extends Entity {
     }
 }
 
+class PaletteDebris extends Entity {
+    constructor(x, y) {
+        super(x, y, 100, 100, 'transparent');
+        this.type = 'obj_debris';
+        this.sprite = new Image();
+        this.sprite.src = '이미지/spr_palettedresserdebris.png';
+        this.vx = (Math.random() - 0.5) * 12;
+        this.vy = -8 - Math.random() * 6;
+        this.gravity = 0.5;
+        this.angle = 0;
+        this.rotSpeed = (Math.random() - 0.5) * 0.4;
+    }
+
+    update(game) {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += this.gravity;
+        this.angle += this.rotSpeed;
+
+        if (this.y > game.roomHeight + 200) {
+            this.isDestroyed = true;
+        }
+    }
+
+    render(ctx) {
+        if (!this.sprite.complete || this.sprite.naturalWidth === 0) return;
+        
+        ctx.save();
+        ctx.translate(this.x + this.width/2, this.y + this.height/2);
+        ctx.rotate(this.angle);
+        
+        let imgToDraw = this.sprite;
+        ctx.drawImage(imgToDraw, -this.sprite.naturalWidth/2, -this.sprite.naturalHeight/2, this.sprite.naturalWidth, this.sprite.naturalHeight);
+        ctx.restore();
+    }
+}
+
 class PaletteDresser extends Entity {
     constructor(x, y, width = 64, height = 64) {
         super(x, y, width, height, 'rgba(0,0,0,0)');
@@ -1119,6 +1156,7 @@ class PaletteDresser extends Entity {
                     let p = game.player.paletteManager.currentPalette;
                     game.player.paletteManager.setPalette((p + 1) % 17);
                     if (game.audio) game.audio.playFile('sfx_step', true);
+                    for(let i=0; i<3; i++) game.entities.push(new PaletteDebris(game.player.x, game.player.y));
                 }
             }
             if (downPressed && !this.prevDown) {
@@ -1126,6 +1164,7 @@ class PaletteDresser extends Entity {
                     let p = game.player.paletteManager.currentPalette;
                     game.player.paletteManager.setPalette((p - 1 + 17) % 17);
                     if (game.audio) game.audio.playFile('sfx_step', true);
+                    for(let i=0; i<3; i++) game.entities.push(new PaletteDebris(game.player.x, game.player.y));
                 }
             }
             
