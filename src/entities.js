@@ -1099,6 +1099,7 @@ class PaletteDebris extends Entity {
     }
 
     update(game) {
+        this.game = game;
         this.x += this.vx;
         this.y += this.vy;
         this.vy += this.gravity;
@@ -1117,8 +1118,8 @@ class PaletteDebris extends Entity {
         ctx.rotate(this.angle);
         
         let imgToDraw = this.sprite;
-        if (window.PaletteManager && window.game && window.game.player && window.game.player.paletteManager) {
-            imgToDraw = window.game.player.paletteManager.getTintedFrame(this.sprite, this.sprite.src, this.palIndex);
+        if (this.game && this.game.player && this.game.player.paletteManager) {
+            imgToDraw = this.game.player.paletteManager.getTintedFrame(this.sprite, this.sprite.src, this.palIndex);
         }
         
         ctx.drawImage(imgToDraw, -this.sprite.naturalWidth/2, -this.sprite.naturalHeight/2, this.sprite.naturalWidth, this.sprite.naturalHeight);
@@ -1161,7 +1162,9 @@ class PaletteDresser extends Entity {
                     let oldP = game.player.paletteManager.currentPalette;
                     game.player.paletteManager.setPalette((oldP + 1) % 17);
                     if (game.audio) game.audio.playFile('sfx_step', true);
-                    game.entities.push(new PaletteDebris(game.player.x, game.player.y, oldP));
+                    let deb = new PaletteDebris(game.player.x, game.player.y, oldP);
+                    deb.game = game;
+                    game.entities.push(deb);
                 }
             }
             if (downPressed && !this.prevDown) {
@@ -1169,7 +1172,9 @@ class PaletteDresser extends Entity {
                     let oldP = game.player.paletteManager.currentPalette;
                     game.player.paletteManager.setPalette((oldP - 1 + 17) % 17);
                     if (game.audio) game.audio.playFile('sfx_step', true);
-                    game.entities.push(new PaletteDebris(game.player.x, game.player.y, oldP));
+                    let deb = new PaletteDebris(game.player.x, game.player.y, oldP);
+                    deb.game = game;
+                    game.entities.push(deb);
                 }
             }
             
