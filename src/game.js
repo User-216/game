@@ -3442,4 +3442,4 @@ this.entities.push(
     }
 }
 
-new Game();
+window.game = new Game();
