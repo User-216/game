@@ -1912,6 +1912,36 @@ this.entities.push(
                             this.optionsMenuLevel = 'MAIN';
                         }
                         this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'CONTROLS' && currentOptions[this.optionsMenuIndex] === 'RESET CONFIG') {
+                        // Reset Keyboard Bindings
+                        this.settings.bindings = {
+                            left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
+                            jump: 'z', run: 'Shift', grab: 'x', dash: 'Shift', superjump: 'ArrowUp',
+                            groundpound: 'ArrowDown', taunt: 'c', pause: 'Escape', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
+                            menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'Delete'
+                        };
+                        
+                        // Reset Mobile Layout
+                        localStorage.removeItem('mobileLayout');
+                        const defaults = {
+                            'mbtn-pause': { top: '20px', right: '20px', bottom: 'auto', left: 'auto' },
+                            'joystick-zone': { bottom: '40px', left: '40px', top: 'auto', right: 'auto' },
+                            'mbtn-jump': { bottom: '40px', right: '40px', top: 'auto', left: 'auto' },
+                            'mbtn-run': { bottom: '40px', right: '120px', top: 'auto', left: 'auto' },
+                            'mbtn-grab': { bottom: '120px', right: '80px', top: 'auto', left: 'auto' }
+                        };
+                        for (let id in defaults) {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                el.style.top = defaults[id].top;
+                                el.style.bottom = defaults[id].bottom;
+                                el.style.left = defaults[id].left;
+                                el.style.right = defaults[id].right;
+                            }
+                        }
+                        
+                        // Small feedback sound
+                        if (this.audio) this.audio.playFile('sfx_break', true); // Just any sound or beep
                     } else if (this.optionsMenuLevel === 'CONTROLS' && currentOptions[this.optionsMenuIndex] === 'KEYBOARD') {
                         this.optionsMenuLevel = 'KEYBOARD';
                         this.optionsMenuIndex = 0;
