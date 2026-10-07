@@ -1723,6 +1723,30 @@ this.entities.push(
 
         if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
             if (this.gameState === 'PAUSED') {
+                if (!this.pauseMenuLevel) this.pauseMenuLevel = 'MAIN';
+
+                if (this.pauseMenuLevel === 'PALETTE') {
+                    if (this.isActionPressed('menu_left') && !this.prevKeysLeft) {
+                        this.previewPalette = (this.previewPalette - 1 + 17) % 17;
+                        if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.previewPalette);
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                    if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
+                        this.previewPalette = (this.previewPalette + 1) % 17;
+                        if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.previewPalette);
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                    if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
+                        this.appliedPalette = this.previewPalette;
+                        this.pauseMenuLevel = 'MAIN';
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                    if ((this.isActionPressed('menu_back') || this.keys['Escape']) && !this.prevMenuBackKey) {
+                        if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.appliedPalette);
+                        this.pauseMenuLevel = 'MAIN';
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                } else {
                 if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
                     this.pauseMenuIndex = (this.pauseMenuIndex - 1 + this.pauseMenuOptions.length) % this.pauseMenuOptions.length;
                     if (this.audio) this.audio.playFile('sfx_step', true); 
@@ -1732,31 +1756,19 @@ this.entities.push(
                     if (this.audio) this.audio.playFile('sfx_step', true); 
                 }
                 const sel = this.pauseMenuOptions[this.pauseMenuIndex];
-                if (sel === 'PALETTE') {
-                    if (this.isActionPressed('menu_left') && !this.prevKeysLeft) {
-                        if (this.player && this.player.paletteManager) {
-                            let p = this.player.paletteManager.currentPalette;
-                            this.player.paletteManager.setPalette((p - 1 + 17) % 17);
-                            if (this.audio) this.audio.playFile('sfx_step', true);
-                        }
-                    }
-                    if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
-                        if (this.player && this.player.paletteManager) {
-                            let p = this.player.paletteManager.currentPalette;
-                            this.player.paletteManager.setPalette((p + 1) % 17);
-                            if (this.audio) this.audio.playFile('sfx_step', true);
-                        }
-                    }
-                }
-
                 if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                     if (sel === 'RESUME') {
                         this.togglePause();
                     } else if (sel === 'PALETTE') {
+                        this.pauseMenuLevel = 'PALETTE';
                         if (this.player && this.player.paletteManager) {
-                            this.player.paletteManager.setPalette((this.player.paletteManager.currentPalette + 1) % 17);
-                            if (this.audio) this.audio.playFile('sfx_step', true);
+                            this.appliedPalette = this.player.paletteManager.currentPalette;
+                            this.previewPalette = this.player.paletteManager.currentPalette;
+                        } else {
+                            this.appliedPalette = 0;
+                            this.previewPalette = 0;
                         }
+                        if (this.audio) this.audio.playFile('sfx_step', true);
                     } else if (sel === 'OPTIONS') {
                         this.gameState = 'OPTIONS';
                         this.optionsMenuIndex = 0;
@@ -2046,6 +2058,7 @@ this.entities.push(
                 this.prevKeys1 = this.keys['1'];
                 this.prevKeysC = this.isActionPressed('menu_clear');
                 
+                } // end else MAIN
                 this.prevMenuBackKey = this.isActionPressed('menu_back') || this.keys['Escape'];
             }
             return;
@@ -2584,15 +2597,18 @@ this.entities.push(
                 this.ctx.globalAlpha = 1;
             };
 
-            const startX = this.canvas.width / 2 + 150; // The right side of the screen
-            const startY = this.canvas.height / 2 - 120;
-            const lineSpace = 60;
+            if (this.pauseMenuLevel === 'PALETTE') {
+                const startX = this.canvas.width / 2 + 150;
+                const startY = this.canvas.height / 2;
+                let opt = 'PALETTE ' + (this.previewPalette || 0) + '/16';
+                drawText(opt, startX, startY, 1, 1);
+            } else {
+                const startX = this.canvas.width / 2 + 150;
+                const startY = this.canvas.height / 2 - 120;
+                const lineSpace = 60;
 
-            for (let i = 0; i < this.pauseMenuOptions.length; i++) {
-                let opt = this.pauseMenuOptions[i];
-                if (opt === 'PALETTE' && this.player && this.player.paletteManager) {
-                    opt = 'PALETTE: ' + this.player.paletteManager.currentPalette;
-                }
+                for (let i = 0; i < this.pauseMenuOptions.length; i++) {
+                    let opt = this.pauseMenuOptions[i];
                 const y = startY + i * lineSpace;
                 const isSelected = i === this.pauseMenuIndex;
                 
@@ -2614,6 +2630,7 @@ this.entities.push(
                 } else {
                     drawText(opt, startX + 20, y, 1, 0.5);
                 }
+            }
             }
         } else if (this.gameState === 'OPTIONS' && this.bigFontLoaded) {
             if (this.optionsBGLoaded) {
