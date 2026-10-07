@@ -274,6 +274,7 @@ class Player {
         this.mask_image_crouch = new Image();
         this.mask_image_crouch.src = 'player/spr_player_maskc.png';
         this.frameCount = 0;
+        this.paletteManager = window.PaletteManager ? new window.PaletteManager() : null;
     }
 
     update(keys, entities, audio) {
@@ -1627,7 +1628,7 @@ class Player {
                     ctx.drawImage(this.tintCanvas, -51, offsetY, 100, 100);
                 } else {
                     const offsetY = (m.isCrouching || m.isTumbling) ? -68.5 : -57.5;
-                    ctx.drawImage(imgToDraw, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(imgToDraw, imgToDraw.src || "imgToDraw") : imgToDraw, -51, offsetY, 100, 100);
                 }
                 ctx.restore();
             } else {
@@ -1673,7 +1674,7 @@ class Player {
                         const scale = ef.scale || 1.0;
                         const w = img.naturalWidth * scale;
                         const h = img.naturalHeight * scale;
-                        ctx.drawImage(img, -w/2, -h, w, h);
+                        ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -w/2, -h, w, h);
                         ctx.restore();
                     }
                     ef.image_index += ef.image_speed;
@@ -1711,7 +1712,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_walk') {
             const frames = this.sprites.spr_player_walk;
@@ -1726,7 +1727,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_fall') {
             const frames = this.sprites.spr_player_fall;
@@ -1741,7 +1742,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_jump') {
             const frames = this.sprites.spr_player_jump;
@@ -1760,7 +1761,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_land') {
             const frames = this.sprites.spr_player_land;
@@ -1778,7 +1779,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
                 } else if (this.sprite_index === 'spr_player_climbwall') {
             const frames = this.sprites.spr_player_climbwall;
@@ -1793,7 +1794,7 @@ class Player {
                     if (this.climbSide === -1) {
                         ctx.scale(-1, 1);
                     }
-                    ctx.drawImage(img, -51, -57.5, 100, 100);
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, -57.5, 100, 100);
                 }
             }
         } else if (this.sprite_index === 'spr_player_rollgetup') {
@@ -1809,7 +1810,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
                 
                 if (Math.abs(this.vx) >= 12) {
                     const effectFrames = this.effectSprites.spr_mach_effect;
@@ -1835,7 +1836,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
             const frames = this.sprites[this.sprite_index];
@@ -1850,7 +1851,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
                 
                 if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
                     const effectFrames = this.effectSprites.spr_mach_effect;
@@ -1876,7 +1877,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_groundpoundland') {
             const frames = this.sprites.spr_player_groundpoundland;
@@ -1891,7 +1892,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             const frames = this.sprites.spr_player_groundpoundstart;
@@ -1909,7 +1910,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_groundpound') {
             const frames = this.sprites.spr_player_groundpound;
@@ -1924,7 +1925,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_taunt') {
             const frames = this.sprites.spr_player_taunt;
@@ -1940,7 +1941,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
         } else {
             let pColor = this.color;

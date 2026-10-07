@@ -70,7 +70,7 @@ class Game {
         this.lastTime = performance.now();
         this.accumulator = 0;
         
-        this.pauseMenuOptions = ['RESUME', 'OPTIONS', 'RESTART', 'EXIT LEVEL'];
+        this.pauseMenuOptions = ['RESUME', 'OPTIONS', 'PALETTE', 'RESTART', 'EXIT LEVEL'];
         this.pauseMenuIndex = 0;
         this.pauseBubbles = [];
         
@@ -2567,7 +2567,10 @@ this.entities.push(
             const lineSpace = 60;
 
             for (let i = 0; i < this.pauseMenuOptions.length; i++) {
-                const opt = this.pauseMenuOptions[i];
+                let opt = this.pauseMenuOptions[i];
+                if (opt === 'PALETTE' && this.player && this.player.paletteManager) {
+                    opt = 'PALETTE: ' + this.player.paletteManager.currentPalette;
+                }
                 const y = startY + i * lineSpace;
                 const isSelected = i === this.pauseMenuIndex;
                 
