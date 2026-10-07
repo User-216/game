@@ -1,6 +1,5 @@
 class PaletteManager {
     constructor() {
-        this.base64Img = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABEAAAAHCAYAAADu4qZ8AAAAoElEQVQYlWNgYGD4D8P///+Hs2enWcHYBAHL58sxcA4jIyPDiV5vBm03QYZLO98yvNu1hUHIzYegIUyXdr5luLTzLVzg7/9/cP71S1OJcQgDi6ZeNpS5goGBgYEBxr9+aSqUvZ2wIcwqnBDWVwgF519CYhMATKs6ahlWddTCBVZ11DLwKznD2cQAFl11QRQBXXVBhhO93gx///9jQJfDBQCQSzfXl/k2NgAAAABJRU5ErkJggg==";
         this.colors = [];
         this.currentPalette = 0;
         this.isLoaded = false;
@@ -29,7 +28,7 @@ class PaletteManager {
                 console.error("Canvas taint error", e);
             }
         };
-        this.img.src = this.base64Img;
+        this.img.src = 'player/spr_tory_palette.png';
     }
 
     setPalette(index) {
