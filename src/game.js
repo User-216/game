@@ -1238,6 +1238,9 @@ class Game {
                     entity = new TutorialBook(x, y, w, h, tutText);
                 }
                 break;
+            case 'obj_palettedresser':
+                entity = new PaletteDresser(x, y, w, h);
+                break;
             case 'obj_collect':
                 entity = new Collect(x, y, w, h);
                 break;
