@@ -1403,6 +1403,17 @@ this.entities.push(
         };
     }
 
+    showSaveIcon() {
+        const icon = document.getElementById('save-icon');
+        if (icon) {
+            icon.style.display = 'block';
+            if (this.saveIconTimeout) clearTimeout(this.saveIconTimeout);
+            this.saveIconTimeout = setTimeout(() => {
+                icon.style.display = 'none';
+            }, 2000); // Hide after 2 seconds
+        }
+    }
+
     async loadRoom(roomName, targetDoorId = 'A', preserveVelocity = false) {
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         this.lastTargetDoorId = targetDoorId;
