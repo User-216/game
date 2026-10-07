@@ -1783,9 +1783,14 @@ this.entities.push(
                         if (this.uiOverlay) this.uiOverlay.style.display = 'none';
                     }
                 }
+                } // end else MAIN
+                
                 this.prevKeysUp = this.isActionPressed('menu_up');
                 this.prevKeysDown = this.isActionPressed('menu_down');
                 this.prevKeysZ = this.isActionPressed('menu_confirm');
+                this.prevKeysLeft = this.isActionPressed('menu_left');
+                this.prevKeysRight = this.isActionPressed('menu_right');
+                this.prevMenuBackKey = this.isActionPressed('menu_back') || this.keys['Escape'];
 
                 // Update bubbles
                 if (this.pauseBubbles) {
@@ -2058,7 +2063,6 @@ this.entities.push(
                 this.prevKeys1 = this.keys['1'];
                 this.prevKeysC = this.isActionPressed('menu_clear');
                 
-                } // end else MAIN
                 this.prevMenuBackKey = this.isActionPressed('menu_back') || this.keys['Escape'];
             }
             return;
@@ -2603,12 +2607,12 @@ this.entities.push(
                 let opt = 'PALETTE ' + (this.previewPalette || 0) + '/16';
                 drawText(opt, startX, startY, 1, 1);
             } else {
-                const startX = this.canvas.width / 2 + 150;
-                const startY = this.canvas.height / 2 - 120;
-                const lineSpace = 60;
+            const startX = this.canvas.width / 2 + 150;
+            const startY = this.canvas.height / 2 - 120;
+            const lineSpace = 60;
 
-                for (let i = 0; i < this.pauseMenuOptions.length; i++) {
-                    let opt = this.pauseMenuOptions[i];
+            for (let i = 0; i < this.pauseMenuOptions.length; i++) {
+                let opt = this.pauseMenuOptions[i];
                 const y = startY + i * lineSpace;
                 const isSelected = i === this.pauseMenuIndex;
                 
