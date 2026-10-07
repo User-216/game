@@ -1089,7 +1089,7 @@ class PaletteDresser extends Entity {
         super(x, y, width, height, 'rgba(0,0,0,0)');
         this.type = 'obj_palettedresser';
         this.sprite = new Image();
-        this.sprite.src = 'player/spr_palettedresser.png';
+        this.sprite.src = '이미지/spr_palettedresser.png';
         
         this.playerTouching = false;
         this.prevUp = false;
