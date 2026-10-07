@@ -37,13 +37,15 @@ class PaletteManager {
         this.cache.clear();
     }
 
-    getTintedFrame(img, frameName) {
+    getTintedFrame(img, frameName, overridePalette = null) {
         if (!this.isLoaded || !img || !img.width) return img;
-        if (this.currentPalette === 0) return img;
-        if (this.currentPalette >= this.colors.length) return img;
+        const palIdx = overridePalette !== null ? overridePalette : this.currentPalette;
+        if (palIdx === 0) return img;
+        if (palIdx >= this.colors.length) return img;
 
-        if (this.cache.has(frameName)) {
-            return this.cache.get(frameName);
+        const cacheKey = frameName + '_' + palIdx;
+        if (this.cache.has(cacheKey)) {
+            return this.cache.get(cacheKey);
         }
 
         const canvas = document.createElement('canvas');
@@ -56,7 +58,7 @@ class PaletteManager {
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             const baseColors = this.colors[0];
-            const targetColors = this.colors[this.currentPalette];
+            const targetColors = this.colors[palIdx];
 
             for (let i = 0; i < data.length; i += 4) {
                 if (data[i+3] === 0) continue;
@@ -82,7 +84,7 @@ class PaletteManager {
                 }
             }
             ctx.putImageData(imgData, 0, 0);
-            this.cache.set(frameName, canvas);
+            this.cache.set(cacheKey, canvas);
             return canvas;
         } catch(e) {
             return img;
