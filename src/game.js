@@ -903,6 +903,7 @@ class Game {
         if (btnEditLayout) {
             btnEditLayout.addEventListener('click', () => {
                 document.getElementById('options-overlay').style.display = 'none';
+                this.editLayoutReturnState = 'PAUSED';
                 this.gameState = 'EDIT_LAYOUT';
                 
                 let doneBtn = document.getElementById('btn-finish-layout');
@@ -925,8 +926,10 @@ class Game {
                     
                     doneBtn.addEventListener('click', () => {
                         doneBtn.style.display = 'none';
-                        this.gameState = 'PAUSED';
-                        document.getElementById('options-overlay').style.display = 'flex';
+                        this.gameState = this.editLayoutReturnState || 'PAUSED';
+                        if (this.gameState === 'PAUSED') {
+                            document.getElementById('options-overlay').style.display = 'flex';
+                        }
                         this.enableLayoutEditMode(false);
                     });
                 }
@@ -1784,7 +1787,7 @@ this.entities.push(
                 else if (this.optionsMenuLevel === 'VIDEO') currentOptions = ['BACK', 'WINDOW MODE', 'RESOLUTION', 'VSYNC', 'TEXTURE FILTERING', 'HIDE HUD'];
                 else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
                 else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
-                else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
+                else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'MOBILE LAYOUT' : 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
                 else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
                 else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
                 
@@ -1915,6 +1918,39 @@ this.entities.push(
                     } else if (this.optionsMenuLevel === 'KEYBOARD' && currentOptions[this.optionsMenuIndex] === 'BINDINGS') {
                         this.optionsMenuLevel = 'BINDINGS';
                         this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'KEYBOARD' && currentOptions[this.optionsMenuIndex] === 'MOBILE LAYOUT') {
+                        this.editLayoutReturnState = this.gameState;
+                        this.gameState = 'EDIT_LAYOUT';
+                        this.enableLayoutEditMode(true);
+                        
+                        let doneBtn = document.getElementById('btn-finish-layout');
+                        if (!doneBtn) {
+                            doneBtn = document.createElement('button');
+                            doneBtn.id = 'btn-finish-layout';
+                            doneBtn.innerText = 'DONE EDITING';
+                            doneBtn.style.position = 'fixed';
+                            doneBtn.style.top = '20px';
+                            doneBtn.style.left = '50%';
+                            doneBtn.style.transform = 'translateX(-50%)';
+                            doneBtn.style.zIndex = '9999';
+                            doneBtn.style.padding = '10px 20px';
+                            doneBtn.style.fontSize = '1.2rem';
+                            doneBtn.style.background = '#e74c3c';
+                            doneBtn.style.color = 'white';
+                            doneBtn.style.border = '2px solid white';
+                            doneBtn.style.borderRadius = '10px';
+                            document.body.appendChild(doneBtn);
+                            
+                            doneBtn.addEventListener('click', () => {
+                                doneBtn.style.display = 'none';
+                                this.gameState = this.editLayoutReturnState || 'PAUSED';
+                                if (this.gameState === 'PAUSED') {
+                                    document.getElementById('options-overlay').style.display = 'flex';
+                                }
+                                this.enableLayoutEditMode(false);
+                            });
+                        }
+                        doneBtn.style.display = 'block';
                     } else if (this.optionsMenuLevel === 'VIDEO' && currentOptions[this.optionsMenuIndex] === 'WINDOW MODE') {
                         this.optionsMenuLevel = 'WINDOW MODE';
                         this.optionsMenuIndex = 0;
@@ -2611,7 +2647,7 @@ this.entities.push(
             else if (this.optionsMenuLevel === 'VIDEO') currentOptions = ['BACK', 'WINDOW MODE', 'RESOLUTION', 'VSYNC', 'TEXTURE FILTERING', 'HIDE HUD'];
             else if (this.optionsMenuLevel === 'GAME') currentOptions = ['BACK', 'SHAKE INTENS', 'TIMER'];
             else if (this.optionsMenuLevel === 'CONTROLS') currentOptions = ['BACK', 'KEYBOARD', 'CONTROLLER', 'RESET CONFIG'];
-            else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
+            else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'MOBILE LAYOUT' : 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
             else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
             else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
 
