@@ -61,15 +61,25 @@ class PaletteManager {
 
             for (let i = 0; i < data.length; i += 4) {
                 if (data[i+3] === 0) continue;
+                
+                let bestMatchIdx = -1;
+                let minDistance = 999999;
+                
                 for (let c = 0; c < baseColors.length; c++) {
                     const bc = baseColors[c];
-                    if (bc.a > 0 && Math.abs(data[i] - bc.r) <= 8 && Math.abs(data[i+1] - bc.g) <= 8 && Math.abs(data[i+2] - bc.b) <= 8) {
-                        data[i] = targetColors[c].r;
-                        data[i+1] = targetColors[c].g;
-                        data[i+2] = targetColors[c].b;
-                        data[i+3] = data[i+3];
-                        break;
+                    if (bc.a > 0) {
+                        const dist = Math.abs(data[i] - bc.r) + Math.abs(data[i+1] - bc.g) + Math.abs(data[i+2] - bc.b);
+                        if (dist <= 30 && dist < minDistance) {
+                            minDistance = dist;
+                            bestMatchIdx = c;
+                        }
                     }
+                }
+                
+                if (bestMatchIdx !== -1) {
+                    data[i] = targetColors[bestMatchIdx].r;
+                    data[i+1] = targetColors[bestMatchIdx].g;
+                    data[i+2] = targetColors[bestMatchIdx].b;
                 }
             }
             ctx.putImageData(imgData, 0, 0);
