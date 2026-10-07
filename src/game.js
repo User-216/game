@@ -2531,7 +2531,7 @@ this.entities.push(
         // 2. Foreground objects (Platforms, slopes, etc.)
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
-            if (e.type !== 'hallway') {
+            if (e.type !== 'hallway' && e.type !== 'obj_debris') {
                 if (e.x + e.width > viewLeft && e.x < viewRight && 
                     e.y + e.height > viewTop && e.y < viewBottom) {
                     e.render(this.ctx);
@@ -2540,6 +2540,17 @@ this.entities.push(
         }
         
         this.player.render(this.ctx);
+        
+        // 3. Particles/Effects (Debris in front of player)
+        for (let i = 0; i < this.entities.length; i++) {
+            const e = this.entities[i];
+            if (e.type === 'obj_debris') {
+                if (e.x + e.width > viewLeft && e.x < viewRight && 
+                    e.y + e.height > viewTop && e.y < viewBottom) {
+                    e.render(this.ctx);
+                }
+            }
+        }
 
         // Render Editor Overlays
         if (this.isEditorMode) {
