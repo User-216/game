@@ -277,7 +277,7 @@ input[type=range]::-webkit-slider-runnable-track {
 
 @media (hover: none) and (pointer: coarse) {
     #mobile-controls {
-        display: flex;
+        display: block;
     }
     .stats {
         flex-direction: column;

@@ -1,4 +1,4 @@
-const i18n = {
+﻿const i18n = {
     en: {
         'ui.speed': 'SPEED', 'ui.climb': 'CLIMB', 'ui.state': 'STATE', 'ui.room': 'ROOM',
         'tut.move': 'Move', 'tut.jump': 'Jump', 'tut.run': 'Run', 'tut.editor': 'Design Mode',
@@ -360,7 +360,71 @@ class Game {
         this.canvas.style.objectFit = 'contain';
     }
 
+    enableLayoutEditMode(enable) {
+        const elements = ['joystick-zone', 'mbtn-run', 'mbtn-grab', 'mbtn-jump', 'mbtn-pause'];
+        
+        elements.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            if (enable) {
+                el._origBorder = el.style.border; el.style.border = '2px dashed red';
+                
+                el._touchStart = (e) => {
+                    e.preventDefault();
+                    el._dragging = true;
+                    const touch = e.touches[0];
+                    el._startX = touch.clientX - el.offsetLeft;
+                    el._startY = touch.clientY - el.offsetTop;
+                };
+                el._touchMove = (e) => {
+                    e.preventDefault();
+                    if (!el._dragging) return;
+                    const touch = e.touches[0];
+                    el.style.left = (touch.clientX - el._startX) + 'px';
+                    el.style.top = (touch.clientY - el._startY) + 'px';
+                    el.style.bottom = 'auto';
+                    el.style.right = 'auto';
+                };
+                el._touchEnd = (e) => {
+                    el._dragging = false;
+                    // Save to localStorage
+                    let layout = {};
+                    try { layout = JSON.parse(localStorage.getItem('mobileLayout') || '{}'); } catch(err) {}
+                    layout[id] = { left: el.style.left, top: el.style.top };
+                    localStorage.setItem('mobileLayout', JSON.stringify(layout));
+                };
+                
+                el.addEventListener('touchstart', el._touchStart, {passive: false});
+                el.addEventListener('touchmove', el._touchMove, {passive: false});
+                el.addEventListener('touchend', el._touchEnd, {passive: false});
+            } else {
+                el.style.border = el._origBorder || '';
+                if (el._touchStart) {
+                    el.removeEventListener('touchstart', el._touchStart);
+                    el.removeEventListener('touchmove', el._touchMove);
+                    el.removeEventListener('touchend', el._touchEnd);
+                }
+            }
+        });
+    }
+
+    loadMobileLayout() {
+        try {
+            const layout = JSON.parse(localStorage.getItem('mobileLayout') || '{}');
+            for (let id in layout) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.left = layout[id].left;
+                    el.style.top = layout[id].top;
+                    el.style.bottom = 'auto';
+                    el.style.right = 'auto';
+                }
+            }
+        } catch(e) {}
+    }
     setupInputs() {
+        this.loadMobileLayout();
         const tCanv = document.getElementById('transitionCanvas');
         if (tCanv) {
             tCanv.style.width = '100vw';
@@ -823,6 +887,42 @@ class Game {
             this.gameState = 'PAUSED';
         });
 
+        // Edit Mobile Layout
+        const btnEditLayout = document.getElementById('btn-edit-layout');
+        if (btnEditLayout) {
+            btnEditLayout.addEventListener('click', () => {
+                document.getElementById('options-overlay').style.display = 'none';
+                this.gameState = 'EDIT_LAYOUT';
+                
+                let doneBtn = document.getElementById('btn-finish-layout');
+                if (!doneBtn) {
+                    doneBtn = document.createElement('button');
+                    doneBtn.id = 'btn-finish-layout';
+                    doneBtn.innerText = 'DONE EDITING';
+                    doneBtn.style.position = 'fixed';
+                    doneBtn.style.top = '20px';
+                    doneBtn.style.left = '50%';
+                    doneBtn.style.transform = 'translateX(-50%)';
+                    doneBtn.style.zIndex = '9999';
+                    doneBtn.style.padding = '10px 20px';
+                    doneBtn.style.fontSize = '1.2rem';
+                    doneBtn.style.background = '#e74c3c';
+                    doneBtn.style.color = 'white';
+                    doneBtn.style.border = '2px solid white';
+                    doneBtn.style.borderRadius = '10px';
+                    document.body.appendChild(doneBtn);
+                    
+                    doneBtn.addEventListener('click', () => {
+                        doneBtn.style.display = 'none';
+                        this.gameState = 'PAUSED';
+                        document.getElementById('options-overlay').style.display = 'flex';
+                        this.enableLayoutEditMode(false);
+                    });
+                }
+                doneBtn.style.display = 'block';
+                this.enableLayoutEditMode(true);
+            });
+        }
         // Tabs
         const tabs = ['audio', 'video', 'game', 'control'];
         tabs.forEach(tab => {
@@ -1650,7 +1750,9 @@ this.entities.push(
                         if (b.y > this.canvas.height + b.r) b.y = -b.r;
                     });
                 }
-            } else if (this.gameState === 'OPTIONS') {
+            } else if (this.gameState === 'EDIT_LAYOUT') return;
+
+            if (this.gameState === 'OPTIONS') {
                 this.optionsScrollX -= 0.5;
                 this.optionsScrollY -= 0.5;
                 if (this.bindingKeyFor) {

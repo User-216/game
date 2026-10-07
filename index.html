@@ -37,7 +37,7 @@
 </head>
 <body>
     <div id="portrait-warning">
-        <h2>E€EEE¨Eœë¡Eú¶Œì E•´E¼E¸EE/h2>
+        <h2>E€EEE¨Eœë¡EíšŒì E•´E¼E¸EE/h2>
         <p>Please rotate your device to landscape mode</p>
     </div>
     <div id="game-container">
@@ -59,7 +59,7 @@
                 <div class="control-item"><span>Z</span> <span data-i18n="tut.jump">Eí”„</span></div>
                 <div class="control-item"><span>Shift</span> <span data-i18n="tut.run">E¬E¬E°</span></div>
                 <div class="control-item"><span>E</span> <span data-i18n="tut.editor">E”ìE¸ E¨EE/span></div>
-                <div class="control-item-hint" data-i18n="tut.hint">E½EìE Eí”„ E€E¥ / ú¨Œê´´ E€E¥ú±EE”ë¡ì„ E€E˜ì„¸EE</div>
+                <div class="control-item-hint" data-i18n="tut.hint">E½EìE Eí”„ E€E¥ / íŒŒê´´ E€E¥í•EE”ë¡ì„ E€E˜ì„¸EE</div>
             </div>
 
             <!-- Editor Toolbar (Pizza Tower Style) -->
@@ -215,6 +215,7 @@
                 </div>
 
                 <div id="panel-control" class="options-panel hidden">
+                    <button class="action-btn" id="btn-edit-layout" style="width: 100%; margin-bottom: 1rem; background: #e67e22;">Edit Mobile Layout</button>
                     <div id="control-list" style="display: flex; flex-direction: column; gap: 0.8rem; max-height: 250px; overflow-y: auto; padding-right: 10px;">
                         <!-- JS will populate -->
                     </div>
@@ -227,7 +228,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <label data-i18n="opt.language" style="font-weight: 700;">Language</label>
                         <select id="language-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
-                            <option value="ko">ú±œêµ­E´</option>
+                            <option value="ko">í•œêµ­E´</option>
                             <option value="en">English</option>
                         </select>
                     </div>
@@ -244,16 +245,14 @@
         </div>
         
         <!-- Mobile Controls -->
-        <div id="mobile-controls">
-            <button id="mbtn-pause" class="mbtn" style="position: fixed; top: 20px; right: 20px; width: 50px; height: 50px; font-size: 1.5rem; z-index: 1000;">â¸</button>
-            <div id="joystick-zone" style="position: relative; width: 140px; height: 140px; border-radius: 50%; background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.3); touch-action: none; display: flex; justify-content: center; align-items: center; z-index: 1000; pointer-events: auto;">
+        <div id="mobile-controls" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100;">
+            <button id="mbtn-pause" class="mbtn" style="position: absolute; top: 20px; right: 20px; width: 50px; height: 50px; font-size: 1.5rem; pointer-events: auto;">&#x23F8;</button>
+            <div id="joystick-zone" style="position: absolute; bottom: 40px; left: 40px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.3); touch-action: none; display: flex; justify-content: center; align-items: center; pointer-events: auto;">
                 <div id="joystick-knob" style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); position: absolute; pointer-events: none; transition: transform 0.05s linear; transform: translate(0px, 0px);"></div>
             </div>
-            <div id="action-buttons">
-                <button id="mbtn-run" class="mbtn">Run</button>
-                <button id="mbtn-grab" class="mbtn">Grab</button>
-                <button id="mbtn-jump" class="mbtn">Jump</button>
-            </div>
+            <button id="mbtn-jump" class="mbtn" style="position: absolute; bottom: 40px; right: 40px; pointer-events: auto;">Jump</button>
+            <button id="mbtn-run" class="mbtn" style="position: absolute; bottom: 40px; right: 120px; pointer-events: auto;">Run</button>
+            <button id="mbtn-grab" class="mbtn" style="position: absolute; bottom: 120px; right: 80px; pointer-events: auto;">Grab</button>
         </div>
         
     </div>
