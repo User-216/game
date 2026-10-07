@@ -1,6 +1,32 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <script>
+        window.globalAssets = [];
+        
+        const OriginalImage = window.Image;
+        class ImageTracker extends OriginalImage {
+            constructor(w, h) {
+                super(w, h);
+                this._hasError = false;
+                this.addEventListener('error', () => { this._hasError = true; });
+                window.globalAssets.push(this);
+            }
+        }
+        window.Image = ImageTracker;
+        
+        const OriginalAudio = window.Audio;
+        class AudioTracker extends OriginalAudio {
+            constructor(url) {
+                super(url);
+                this._hasError = false;
+                this.addEventListener('error', () => { this._hasError = true; });
+                window.globalAssets.push(this);
+            }
+        }
+        window.Audio = AudioTracker;
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neon Platformer - 2D Adventure</title>

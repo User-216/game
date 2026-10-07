@@ -1480,12 +1480,47 @@ this.entities.push(
 
         if (this.gameState === 'BOOT_LOADING') {
             if (this.loadingScreenLoaded) {
-                this.bootLoadTimer++;
-            }
-            if (this.bootLoadTimer >= this.bootLoadDuration) {
-                this.gameState = 'CLICK_TO_START';
-                // Reset interaction triggers just in case
-                this.mouseClicked = false;
+                let allReady = true;
+                let readyCount = 0;
+                let totalAssets = window.globalAssets ? window.globalAssets.length : 0;
+                
+                if (totalAssets > 0) {
+                    for (let i = 0; i < totalAssets; i++) {
+                        let asset = window.globalAssets[i];
+                        if (asset instanceof HTMLImageElement) {
+                            if (asset.src && !asset.complete && !asset._hasError) {
+                                allReady = false;
+                            } else if (asset.src) {
+                                readyCount++;
+                            }
+                        } else if (asset instanceof HTMLAudioElement) {
+                            if (asset.src && asset.readyState < 3 && !asset._hasError) {
+                                allReady = false;
+                            } else if (asset.src) {
+                                readyCount++;
+                            }
+                        } else {
+                            readyCount++;
+                        }
+                    }
+                }
+                
+                let progress = totalAssets > 0 ? readyCount / totalAssets : 1;
+                
+                // Force minimum 1.5 second loading screen so it doesn't flash
+                this.minBootTimer = (this.minBootTimer || 0) + 1;
+                
+                // Smooth visual progress
+                let targetTimer = progress * this.bootLoadDuration;
+                if (this.bootLoadTimer < targetTimer) {
+                    this.bootLoadTimer += Math.max(1, (targetTimer - this.bootLoadTimer) * 0.1);
+                }
+                
+                if (allReady && this.bootLoadTimer >= this.bootLoadDuration - 2 && this.minBootTimer >= 90) {
+                    this.bootLoadTimer = this.bootLoadDuration;
+                    this.gameState = 'CLICK_TO_START';
+                    this.mouseClicked = false;
+                }
             }
             return;
         }
