@@ -869,7 +869,8 @@ class Game {
                 console.log("Connected to multiplayer server!");
                 // Let the player know on screen
                 let b = {
-                    x: this.canvas.width / 2, y: this.canvas.height / 2,
+                    x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
+                    y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
                     text: "CONNECTED!", vy: -2, alpha: 2.0
                 };
                 if (!this.floatingTexts) this.floatingTexts = [];
@@ -892,7 +893,8 @@ class Game {
             this.ws.onerror = (e) => {
                 console.error("WebSocket error:", e);
                 let b = {
-                    x: this.canvas.width / 2, y: this.canvas.height / 2,
+                    x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
+                    y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
                     text: "CONNECTION FAILED!", vy: -2, alpha: 2.0
                 };
                 if (!this.floatingTexts) this.floatingTexts = [];
