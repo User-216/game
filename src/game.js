@@ -868,23 +868,12 @@ class Game {
     }
 
     loadLangFile() {
-        this.langData = {};
-        fetch('lang/english/english.txt?v=' + Date.now())
-            .then(res => res.text())
-            .then(text => {
-                const lines = text.split('\n');
-                for (let line of lines) {
-                    if (line.includes('=')) {
-                        const parts = line.split('=');
-                        this.langData[parts[0].trim()] = parts.slice(1).join('=').trim();
-                    }
-                }
-            }).catch(err => {
-                console.error("Could not load english.txt", err);
-                if (window.location.protocol === 'file:') {
-                    alert("로컬테스트_실행기.bat 로 실행하지 않으시면 english.txt 파일을 읽어올 수 없습니다! (보안 정책)");
-                }
-            });
+        if (window.langData) {
+            this.langData = window.langData;
+        } else {
+            this.langData = {};
+            console.warn("window.langData is not defined. Make sure english.js is loaded.");
+        }
     }
 
     drawCreditsText(ctx, textStr, x, y, center = true, scale = 1) {
