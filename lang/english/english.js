@@ -38,5 +38,8 @@ window.langData = {
     "palette_1": "Classic Tory",
     "palettedesc_1": "Tory",
     "palette_2": "Threads Black Tory",
-    "palettedesc_2": "Unlock by ????"
+    "palettedesc_2": "Unlock by ????",
+    "palette_3": "Blue",
+    "palettedesc_3": "Unlock by ????"
+
 };
