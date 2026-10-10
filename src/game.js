@@ -2727,31 +2727,41 @@ this.entities.push(
         this.player.render(this.ctx);
         
         // Render other online players
-        if (this.otherPlayers && this.player.animations) {
+        if (this.otherPlayers && this.player.sprites) {
             for (let id in this.otherPlayers) {
                 const p = this.otherPlayers[id];
-                const anim = this.player.animations[p.sprite];
-                if (anim && anim.frames[p.image]) {
-                    this.ctx.save();
-                    this.ctx.translate(p.x + this.player.width / 2, p.y + this.player.height / 2);
-                    this.ctx.scale(p.dir, 1);
+                const frames = this.player.sprites[p.sprite];
+                if (frames && frames.length > 0) {
+                    let frameIndex = Math.floor(p.image);
+                    if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                    const img = frames[frameIndex];
                     
-                    let imgToDraw = anim.frames[p.image];
-                    if (this.player.paletteManager && p.palette !== 1) {
-                        const originalSrc = `Sprites/Player/${p.sprite}_${p.image}.png`;
-                        imgToDraw = this.player.paletteManager.getTintedFrame(imgToDraw, originalSrc, p.palette);
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        this.ctx.save();
+                        this.ctx.translate(p.x + this.player.width / 2, p.y + this.player.height / 2);
+                        this.ctx.scale(p.dir, 1);
+                        
+                        let imgToDraw = img;
+                        if (this.player.paletteManager && p.palette !== 1) {
+                            // Try to get original src from the loaded image object
+                            const originalSrc = img.src || `Sprites/Player/${p.sprite}_${frameIndex}.png`;
+                            imgToDraw = this.player.paletteManager.getTintedFrame(imgToDraw, originalSrc, p.palette);
+                        }
+                        
+                        // Default size in player.js is -51 offset, 100x100
+                        const isCrouched = (p.sprite === 'spr_player_crouch' || p.sprite === 'spr_player_tumble' || p.sprite === 'spr_player_roll');
+                        const offsetY = isCrouched ? -68.5 : -57.5; // from player.js
+                        this.ctx.drawImage(imgToDraw, -51, offsetY, 100, 100);
+                        
+                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        this.ctx.font = '10px Arial';
+                        this.ctx.textAlign = 'center';
+                        // Flip text back
+                        this.ctx.scale(p.dir, 1);
+                        this.ctx.fillText("Player " + id.substring(0, 4), 0, -40);
+                        
+                        this.ctx.restore();
                     }
-                    
-                    this.ctx.drawImage(imgToDraw, -anim.width / 2, -anim.height / 2, anim.width, anim.height);
-                    
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                    this.ctx.font = '10px Arial';
-                    this.ctx.textAlign = 'center';
-                    // We flip text back to normal orientation
-                    this.ctx.scale(p.dir, 1);
-                    this.ctx.fillText("Player " + id.substring(0, 4), 0, -anim.height/2 - 10);
-                    
-                    this.ctx.restore();
                 }
             }
         }
