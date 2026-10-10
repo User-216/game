@@ -1235,7 +1235,7 @@ class PaletteDresser extends Entity {
                 }
                 
                 if (palDesc) {
-                    this.game.drawCreditsText(ctx, palDesc, this.x + this.width/2, this.y - 120, true, 0.7);
+                    this.game.drawCreditsText(ctx, palDesc, this.x + this.width/2, this.y - 120, true, 1.0);
                 }
                 this.game.drawCreditsText(ctx, palName, this.x + this.width/2, this.y - 80, true, 1.0);
             } else {
