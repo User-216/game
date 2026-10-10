@@ -2615,9 +2615,9 @@ this.entities.push(
 
         // Update Palette UI Alpha
         if (this.paletteUIActive) {
-            this.paletteUIAlpha = Math.min(1, (this.paletteUIAlpha || 0) + 0.05);
+            this.paletteUIAlpha = Math.min(1, (this.paletteUIAlpha || 0) + 0.15);
         } else {
-            this.paletteUIAlpha = Math.max(0, (this.paletteUIAlpha || 0) - 0.05);
+            this.paletteUIAlpha = Math.max(0, (this.paletteUIAlpha || 0) - 0.15);
         }
         this.paletteUIActive = false; // Reset for next frame
 
