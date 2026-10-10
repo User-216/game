@@ -834,6 +834,24 @@ class Game {
         }
     }
 
+    toggleOnlineMenu() {
+        if (this.gameState === 'PLAYING') {
+            this.gameState = 'ONLINE_MENU';
+            this.onlineMenuLevel = 'MAIN';
+            this.onlineMenuIndex = 0;
+            if (this.audio) this.audio.playFile('sfx_pausestart', true);
+            
+            this.onlineMenuOptions = {
+                MAIN: ['EXIT MENU', 'CREATE', 'JOIN'],
+                CREATE: ['BACK', 'PORT 2222', 'MAX PLAYERS 4', 'CREATE SVR'],
+                JOIN: ['BACK', 'IP 127001', 'PORT 2222', 'JOIN SVR'] // Using numbers only for IP since font might lack dots
+            };
+        } else if (this.gameState === 'ONLINE_MENU') {
+            this.gameState = 'PLAYING';
+            if (this.audio) this.audio.playFile('sfx_step', true);
+        }
+    }
+
     togglePause() {
         if (this.gameState === 'PLAYING') {
             this.gameState = 'PAUSED';
@@ -1293,6 +1311,9 @@ class Game {
             case 'obj_palettedresser':
                 entity = new PaletteDresser(x, y, w, h);
                 break;
+            case 'obj_computer':
+                entity = new OnlineComputer(x, y, w, h);
+                break;
             case 'obj_collect':
                 entity = new Collect(x, y, w, h);
                 break;
@@ -1301,6 +1322,9 @@ class Game {
                 break;
             case 'obj_palettedresser':
                 entity = new PaletteDresser(x, y, w, h);
+                break;
+            case 'obj_computer':
+                entity = new OnlineComputer(x, y, w, h);
                 break;
             case 'obj_slime':
                 entity = new Slime(x, y, w, h);
@@ -2191,7 +2215,42 @@ this.entities.push(
             return;
         }
 
-        if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
+        if (this.gameState === 'ONLINE_MENU') {
+            const opts = this.onlineMenuOptions[this.onlineMenuLevel];
+            if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
+                this.onlineMenuIndex = (this.onlineMenuIndex - 1 + opts.length) % opts.length;
+                if (this.audio) this.audio.playFile('sfx_step', true);
+            }
+            if (this.isActionPressed('menu_down') && !this.prevKeysDown) {
+                this.onlineMenuIndex = (this.onlineMenuIndex + 1) % opts.length;
+                if (this.audio) this.audio.playFile('sfx_step', true);
+            }
+            if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
+                const sel = opts[this.onlineMenuIndex];
+                if (sel === 'EXIT MENU') {
+                    this.toggleOnlineMenu();
+                } else if (sel === 'CREATE') {
+                    this.onlineMenuLevel = 'CREATE';
+                    this.onlineMenuIndex = 0;
+                } else if (sel === 'JOIN') {
+                    this.onlineMenuLevel = 'JOIN';
+                    this.onlineMenuIndex = 0;
+                } else if (sel === 'BACK') {
+                    this.onlineMenuLevel = 'MAIN';
+                    this.onlineMenuIndex = 0;
+                } else {
+                    console.log("Selected:", sel);
+                    alert("Not implemented fully yet!");
+                }
+                if (this.audio) this.audio.playFile('sfx_step', true);
+            }
+            this.prevKeysUp = this.isActionPressed('menu_up');
+            this.prevKeysDown = this.isActionPressed('menu_down');
+            this.prevKeysZ = this.isActionPressed('menu_confirm');
+            return;
+        }
+
+        if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS' || this.gameState === 'ONLINE_MENU') {
             return;
         }
 
@@ -2634,6 +2693,33 @@ this.entities.push(
                 this.drawCreditsText(this.ctx, this.paletteUIName, cx, cy + 40, true, 1.0);
             }
             this.ctx.restore();
+        }
+
+        if (this.gameState === 'ONLINE_MENU') {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Draw "ONLINE" scrolling background text
+            this.ctx.globalAlpha = 0.2;
+            const scroll = (performance.now() / 20) % 300;
+            for (let i = -1; i < 5; i++) {
+                for (let j = -1; j < 5; j++) {
+                    this.drawCreditsText(this.ctx, "ONLINE", i * 300 - scroll, j * 150 + scroll, false, 1.5);
+                }
+            }
+            this.ctx.globalAlpha = 1.0;
+            
+            const opts = this.onlineMenuOptions[this.onlineMenuLevel];
+            for (let i = 0; i < opts.length; i++) {
+                const y = this.canvas.height / 2 - (opts.length * 60) / 2 + i * 60;
+                if (i === this.onlineMenuIndex) {
+                    this.drawCreditsText(this.ctx, opts[i], this.canvas.width / 2, y, true, 1.2);
+                } else {
+                    this.ctx.globalAlpha = 0.5;
+                    this.drawCreditsText(this.ctx, opts[i], this.canvas.width / 2, y, true, 1.0);
+                    this.ctx.globalAlpha = 1.0;
+                }
+            }
         }
 
         if (this.gameState === 'PAUSED' && this.bigFontLoaded) {

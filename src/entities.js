@@ -1247,3 +1247,53 @@ class PaletteDresser extends Entity {
         }
     }
 }
+
+class OnlineComputer {
+    constructor(x, y, w=64, h=64) {
+        this.type = 'obj_computer';
+        this.x = x;
+        this.y = y;
+        this.width = w;
+        this.height = h;
+        this.game = null;
+        this.playerTouching = false;
+        
+        this.sprite = new Image();
+        this.sprite.src = 'Tileset/tile_tutorial.png'; // Assuming it's in the tileset somewhere
+    }
+
+    update(game) {
+        this.game = game;
+        
+        const player = game.player;
+        if (!player) return;
+
+        this.playerTouching = (
+            player.x < this.x + this.width &&
+            player.x + player.width > this.x &&
+            player.y < this.y + this.height &&
+            player.y + player.height > this.y
+        );
+
+        const upPressed = game.isActionPressed('up');
+        if (this.playerTouching && upPressed && !this.prevUp && player.state === 'GROUNDED') {
+            game.toggleOnlineMenu();
+        }
+        
+        this.prevUp = upPressed;
+    }
+
+    render(ctx) {
+        if (this.game && this.game.isEditorMode) {
+            ctx.fillStyle = 'rgba(100, 200, 100, 0.5)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+        
+        if (this.playerTouching && (!this.game || this.game.gameState !== 'ONLINE_MENU')) {
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("PRESS UP", this.x + this.width/2, this.y - 10);
+        }
+    }
+}
