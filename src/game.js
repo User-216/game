@@ -869,7 +869,7 @@ class Game {
 
     loadLangFile() {
         this.langData = {};
-        fetch('lang/english/english.txt')
+        fetch('lang/english/english.txt?v=' + Date.now())
             .then(res => res.text())
             .then(text => {
                 const lines = text.split('\n');
