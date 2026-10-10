@@ -872,7 +872,14 @@ class Game {
         try {
             if (isCreate) {
                 // We are HOST
-                this.peer = new Peer();
+                const customId = prompt("Enter a custom ROOM CODE (e.g. apple123) or leave blank for a random code:");
+                
+                if (customId && customId.trim().length > 0) {
+                    this.peer = new Peer(customId.trim());
+                } else {
+                    this.peer = new Peer();
+                }
+                
                 this.peer.on('open', (id) => {
                     this.myOnlineId = id;
                     console.log("My Peer ID is: " + id);
