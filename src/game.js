@@ -265,7 +265,7 @@ class Game {
         // Load credits font
         this.creditsFontImages = [];
         const creditsFontIndices = [
-            0,1,2,3,4,5,6,7,8,9,10,11,12,13,15,16,17,18,19,20,21,22,23,24,25,26,
+            0,1,2,3,5,6,4,7,8,9,10,11,12,13,15,16,17,18,19,20,21,22,23,24,25,26,
             27,28,29,30,31,32,33,34,35,36,37,38,39,40,42,43,44,45,46,47,48,49,50,
             51,52,53,54,55,56,58,59,60,61,62,63,64,65,66,67,68,69,70
         ];
@@ -842,9 +842,9 @@ class Game {
             if (this.audio) this.audio.playFile('sfx_pausestart', true);
             
             this.onlineMenuOptions = {
-                MAIN: ['Exit Menu', 'Create', 'Join'],
-                CREATE: ['Back', 'Create SVR'],
-                JOIN: ['Back', 'Join SVR']
+                MAIN: ['EXIT MENU', 'CREATE', 'JOIN'],
+                CREATE: ['BACK', 'CREATE SVR'],
+                JOIN: ['BACK', 'JOIN SVR']
             };
         } else if (this.gameState === 'ONLINE_MENU') {
             this.gameState = 'PLAYING';
@@ -2367,19 +2367,19 @@ this.entities.push(
             }
             if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                 const sel = opts[this.onlineMenuIndex];
-                if (sel === 'Exit Menu') {
+                if (sel === 'EXIT MENU') {
                     this.toggleOnlineMenu();
-                } else if (sel === 'Create') {
+                } else if (sel === 'CREATE') {
                     this.onlineMenuLevel = 'CREATE';
                     this.onlineMenuIndex = 0;
-                } else if (sel === 'Join') {
+                } else if (sel === 'JOIN') {
                     this.onlineMenuLevel = 'JOIN';
                     this.onlineMenuIndex = 0;
-                } else if (sel === 'Back') {
+                } else if (sel === 'BACK') {
                     this.onlineMenuLevel = 'MAIN';
                     this.onlineMenuIndex = 0;
-                } else if (sel === 'Create SVR' || sel === 'Join SVR') {
-                    this.connectMultiplayer(sel === 'Create SVR');
+                } else if (sel === 'CREATE SVR' || sel === 'JOIN SVR') {
+                    this.connectMultiplayer(sel === 'CREATE SVR');
                     this.toggleOnlineMenu();
                 } else {
                     console.log("Selected:", sel);
@@ -2904,7 +2904,7 @@ this.entities.push(
             const scroll = (performance.now() / 20) % 300;
             for (let i = -1; i < 5; i++) {
                 for (let j = -1; j < 5; j++) {
-                    this.drawCreditsText(this.ctx, "Online", i * 300 - scroll, j * 150 + scroll, false, 1.5);
+                    this.drawCreditsText(this.ctx, "ONLINE", i * 300 - scroll, j * 150 + scroll, false, 1.5);
                 }
             }
             this.ctx.globalAlpha = 1.0;
