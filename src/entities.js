@@ -1276,7 +1276,7 @@ class OnlineComputer {
         );
 
         const upPressed = game.isActionPressed('up');
-        if (this.playerTouching && upPressed && !this.prevUp && player.state === 'GROUNDED') {
+        if (this.playerTouching && upPressed && !this.prevUp) {
             game.toggleOnlineMenu();
         }
         
