@@ -855,47 +855,88 @@ class Game {
         }
     }
 
-    connectMultiplayer(isCreate) {
+    connectMultiplayer(isCreate = false) {
+        if (this.peer) {
+            this.peer.destroy();
+        }
         if (this.ws) {
             this.ws.close();
+            this.ws = null;
         }
-        this.otherPlayers = {};
         
-        const ip = this.onlineIP || "127.0.0.1";
-        const port = this.onlinePort || 2222;
-        const wsUrl = `ws://${ip}:${port}`;
-        console.log("Connecting to " + wsUrl);
+        this.otherPlayers = {};
+        this.networkConns = [];
+        
+        console.log("Starting PeerJS connection...");
         
         try {
-            this.ws = new WebSocket(wsUrl);
+            if (isCreate) {
+                // We are HOST
+                this.peer = new Peer();
+                this.peer.on('open', (id) => {
+                    this.myOnlineId = id;
+                    console.log("My Peer ID is: " + id);
+                    let b = {
+                        x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
+                        y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
+                        text: "ROOM: " + id, vy: -1, alpha: 4.0 // lasts longer
+                    };
+                    if (!this.floatingTexts) this.floatingTexts = [];
+                    this.floatingTexts.push(b);
+                });
+                
+                this.peer.on('connection', (conn) => {
+                    this.networkConns.push(conn);
+                    console.log("Client connected: " + conn.peer);
+                    
+                    conn.on('data', (data) => {
+                        this.handleNetworkData(data, conn.peer);
+                    });
+                    
+                    conn.on('close', () => {
+                        delete this.otherPlayers[conn.peer];
+                        this.networkConns = this.networkConns.filter(c => c !== conn);
+                    });
+                });
+                
+            } else {
+                // We are CLIENT, we need to ask for Room ID
+                const targetId = prompt("Enter the ROOM CODE (Peer ID) of the host:");
+                if (!targetId) return;
+                
+                this.peer = new Peer();
+                this.peer.on('open', (id) => {
+                    this.myOnlineId = id;
+                    console.log("My Peer ID is: " + id + ", connecting to " + targetId);
+                    
+                    const conn = this.peer.connect(targetId);
+                    
+                    conn.on('open', () => {
+                        console.log("Connected to HOST!");
+                        this.networkConns.push(conn);
+                        let b = {
+                            x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
+                            y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
+                            text: "CONNECTED!", vy: -2, alpha: 2.0
+                        };
+                        if (!this.floatingTexts) this.floatingTexts = [];
+                        this.floatingTexts.push(b);
+                    });
+                    
+                    conn.on('data', (data) => {
+                        this.handleNetworkData(data, targetId);
+                    });
+                    
+                    conn.on('close', () => {
+                        console.log("Disconnected from HOST.");
+                        delete this.otherPlayers[targetId];
+                        this.networkConns = this.networkConns.filter(c => c !== conn);
+                    });
+                });
+            }
             
-            this.ws.onopen = () => {
-                console.log("Connected to multiplayer server!");
-                // Let the player know on screen
-                let b = {
-                    x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
-                    y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
-                    text: "CONNECTED!", vy: -2, alpha: 2.0
-                };
-                if (!this.floatingTexts) this.floatingTexts = [];
-                this.floatingTexts.push(b);
-            };
-            
-            this.ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'init') {
-                    this.myOnlineId = data.id;
-                } else if (data.type === 'update') {
-                    if (data.id !== this.myOnlineId) {
-                        this.otherPlayers[data.id] = data.payload;
-                    }
-                } else if (data.type === 'remove') {
-                    delete this.otherPlayers[data.id];
-                }
-            };
-            
-            this.ws.onerror = (e) => {
-                console.error("WebSocket error:", e);
+            this.peer.on('error', (err) => {
+                console.error("PeerJS Error:", err);
                 let b = {
                     x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
                     y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
@@ -903,15 +944,19 @@ class Game {
                 };
                 if (!this.floatingTexts) this.floatingTexts = [];
                 this.floatingTexts.push(b);
-            };
+            });
             
-            this.ws.onclose = () => {
-                console.log("Disconnected from multiplayer server.");
-                this.ws = null;
-            };
         } catch(e) {
-            console.error("Could not create WebSocket:", e);
+            console.error("Could not create PeerJS:", e);
         }
+    }
+
+    handleNetworkData(data, senderId) {
+        try {
+            if (data.type === 'update') {
+                this.otherPlayers[senderId] = data.payload;
+            }
+        } catch(e) {}
     }
 
     togglePause() {
@@ -1872,9 +1917,6 @@ this.entities.push(
                 if (this.uiOverlay) this.uiOverlay.style.display = 'block';
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
-                
-                // Auto connect to local multiplayer server on start
-                this.connectMultiplayer();
             }
             return;
         }
@@ -2276,9 +2318,6 @@ this.entities.push(
                 if (this.uiOverlay) this.uiOverlay.style.display = 'block';
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
-                
-                // Auto connect to local multiplayer server on start
-                this.connectMultiplayer();
             }
             return;
         }
@@ -2358,8 +2397,7 @@ this.entities.push(
         this.player.update(this.keys, this.entities, this.audio);
         
         // Send multiplayer data
-        if (this.ws && this.ws.readyState === 1 && this.myOnlineId) { // 1 = OPEN
-            // Throttle to 30 updates per second or just every frame since it's local/stub
+        if (this.networkConns && this.networkConns.length > 0 && this.myOnlineId) {
             const payload = {
                 x: this.player.x,
                 y: this.player.y,
@@ -2368,7 +2406,12 @@ this.entities.push(
                 dir: this.player.dir,
                 palette: this.player.paletteManager ? this.player.paletteManager.currentPalette : 1
             };
-            this.ws.send(JSON.stringify({ type: 'update', payload: payload }));
+            
+            for (let conn of this.networkConns) {
+                if (conn.open) {
+                    conn.send({ type: 'update', payload: payload });
+                }
+            }
         }
 
         // Combo Timer Logic
