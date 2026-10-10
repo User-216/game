@@ -842,9 +842,9 @@ class Game {
             if (this.audio) this.audio.playFile('sfx_pausestart', true);
             
             this.onlineMenuOptions = {
-                MAIN: ['EXIT MENU', 'CREATE', 'JOIN'],
-                CREATE: ['BACK', 'CREATE SVR'],
-                JOIN: ['BACK', 'JOIN SVR']
+                MAIN: ['Exit Menu', 'Create', 'Join'],
+                CREATE: ['Back', 'Create SVR'],
+                JOIN: ['Back', 'Join SVR']
             };
         } else if (this.gameState === 'ONLINE_MENU') {
             this.gameState = 'PLAYING';
@@ -2367,19 +2367,19 @@ this.entities.push(
             }
             if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                 const sel = opts[this.onlineMenuIndex];
-                if (sel === 'EXIT MENU') {
+                if (sel === 'Exit Menu') {
                     this.toggleOnlineMenu();
-                } else if (sel === 'CREATE') {
+                } else if (sel === 'Create') {
                     this.onlineMenuLevel = 'CREATE';
                     this.onlineMenuIndex = 0;
-                } else if (sel === 'JOIN') {
+                } else if (sel === 'Join') {
                     this.onlineMenuLevel = 'JOIN';
                     this.onlineMenuIndex = 0;
-                } else if (sel === 'BACK') {
+                } else if (sel === 'Back') {
                     this.onlineMenuLevel = 'MAIN';
                     this.onlineMenuIndex = 0;
-                } else if (sel === 'CREATE SVR' || sel === 'JOIN SVR') {
-                    this.connectMultiplayer(sel === 'CREATE SVR');
+                } else if (sel === 'Create SVR' || sel === 'Join SVR') {
+                    this.connectMultiplayer(sel === 'Create SVR');
                     this.toggleOnlineMenu();
                 } else {
                     console.log("Selected:", sel);
@@ -2904,7 +2904,7 @@ this.entities.push(
             const scroll = (performance.now() / 20) % 300;
             for (let i = -1; i < 5; i++) {
                 for (let j = -1; j < 5; j++) {
-                    this.drawCreditsText(this.ctx, "ONLINE", i * 300 - scroll, j * 150 + scroll, false, 1.5);
+                    this.drawCreditsText(this.ctx, "Online", i * 300 - scroll, j * 150 + scroll, false, 1.5);
                 }
             }
             this.ctx.globalAlpha = 1.0;
