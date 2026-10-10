@@ -2811,8 +2811,7 @@ this.entities.push(
                 const p = this.otherPlayers[id];
                 const frames = this.player.sprites[p.sprite];
                 if (frames && frames.length > 0) {
-                    let frameIndex = Math.floor(p.image);
-                    if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                    let frameIndex = Math.floor(p.image) % frames.length;
                     const img = frames[frameIndex];
                     
                     if (img && img.complete && img.naturalWidth > 0) {
