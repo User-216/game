@@ -74,6 +74,42 @@ class Game {
         this.pauseMenuIndex = 0;
         this.pauseBubbles = [];
         
+        // Chat System
+        this.chatMessages = []; // { sender, text, timer }
+        this.isTyping = false;
+        this.chatInput = document.createElement('input');
+        this.chatInput.type = 'text';
+        this.chatInput.style.position = 'absolute';
+        this.chatInput.style.left = '10px';
+        this.chatInput.style.bottom = '10px';
+        this.chatInput.style.width = '300px';
+        this.chatInput.style.padding = '5px';
+        this.chatInput.style.background = 'rgba(0,0,0,0.7)';
+        this.chatInput.style.color = 'white';
+        this.chatInput.style.border = '1px solid white';
+        this.chatInput.style.fontFamily = 'monospace';
+        this.chatInput.style.display = 'none';
+        this.chatInput.style.zIndex = '9999';
+        this.chatInput.maxLength = 50;
+        document.body.appendChild(this.chatInput);
+        
+        this.chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.stopPropagation(); // Prevent bubbling up to window
+                this.sendChatMessage(this.chatInput.value);
+                this.chatInput.value = '';
+                this.chatInput.style.display = 'none';
+                this.isTyping = false;
+                this.canvas.focus();
+            } else if (e.key === 'Escape') {
+                e.stopPropagation();
+                this.chatInput.value = '';
+                this.chatInput.style.display = 'none';
+                this.isTyping = false;
+                this.canvas.focus();
+            }
+        });
+        
         this.optionsMenuOptions = ['AUDIO', 'VIDEO', 'GAME', 'CONTROLS'];
         this.optionsMenuIndex = 0;
         this.optionsMenuLevel = 'MAIN'; // MAIN, AUDIO, VIDEO, GAME, CONTROLS
@@ -453,6 +489,17 @@ class Game {
         window.addEventListener('mousedown', () => { this.mouseClicked = true; });
         window.addEventListener('touchstart', () => { this.mouseClicked = true; }, {passive: true});
         window.addEventListener('keydown', (e) => {
+            if (this.isTyping) return; // Ignore keys for game if typing
+            
+            if (e.key === 'Enter' && this.gameState === 'PLAYING') {
+                this.isTyping = true;
+                this.keys = {}; // Clear all keys so player stops moving
+                this.chatInput.style.display = 'block';
+                this.chatInput.focus();
+                e.preventDefault();
+                return;
+            }
+
             if (this.bindingKeyFor) {
                 e.preventDefault();
                 const key = e.key === ' ' ? 'Space' : e.key;
@@ -852,6 +899,28 @@ class Game {
         }
     }
 
+    sendChatMessage(text) {
+        if (!text || text.trim() === '') return;
+        text = text.trim();
+        const sender = "You";
+        this.addChatMessage(sender, text);
+        
+        if (this.networkConns && this.networkConns.length > 0 && this.myOnlineId) {
+            for (let conn of this.networkConns) {
+                if (conn.open) {
+                    conn.send({ type: 'chat', id: this.myOnlineId, msg: text });
+                }
+            }
+        }
+    }
+    
+    addChatMessage(sender, text) {
+        this.chatMessages.push({ sender: sender, text: text, timer: 300 }); // 300 frames = ~5 seconds
+        if (this.chatMessages.length > 5) {
+            this.chatMessages.shift(); // Keep max 5 lines
+        }
+    }
+
     connectMultiplayer(isCreate = false) {
         if (this.peer) {
             this.peer.destroy();
@@ -884,6 +953,8 @@ class Game {
                     
                     // Show prompt so user can easily copy it
                     prompt("Room created! Copy this ROOM CODE and give it to your friend:", id);
+                    this.addChatMessage("SERVER", "Room created! Code: " + id);
+                    this.addChatMessage("SERVER", "Press ENTER to chat!");
                     
                     let b = {
                         x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
@@ -897,6 +968,7 @@ class Game {
                 this.peer.on('connection', (conn) => {
                     this.networkConns.push(conn);
                     console.log("Client connected: " + conn.peer);
+                    this.addChatMessage("SERVER", "Player " + conn.peer.substring(0, 4) + " joined.");
                     
                     conn.on('data', (data) => {
                         this.handleNetworkData(data, conn.peer);
@@ -905,6 +977,7 @@ class Game {
                     conn.on('close', () => {
                         delete this.otherPlayers[conn.peer];
                         this.networkConns = this.networkConns.filter(c => c !== conn);
+                        this.addChatMessage("SERVER", "Player " + conn.peer.substring(0, 4) + " disconnected.");
                         
                         // Tell other clients that this player left
                         for (let otherConn of this.networkConns) {
@@ -930,6 +1003,7 @@ class Game {
                     conn.on('open', () => {
                         console.log("Connected to HOST!");
                         this.networkConns.push(conn);
+                        this.addChatMessage("SERVER", "Connected! Press ENTER to chat!");
                         let b = {
                             x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
                             y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
@@ -945,6 +1019,7 @@ class Game {
                     
                     conn.on('close', () => {
                         console.log("Disconnected from HOST.");
+                        this.addChatMessage("SERVER", "Disconnected from server.");
                         delete this.otherPlayers[targetId];
                         // If host closes, clear everyone since host was relay
                         this.otherPlayers = {};
@@ -987,7 +1062,19 @@ class Game {
                 this.otherPlayers[data.originalId] = data.payload;
             } else if (data.type === 'remove') {
                 // Client receiving remove event about another client from the host
+                this.addChatMessage("SERVER", "Player " + data.id.substring(0, 4) + " disconnected.");
                 delete this.otherPlayers[data.id];
+            } else if (data.type === 'chat') {
+                this.addChatMessage("Player " + data.id.substring(0, 4), data.msg);
+                
+                // If we are host, relay chat to others
+                if (this.isHost) {
+                    for (let conn of this.networkConns) {
+                        if (conn.open && conn.peer !== senderId) {
+                            conn.send({ type: 'chat', id: data.id, msg: data.msg });
+                        }
+                    }
+                }
             }
         } catch(e) {}
     }
@@ -2434,6 +2521,14 @@ this.entities.push(
             }
         }
 
+        // Chat Timers
+        for (let i = this.chatMessages.length - 1; i >= 0; i--) {
+            this.chatMessages[i].timer--;
+            if (this.chatMessages[i].timer <= 0) {
+                this.chatMessages.splice(i, 1);
+            }
+        }
+
         // Combo Timer Logic
         if (this.comboTimer > 0) {
             this.comboTimer -= 0.2;
@@ -2891,6 +2986,36 @@ this.entities.push(
             }
             if (this.paletteUIName) {
                 this.drawCreditsText(this.ctx, this.paletteUIName, cx, cy + 40, true, 1.0);
+            }
+            this.ctx.restore();
+        }
+
+        // Draw Chat Messages
+        if (this.chatMessages && this.chatMessages.length > 0) {
+            this.ctx.save();
+            this.ctx.textAlign = 'left';
+            
+            // Background box for chat
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(5, this.canvas.height - 100, 300, 90);
+            
+            let cy = this.canvas.height - 85;
+            for (let i = 0; i < this.chatMessages.length; i++) {
+                const msg = this.chatMessages[i];
+                const alpha = Math.min(1.0, msg.timer / 30);
+                this.ctx.globalAlpha = alpha;
+                
+                // Draw sender name
+                this.ctx.fillStyle = msg.sender === 'SERVER' ? '#FFFF00' : '#00FFFF';
+                this.ctx.font = 'bold 12px Arial';
+                this.ctx.fillText(msg.sender + ":", 10, cy);
+                
+                // Draw message
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.font = '12px Arial';
+                this.ctx.fillText(msg.text, 10 + this.ctx.measureText(msg.sender + ": ").width, cy);
+                
+                cy += 16;
             }
             this.ctx.restore();
         }
