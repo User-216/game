@@ -1872,6 +1872,9 @@ this.entities.push(
                 if (this.uiOverlay) this.uiOverlay.style.display = 'block';
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
+                
+                // Auto connect to local multiplayer server on start
+                this.connectMultiplayer();
             }
             return;
         }
@@ -2273,6 +2276,9 @@ this.entities.push(
                 if (this.uiOverlay) this.uiOverlay.style.display = 'block';
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
+                
+                // Auto connect to local multiplayer server on start
+                this.connectMultiplayer();
             }
             return;
         }
