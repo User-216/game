@@ -1,0 +1,54 @@
+/*
+ KEY GUIDE
+ ----
+ [U] = Up
+ [D] = Down
+ [L] = Left
+ [R] = Right
+ [Q] = Shift
+ [J] = Jump
+ [G] = Grab
+ [T] = Taunt
+ [S] = Start
+*/
+
+
+
+//Nothing
+language=en
+
+
+// Tutorial
+tutorial1=Hey there kid, I know you've been here before but we're gonna go over the basics again. You can press [D] to crouch and [J] To jump.
+tutorial1B=Who the hell are you?
+tutorial2=To run you must hold down [Q]. You can bash through enemies and such with this. Holding the direction you're facing also lets you build up speed faster.
+tutorial3=If you wanna break through safes you must be at top speeds, Not as fast as I was back at vietnam though!
+tutorial4=Jumping on walls also while running lets you scale them. Pressing [J] while wall running sends you into a spin that you can control with [L] and [R], and cancel with [G].
+tutorial5=Running on slopes also lets you accelerate faster.
+tutorial6=Pressing [D] while airborne lets you do the fabled 'pound the ground move.' This can be used to break blocks.
+tutorial7=Ground pounding from a greater height can break safes.
+tutorial8=Some blocks blend in with surrondings. They can be destroyed the same as other blocks.
+tutorial9=Press [G] to perform a grab dash. You can break bricks while grab dashing.
+tutorial10=Press [G] to grab dash lets you build up speed quicker then just running.
+tutorial11=Press [G], then [J] to perform a long jump.
+tutorial12=While running at top speed, hold [U] to charge a superjump. Releasing [U] will send you flying upward.
+tutorial13=While superjumping, press [Q] or [G] to cancel your superjump into running.
+tutorial14=Text for how to roll goes here, im not good at dialogue! - acri
+tutorial14b=Ditto, but for grab sliding. - acri
+tutorial15=Ditto, but for diving. - acri
+tutorial16=Ditto, but for roll jumping. - acri
+tutorial17=Collectable explanation goes here. - acri
+tutorial18=Toppin explanation goes here. - acri
+tutorial19=Pillar explanation goes here. - acri
+tutorialescape=GET OUT OF HERE!!!
+tutoriallap=[wave]All Lap Portals Unlocked!
+
+// Secret
+secret_get_beaker = [wave]You've caught [global.secretcount] Doodles out of 3
+secret_all_beaker = [wave]You've caught all doodles!
+secret_get = [wave]You've found [global.secretcount] secrets out of 3
+
+// Pal
+
+palette_1 = Classic Pajamas
+palettedesc_1= The one you know and love

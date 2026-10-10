@@ -1222,7 +1222,9 @@ class PaletteDresser extends Entity {
                 let palDesc = "";
                 
                 if (this.game.langData) {
-                    if (this.game.langData["palette_" + currentPal]) {
+                    if (Object.keys(this.game.langData).length === 0) {
+                        palName = "Loading or Error";
+                    } else if (this.game.langData["palette_" + currentPal]) {
                         palName = this.game.langData["palette_" + currentPal];
                     }
                     if (this.game.langData["palettedesc_" + currentPal]) {
