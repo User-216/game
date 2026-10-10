@@ -852,6 +852,62 @@ class Game {
         }
     }
 
+    connectMultiplayer() {
+        if (this.ws) {
+            this.ws.close();
+        }
+        this.otherPlayers = {};
+        
+        // For now, hardcode localhost 2222 as defined in the mockup/stub
+        const wsUrl = "ws://127.0.0.1:2222";
+        console.log("Connecting to " + wsUrl);
+        
+        try {
+            this.ws = new WebSocket(wsUrl);
+            
+            this.ws.onopen = () => {
+                console.log("Connected to multiplayer server!");
+                // Let the player know on screen
+                let b = {
+                    x: this.canvas.width / 2, y: this.canvas.height / 2,
+                    text: "CONNECTED!", vy: -2, alpha: 2.0
+                };
+                if (!this.floatingTexts) this.floatingTexts = [];
+                this.floatingTexts.push(b);
+            };
+            
+            this.ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'init') {
+                    this.myOnlineId = data.id;
+                } else if (data.type === 'update') {
+                    if (data.id !== this.myOnlineId) {
+                        this.otherPlayers[data.id] = data.payload;
+                    }
+                } else if (data.type === 'remove') {
+                    delete this.otherPlayers[data.id];
+                }
+            };
+            
+            this.ws.onerror = (e) => {
+                console.error("WebSocket error:", e);
+                let b = {
+                    x: this.canvas.width / 2, y: this.canvas.height / 2,
+                    text: "CONNECTION FAILED!", vy: -2, alpha: 2.0
+                };
+                if (!this.floatingTexts) this.floatingTexts = [];
+                this.floatingTexts.push(b);
+            };
+            
+            this.ws.onclose = () => {
+                console.log("Disconnected from multiplayer server.");
+                this.ws = null;
+            };
+        } catch(e) {
+            console.error("Could not create WebSocket:", e);
+        }
+    }
+
     togglePause() {
         if (this.gameState === 'PLAYING') {
             this.gameState = 'PAUSED';
@@ -2238,9 +2294,11 @@ this.entities.push(
                 } else if (sel === 'BACK') {
                     this.onlineMenuLevel = 'MAIN';
                     this.onlineMenuIndex = 0;
+                } else if (sel === 'CREATE SVR' || sel === 'JOIN SVR') {
+                    this.connectMultiplayer();
+                    this.toggleOnlineMenu();
                 } else {
                     console.log("Selected:", sel);
-                    alert("Not implemented fully yet!");
                 }
                 if (this.audio) this.audio.playFile('sfx_step', true);
             }
@@ -2274,6 +2332,20 @@ this.entities.push(
 
         this.player.update(this.keys, this.entities, this.audio);
         
+        // Send multiplayer data
+        if (this.ws && this.ws.readyState === 1 && this.myOnlineId) { // 1 = OPEN
+            // Throttle to 30 updates per second or just every frame since it's local/stub
+            const payload = {
+                x: this.player.x,
+                y: this.player.y,
+                sprite: this.player.sprite_index,
+                image: Math.floor(this.player.image_index),
+                dir: this.player.dir,
+                palette: this.player.paletteManager ? this.player.paletteManager.currentPalette : 1
+            };
+            this.ws.send(JSON.stringify({ type: 'update', payload: payload }));
+        }
+
         // Combo Timer Logic
         if (this.comboTimer > 0) {
             this.comboTimer -= 0.2;
@@ -2653,6 +2725,36 @@ this.entities.push(
         }
         
         this.player.render(this.ctx);
+        
+        // Render other online players
+        if (this.otherPlayers && this.player.animations) {
+            for (let id in this.otherPlayers) {
+                const p = this.otherPlayers[id];
+                const anim = this.player.animations[p.sprite];
+                if (anim && anim.frames[p.image]) {
+                    this.ctx.save();
+                    this.ctx.translate(p.x + this.player.width / 2, p.y + this.player.height / 2);
+                    this.ctx.scale(p.dir, 1);
+                    
+                    let imgToDraw = anim.frames[p.image];
+                    if (this.player.paletteManager && p.palette !== 1) {
+                        const originalSrc = `Sprites/Player/${p.sprite}_${p.image}.png`;
+                        imgToDraw = this.player.paletteManager.getTintedFrame(imgToDraw, originalSrc, p.palette);
+                    }
+                    
+                    this.ctx.drawImage(imgToDraw, -anim.width / 2, -anim.height / 2, anim.width, anim.height);
+                    
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    this.ctx.font = '10px Arial';
+                    this.ctx.textAlign = 'center';
+                    // We flip text back to normal orientation
+                    this.ctx.scale(p.dir, 1);
+                    this.ctx.fillText("Player " + id.substring(0, 4), 0, -anim.height/2 - 10);
+                    
+                    this.ctx.restore();
+                }
+            }
+        }
         
         // 3. Particles/Effects (Debris in front of player)
         for (let i = 0; i < this.entities.length; i++) {
