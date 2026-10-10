@@ -2407,7 +2407,7 @@ this.entities.push(
                 y: this.player.y,
                 sprite: this.player.sprite_index,
                 image: Math.floor(this.player.image_index),
-                dir: this.player.dir,
+                dir: this.player.facingDir || 1, // Fix: Use facingDir instead of dir
                 palette: this.player.paletteManager ? this.player.paletteManager.currentPalette : 1
             };
             
@@ -2811,7 +2811,8 @@ this.entities.push(
                     if (img && img.complete && img.naturalWidth > 0) {
                         this.ctx.save();
                         this.ctx.translate(p.x + this.player.width / 2, p.y + this.player.height / 2);
-                        this.ctx.scale(p.dir, 1);
+                        const safeDir = p.dir || 1;
+                        this.ctx.scale(safeDir, 1);
                         
                         let imgToDraw = img;
                         if (this.player.paletteManager && p.palette !== 1) {
@@ -2829,7 +2830,7 @@ this.entities.push(
                         this.ctx.font = '10px Arial';
                         this.ctx.textAlign = 'center';
                         // Flip text back
-                        this.ctx.scale(p.dir, 1);
+                        this.ctx.scale(safeDir, 1);
                         this.ctx.fillText("Player " + id.substring(0, 4), 0, -40);
                         
                         this.ctx.restore();
