@@ -895,7 +895,7 @@ class Game {
         for (let i = 0; i < textStr.length; i++) {
             if (textStr[i] === ' ') {
                 charImages.push('space');
-                totalW += 15 * scale + kerning;
+                totalW += 30 * scale + kerning;
                 continue;
             }
             const charIdx = this.creditsFontMap.indexOf(textStr[i]);
@@ -912,7 +912,7 @@ class Game {
         let cx = center ? x - totalW / 2 : x;
         for (let i = 0; i < charImages.length; i++) {
             if (charImages[i] === 'space') {
-                cx += 15 * scale + kerning;
+                cx += 30 * scale + kerning;
                 continue;
             }
             const img = charImages[i];
