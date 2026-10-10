@@ -884,15 +884,24 @@ class Game {
     toggleOnlineMenu() {
         if (this.gameState === 'PLAYING') {
             this.gameState = 'ONLINE_MENU';
-            this.onlineMenuLevel = 'MAIN';
             this.onlineMenuIndex = 0;
             if (this.audio) this.audio.playFile('sfx_pausestart', true);
             
-            this.onlineMenuOptions = {
-                MAIN: ['EXIT MENU', 'CREATE', 'JOIN'],
-                CREATE: ['BACK', 'CREATE SVR'],
-                JOIN: ['BACK', 'JOIN SVR']
-            };
+            if (!this.myUsername) this.myUsername = "Guest" + Math.floor(1000 + Math.random() * 9000);
+            
+            if (this.peer && !this.peer.destroyed) {
+                this.onlineMenuLevel = 'CONNECTED_MAIN';
+                this.onlineMenuOptions = {
+                    CONNECTED_MAIN: ['EXIT MENU', 'DISCONNECT', 'CHANGE USERNAME', this.myUsername]
+                };
+            } else {
+                this.onlineMenuLevel = 'MAIN';
+                this.onlineMenuOptions = {
+                    MAIN: ['EXIT MENU', 'CREATE', 'JOIN'],
+                    CREATE: ['BACK', 'CREATE SVR'],
+                    JOIN: ['BACK', 'JOIN SVR']
+                };
+            }
         } else if (this.gameState === 'ONLINE_MENU') {
             this.gameState = 'PLAYING';
             if (this.audio) this.audio.playFile('sfx_step', true);
@@ -902,13 +911,13 @@ class Game {
     sendChatMessage(text) {
         if (!text || text.trim() === '') return;
         text = text.trim();
-        const sender = "You";
+        const sender = this.myUsername || "You";
         this.addChatMessage(sender, text);
         
         if (this.networkConns && this.networkConns.length > 0 && this.myOnlineId) {
             for (let conn of this.networkConns) {
                 if (conn.open) {
-                    conn.send({ type: 'chat', id: this.myOnlineId, msg: text });
+                    conn.send({ type: 'chat', id: this.myOnlineId, name: this.myUsername, msg: text });
                 }
             }
         }
@@ -1065,13 +1074,14 @@ class Game {
                 this.addChatMessage("SERVER", "Player " + data.id.substring(0, 4) + " disconnected.");
                 delete this.otherPlayers[data.id];
             } else if (data.type === 'chat') {
-                this.addChatMessage("Player " + data.id.substring(0, 4), data.msg);
+                const senderName = data.name || ("Player " + data.id.substring(0, 4));
+                this.addChatMessage(senderName, data.msg);
                 
                 // If we are host, relay chat to others
                 if (this.isHost) {
                     for (let conn of this.networkConns) {
                         if (conn.open && conn.peer !== senderId) {
-                            conn.send({ type: 'chat', id: data.id, msg: data.msg });
+                            conn.send({ type: 'chat', id: data.id, name: senderName, msg: data.msg });
                         }
                     }
                 }
@@ -2468,6 +2478,19 @@ this.entities.push(
                 } else if (sel === 'CREATE SVR' || sel === 'JOIN SVR') {
                     this.connectMultiplayer(sel === 'CREATE SVR');
                     this.toggleOnlineMenu();
+                } else if (sel === 'DISCONNECT') {
+                    if (this.peer) this.peer.destroy();
+                    this.peer = null;
+                    this.networkConns = [];
+                    this.otherPlayers = {};
+                    this.toggleOnlineMenu();
+                    this.addChatMessage("SERVER", "Disconnected.");
+                } else if (sel === 'CHANGE USERNAME' || sel === this.myUsername) {
+                    const newName = prompt("Enter new username:", this.myUsername);
+                    if (newName && newName.trim().length > 0) {
+                        this.myUsername = newName.trim().substring(0, 15).toUpperCase();
+                        opts[3] = this.myUsername; // Update the display text in the menu
+                    }
                 } else {
                     console.log("Selected:", sel);
                 }
@@ -2511,7 +2534,8 @@ this.entities.push(
                 sprite: this.player.sprite_index,
                 image: Math.floor(this.player.image_index),
                 dir: this.player.facingDir || 1, // Fix: Use facingDir instead of dir
-                palette: this.player.paletteManager ? this.player.paletteManager.currentPalette : 1
+                palette: this.player.paletteManager ? this.player.paletteManager.currentPalette : 1,
+                name: this.myUsername
             };
             
             for (let conn of this.networkConns) {
@@ -2941,7 +2965,7 @@ this.entities.push(
                         this.ctx.textAlign = 'center';
                         // Flip text back
                         this.ctx.scale(safeDir, 1);
-                        this.ctx.fillText("Player " + id.substring(0, 4), 0, -40);
+                        this.ctx.fillText(p.name || ("Player " + id.substring(0, 4)), 0, -40);
                         
                         this.ctx.restore();
                     }
