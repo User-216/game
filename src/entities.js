@@ -1234,10 +1234,10 @@ class PaletteDresser extends Entity {
                     }
                 }
                 
-                if (palDesc) {
-                    this.game.drawCreditsText(ctx, palDesc, this.x + this.width/2, this.y - 120, true, 1.0);
-                }
-                this.game.drawCreditsText(ctx, palName, this.x + this.width/2, this.y - 80, true, 1.0);
+                // Pass text info to game to draw on HUD
+                this.game.showPaletteUI = true;
+                this.game.paletteUIName = palName;
+                this.game.paletteUIDesc = palDesc;
             } else {
                 ctx.fillStyle = 'white';
                 ctx.font = 'bold 16px Arial';

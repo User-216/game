@@ -2613,6 +2613,19 @@ this.entities.push(
         
         this.ctx.restore();
 
+        // Draw HUD Elements
+        if (this.showPaletteUI) {
+            const cx = this.canvas.width / 2;
+            const cy = this.canvas.height / 3;
+            if (this.paletteUIDesc) {
+                this.drawCreditsText(this.ctx, this.paletteUIDesc, cx, cy, true, 1.0);
+            }
+            if (this.paletteUIName) {
+                this.drawCreditsText(this.ctx, this.paletteUIName, cx, cy + 40, true, 1.0);
+            }
+            this.showPaletteUI = false; // Reset so it only draws when updated by entities
+        }
+
         if (this.gameState === 'PAUSED' && this.bigFontLoaded) {
             // Post-processing: Wave + Color Bleed + Darken
             if (!this.pauseCanvas) {
