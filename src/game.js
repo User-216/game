@@ -841,10 +841,13 @@ class Game {
             this.onlineMenuIndex = 0;
             if (this.audio) this.audio.playFile('sfx_pausestart', true);
             
+            if (!this.onlineIP) this.onlineIP = "127.0.0.1";
+            if (!this.onlinePort) this.onlinePort = 2222;
+
             this.onlineMenuOptions = {
                 MAIN: ['EXIT MENU', 'CREATE', 'JOIN'],
-                CREATE: ['BACK', 'PORT 2222', 'MAX PLAYERS 4', 'CREATE SVR'],
-                JOIN: ['BACK', 'IP 127001', 'PORT 2222', 'JOIN SVR'] // Using numbers only for IP since font might lack dots
+                CREATE: ['BACK', 'PORT ' + this.onlinePort, 'MAX PLAYERS 4', 'CREATE SVR'],
+                JOIN: ['BACK', 'IP ' + this.onlineIP, 'PORT ' + this.onlinePort, 'JOIN SVR']
             };
         } else if (this.gameState === 'ONLINE_MENU') {
             this.gameState = 'PLAYING';
@@ -852,14 +855,15 @@ class Game {
         }
     }
 
-    connectMultiplayer() {
+    connectMultiplayer(isCreate) {
         if (this.ws) {
             this.ws.close();
         }
         this.otherPlayers = {};
         
-        // For now, hardcode localhost 2222 as defined in the mockup/stub
-        const wsUrl = "ws://127.0.0.1:2222";
+        const ip = this.onlineIP || "127.0.0.1";
+        const port = this.onlinePort || 2222;
+        const wsUrl = `ws://${ip}:${port}`;
         console.log("Connecting to " + wsUrl);
         
         try {
@@ -2297,8 +2301,21 @@ this.entities.push(
                     this.onlineMenuLevel = 'MAIN';
                     this.onlineMenuIndex = 0;
                 } else if (sel === 'CREATE SVR' || sel === 'JOIN SVR') {
-                    this.connectMultiplayer();
+                    this.connectMultiplayer(sel === 'CREATE SVR');
                     this.toggleOnlineMenu();
+                } else if (sel.startsWith('IP')) {
+                    const newIP = prompt("Enter IP Address (e.g. 192.168.0.5 or 127.0.0.1)", this.onlineIP || "127.0.0.1");
+                    if (newIP) {
+                        this.onlineIP = newIP;
+                        // Just removing dots for display if needed, but actually spr_creditsfont has '.'!
+                        opts[this.onlineMenuIndex] = 'IP ' + this.onlineIP;
+                    }
+                } else if (sel.startsWith('PORT')) {
+                    const newPort = prompt("Enter Port (e.g. 2222)", this.onlinePort || "2222");
+                    if (newPort) {
+                        this.onlinePort = parseInt(newPort) || 2222;
+                        opts[this.onlineMenuIndex] = 'PORT ' + this.onlinePort;
+                    }
                 } else {
                     console.log("Selected:", sel);
                 }
