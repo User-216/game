@@ -2616,7 +2616,7 @@ this.entities.push(
         // Draw HUD Elements
         if (this.showPaletteUI) {
             const cx = this.canvas.width / 2;
-            const cy = this.canvas.height / 3;
+            const cy = 100; // Moved higher up
             if (this.paletteUIDesc) {
                 this.drawCreditsText(this.ctx, this.paletteUIDesc, cx, cy, true, 1.0);
             }
