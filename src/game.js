@@ -879,7 +879,12 @@ class Game {
                         this.langData[parts[0].trim()] = parts.slice(1).join('=').trim();
                     }
                 }
-            }).catch(err => console.error("Could not load english.txt", err));
+            }).catch(err => {
+                console.error("Could not load english.txt", err);
+                if (window.location.protocol === 'file:') {
+                    alert("로컬테스트_실행기.bat 로 실행하지 않으시면 english.txt 파일을 읽어올 수 없습니다! (보안 정책)");
+                }
+            });
     }
 
     drawCreditsText(ctx, textStr, x, y, center = true, scale = 1) {
