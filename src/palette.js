@@ -1,7 +1,7 @@
 class PaletteManager {
     constructor() {
         this.colors = [];
-        this.currentPalette = 0;
+        this.currentPalette = 1;
         this.isLoaded = false;
         this.cache = new Map();
         

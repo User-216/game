@@ -1744,12 +1744,14 @@ this.entities.push(
 
                 if (this.pauseMenuLevel === 'PALETTE') {
                     if (this.isActionPressed('menu_left') && !this.prevKeysLeft) {
-                        this.previewPalette = (this.previewPalette - 1 + 17) % 17;
+                        this.previewPalette = this.previewPalette - 1;
+                        if (this.previewPalette < 1) this.previewPalette = 16;
                         if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.previewPalette);
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
                     if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
-                        this.previewPalette = (this.previewPalette + 1) % 17;
+                        this.previewPalette = this.previewPalette + 1;
+                        if (this.previewPalette > 16) this.previewPalette = 1;
                         if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.previewPalette);
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
