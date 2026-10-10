@@ -876,10 +876,14 @@ class Game {
                 this.peer.on('open', (id) => {
                     this.myOnlineId = id;
                     console.log("My Peer ID is: " + id);
+                    
+                    // Show prompt so user can easily copy it
+                    prompt("Room created! Copy this ROOM CODE and give it to your friend:", id);
+                    
                     let b = {
                         x: (this.camera ? this.camera.x : 0) + this.canvas.width / 2,
                         y: (this.camera ? this.camera.y : 0) + this.canvas.height / 2,
-                        text: "ROOM: " + id, vy: -1, alpha: 4.0 // lasts longer
+                        text: "ROOM CREATED!", vy: -1, alpha: 2.0
                     };
                     if (!this.floatingTexts) this.floatingTexts = [];
                     this.floatingTexts.push(b);
