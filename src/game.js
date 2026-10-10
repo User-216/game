@@ -866,6 +866,7 @@ class Game {
         
         this.otherPlayers = {};
         this.networkConns = [];
+        this.isHost = isCreate;
         
         console.log("Starting PeerJS connection...");
         
@@ -907,6 +908,13 @@ class Game {
                     conn.on('close', () => {
                         delete this.otherPlayers[conn.peer];
                         this.networkConns = this.networkConns.filter(c => c !== conn);
+                        
+                        // Tell other clients that this player left
+                        for (let otherConn of this.networkConns) {
+                            if (otherConn.open) {
+                                otherConn.send({ type: 'remove', id: conn.peer });
+                            }
+                        }
                     });
                 });
                 
@@ -941,6 +949,8 @@ class Game {
                     conn.on('close', () => {
                         console.log("Disconnected from HOST.");
                         delete this.otherPlayers[targetId];
+                        // If host closes, clear everyone since host was relay
+                        this.otherPlayers = {};
                         this.networkConns = this.networkConns.filter(c => c !== conn);
                     });
                 });
@@ -966,6 +976,21 @@ class Game {
         try {
             if (data.type === 'update') {
                 this.otherPlayers[senderId] = data.payload;
+                
+                // If we are host, relay this client's position to ALL OTHER clients!
+                if (this.isHost) {
+                    for (let conn of this.networkConns) {
+                        if (conn.open && conn.peer !== senderId) {
+                            conn.send({ type: 'relay_update', payload: data.payload, originalId: senderId });
+                        }
+                    }
+                }
+            } else if (data.type === 'relay_update') {
+                // Client receiving data about ANOTHER client from the host
+                this.otherPlayers[data.originalId] = data.payload;
+            } else if (data.type === 'remove') {
+                // Client receiving remove event about another client from the host
+                delete this.otherPlayers[data.id];
             }
         } catch(e) {}
     }
