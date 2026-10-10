@@ -335,6 +335,7 @@ class Game {
         this.setupEditorUI();
         this.setupMenuUI();
         this.translateUI();
+        this.loadLangFile();
 
         this.loop(performance.now());
     }
@@ -863,6 +864,63 @@ class Game {
             document.getElementById('pause-overlay').classList.add('hidden');
             document.getElementById('options-overlay').style.display = 'none';
             document.getElementById('options-overlay').classList.add('hidden');
+        }
+    }
+
+    loadLangFile() {
+        this.langData = {};
+        fetch('lang/english/english.txt')
+            .then(res => res.text())
+            .then(text => {
+                const lines = text.split('\n');
+                for (let line of lines) {
+                    if (line.includes('=')) {
+                        const parts = line.split('=');
+                        this.langData[parts[0].trim()] = parts.slice(1).join('=').trim();
+                    }
+                }
+            }).catch(err => console.error("Could not load english.txt", err));
+    }
+
+    drawCreditsText(ctx, textStr, x, y, center = true, scale = 1) {
+        if (!textStr) return;
+        const kerning = -16 * scale;
+        let totalW = 0;
+        let charImages = [];
+        for (let i = 0; i < textStr.length; i++) {
+            if (textStr[i] === ' ') {
+                charImages.push('space');
+                totalW += 15 * scale + kerning;
+                continue;
+            }
+            const charIdx = this.creditsFontMap.indexOf(textStr[i]);
+            if (charIdx !== -1 && this.creditsFontImages[charIdx]) {
+                const img = this.creditsFontImages[charIdx];
+                charImages.push(img);
+                totalW += (img.width || 30) * scale + kerning; 
+            } else {
+                charImages.push(null);
+                totalW += 30 * scale + kerning;
+            }
+        }
+        
+        let cx = center ? x - totalW / 2 : x;
+        for (let i = 0; i < charImages.length; i++) {
+            if (charImages[i] === 'space') {
+                cx += 15 * scale + kerning;
+                continue;
+            }
+            const img = charImages[i];
+            if (img && img.complete && img.naturalWidth > 0) {
+                if (scale !== 1) {
+                    ctx.drawImage(img, cx, y, img.naturalWidth * scale, img.naturalHeight * scale);
+                } else {
+                    ctx.drawImage(img, cx, y);
+                }
+                cx += (img.width || 30) * scale + kerning;
+            } else {
+                cx += 30 * scale + kerning;
+            }
         }
     }
 

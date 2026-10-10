@@ -1216,10 +1216,32 @@ class PaletteDresser extends Entity {
         }
 
         if (this.playerTouching) {
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText("UP/DOWN", this.x + this.width/2, this.y - 10);
+            if (this.game && this.game.drawCreditsText) {
+                let currentPal = this.game.player.paletteManager.currentPalette;
+                let palName = "Palette " + currentPal;
+                let palDesc = "";
+                
+                if (this.game.langData) {
+                    if (this.game.langData["palette_" + currentPal]) {
+                        palName = this.game.langData["palette_" + currentPal];
+                    }
+                    if (this.game.langData["palettedesc_" + currentPal]) {
+                        palDesc = this.game.langData["palettedesc_" + currentPal];
+                    } else if (currentPal === 1) {
+                        palDesc = "The one you know and love";
+                    }
+                }
+                
+                if (palDesc) {
+                    this.game.drawCreditsText(ctx, palDesc, this.x + this.width/2, this.y - 120, true, 0.7);
+                }
+                this.game.drawCreditsText(ctx, palName, this.x + this.width/2, this.y - 80, true, 1.0);
+            } else {
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("UP/DOWN", this.x + this.width/2, this.y - 10);
+            }
         }
     }
 }
