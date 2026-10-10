@@ -1747,13 +1747,13 @@ this.entities.push(
                         this.previewPalette = this.previewPalette - 1;
                         if (this.previewPalette < 1) this.previewPalette = 16;
                         if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.previewPalette);
-                        if (this.audio) this.audio.playFile('sfx_step', true);
+                        if (this.audio) this.audio.playFile('sfx_switch', true);
                     }
                     if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
                         this.previewPalette = this.previewPalette + 1;
                         if (this.previewPalette > 16) this.previewPalette = 1;
                         if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.previewPalette);
-                        if (this.audio) this.audio.playFile('sfx_step', true);
+                        if (this.audio) this.audio.playFile('sfx_switch', true);
                     }
                     if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                         this.appliedPalette = this.previewPalette;
