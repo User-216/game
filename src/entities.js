@@ -1235,7 +1235,7 @@ class PaletteDresser extends Entity {
                 }
                 
                 // Pass text info to game to draw on HUD
-                this.game.showPaletteUI = true;
+                this.game.paletteUIActive = true;
                 this.game.paletteUIName = palName;
                 this.game.paletteUIDesc = palDesc;
             } else {

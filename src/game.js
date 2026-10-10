@@ -2613,17 +2613,27 @@ this.entities.push(
         
         this.ctx.restore();
 
+        // Update Palette UI Alpha
+        if (this.paletteUIActive) {
+            this.paletteUIAlpha = Math.min(1, (this.paletteUIAlpha || 0) + 0.05);
+        } else {
+            this.paletteUIAlpha = Math.max(0, (this.paletteUIAlpha || 0) - 0.05);
+        }
+        this.paletteUIActive = false; // Reset for next frame
+
         // Draw HUD Elements
-        if (this.showPaletteUI) {
+        if (this.paletteUIAlpha > 0) {
+            this.ctx.save();
+            this.ctx.globalAlpha = this.paletteUIAlpha;
             const cx = this.canvas.width / 2;
-            const cy = 100; // Moved higher up
+            const cy = 100;
             if (this.paletteUIDesc) {
                 this.drawCreditsText(this.ctx, this.paletteUIDesc, cx, cy, true, 1.0);
             }
             if (this.paletteUIName) {
                 this.drawCreditsText(this.ctx, this.paletteUIName, cx, cy + 40, true, 1.0);
             }
-            this.showPaletteUI = false; // Reset so it only draws when updated by entities
+            this.ctx.restore();
         }
 
         if (this.gameState === 'PAUSED' && this.bigFontLoaded) {
