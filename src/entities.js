@@ -670,10 +670,11 @@ class Slime extends Entity {
         } else if (this.state === 'stunned' || this.state === 'kicked') {
             this.x += this.vx;
             
-            // Off-screen death for stunned enemy (Combo!)
-            const isOffScreen = (this.x + this.width < game.camera.x || this.x > game.camera.x + game.canvas.width ||
-                                 this.y + this.height < game.camera.y || this.y > game.camera.y + game.canvas.height);
-            if (isOffScreen) {
+            // Off-screen death for kicked enemy (Combo!)
+            const offMargin = 400; // Generous off-screen margin so it doesn't die right at the edge of the screen/x=0
+            const isOffScreen = (this.x + this.width < game.camera.x - offMargin || this.x > game.camera.x + game.canvas.width + offMargin ||
+                                 this.y + this.height < game.camera.y - offMargin || this.y > game.camera.y + game.canvas.height + offMargin);
+            if (this.state === 'kicked' && isOffScreen) {
                 this.markedForDeletion = true;
                 
                 game.combo = (game.combo || 0) + 1;
@@ -727,7 +728,8 @@ class Slime extends Entity {
             }
         }
         
-        if (hitWall || this.x < 0 || (game.roomWidth && this.x + this.width > game.roomWidth)) {
+        const hitRightRoomBound = (game.roomWidth > 0 && this.x + this.width > game.roomWidth);
+        if (hitWall || hitRightRoomBound) {
             if (this.state === 'kicked') {
                 this.state = 'dead';
                 if (game.audio && game.audio.play) game.audio.play('break');
