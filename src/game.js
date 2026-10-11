@@ -422,7 +422,7 @@ class Game {
         this.canvas.style.objectFit = 'contain';
     }
 
-    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 2) {
+    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 1) {
         if (!this.pixelTextCache) this.pixelTextCache = new Map();
         const cacheKey = `${text}_${fontName}_${fontSize}_${strokeWidth}`;
         if (this.pixelTextCache.has(cacheKey)) {
@@ -433,7 +433,7 @@ class Game {
         const measureCtx = measureCanvas.getContext('2d');
         measureCtx.font = `bold ${fontSize}px "${fontName}", sans-serif`;
         const metrics = measureCtx.measureText(text);
-        const padding = strokeWidth * 4 + 8;
+        const padding = Math.max(4, strokeWidth * 2 + 6);
         const textWidth = Math.ceil(metrics.width);
         const textHeight = Math.ceil(fontSize * 1.3);
         const w = Math.max(1, textWidth + padding * 2);
@@ -448,11 +448,19 @@ class Game {
         offCtx.textBaseline = 'top';
         offCtx.textAlign = 'left';
 
-        // Draw crisp outline
-        offCtx.lineWidth = strokeWidth * 2;
-        offCtx.strokeStyle = '#000000';
-        offCtx.lineJoin = 'miter';
-        offCtx.strokeText(text, padding, padding);
+        // Draw crisp 1-pixel outline
+        if (strokeWidth <= 1) {
+            offCtx.fillStyle = '#000000';
+            offCtx.fillText(text, padding - 1, padding);
+            offCtx.fillText(text, padding + 1, padding);
+            offCtx.fillText(text, padding, padding - 1);
+            offCtx.fillText(text, padding, padding + 1);
+        } else {
+            offCtx.lineWidth = strokeWidth * 2;
+            offCtx.strokeStyle = '#000000';
+            offCtx.lineJoin = 'miter';
+            offCtx.strokeText(text, padding, padding);
+        }
 
         // Draw fill
         offCtx.fillStyle = '#FFFFFF';
@@ -464,14 +472,14 @@ class Game {
             const data = imgData.data;
             for (let i = 0; i < data.length; i += 4) {
                 const alpha = data[i + 3];
-                if (alpha < 70) {
+                if (alpha < 60) {
                     data[i + 3] = 0;
                 } else {
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
                     const brightness = (r + g + b) / 3;
-                    if (brightness > 110) {
+                    if (brightness > 85) {
                         data[i] = 255;
                         data[i + 1] = 255;
                         data[i + 2] = 255;
@@ -3278,7 +3286,7 @@ this.entities.push(
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
                     const fontSize = Math.round(42 * scale);
-                    const strokeWidth = Math.max(2, Math.round(2.5 * scale));
+                    const strokeWidth = 1;
                     const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
@@ -3407,7 +3415,7 @@ this.entities.push(
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
                     const fontSize = Math.round(42 * scale);
-                    const strokeWidth = Math.max(2, Math.round(2.5 * scale));
+                    const strokeWidth = 1;
                     const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
@@ -4075,7 +4083,7 @@ this.entities.push(
                 const lang = this.settings.language || 'ko';
                 const pressText = i18n[lang]['title.press'];
                 if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(pressText)) {
-                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 40, 2);
+                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 40, 1);
                     this.ctx.save();
                     this.ctx.imageSmoothingEnabled = false;
                     this.ctx.drawImage(pixelated.canvas, Math.round(this.canvas.width / 2 - pixelated.textWidth / 2 - pixelated.padding), Math.round(this.canvas.height / 2 + 60 - pixelated.padding));
