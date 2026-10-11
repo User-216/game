@@ -337,6 +337,16 @@ class TutorialBook extends Entity {
         this.text = text;
     }
 
+    getText() {
+        if (typeof this.text === 'string') {
+            const match = this.text.trim().match(/^lang_get_value\(\s*["']?([^"'\s\)]+)["']?\s*\)$/i);
+            if (match && typeof window.lang_get_value === 'function') {
+                return window.lang_get_value(match[1]);
+            }
+        }
+        return this.text;
+    }
+
     render(ctx) {
         if (this.isDestroyed) return;
         

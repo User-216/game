@@ -37,6 +37,21 @@ const i18n = {
     }
 };
 
+window.lang_get_value = function(key) {
+    if (!key) return "";
+    const lang = (window.gameInstance && window.gameInstance.settings && window.gameInstance.settings.language) || 'en';
+    if (lang === 'ko' && window.langData_ko && window.langData_ko[key] !== undefined) {
+        return window.langData_ko[key];
+    }
+    if (window.langData && window.langData[key] !== undefined) {
+        return window.langData[key];
+    }
+    if (window.langData_ko && window.langData_ko[key] !== undefined) {
+        return window.langData_ko[key];
+    }
+    return key;
+};
+
 class Game {
     isKeyPressed(k) {
         if (!k) return false;
@@ -59,6 +74,7 @@ class Game {
     }
 
     constructor() {
+        window.gameInstance = this;
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.speedMeter = document.getElementById('speed-meter');
@@ -2774,7 +2790,7 @@ this.entities.push(
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist < 150) { // proximity radius
                     touchingBook = true;
-                    bookText = e.text;
+                    bookText = (typeof e.getText === 'function') ? e.getText() : e.text;
                     this.currentTutorialBook = e;
                     break;
                 }
@@ -2783,6 +2799,12 @@ this.entities.push(
         
         if (touchingBook) {
             let activeText = bookText;
+            if (typeof activeText === 'string') {
+                const match = activeText.trim().match(/^lang_get_value\(\s*["']?([^"'\s\)]+)["']?\s*\)$/i);
+                if (match && typeof window.lang_get_value === 'function') {
+                    activeText = window.lang_get_value(match[1]);
+                }
+            }
             if (this.settings.language === 'ko') {
                 const koMap = {
                     "Press  [J] to Jump!": "[J]를 눌러 점프하세요!",
@@ -2792,7 +2814,7 @@ this.entities.push(
                     "Press [S] to run! You can smash through blocks,\\nand if you run fast enough, you can even break steel blocks!": "[S]를 눌러 달리세요! 블록을 부수며 돌진할 수 있고,\\n충분히 빠르면 강철 블록도 파괴할 수 있습니다!",
                     "You can jump while running, and when you're against a wall\\nyou can wall-run! Press [J] to perform a wall jump!": "달리면서 점프할 수 있고, 벽에 닿았을 때\\n벽타기를 할 수 있습니다! [J]를 눌러 벽점프를 하세요!"
                 };
-                if (koMap[bookText]) activeText = koMap[bookText];
+                if (koMap[activeText]) activeText = koMap[activeText];
             }
             if (this.currentTutorialText !== activeText) {
                 this.currentTutorialText = activeText;
