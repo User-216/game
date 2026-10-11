@@ -422,9 +422,9 @@ class Game {
         this.canvas.style.objectFit = 'contain';
     }
 
-    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 1) {
+    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 1, isSolidColor = false, color = '#000000') {
         if (!this.pixelTextCache) this.pixelTextCache = new Map();
-        const cacheKey = `${text}_${fontName}_${fontSize}_${strokeWidth}`;
+        const cacheKey = `${text}_${fontName}_${fontSize}_${strokeWidth}_${isSolidColor}_${color}`;
         if (this.pixelTextCache.has(cacheKey)) {
             return this.pixelTextCache.get(cacheKey);
         }
@@ -448,42 +448,18 @@ class Game {
         offCtx.textBaseline = 'top';
         offCtx.textAlign = 'left';
 
-        // Draw crisp 1-pixel outline
-        if (strokeWidth <= 1) {
-            offCtx.fillStyle = '#000000';
-            offCtx.fillText(text, padding - 1, padding);
-            offCtx.fillText(text, padding + 1, padding);
-            offCtx.fillText(text, padding, padding - 1);
-            offCtx.fillText(text, padding, padding + 1);
-        } else {
-            offCtx.lineWidth = strokeWidth * 2;
-            offCtx.strokeStyle = '#000000';
-            offCtx.lineJoin = 'miter';
-            offCtx.strokeText(text, padding, padding);
-        }
+        if (isSolidColor) {
+            // Pure solid colored text (e.g. pure black ink for tutorial book)
+            offCtx.fillStyle = color;
+            offCtx.fillText(text, padding, padding);
 
-        // Draw fill
-        offCtx.fillStyle = '#FFFFFF';
-        offCtx.fillText(text, padding, padding);
-
-        // Remove vector anti-aliased semi-transparent sub-pixels (pixelate / binarize)
-        try {
-            const imgData = offCtx.getImageData(0, 0, w, h);
-            const data = imgData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                const alpha = data[i + 3];
-                if (alpha < 60) {
-                    data[i + 3] = 0;
-                } else {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    const brightness = (r + g + b) / 3;
-                    if (brightness > 85) {
-                        data[i] = 255;
-                        data[i + 1] = 255;
-                        data[i + 2] = 255;
-                        data[i + 3] = 255;
+            try {
+                const imgData = offCtx.getImageData(0, 0, w, h);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const alpha = data[i + 3];
+                    if (alpha < 70) {
+                        data[i + 3] = 0;
                     } else {
                         data[i] = 0;
                         data[i + 1] = 0;
@@ -491,9 +467,56 @@ class Game {
                         data[i + 3] = 255;
                     }
                 }
+                offCtx.putImageData(imgData, 0, 0);
+            } catch (e) {}
+        } else {
+            // Draw crisp 1-pixel outline
+            if (strokeWidth <= 1) {
+                offCtx.fillStyle = '#000000';
+                offCtx.fillText(text, padding - 1, padding);
+                offCtx.fillText(text, padding + 1, padding);
+                offCtx.fillText(text, padding, padding - 1);
+                offCtx.fillText(text, padding, padding + 1);
+            } else {
+                offCtx.lineWidth = strokeWidth * 2;
+                offCtx.strokeStyle = '#000000';
+                offCtx.lineJoin = 'miter';
+                offCtx.strokeText(text, padding, padding);
             }
-            offCtx.putImageData(imgData, 0, 0);
-        } catch (e) {}
+
+            // Draw fill
+            offCtx.fillStyle = '#FFFFFF';
+            offCtx.fillText(text, padding, padding);
+
+            // Remove vector anti-aliased semi-transparent sub-pixels (pixelate / binarize)
+            try {
+                const imgData = offCtx.getImageData(0, 0, w, h);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const alpha = data[i + 3];
+                    if (alpha < 60) {
+                        data[i + 3] = 0;
+                    } else {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        const brightness = (r + g + b) / 3;
+                        if (brightness > 85) {
+                            data[i] = 255;
+                            data[i + 1] = 255;
+                            data[i + 2] = 255;
+                            data[i + 3] = 255;
+                        } else {
+                            data[i] = 0;
+                            data[i + 1] = 0;
+                            data[i + 2] = 0;
+                            data[i + 3] = 255;
+                        }
+                    }
+                }
+                offCtx.putImageData(imgData, 0, 0);
+            } catch (e) {}
+        }
 
         const result = {
             canvas: offCanvas,
@@ -3844,9 +3867,9 @@ this.entities.push(
             
             const waveX = Math.sin(this.tutorialWaveTimer * 0.8) * 5;
             const bWidth = this.canvas.width - 128;
-            const bHeight = Math.max(160, linesCount * 48 + 64);
+            const bHeight = Math.max(150, linesCount * 36 + 60);
             const bX = 64 + waveX;
-            const bY = 40 + Math.sin(this.tutorialWaveTimer) * 10;
+            const bY = 50 + Math.sin(this.tutorialWaveTimer) * 10;
             
             // Draw rope
             if (this.tutorialRopeImage.complete && this.tutorialRopeImage.width > 0) {
@@ -3973,11 +3996,11 @@ this.entities.push(
                             const char = token.val[i];
                             if (char === '\n') {
                                 charX = startX;
-                                charY += 48;
+                                charY += 36;
                                 continue;
                             }
                             if (char === ' ') {
-                                charX += 20; // Increased space width
+                                charX += 16;
                                 continue;
                             }
                             
@@ -3993,18 +4016,16 @@ this.entities.push(
                             }
                             
                             if (imgToDraw) {
-                                const sprScale = 1.25;
-                                this.ctx.drawImage(imgToDraw, charX, charY + bounceY + 4, imgToDraw.width * sprScale, imgToDraw.height * sprScale);
-                                charX += (imgToDraw.width - 12) * sprScale;
+                                this.ctx.drawImage(imgToDraw, charX, charY + bounceY);
+                                charX += imgToDraw.width - 12;
                             } else {
+                                // Real-time pixelated Custom_KyoboHandwriting2019 at 26px
+                                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_KyoboHandwriting2019', 26, 0, true, '#000000');
                                 this.ctx.save();
-                                this.ctx.fillStyle = '#000000';
-                                this.ctx.font = 'bold 38px "Custom_KyoboHandwriting2019", "Outfit", sans-serif';
-                                this.ctx.textAlign = 'left';
-                                this.ctx.fillText(char, charX, charY + 34 + bounceY);
-                                const measuredW = this.ctx.measureText(char).width;
+                                this.ctx.imageSmoothingEnabled = false;
+                                this.ctx.drawImage(pixelated.canvas, Math.round(charX - pixelated.padding), Math.round(charY + 6 + bounceY - pixelated.padding));
                                 this.ctx.restore();
-                                charX += Math.max(18, measuredW + 1);
+                                charX += Math.max(14, pixelated.textWidth + 1);
                             }
                         }
                     } else if (token.type === 'key') {
@@ -4014,7 +4035,7 @@ this.entities.push(
                         const img = this.getKeyImage(keyName);
                         
                         if (img && img.loaded && !img.error) {
-                            this.ctx.drawImage(img, charX, charY + 10 + bounceY); // Adjust Y for vertical alignment
+                            this.ctx.drawImage(img, charX, charY + 6 + bounceY); // Adjust Y for vertical alignment
                             charX += img.width + 4;
                         } else if (this.tutorialBlankKeyLoaded) {
                             // Fallback to blank key
