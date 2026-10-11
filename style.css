@@ -1,3 +1,13 @@
+@font-face {
+    font-family: 'Custom_Jejudoldam';
+    src: url('lang/korean/Custom_Jejudoldam.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Custom_KyoboHandwriting2019';
+    src: url('lang/korean/Custom_KyoboHandwriting2019.ttf') format('truetype');
+}
+
 :root {
     --bg-color: #0b0e14;
     --primary-color: #00aa9e;
