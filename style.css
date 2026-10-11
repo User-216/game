@@ -1,4 +1,10 @@
 @font-face {
+    font-family: 'NeoDunggeunmo';
+    src: url('lang/korean/NeoDunggeunmo.woff') format('woff'),
+         url('lang/korean/NeoDunggeunmo.ttf') format('truetype');
+}
+
+@font-face {
     font-family: 'Custom_Jejudoldam';
     src: url('lang/korean/Custom_Jejudoldam.ttf') format('truetype');
 }

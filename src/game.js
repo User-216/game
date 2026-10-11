@@ -134,6 +134,8 @@ class Game {
         this.bindingsScrollY = 0;
         
         try {
+            const fontPixel = new FontFace('NeoDunggeunmo', 'url(lang/korean/NeoDunggeunmo.woff)');
+            fontPixel.load().then(f => document.fonts.add(f));
             const font1 = new FontFace('Custom_Jejudoldam', 'url(lang/korean/Custom_Jejudoldam.ttf)');
             font1.load().then(f => document.fonts.add(f));
             const font2 = new FontFace('Custom_KyoboHandwriting2019', 'url(lang/korean/Custom_KyoboHandwriting2019.ttf)');
@@ -3196,11 +3198,11 @@ this.entities.push(
                 if (typeof text !== 'string') text = String(text);
                 this.ctx.globalAlpha = alpha;
                 
-                // If text contains Korean characters, use Custom_Jejudoldam font
+                // If text contains Korean characters, use NeoDunggeunmo pixel font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
                     this.ctx.save();
-                    this.ctx.font = `bold ${Math.round(32 * scale)}px "Custom_Jejudoldam", sans-serif`;
+                    this.ctx.font = `bold ${Math.round(32 * scale)}px "NeoDunggeunmo", "Custom_Jejudoldam", sans-serif`;
                     this.ctx.textAlign = center ? 'center' : 'left';
                     this.ctx.textBaseline = 'top';
                     this.ctx.lineWidth = 6 * scale;
@@ -3327,11 +3329,11 @@ this.entities.push(
                 if (typeof text !== 'string') text = String(text);
                 this.ctx.globalAlpha = alpha;
                 
-                // If text contains Korean characters, use Custom_Jejudoldam font
+                // If text contains Korean characters, use NeoDunggeunmo pixel font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
                     this.ctx.save();
-                    this.ctx.font = `bold ${Math.round(32 * scale)}px "Custom_Jejudoldam", sans-serif`;
+                    this.ctx.font = `bold ${Math.round(32 * scale)}px "NeoDunggeunmo", "Custom_Jejudoldam", sans-serif`;
                     this.ctx.textAlign = center ? 'center' : 'left';
                     this.ctx.textBaseline = 'top';
                     this.ctx.lineWidth = 6 * scale;
@@ -3345,7 +3347,7 @@ this.entities.push(
                     return;
                 }
                 const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
-                const fallbackFont = `bold ${Math.round(28 * scale)}px "Custom_Jejudoldam", "Outfit", sans-serif`;
+                const fallbackFont = `bold ${Math.round(28 * scale)}px "NeoDunggeunmo", "Custom_Jejudoldam", "Outfit", sans-serif`;
 
                 if (center) {
                     let totalWidth = 0;
@@ -4005,7 +4007,7 @@ this.entities.push(
             this.ctx.shadowBlur = 0;
             
             this.ctx.fillStyle = 'white';
-            this.ctx.font = '30px "Outfit", sans-serif';
+            this.ctx.font = 'bold 30px "NeoDunggeunmo", "Outfit", sans-serif';
             if (Math.floor(Date.now() / 600) % 2 === 0) {
                 const lang = this.settings.language || 'ko';
                 const pressText = i18n[lang]['title.press'];
