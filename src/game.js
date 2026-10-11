@@ -39,7 +39,7 @@ const i18n = {
 
 window.lang_get_value = function(key) {
     if (!key) return "";
-    const lang = (window.gameInstance && window.gameInstance.settings && window.gameInstance.settings.language) || 'en';
+    const lang = (window.gameInstance && window.gameInstance.settings && window.gameInstance.settings.language) || (window.game && window.game.settings && window.game.settings.language) || 'en';
     if (lang === 'ko' && window.langData_ko && window.langData_ko[key] !== undefined) {
         return window.langData_ko[key];
     }
