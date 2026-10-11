@@ -3277,8 +3277,8 @@ this.entities.push(
                 // If text contains Korean characters, use pixelated Custom_Jejudoldam font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
-                    const fontSize = Math.round(32 * scale);
-                    const strokeWidth = Math.max(1, Math.round(2 * scale));
+                    const fontSize = Math.round(42 * scale);
+                    const strokeWidth = Math.max(2, Math.round(2.5 * scale));
                     const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
@@ -3406,8 +3406,8 @@ this.entities.push(
                 // If text contains Korean characters, use pixelated Custom_Jejudoldam font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
-                    const fontSize = Math.round(32 * scale);
-                    const strokeWidth = Math.max(1, Math.round(2 * scale));
+                    const fontSize = Math.round(42 * scale);
+                    const strokeWidth = Math.max(2, Math.round(2.5 * scale));
                     const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
@@ -3836,9 +3836,9 @@ this.entities.push(
             
             const waveX = Math.sin(this.tutorialWaveTimer * 0.8) * 5;
             const bWidth = this.canvas.width - 128;
-            const bHeight = Math.max(150, linesCount * 36 + 60);
+            const bHeight = Math.max(160, linesCount * 48 + 64);
             const bX = 64 + waveX;
-            const bY = 50 + Math.sin(this.tutorialWaveTimer) * 10;
+            const bY = 40 + Math.sin(this.tutorialWaveTimer) * 10;
             
             // Draw rope
             if (this.tutorialRopeImage.complete && this.tutorialRopeImage.width > 0) {
@@ -3965,11 +3965,11 @@ this.entities.push(
                             const char = token.val[i];
                             if (char === '\n') {
                                 charX = startX;
-                                charY += 36;
+                                charY += 48;
                                 continue;
                             }
                             if (char === ' ') {
-                                charX += 16; // Increased space width
+                                charX += 20; // Increased space width
                                 continue;
                             }
                             
@@ -3985,17 +3985,18 @@ this.entities.push(
                             }
                             
                             if (imgToDraw) {
-                                this.ctx.drawImage(imgToDraw, charX, charY + bounceY);
-                                charX += imgToDraw.width - 12;
+                                const sprScale = 1.25;
+                                this.ctx.drawImage(imgToDraw, charX, charY + bounceY + 4, imgToDraw.width * sprScale, imgToDraw.height * sprScale);
+                                charX += (imgToDraw.width - 12) * sprScale;
                             } else {
                                 this.ctx.save();
                                 this.ctx.fillStyle = '#000000';
-                                this.ctx.font = 'bold 26px "Custom_KyoboHandwriting2019", "Outfit", sans-serif';
+                                this.ctx.font = 'bold 38px "Custom_KyoboHandwriting2019", "Outfit", sans-serif';
                                 this.ctx.textAlign = 'left';
-                                this.ctx.fillText(char, charX, charY + 24 + bounceY);
+                                this.ctx.fillText(char, charX, charY + 34 + bounceY);
                                 const measuredW = this.ctx.measureText(char).width;
                                 this.ctx.restore();
-                                charX += Math.max(14, measuredW + 1);
+                                charX += Math.max(18, measuredW + 1);
                             }
                         }
                     } else if (token.type === 'key') {
@@ -4005,7 +4006,7 @@ this.entities.push(
                         const img = this.getKeyImage(keyName);
                         
                         if (img && img.loaded && !img.error) {
-                            this.ctx.drawImage(img, charX, charY + 6 + bounceY); // Adjust Y for vertical alignment
+                            this.ctx.drawImage(img, charX, charY + 10 + bounceY); // Adjust Y for vertical alignment
                             charX += img.width + 4;
                         } else if (this.tutorialBlankKeyLoaded) {
                             // Fallback to blank key
@@ -4074,14 +4075,14 @@ this.entities.push(
                 const lang = this.settings.language || 'ko';
                 const pressText = i18n[lang]['title.press'];
                 if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(pressText)) {
-                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 30, 2);
+                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 40, 2);
                     this.ctx.save();
                     this.ctx.imageSmoothingEnabled = false;
                     this.ctx.drawImage(pixelated.canvas, Math.round(this.canvas.width / 2 - pixelated.textWidth / 2 - pixelated.padding), Math.round(this.canvas.height / 2 + 60 - pixelated.padding));
                     this.ctx.restore();
                 } else {
                     this.ctx.fillStyle = 'white';
-                    this.ctx.font = '30px "Outfit", sans-serif';
+                    this.ctx.font = 'bold 36px "Outfit", sans-serif';
                     this.ctx.fillText(pressText, this.canvas.width / 2, this.canvas.height / 2 + 60);
                 }
             }
