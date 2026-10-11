@@ -140,13 +140,6 @@ class Game {
             font2.load().then(f => document.fonts.add(f));
         } catch(e) {}
         
-        this.langBGImg_en = new Image();
-        this.langBGImg_en.src = 'spr_optionsBG/spr_optionsBG_lang.png';
-        this.langBGImg_ko = new Image();
-        this.langBGImg_ko.src = 'spr_optionsBG/spr_optionsBG_lang_ko.png';
-        this.langArrowBounce = 0;
-        this.langBounceDir = 0;
-
         this.optionsBGImages = [];
         this.optionsBGLoaded = false;
         let bgLoadedCount = 0;
@@ -2193,32 +2186,7 @@ this.entities.push(
                 else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'MOBILE LAYOUT' : 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
                 else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
                 else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
-                else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['LANGUAGE'];
-
-                if (this.optionsMenuLevel === 'LANGUAGE') {
-                    if (this.isActionPressed('menu_left') && !this.prevKeysLeft) {
-                        this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
-                        this.langBounceDir = -1;
-                        this.langArrowBounce = 12;
-                        if (this.audio) this.audio.playFile('sfx_step', true);
-                        this.loadLangFile();
-                        this.translateUI();
-                    }
-                    if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
-                        this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
-                        this.langBounceDir = 1;
-                        this.langArrowBounce = 12;
-                        if (this.audio) this.audio.playFile('sfx_step', true);
-                        this.loadLangFile();
-                        this.translateUI();
-                    }
-                    if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
-                        this.optionsMenuLevel = 'MAIN';
-                        this.optionsMenuIndex = 4;
-                        if (this.audio) this.audio.playFile('sfx_step', true);
-                        return;
-                    }
-                }
+                else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['BACK', 'ENGLISH', '한국어'];
                 
                 if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
                     this.optionsMenuIndex = (this.optionsMenuIndex - 1 + currentOptions.length) % currentOptions.length;
@@ -2346,6 +2314,17 @@ this.entities.push(
                             this.optionsMenuLevel = 'MAIN';
                         }
                         this.optionsMenuIndex = 0;
+                    } else if (this.optionsMenuLevel === 'LANGUAGE') {
+                        if (currentOptions[this.optionsMenuIndex] === 'ENGLISH') {
+                            this.settings.language = 'en';
+                            this.loadLangFile();
+                            this.translateUI();
+                        } else if (currentOptions[this.optionsMenuIndex] === '한국어') {
+                            this.settings.language = 'ko';
+                            this.loadLangFile();
+                            this.translateUI();
+                        }
+                        if (this.audio) this.audio.playFile('sfx_step', true);
                     } else if (this.optionsMenuLevel === 'CONTROLS' && currentOptions[this.optionsMenuIndex] === 'RESET CONFIG') {
                         // Reset Keyboard Bindings
                         this.settings.bindings = {
@@ -3294,70 +3273,6 @@ this.entities.push(
             }
             }
         } else if (this.gameState === 'OPTIONS' && this.bigFontLoaded) {
-            if (this.optionsMenuLevel === 'LANGUAGE') {
-                const isKorean = this.settings.language === 'ko';
-                const bgImg = isKorean ? this.langBGImg_ko : this.langBGImg_en;
-
-                if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
-                    this.ctx.drawImage(bgImg, 0, 0, this.canvas.width, this.canvas.height);
-                } else {
-                    this.ctx.fillStyle = '#0037bf';
-                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                }
-
-                // Bounce decay
-                if (this.langArrowBounce > 0) {
-                    this.langArrowBounce -= 0.6;
-                    if (this.langArrowBounce < 0) this.langArrowBounce = 0;
-                }
-
-                // Animated Arrow Pop when pressing Left/Right
-                if (this.langArrowBounce > 0) {
-                    this.ctx.save();
-                    this.ctx.fillStyle = '#FFFFFF';
-                    this.ctx.strokeStyle = '#000000';
-                    this.ctx.lineWidth = 4;
-                    if (this.langBounceDir === -1) {
-                        const popX = 262 - this.langArrowBounce * 2.5;
-                        const popY = 270;
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(popX + 35, popY - 22);
-                        this.ctx.lineTo(popX, popY);
-                        this.ctx.lineTo(popX + 35, popY + 22);
-                        this.ctx.closePath();
-                        this.ctx.fill();
-                        this.ctx.stroke();
-                    } else if (this.langBounceDir === 1) {
-                        const popX = 698 + this.langArrowBounce * 2.5;
-                        const popY = 270;
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(popX - 35, popY - 22);
-                        this.ctx.lineTo(popX, popY);
-                        this.ctx.lineTo(popX - 35, popY + 22);
-                        this.ctx.closePath();
-                        this.ctx.fill();
-                        this.ctx.stroke();
-                    }
-                    this.ctx.restore();
-                }
-
-                // Bottom control prompt
-                this.ctx.save();
-                this.ctx.font = isKorean ? 'bold 22px "Custom_Jejudoldam", sans-serif' : 'bold 22px "Outfit", sans-serif';
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                const helpText = isKorean ? "[Z] 확인    [X] 뒤로가기    [←/→] 언어 변경" : "[Z] CONFIRM    [X] BACK    [←/→] CHANGE";
-                this.ctx.lineWidth = 5;
-                this.ctx.strokeStyle = '#000000';
-                this.ctx.lineJoin = 'round';
-                this.ctx.strokeText(helpText, this.canvas.width / 2, this.canvas.height - 40);
-                this.ctx.fillStyle = '#FFFFFF';
-                this.ctx.fillText(helpText, this.canvas.width / 2, this.canvas.height - 40);
-                this.ctx.restore();
-
-                return;
-            }
-
             if (this.optionsBGLoaded) {
                 let bgIndex = 0;
                 if (this.optionsMenuLevel === 'AUDIO') bgIndex = 1;
@@ -3365,6 +3280,7 @@ this.entities.push(
                 else if (this.optionsMenuLevel === 'GAME') bgIndex = 3;
                 else if (this.optionsMenuLevel === 'CONTROLS') bgIndex = 4;
                 else if (this.optionsMenuLevel === 'KEYBOARD' || this.optionsMenuLevel === 'BINDINGS') bgIndex = 4; // Use CONTROLS background
+                else if (this.optionsMenuLevel === 'LANGUAGE') bgIndex = 0; // Use main options background
 
                 const baseBg = this.optionsBGImages[bgIndex];
                 if (baseBg && baseBg.complete && baseBg.naturalWidth > 0) {
