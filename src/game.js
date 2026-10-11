@@ -2308,6 +2308,8 @@ this.entities.push(
                         } else if (this.optionsMenuLevel === 'LANGUAGE') {
                             this.optionsMenuLevel = 'MAIN';
                             this.optionsMenuIndex = 4;
+                            if (this.audio) this.audio.playFile('sfx_step', true);
+                            return;
                         } else {
                             this.optionsMenuLevel = 'MAIN';
                         }
@@ -3375,6 +3377,7 @@ this.entities.push(
             else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'MOBILE LAYOUT' : 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
             else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
             else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
+            else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['BACK', 'ENGLISH', '한국어'];
 
             if (this.optionsMenuLevel === 'BINDINGS') {
                 const targetScrollY = (this.optionsMenuIndex > 0 ? (this.optionsMenuIndex - 1) : 0) * lineSpace;
