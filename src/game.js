@@ -422,6 +422,82 @@ class Game {
         this.canvas.style.objectFit = 'contain';
     }
 
+    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 2) {
+        if (!this.pixelTextCache) this.pixelTextCache = new Map();
+        const cacheKey = `${text}_${fontName}_${fontSize}_${strokeWidth}`;
+        if (this.pixelTextCache.has(cacheKey)) {
+            return this.pixelTextCache.get(cacheKey);
+        }
+
+        const measureCanvas = document.createElement('canvas');
+        const measureCtx = measureCanvas.getContext('2d');
+        measureCtx.font = `bold ${fontSize}px "${fontName}", sans-serif`;
+        const metrics = measureCtx.measureText(text);
+        const padding = strokeWidth * 4 + 8;
+        const textWidth = Math.ceil(metrics.width);
+        const textHeight = Math.ceil(fontSize * 1.3);
+        const w = Math.max(1, textWidth + padding * 2);
+        const h = Math.max(1, textHeight + padding * 2);
+
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = w;
+        offCanvas.height = h;
+        const offCtx = offCanvas.getContext('2d');
+
+        offCtx.font = `bold ${fontSize}px "${fontName}", sans-serif`;
+        offCtx.textBaseline = 'top';
+        offCtx.textAlign = 'left';
+
+        // Draw crisp outline
+        offCtx.lineWidth = strokeWidth * 2;
+        offCtx.strokeStyle = '#000000';
+        offCtx.lineJoin = 'miter';
+        offCtx.strokeText(text, padding, padding);
+
+        // Draw fill
+        offCtx.fillStyle = '#FFFFFF';
+        offCtx.fillText(text, padding, padding);
+
+        // Remove vector anti-aliased semi-transparent sub-pixels (pixelate / binarize)
+        try {
+            const imgData = offCtx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const alpha = data[i + 3];
+                if (alpha < 70) {
+                    data[i + 3] = 0;
+                } else {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const brightness = (r + g + b) / 3;
+                    if (brightness > 110) {
+                        data[i] = 255;
+                        data[i + 1] = 255;
+                        data[i + 2] = 255;
+                        data[i + 3] = 255;
+                    } else {
+                        data[i] = 0;
+                        data[i + 1] = 0;
+                        data[i + 2] = 0;
+                        data[i + 3] = 255;
+                    }
+                }
+            }
+            offCtx.putImageData(imgData, 0, 0);
+        } catch (e) {}
+
+        const result = {
+            canvas: offCanvas,
+            width: w,
+            height: h,
+            padding: padding,
+            textWidth: textWidth
+        };
+        this.pixelTextCache.set(cacheKey, result);
+        return result;
+    }
+
     enableLayoutEditMode(enable) {
         const mc = document.getElementById('mobile-controls');
         if (mc) mc.style.display = enable ? 'block' : '';
@@ -3198,19 +3274,17 @@ this.entities.push(
                 if (typeof text !== 'string') text = String(text);
                 this.ctx.globalAlpha = alpha;
                 
-                // If text contains Korean characters, use NeoDunggeunmo pixel font
+                // If text contains Korean characters, use pixelated Custom_Jejudoldam font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
+                    const fontSize = Math.round(32 * scale);
+                    const strokeWidth = Math.max(1, Math.round(2 * scale));
+                    const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
+                    const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
+                    const drawY = y - pixelated.padding - Math.round(2 * scale);
                     this.ctx.save();
-                    this.ctx.font = `bold ${Math.round(32 * scale)}px "NeoDunggeunmo", "Custom_Jejudoldam", sans-serif`;
-                    this.ctx.textAlign = center ? 'center' : 'left';
-                    this.ctx.textBaseline = 'top';
-                    this.ctx.lineWidth = 6 * scale;
-                    this.ctx.strokeStyle = '#000000';
-                    this.ctx.lineJoin = 'round';
-                    this.ctx.strokeText(text, cursorX, y - 2);
-                    this.ctx.fillStyle = '#FFFFFF';
-                    this.ctx.fillText(text, cursorX, y - 2);
+                    this.ctx.imageSmoothingEnabled = false;
+                    this.ctx.drawImage(pixelated.canvas, Math.round(drawX), Math.round(drawY));
                     this.ctx.restore();
                     this.ctx.globalAlpha = 1;
                     return;
@@ -3329,25 +3403,22 @@ this.entities.push(
                 if (typeof text !== 'string') text = String(text);
                 this.ctx.globalAlpha = alpha;
                 
-                // If text contains Korean characters, use NeoDunggeunmo pixel font
+                // If text contains Korean characters, use pixelated Custom_Jejudoldam font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
+                    const fontSize = Math.round(32 * scale);
+                    const strokeWidth = Math.max(1, Math.round(2 * scale));
+                    const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
+                    const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
+                    const drawY = y - pixelated.padding - Math.round(2 * scale);
                     this.ctx.save();
-                    this.ctx.font = `bold ${Math.round(32 * scale)}px "NeoDunggeunmo", "Custom_Jejudoldam", sans-serif`;
-                    this.ctx.textAlign = center ? 'center' : 'left';
-                    this.ctx.textBaseline = 'top';
-                    this.ctx.lineWidth = 6 * scale;
-                    this.ctx.strokeStyle = '#000000';
-                    this.ctx.lineJoin = 'round';
-                    this.ctx.strokeText(text, cursorX, y - 2);
-                    this.ctx.fillStyle = '#FFFFFF';
-                    this.ctx.fillText(text, cursorX, y - 2);
+                    this.ctx.imageSmoothingEnabled = false;
+                    this.ctx.drawImage(pixelated.canvas, Math.round(drawX), Math.round(drawY));
                     this.ctx.restore();
                     this.ctx.globalAlpha = 1;
                     return;
                 }
                 const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
-                const fallbackFont = `bold ${Math.round(28 * scale)}px "NeoDunggeunmo", "Custom_Jejudoldam", "Outfit", sans-serif`;
 
                 if (center) {
                     let totalWidth = 0;
@@ -3359,10 +3430,9 @@ this.entities.push(
                             if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete && this.bigFontImages[charCode].naturalWidth > 0) {
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
                             } else {
-                                this.ctx.save();
-                                this.ctx.font = fallbackFont;
-                                totalWidth += this.ctx.measureText(char).width + (2 * scale);
-                                this.ctx.restore();
+                                const fontSize = Math.round(28 * scale);
+                                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 1);
+                                totalWidth += pixelated.textWidth + (2 * scale);
                             }
                         }
                     }
@@ -3382,19 +3452,13 @@ this.entities.push(
                         this.ctx.drawImage(img, cursorX, y, img.naturalWidth * scale, img.naturalHeight * scale);
                         cursorX += (img.naturalWidth - 8) * scale;
                     } else {
+                        const fontSize = Math.round(28 * scale);
+                        const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 1);
                         this.ctx.save();
-                        this.ctx.font = fallbackFont;
-                        this.ctx.textAlign = 'left';
-                        this.ctx.textBaseline = 'top';
-                        this.ctx.lineWidth = 6 * scale;
-                        this.ctx.strokeStyle = '#000000';
-                        this.ctx.lineJoin = 'round';
-                        this.ctx.strokeText(char, cursorX, y + 2 * scale);
-                        this.ctx.fillStyle = '#FFFFFF';
-                        this.ctx.fillText(char, cursorX, y + 2 * scale);
-                        const w = this.ctx.measureText(char).width;
+                        this.ctx.imageSmoothingEnabled = false;
+                        this.ctx.drawImage(pixelated.canvas, Math.round(cursorX - pixelated.padding), Math.round(y - pixelated.padding + 2 * scale));
                         this.ctx.restore();
-                        cursorX += w + (2 * scale);
+                        cursorX += pixelated.textWidth + (2 * scale);
                     }
                 }
                 this.ctx.globalAlpha = 1;
@@ -4006,12 +4070,20 @@ this.entities.push(
             this.ctx.fillText('NEON PLATFORMER', this.canvas.width / 2 + shakeX, this.canvas.height / 2 - 40 + shakeY);
             this.ctx.shadowBlur = 0;
             
-            this.ctx.fillStyle = 'white';
-            this.ctx.font = 'bold 30px "NeoDunggeunmo", "Outfit", sans-serif';
             if (Math.floor(Date.now() / 600) % 2 === 0) {
                 const lang = this.settings.language || 'ko';
                 const pressText = i18n[lang]['title.press'];
-                this.ctx.fillText(pressText, this.canvas.width / 2, this.canvas.height / 2 + 60);
+                if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(pressText)) {
+                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 30, 2);
+                    this.ctx.save();
+                    this.ctx.imageSmoothingEnabled = false;
+                    this.ctx.drawImage(pixelated.canvas, Math.round(this.canvas.width / 2 - pixelated.textWidth / 2 - pixelated.padding), Math.round(this.canvas.height / 2 + 60 - pixelated.padding));
+                    this.ctx.restore();
+                } else {
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '30px "Outfit", sans-serif';
+                    this.ctx.fillText(pressText, this.canvas.width / 2, this.canvas.height / 2 + 60);
+                }
             }
         }
 
