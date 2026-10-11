@@ -110,12 +110,17 @@ class Game {
             }
         });
         
-        this.optionsMenuOptions = ['AUDIO', 'VIDEO', 'GAME', 'CONTROLS'];
+        this.optionsMenuOptions = ['AUDIO', 'VIDEO', 'GAME', 'CONTROLS', 'LANGUAGE'];
         this.optionsMenuIndex = 0;
-        this.optionsMenuLevel = 'MAIN'; // MAIN, AUDIO, VIDEO, GAME, CONTROLS
+        this.optionsMenuLevel = 'MAIN'; // MAIN, AUDIO, VIDEO, GAME, CONTROLS, LANGUAGE
         this.optionsScrollX = 0;
         this.optionsScrollY = 0;
         this.bindingsScrollY = 0;
+        
+        this.langBGImg = new Image();
+        this.langBGImg.src = 'spr_optionsBG/spr_optionsBG_lang.png';
+        this.langArrowBounce = 0;
+        this.langBounceDir = 0;
         
         this.optionsBGImages = [];
         this.optionsBGLoaded = false;
@@ -1123,11 +1128,13 @@ class Game {
     }
 
     loadLangFile() {
-        if (window.langData) {
+        const lang = (this.settings && this.settings.language) || 'en';
+        if (lang === 'ko' && window.langData_ko) {
+            this.langData = window.langData_ko;
+        } else if (window.langData) {
             this.langData = window.langData;
         } else {
             this.langData = {};
-            console.warn("window.langData is not defined. Make sure english.js is loaded.");
         }
     }
 
@@ -2161,6 +2168,31 @@ this.entities.push(
                 else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'MOBILE LAYOUT' : 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
                 else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
                 else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
+                else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['LANGUAGE'];
+
+                if (this.optionsMenuLevel === 'LANGUAGE') {
+                    if (this.isActionPressed('menu_left') && !this.prevKeysLeft) {
+                        this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
+                        this.langBounceDir = -1;
+                        this.langArrowBounce = 10;
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                        this.loadLangFile();
+                        this.translateUI();
+                    }
+                    if (this.isActionPressed('menu_right') && !this.prevKeysRight) {
+                        this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
+                        this.langBounceDir = 1;
+                        this.langArrowBounce = 10;
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                        this.loadLangFile();
+                        this.translateUI();
+                    }
+                    if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
+                        this.optionsMenuLevel = 'MAIN';
+                        this.optionsMenuIndex = 4;
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                }
                 
                 if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
                     this.optionsMenuIndex = (this.optionsMenuIndex - 1 + currentOptions.length) % currentOptions.length;
@@ -2389,10 +2421,13 @@ this.entities.push(
                         } else if (this.optionsMenuLevel === 'WINDOW MODE') {
                             this.optionsMenuLevel = 'VIDEO';
                             this.optionsMenuIndex = 1;
+                        } else if (this.optionsMenuLevel === 'LANGUAGE') {
+                            this.optionsMenuLevel = 'MAIN';
+                            this.optionsMenuIndex = 4;
                         } else {
                             this.optionsMenuLevel = 'MAIN';
+                            this.optionsMenuIndex = 0;
                         }
-                        this.optionsMenuIndex = 0;
                     } else {
                         // In MAIN, go back to PAUSED
                         this.gameState = 'PAUSED';
@@ -2756,8 +2791,20 @@ this.entities.push(
         }
         
         if (touchingBook) {
-            if (this.currentTutorialText !== bookText) {
-                this.currentTutorialText = bookText;
+            let activeText = bookText;
+            if (this.settings.language === 'ko') {
+                const koMap = {
+                    "Press  [J] to Jump!": "[J]를 눌러 점프하세요!",
+                    "Press  [D] and  [L][R] to crawl!": "[D]와 [L][R]을 눌러 기어가세요!",
+                    "Press [D] in midair to perform a Ground Pound!\\nCrash down with force and break the metal blocks!": "공중에서 [D]를 눌러 파운드 공격을 하세요!\\n강하게 내리찍어 블록을 파괴하세요!",
+                    "Press [G] to grab objects and break blocks!": "[G]를 눌러 물건을 잡고 블록을 파괴하세요!",
+                    "Press [S] to run! You can smash through blocks,\\nand if you run fast enough, you can even break steel blocks!": "[S]를 눌러 달리세요! 블록을 부수며 돌진할 수 있고,\\n충분히 빠르면 강철 블록도 파괴할 수 있습니다!",
+                    "You can jump while running, and when you're against a wall\\nyou can wall-run! Press [J] to perform a wall jump!": "달리면서 점프할 수 있고, 벽에 닿았을 때\\n벽타기를 할 수 있습니다! [J]를 눌러 벽점프를 하세요!"
+                };
+                if (koMap[bookText]) activeText = koMap[bookText];
+            }
+            if (this.currentTutorialText !== activeText) {
+                this.currentTutorialText = activeText;
                 this.tutorialTextProgress = 0;
             }
             this.tutorialWaveTimer += 0.05;
@@ -3192,6 +3239,154 @@ this.entities.push(
             }
             }
         } else if (this.gameState === 'OPTIONS' && this.bigFontLoaded) {
+            if (this.optionsMenuLevel === 'LANGUAGE') {
+                if (this.langBGImg && this.langBGImg.complete && this.langBGImg.naturalWidth > 0) {
+                    this.ctx.drawImage(this.langBGImg, 0, 0, this.canvas.width, this.canvas.height);
+                } else {
+                    this.ctx.fillStyle = '#0f3881';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                }
+
+                // Bounce decay
+                if (this.langArrowBounce > 0) {
+                    this.langArrowBounce -= 0.6;
+                    if (this.langArrowBounce < 0) this.langArrowBounce = 0;
+                }
+
+                const isKorean = this.settings.language === 'ko';
+
+                if (isKorean) {
+                    // 1. Draw Korean Flag over the US Flag
+                    // Flag bounds on canvas (960x540)
+                    const fx = 469;
+                    const fy = 117;
+                    const fw = 80;
+                    const fh = 60;
+
+                    this.ctx.save();
+                    // White flag base with black border
+                    this.ctx.fillStyle = '#FFFFFF';
+                    this.ctx.fillRect(fx, fy, fw, fh);
+                    this.ctx.lineWidth = 3;
+                    this.ctx.strokeStyle = '#000000';
+                    this.ctx.strokeRect(fx, fy, fw, fh);
+
+                    // Taegeuk circle in center
+                    const cx = fx + fw / 2;
+                    const cy = fy + fh / 2;
+                    const r = 14;
+
+                    // Top red half
+                    this.ctx.fillStyle = '#CD2E3A';
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx, cy, r, Math.PI, 0, false);
+                    this.ctx.arc(cx + r/2, cy, r/2, 0, Math.PI, false);
+                    this.ctx.arc(cx - r/2, cy, r/2, 0, Math.PI, true);
+                    this.ctx.fill();
+
+                    // Bottom blue half
+                    this.ctx.fillStyle = '#0047A0';
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx, cy, r, 0, Math.PI, false);
+                    this.ctx.arc(cx - r/2, cy, r/2, Math.PI, 0, false);
+                    this.ctx.arc(cx + r/2, cy, r/2, Math.PI, 0, true);
+                    this.ctx.fill();
+
+                    // Trigrams (black bars in 4 corners)
+                    this.ctx.fillStyle = '#000000';
+                    const drawBar = (bx, by, rot) => {
+                        this.ctx.save();
+                        this.ctx.translate(bx, by);
+                        this.ctx.rotate(rot);
+                        this.ctx.fillRect(-6, -1.5, 12, 3);
+                        this.ctx.restore();
+                    };
+                    // Top-Left (geon)
+                    drawBar(cx - 24, cy - 14, Math.PI/4);
+                    drawBar(cx - 20, cy - 18, Math.PI/4);
+                    // Top-Right (gam)
+                    drawBar(cx + 24, cy - 14, -Math.PI/4);
+                    drawBar(cx + 20, cy - 18, -Math.PI/4);
+                    // Bottom-Left (ri)
+                    drawBar(cx - 24, cy + 14, -Math.PI/4);
+                    drawBar(cx - 20, cy + 18, -Math.PI/4);
+                    // Bottom-Right (gon)
+                    drawBar(cx + 24, cy + 14, Math.PI/4);
+                    drawBar(cx + 20, cy + 18, Math.PI/4);
+
+                    this.ctx.restore();
+
+                    // 2. Cover "ENGLISH" text with "한국어"
+                    const textX = 480;
+                    const textY = 272;
+
+                    this.ctx.save();
+                    // Cupcake frosting oval patch
+                    this.ctx.fillStyle = '#ffb3c1';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(textX, textY - 2, 95, 22, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Draw "한국어" text with comic outline
+                    this.ctx.font = 'bold 36px "Impact", "Outfit", sans-serif';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.lineWidth = 7;
+                    this.ctx.strokeStyle = '#000000';
+                    this.ctx.lineJoin = 'round';
+                    this.ctx.strokeText("한국어", textX, textY);
+                    this.ctx.fillStyle = '#FFFFFF';
+                    this.ctx.fillText("한국어", textX, textY);
+                    this.ctx.restore();
+                }
+
+                // Animated Arrow Pop when pressing Left/Right
+                if (this.langArrowBounce > 0) {
+                    this.ctx.save();
+                    this.ctx.fillStyle = '#FFFFFF';
+                    this.ctx.strokeStyle = '#000000';
+                    this.ctx.lineWidth = 4;
+                    if (this.langBounceDir === -1) {
+                        const popX = 265 - this.langArrowBounce * 2.5;
+                        const popY = 270;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(popX + 35, popY - 22);
+                        this.ctx.lineTo(popX, popY);
+                        this.ctx.lineTo(popX + 35, popY + 22);
+                        this.ctx.closePath();
+                        this.ctx.fill();
+                        this.ctx.stroke();
+                    } else if (this.langBounceDir === 1) {
+                        const popX = 695 + this.langArrowBounce * 2.5;
+                        const popY = 270;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(popX - 35, popY - 22);
+                        this.ctx.lineTo(popX, popY);
+                        this.ctx.lineTo(popX - 35, popY + 22);
+                        this.ctx.closePath();
+                        this.ctx.fill();
+                        this.ctx.stroke();
+                    }
+                    this.ctx.restore();
+                }
+
+                // Bottom helper text
+                this.ctx.save();
+                this.ctx.font = 'bold 22px "Outfit", sans-serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                const helpText = isKorean ? "[Z] 선택    [X] 뒤로가기" : "[Z] SELECT    [X] BACK";
+                this.ctx.lineWidth = 5;
+                this.ctx.strokeStyle = '#000000';
+                this.ctx.lineJoin = 'round';
+                this.ctx.strokeText(helpText, this.canvas.width / 2, this.canvas.height - 45);
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.fillText(helpText, this.canvas.width / 2, this.canvas.height - 45);
+                this.ctx.restore();
+
+                return;
+            }
+
             if (this.optionsBGLoaded) {
                 let bgIndex = 0;
                 if (this.optionsMenuLevel === 'AUDIO') bgIndex = 1;
