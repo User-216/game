@@ -422,7 +422,7 @@ class Game {
         this.canvas.style.objectFit = 'contain';
     }
 
-    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 1, isSolidColor = false, color = '#000000') {
+    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 2, isSolidColor = false, color = '#000000') {
         if (!this.pixelTextCache) this.pixelTextCache = new Map();
         const cacheKey = `${text}_${fontName}_${fontSize}_${strokeWidth}_${isSolidColor}_${color}`;
         if (this.pixelTextCache.has(cacheKey)) {
@@ -470,7 +470,7 @@ class Game {
                 offCtx.putImageData(imgData, 0, 0);
             } catch (e) {}
         } else {
-            // Draw crisp 1-pixel outline
+            // Draw crisp outline
             if (strokeWidth <= 1) {
                 offCtx.fillStyle = '#000000';
                 offCtx.fillText(text, padding - 1, padding);
@@ -480,7 +480,7 @@ class Game {
             } else {
                 offCtx.lineWidth = strokeWidth * 2;
                 offCtx.strokeStyle = '#000000';
-                offCtx.lineJoin = 'miter';
+                offCtx.lineJoin = 'round';
                 offCtx.strokeText(text, padding, padding);
             }
 
@@ -3309,7 +3309,7 @@ this.entities.push(
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
                     const fontSize = Math.round(42 * scale);
-                    const strokeWidth = 1;
+                    const strokeWidth = 2;
                     const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
@@ -3438,7 +3438,7 @@ this.entities.push(
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
                     const fontSize = Math.round(42 * scale);
-                    const strokeWidth = 1;
+                    const strokeWidth = 2;
                     const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
@@ -3462,7 +3462,7 @@ this.entities.push(
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
                             } else {
                                 const fontSize = Math.round(28 * scale);
-                                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 1);
+                                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 2);
                                 totalWidth += pixelated.textWidth + (2 * scale);
                             }
                         }
@@ -3484,7 +3484,7 @@ this.entities.push(
                         cursorX += (img.naturalWidth - 8) * scale;
                     } else {
                         const fontSize = Math.round(28 * scale);
-                        const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 1);
+                        const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 2);
                         this.ctx.save();
                         this.ctx.imageSmoothingEnabled = false;
                         this.ctx.drawImage(pixelated.canvas, Math.round(cursorX - pixelated.padding), Math.round(y - pixelated.padding + 2 * scale));
@@ -4104,7 +4104,7 @@ this.entities.push(
                 const lang = this.settings.language || 'ko';
                 const pressText = i18n[lang]['title.press'];
                 if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(pressText)) {
-                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 40, 1);
+                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 40, 2);
                     this.ctx.save();
                     this.ctx.imageSmoothingEnabled = false;
                     this.ctx.drawImage(pixelated.canvas, Math.round(this.canvas.width / 2 - pixelated.textWidth / 2 - pixelated.padding), Math.round(this.canvas.height / 2 + 60 - pixelated.padding));
