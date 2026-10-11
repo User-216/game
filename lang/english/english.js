@@ -48,6 +48,7 @@ window.langData = {
 
     "pause_resume": "RESUME",
     "pause_options": "OPTIONS",
+    "pause_palette": "PALETTE",
     "pause_restart": "RESTART LEVEL",
     "pause_exit": "EXIT LEVEL",
     "pause_exit_title": "MAIN MENU",
@@ -59,6 +60,7 @@ window.langData = {
     "option_video": "VIDEO",
     "option_controls": "CONTROLS",
     "option_game": "GAME",
+    "option_mobile_layout": "MOBILE LAYOUT",
 
     "option_back": "BACK",
     "option_on": "ON",

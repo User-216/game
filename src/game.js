@@ -178,8 +178,13 @@ class Game {
             this.controlIcons[iconName] = img;
         });
 
+        let savedLang = 'ko';
+        try {
+            savedLang = localStorage.getItem('gameLanguage') || 'ko';
+        } catch(e) {}
+
         this.settings = {
-            language: 'en',
+            language: savedLang,
             masterVolume: 100,
             musicVolume: 80,
             sfxVolume: 100,
@@ -527,6 +532,92 @@ class Game {
         };
         this.pixelTextCache.set(cacheKey, result);
         return result;
+    }
+
+    getMenuLabel(text) {
+        if (!text || typeof text !== 'string') return text;
+        const lang = (this.settings && this.settings.language) || 'ko';
+        if (lang !== 'ko') {
+            return text;
+        }
+
+        const map = {
+            'RESUME': 'pause_resume',
+            'OPTIONS': 'pause_options',
+            'PALETTE': 'pause_palette',
+            'RESTART': 'pause_restart',
+            'EXIT LEVEL': 'pause_exit',
+            'MAIN MENU': 'pause_exit_title',
+            'AUDIO': 'option_audio',
+            'VIDEO': 'option_video',
+            'GAME': 'option_game',
+            'CONTROLS': 'option_controls',
+            'LANGUAGE': 'option_lang',
+            'BACK': 'option_back',
+            'MASTER': 'option_master',
+            'MUSIC': 'option_music',
+            'SFX': 'option_sfx',
+            'UNFOCUS MUTE': 'option_unfocus',
+            'WINDOW MODE': 'option_window_mode',
+            'RESOLUTION': 'option_resolution',
+            'VSYNC': 'option_vsync',
+            'TEXTURE FILTERING': 'option_texfilter',
+            'HIDE HUD': 'option_hud',
+            'SHOW HUD': 'option_hud',
+            'SHAKE INTENS': 'option_screenshake',
+            'TIMER': 'option_timer',
+            'KEYBOARD': 'option_keyboard',
+            'CONTROLLER': 'option_controller',
+            'RESET CONFIG': 'option_reset_config',
+            'MOBILE LAYOUT': 'option_mobile_layout',
+            'BINDINGS': 'option_controller_binds',
+            'DIR SUPERJUMP': 'option_keyboard_superjump',
+            'DIR GROUNDPOUND': 'option_keyboard_groundpound',
+            'WINDOWED': 'option_windowed',
+            'FULLSCREEN': 'option_fullscreen',
+            'BORDERLESS': 'option_borderless',
+            'ON': 'option_on',
+            'OFF': 'option_off',
+            'YES': 'option_yes',
+            'NO': 'option_no',
+            'NONE': 'option_none',
+            'PRESS ANY KEY': 'option_press_key',
+            'MENU LEFT': 'control_menu_left',
+            'MENU RIGHT': 'control_menu_right',
+            'MENU UP': 'control_menu_up',
+            'MENU DOWN': 'control_menu_down',
+            'MENU CONFIRM': 'control_menu_confirm',
+            'MENU BACK': 'control_menu_back',
+            'MENU CLEAR': 'control_menu_delete'
+        };
+
+        const direct = {
+            'PALETTE': '팔레트',
+            'MOBILE LAYOUT': '모바일 레이아웃',
+            'UP': '위',
+            'DOWN': '아래',
+            'LEFT': '왼쪽',
+            'RIGHT': '오른쪽',
+            'JUMP': '점프',
+            'GRAB': '잡기',
+            'DASH': '달리기',
+            'SUPERJUMP': '슈퍼점프',
+            'GROUNDPOUND': '찍기',
+            'TAUNT': '도발',
+            'PAUSE': '일시정지',
+            'RESET BINDS': '키 초기화',
+            'ADD BIND': '키 등록',
+            'CLEAR BINDS': '키 삭제'
+        };
+
+        const key = map[text];
+        if (key && window.langData_ko && window.langData_ko[key]) {
+            return window.langData_ko[key];
+        }
+        if (direct[text]) {
+            return direct[text];
+        }
+        return text;
     }
 
     enableLayoutEditMode(enable) {
@@ -1255,7 +1346,10 @@ class Game {
     }
 
     loadLangFile() {
-        const lang = (this.settings && this.settings.language) || 'en';
+        const lang = (this.settings && this.settings.language) || 'ko';
+        try {
+            localStorage.setItem('gameLanguage', lang);
+        } catch(e) {}
         if (lang === 'ko' && window.langData_ko) {
             this.langData = window.langData_ko;
         } else if (window.langData) {
@@ -3363,7 +3457,7 @@ this.entities.push(
             if (this.pauseMenuLevel === 'PALETTE') {
                 const startX = this.canvas.width / 2 + 150;
                 const startY = this.canvas.height / 2;
-                let opt = 'PALETTE ' + (this.previewPalette || 0) + '/16';
+                let opt = (this.settings.language === 'ko' ? '팔레트 ' : 'PALETTE ') + (this.previewPalette || 0) + '/16';
                 drawText(opt, startX, startY, 1, 1);
             } else {
             const startX = this.canvas.width / 2 + 150;
@@ -3374,10 +3468,11 @@ this.entities.push(
                 let opt = this.pauseMenuOptions[i];
                 const y = startY + i * lineSpace;
                 const isSelected = i === this.pauseMenuIndex;
+                const displayText = this.getMenuLabel(opt);
                 
                 // Draw text
                 if (isSelected) {
-                    drawText(opt, startX + 20, y, 1, 1);
+                    drawText(displayText, startX + 20, y, 1, 1);
                     // Draw arrow manually
                     this.ctx.fillStyle = 'white';
                     this.ctx.beginPath();
@@ -3391,7 +3486,7 @@ this.entities.push(
                     this.ctx.closePath();
                     this.ctx.fill();
                 } else {
-                    drawText(opt, startX + 20, y, 1, 0.5);
+                    drawText(displayText, startX + 20, y, 1, 0.5);
                 }
             }
             }
@@ -3522,7 +3617,7 @@ this.entities.push(
                 
                 if (this.optionsMenuLevel === 'BINDINGS') {
                     if (opt === 'BACK') {
-                        drawText('BACK', startX - 350, startY - 100, 1, isSelected ? 1 : 0.5, false);
+                        drawText(this.getMenuLabel('BACK'), startX - 350, startY - 100, 1, isSelected ? 1 : 0.5, false);
                         if (i === 0) {
                             const drawInstruction = (keyChar, textStr, x, y) => {
                                 if (this.tutorialBlankKeyLoaded) {
@@ -3545,7 +3640,7 @@ this.entities.push(
                                 } else {
                                     drawText(keyChar, x, y, 0.8, 1, false);
                                 }
-                                drawText(textStr, x + 50, y, 0.8, 1, false);
+                                drawText(this.getMenuLabel(textStr), x + 50, y, 0.8, 1, false);
                             };
                             drawInstruction('1', 'RESET BINDS', startX - 350, this.canvas.height - 180);
                             drawInstruction('Z', 'ADD BIND', startX - 350, this.canvas.height - 130);
@@ -3564,7 +3659,7 @@ this.entities.push(
                         this.ctx.drawImage(icon, drawCenter - icon.naturalWidth/2, y - icon.naturalHeight/2);
                         this.ctx.globalAlpha = 1;
                     } else {
-                        drawText(opt, drawCenter, y, 1, isSelected ? 1 : 0.5, true);
+                        drawText(this.getMenuLabel(opt), drawCenter, y, 1, isSelected ? 1 : 0.5, true);
                     }
 
                                         const renderBoundKey = (boundKeyVal, isBindingThis, colIndex) => {
@@ -3640,18 +3735,19 @@ this.entities.push(
                     const isBack = opt === 'BACK';
                     const yPos = startY + (i === 0 ? 0 : 50);
                     const langStr = this.settings.language === 'ko' ? '<- 한국어 ->' : '<- ENGLISH ->';
-                    const textToDraw = isBack ? 'BACK' : langStr;
+                    const textToDraw = isBack ? this.getMenuLabel('BACK') : langStr;
                     drawText(textToDraw, startX, yPos, 1, isSelected ? 1 : 0.5, true);
                     continue;
                 }
                 
                 const isMain = this.optionsMenuLevel === 'MAIN';
                 let textX = isMain ? startX : startX - 250;
+                const optText = this.getMenuLabel(opt);
                 
                 if (isSelected) {
-                    drawText(opt, textX, y, 1, 1, isMain);
+                    drawText(optText, textX, y, 1, 1, isMain);
                 } else {
-                    drawText(opt, textX, y, 1, 0.5, isMain);
+                    drawText(optText, textX, y, 1, 0.5, isMain);
                 }
 
                 // Draw setting value on the right
@@ -3676,7 +3772,7 @@ this.entities.push(
                 
                 const alpha = isSelected ? 1 : 0.5;
                 if (valueText !== null) {
-                    drawText(valueText, valX, y, 1, alpha, false);
+                    drawText(this.getMenuLabel(valueText), valX, y, 1, alpha, false);
                 } else if (sliderValue !== null) {
                     this.ctx.globalAlpha = alpha;
                     if (this.sliderTrackImg.loaded && this.sliderThumbImg.loaded) {
@@ -3710,8 +3806,10 @@ this.entities.push(
             if (this.bindingKeyFor) {
                 this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                drawText('PRESS ANY KEY', this.canvas.width / 2, this.canvas.height / 2 - 20, 1, 1, true);
-                drawText('GOING BACK IN... ' + this.bindingTimeout, this.canvas.width / 2, this.canvas.height / 2 + 40, 1, 1, true);
+                const pressPrompt = this.getMenuLabel('PRESS ANY KEY');
+                const revertPrompt = this.settings.language === 'ko' ? (this.bindingTimeout + '초 후 되돌림...') : ('GOING BACK IN... ' + this.bindingTimeout);
+                drawText(pressPrompt, this.canvas.width / 2, this.canvas.height / 2 - 20, 1, 1, true);
+                drawText(revertPrompt, this.canvas.width / 2, this.canvas.height / 2 + 40, 1, 1, true);
             }
         }
 

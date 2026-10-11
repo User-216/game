@@ -38,6 +38,7 @@ window.langData_ko = {
 
     "pause_resume": "계속하기",
     "pause_options": "설정",
+    "pause_palette": "팔레트",
     "pause_restart": "레벨 재시작",
     "pause_exit": "레벨 나가기",
     "pause_exit_title": "메인 메뉴",
@@ -49,6 +50,7 @@ window.langData_ko = {
     "option_video": "비디오",
     "option_controls": "조작",
     "option_game": "게임",
+    "option_mobile_layout": "모바일 레이아웃",
 
     "option_back": "뒤로",
     "option_on": "켜짐",
