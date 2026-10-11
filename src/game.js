@@ -2186,7 +2186,7 @@ this.entities.push(
                 else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'MOBILE LAYOUT' : 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
                 else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
                 else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
-                else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['BACK', 'ENGLISH', '한국어'];
+                else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['BACK', this.settings.language === 'ko' ? '<- 한국어 ->' : '<- ENGLISH ->'];
                 
                 if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
                     this.optionsMenuIndex = (this.optionsMenuIndex - 1 + currentOptions.length) % currentOptions.length;
@@ -2231,6 +2231,16 @@ this.entities.push(
 
                     // Discrete toggles (change only once per press)
                     if (!this.prevKeysLeft) {
+                        if (this.optionsMenuLevel === 'LANGUAGE' && this.optionsMenuIndex === 1) {
+                            this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
+                            this.loadLangFile();
+                            this.translateUI();
+                        }
+                        if (this.optionsMenuLevel === 'MAIN' && sel === 'LANGUAGE') {
+                            this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
+                            this.loadLangFile();
+                            this.translateUI();
+                        }
                         if (sel === 'UNFOCUS MUTE') this.settings.unfocusedMute = !this.settings.unfocusedMute;
                         if (sel === 'RESOLUTION') this.settings.resolutionIndex = Math.max(0, this.settings.resolutionIndex - 1);
                         if (sel === 'VSYNC') this.settings.vsync = !this.settings.vsync;
@@ -2252,6 +2262,16 @@ this.entities.push(
 
                     // Discrete toggles (change only once per press)
                     if (!this.prevKeysRight) {
+                        if (this.optionsMenuLevel === 'LANGUAGE' && this.optionsMenuIndex === 1) {
+                            this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
+                            this.loadLangFile();
+                            this.translateUI();
+                        }
+                        if (this.optionsMenuLevel === 'MAIN' && sel === 'LANGUAGE') {
+                            this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
+                            this.loadLangFile();
+                            this.translateUI();
+                        }
                         if (sel === 'UNFOCUS MUTE') this.settings.unfocusedMute = !this.settings.unfocusedMute;
                         if (sel === 'RESOLUTION') this.settings.resolutionIndex = Math.min(this.settings.resolutions.length - 1, this.settings.resolutionIndex + 1);
                         if (sel === 'VSYNC') this.settings.vsync = !this.settings.vsync;
@@ -2315,12 +2335,8 @@ this.entities.push(
                         }
                         this.optionsMenuIndex = 0;
                     } else if (this.optionsMenuLevel === 'LANGUAGE') {
-                        if (currentOptions[this.optionsMenuIndex] === 'ENGLISH') {
-                            this.settings.language = 'en';
-                            this.loadLangFile();
-                            this.translateUI();
-                        } else if (currentOptions[this.optionsMenuIndex] === '한국어') {
-                            this.settings.language = 'ko';
+                        if (this.optionsMenuIndex === 1) {
+                            this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
                             this.loadLangFile();
                             this.translateUI();
                         }
@@ -3328,17 +3344,23 @@ this.entities.push(
                     this.ctx.globalAlpha = 1;
                     return;
                 }
+                const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
+                const fallbackFont = `bold ${Math.round(28 * scale)}px "Custom_Jejudoldam", "Outfit", sans-serif`;
+
                 if (center) {
                     let totalWidth = 0;
                     for (let i = 0; i < text.length; i++) {
                         const char = text[i];
                         if (char === ' ') totalWidth += 10 * scale;
                         else {
-                            const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
                             const charCode = charset.indexOf(char);
-                            
-                            if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                            if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete && this.bigFontImages[charCode].naturalWidth > 0) {
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
+                            } else {
+                                this.ctx.save();
+                                this.ctx.font = fallbackFont;
+                                totalWidth += this.ctx.measureText(char).width + (2 * scale);
+                                this.ctx.restore();
                             }
                         }
                     }
@@ -3351,15 +3373,26 @@ this.entities.push(
                         cursorX += 10 * scale;
                         continue;
                     }
-                    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
                     const charCode = charset.indexOf(char);
                     
-                    if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                    if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete && this.bigFontImages[charCode].naturalWidth > 0) {
                         const img = this.bigFontImages[charCode];
-                        if (img.naturalWidth > 0) {
-                            this.ctx.drawImage(img, cursorX, y, img.naturalWidth * scale, img.naturalHeight * scale);
-                            cursorX += (img.naturalWidth - 8) * scale;
-                        }
+                        this.ctx.drawImage(img, cursorX, y, img.naturalWidth * scale, img.naturalHeight * scale);
+                        cursorX += (img.naturalWidth - 8) * scale;
+                    } else {
+                        this.ctx.save();
+                        this.ctx.font = fallbackFont;
+                        this.ctx.textAlign = 'left';
+                        this.ctx.textBaseline = 'top';
+                        this.ctx.lineWidth = 6 * scale;
+                        this.ctx.strokeStyle = '#000000';
+                        this.ctx.lineJoin = 'round';
+                        this.ctx.strokeText(char, cursorX, y + 2 * scale);
+                        this.ctx.fillStyle = '#FFFFFF';
+                        this.ctx.fillText(char, cursorX, y + 2 * scale);
+                        const w = this.ctx.measureText(char).width;
+                        this.ctx.restore();
+                        cursorX += w + (2 * scale);
                     }
                 }
                 this.ctx.globalAlpha = 1;
@@ -3378,7 +3411,7 @@ this.entities.push(
             else if (this.optionsMenuLevel === 'KEYBOARD') currentOptions = ['BACK', (('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'MOBILE LAYOUT' : 'BINDINGS', 'DIR SUPERJUMP', 'DIR GROUNDPOUND'];
             else if (this.optionsMenuLevel === 'BINDINGS') currentOptions = ['BACK', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'JUMP', 'GRAB', 'DASH', 'SUPERJUMP', 'GROUNDPOUND', 'TAUNT', 'PAUSE', 'MENU LEFT', 'MENU RIGHT', 'MENU UP', 'MENU DOWN', 'MENU CONFIRM', 'MENU BACK', 'MENU CLEAR'];
             else if (this.optionsMenuLevel === 'WINDOW MODE') currentOptions = ['BACK', 'WINDOWED', 'FULLSCREEN', 'BORDERLESS'];
-            else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['BACK', 'ENGLISH', '한국어'];
+            else if (this.optionsMenuLevel === 'LANGUAGE') currentOptions = ['BACK', this.settings.language === 'ko' ? '<- 한국어 ->' : '<- ENGLISH ->'];
 
             if (this.optionsMenuLevel === 'BINDINGS') {
                 const targetScrollY = (this.optionsMenuIndex > 0 ? (this.optionsMenuIndex - 1) : 0) * lineSpace;
@@ -3506,6 +3539,15 @@ this.entities.push(
                     continue;
                 }
                 
+                if (this.optionsMenuLevel === 'LANGUAGE') {
+                    const isBack = opt === 'BACK';
+                    const yPos = startY + (i === 0 ? 0 : 50);
+                    const langStr = this.settings.language === 'ko' ? '<- 한국어 ->' : '<- ENGLISH ->';
+                    const textToDraw = isBack ? 'BACK' : langStr;
+                    drawText(textToDraw, startX, yPos, 1, isSelected ? 1 : 0.5, true);
+                    continue;
+                }
+                
                 const isMain = this.optionsMenuLevel === 'MAIN';
                 let textX = isMain ? startX : startX - 250;
                 
@@ -3534,10 +3576,6 @@ this.entities.push(
                 if (opt === 'TIMER') valueText = this.settings.timer ? 'ON' : 'OFF';
                 if (opt === 'DIR SUPERJUMP') valueText = this.settings.dirSuperjump ? 'ON' : 'OFF';
                 if (opt === 'DIR GROUNDPOUND') valueText = this.settings.dirGroundpound ? 'ON' : 'OFF';
-                if (this.optionsMenuLevel === 'LANGUAGE') {
-                    if (opt === 'ENGLISH') valueText = this.settings.language === 'en' ? 'ON' : 'OFF';
-                    if (opt === '한국어') valueText = this.settings.language === 'ko' ? 'ON' : 'OFF';
-                }
                 
                 const alpha = isSelected ? 1 : 0.5;
                 if (valueText !== null) {
