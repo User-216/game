@@ -542,6 +542,62 @@ class Player {
             }
         }
 
+        // Drifting Logic (드리프트 체크를 달리기 가속보다 먼저 수행하여 반대 키 입력 시 즉각 드리프트 전환)
+        const isPressingOpposite = (this.vx >= this.machThreshold && keys.actionLeft) || (this.vx <= -this.machThreshold && keys.actionRight);
+        if (this.isRunning && Math.abs(this.vx) >= this.machThreshold && isPressingOpposite && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling) {
+            this.isDrifting = true;
+            this.driftTimer = 35;
+            this.sprite_index = 'spr_player_machslideboost3';
+            this.image_index = 0;
+            this.driftTargetDir = this.vx > 0 ? -1 : 1;
+            if (audio) {
+                audio.stopFile('mach2');
+                audio.stopFile('mach3');
+                audio.playFile('machslideboost', true);
+            }
+        }
+
+        if (this.isDrifting) {
+            this.sprite_index = 'spr_player_machslideboost3';
+            if (this.vx > 0) {
+                this.vx -= 0.4;
+                if (this.vx < 0) this.vx = 0;
+            } else if (this.vx < 0) {
+                this.vx += 0.4;
+                if (this.vx > 0) this.vx = 0;
+            }
+
+            this.driftTimer--;
+
+            // 드리프트 종료: 35프레임 후 반대방향으로 대시 시작
+            if (this.driftTimer <= 0 && this.isGrounded) {
+                this.isDrifting = false;
+                this.vx = this.driftTargetDir * 12;
+                this.facingDir = this.driftTargetDir;
+                this.sprite_index = 'spr_player_mach3';
+                this.image_index = 0;
+                if (audio) audio.playFile('mach3');
+            }
+        }
+
+        if (this.isDrifting1) {
+            if (this.vx > 0) {
+                this.vx -= 0.4;
+                if (this.vx < 0) this.vx = 0;
+            } else if (this.vx < 0) {
+                this.vx += 0.4;
+                if (this.vx > 0) this.vx = 0;
+            }
+
+            this.driftTimer--;
+
+            if (this.driftTimer <= 0 && this.isGrounded) {
+                this.isDrifting1 = false;
+                this.vx = this.driftTargetDir * 8;
+                this.facingDir = this.driftTargetDir;
+            }
+        }
+
         // Running acceleration logic
         if (this.isRunning && !this.isMachSliding && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling && !this.isCrouching && !this.isSuplexGrabbing) {
             let effLeft = keys.actionLeft;
@@ -572,63 +628,65 @@ class Player {
                     }
                 }
                 const onSlope = !!currentSlope || this.isOnSlope;
+
+                // 실제 이동 방향 (정지 상태일 때만 입력 방향 사용)
+                const currentDir = Math.abs(this.vx) > 0.5 ? Math.sign(this.vx) : runDir;
                 // For 'left-up' (/), left (-1) is downhill; for 'right-up' (\), right (1) is downhill
-                const isDownhill = currentSlope ? ((currentSlope.type === 'left-up' && runDir === -1) || (currentSlope.type === 'right-up' && runDir === 1)) : false;
-                const isUphill = currentSlope ? ((currentSlope.type === 'left-up' && runDir === 1) || (currentSlope.type === 'right-up' && runDir === -1)) : false;
+                const isDownhill = currentSlope ? ((currentSlope.type === 'left-up' && currentDir === -1) || (currentSlope.type === 'right-up' && currentDir === 1)) : false;
+                const isUphill = currentSlope ? ((currentSlope.type === 'left-up' && currentDir === 1) || (currentSlope.type === 'right-up' && currentDir === -1)) : false;
 
                 const currentSpeed = Math.abs(this.vx);
-                const isHoldingForward = (runDir === 1 && keys.actionRight) || (runDir === -1 && keys.actionLeft);
+                const isHoldingForward = (currentDir === 1 && keys.actionRight) || (currentDir === -1 && keys.actionLeft);
 
                 if (isDownhill) {
-                    // 내리막길: 방향키를 굳이 누르지 않아도 중력 가속도로 빠르게 최대 속도(20)까지 가속
+                    // 내리막길: 내리막 이동 방향(currentDir)으로 중력 가속도로 빠르게 최대 속도(20)까지 가속
                     if (currentSpeed < 16) {
-                        this.vx += runDir * 0.3;
+                        this.vx += currentDir * 0.3;
                     } else {
-                        this.vx += runDir * 0.35;
+                        this.vx += currentDir * 0.35;
                     }
                     if (Math.abs(this.vx) > this.runMaxSpeed) {
-                        this.vx = runDir * this.runMaxSpeed;
+                        this.vx = currentDir * this.runMaxSpeed;
                     }
                 } else if (isUphill) {
                     // 오르막길: 속도가 올라가지 않음 (올라가는데 속도 증가하는 어색함 제거)
                     if (currentSpeed < 12) {
-                        // 12 미만이면 기본 달리기 가속도로 12까지 도달
-                        this.vx += runDir * this.runAccel;
+                        this.vx += currentDir * this.runAccel;
                         if (Math.abs(this.vx) > 12) {
-                            this.vx = runDir * 12;
+                            this.vx = currentDir * 12;
                         }
                     } else {
                         // 12 이상인 경우 오르막에서는 가속되지 않으며, 고속 진입 시 서서히 12로 자연스럽게 정착
                         if (currentSpeed > 12) {
                             const newSpeed = Math.max(12, currentSpeed - 0.05);
-                            this.vx = runDir * newSpeed;
+                            this.vx = currentDir * newSpeed;
                         }
                     }
                 } else {
                     // 평지 (Flat Ground)
                     if (currentSpeed < 12) {
                         // 기본 마하 3 속도(12)까지 가속
-                        this.vx += runDir * this.runAccel;
+                        this.vx += currentDir * this.runAccel;
                         if (Math.abs(this.vx) > 12 && !isHoldingForward) {
-                            this.vx = runDir * 12;
+                            this.vx = currentDir * 12;
                         }
                     } else if (isHoldingForward) {
                         // 앞으로 가는 키를 누르면 12 초과로 가속
                         if (currentSpeed < 16) {
                             // 12 넘고 16 전까지는 서서히 점진적으로 증가 (0.025)
-                            this.vx += runDir * 0.025;
+                            this.vx += currentDir * 0.025;
                         } else {
                             // 16 넘으면 급가속 (0.25)
-                            this.vx += runDir * 0.25;
+                            this.vx += currentDir * 0.25;
                         }
                         if (Math.abs(this.vx) > this.runMaxSpeed) {
-                            this.vx = runDir * this.runMaxSpeed;
+                            this.vx = currentDir * this.runMaxSpeed;
                         }
                     } else {
                         // 앞으로 가는 키를 뗐을 때: 부드럽게 12로 복귀
                         if (currentSpeed > 12) {
                             const newSpeed = Math.max(12, currentSpeed - 0.1);
-                            this.vx = runDir * newSpeed;
+                            this.vx = currentDir * newSpeed;
                         }
                     }
                 }
@@ -645,67 +703,6 @@ class Player {
                 if (Math.abs(this.vx) > this.runMaxSpeed) {
                     this.vx = tumbleDir * this.runMaxSpeed;
                 }
-            }
-        }
-
-        // Drifting Logic
-        // Trigger: isRunning AND fast AND pressing opposite direction AND grounded
-        const isPressingOpposite = (this.vx >= this.machThreshold && keys.actionLeft) || (this.vx <= -this.machThreshold && keys.actionRight);
-        if (this.isRunning && Math.abs(this.vx) >= this.machThreshold && isPressingOpposite && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling) {
-            this.isDrifting = true;
-            this.driftTimer = 35;
-            this.sprite_index = 'spr_player_machslideboost3';
-            this.image_index = 0;
-            // ・罹ｦｬ嵓・敢・ ・晤あ ・・孖・ｴ・俾ｰ・・ｩ嵂･ ・・･ (嶸・椪 ・鷺巡・・・俯劇 ・ｩ嵂･)
-            this.driftTargetDir = this.vx > 0 ? -1 : 1;
-            if (audio) {
-                audio.stopFile('mach2');
-                audio.stopFile('mach3');
-                audio.playFile('machslideboost', true);
-            }
-        }
-
-        if (this.isDrifting) {
-            this.sprite_index = 'spr_player_machslideboost3';
-            if (this.vx > 0) {
-                this.vx -= 0.4;
-                if (this.vx < 0) this.vx = 0;
-            } else if (this.vx < 0) {
-                this.vx += 0.4;
-                if (this.vx > 0) this.vx = 0;
-            }
-
-            this.driftTimer--;
-
-            // ・・｣・・ｰ・ｴ: 35嵓・�溢桷・ｴ ・ｨ・・・・ｬ・� + ・・乱 ・ｿ・・・壱株 ・・・・ｬ・ｼ 﨑ｨ
-            if (this.driftTimer <= 0 && this.isGrounded) {
-                this.isDrifting = false;
-                this.vx = this.driftTargetDir * 12;
-                this.facingDir = this.driftTargetDir;
-                this.sprite_index = 'spr_player_mach3';
-                this.image_index = 0;
-                if (audio) audio.playFile('mach3');
-            }
-        }
-
-        if (this.isDrifting1) {
-            // ・鷺巡・ｼ 0.4・ｩ ・・牟・､・・﨑ｨ (・倣紛・・・ｩ・晤劇・・
-            if (this.vx > 0) {
-                this.vx -= 0.4;
-                if (this.vx < 0) this.vx = 0;
-            } else if (this.vx < 0) {
-                this.vx += 0.4;
-                if (this.vx > 0) this.vx = 0;
-            }
-
-            this.driftTimer--;
-
-            // ・・｣・・ｰ・ｴ: 35嵓・�溢桷・ｴ ・ｨ・・・・ｬ・� + ・・乱 ・ｿ・・・壱株 ・・・・ｬ・ｼ 﨑ｨ
-            if (this.driftTimer <= 0 && this.isGrounded) {
-                this.isDrifting1 = false;
-                // DRIFTING1 ・・｣・・・・ｩ岺・・ｩ嵂･・ｼ・・・鷺巡・ｼ 8・・・､・・
-                this.vx = this.driftTargetDir * 8;
-                this.facingDir = this.driftTargetDir;
             }
         }
 
