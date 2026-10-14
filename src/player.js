@@ -574,50 +574,77 @@ class Player {
                 const onSlope = !!currentSlope || this.isOnSlope;
                 // For 'left-up' (/), left (-1) is downhill; for 'right-up' (\), right (1) is downhill
                 const isDownhill = currentSlope ? ((currentSlope.type === 'left-up' && runDir === -1) || (currentSlope.type === 'right-up' && runDir === 1)) : false;
+                const isUphill = currentSlope ? ((currentSlope.type === 'left-up' && runDir === 1) || (currentSlope.type === 'right-up' && runDir === -1)) : false;
 
                 const currentSpeed = Math.abs(this.vx);
                 const isHoldingForward = (runDir === 1 && keys.actionRight) || (runDir === -1 && keys.actionLeft);
 
-                if (currentSpeed < 12) {
-                    // 경사로일 때는 일반 평지(0.1)보다 빠르게 가속 (내리막 0.3, 오르막 0.2)
-                    const baseAccel = onSlope ? (isDownhill ? 0.3 : 0.2) : this.runAccel;
-                    this.vx += runDir * baseAccel;
-                    if (Math.abs(this.vx) > 12 && !isHoldingForward && (!onSlope || !isDownhill)) {
-                        this.vx = runDir * 12;
-                    }
-                } else if (isHoldingForward || (onSlope && isDownhill)) {
-                    // Holding forward key accelerates beyond 12! (내리막길 경사로는 방향키를 안 눌러도 자연 가속)
+                if (isDownhill) {
+                    // 내리막길: 방향키를 굳이 누르지 않아도 중력 가속도로 빠르게 최대 속도(20)까지 가속
                     if (currentSpeed < 16) {
-                        // 경사로에서는 12~16 구간도 빠르게 가속 (내리막 0.3, 오르막 0.2), 평지에서는 0.025로 서서히 증가
-                        const midAccel = onSlope ? (isDownhill ? 0.3 : 0.2) : 0.025;
-                        this.vx += runDir * midAccel;
+                        this.vx += runDir * 0.3;
                     } else {
-                        // 16 넘으면 급가속 (경사로에서는 더 빠름)
-                        const highAccel = onSlope ? (isDownhill ? 0.35 : 0.25) : 0.25;
-                        this.vx += runDir * highAccel;
+                        this.vx += runDir * 0.35;
                     }
                     if (Math.abs(this.vx) > this.runMaxSpeed) {
                         this.vx = runDir * this.runMaxSpeed;
                     }
+                } else if (isUphill) {
+                    // 오르막길: 속도가 올라가지 않음 (올라가는데 속도 증가하는 어색함 제거)
+                    if (currentSpeed < 12) {
+                        // 12 미만이면 기본 달리기 가속도로 12까지 도달
+                        this.vx += runDir * this.runAccel;
+                        if (Math.abs(this.vx) > 12) {
+                            this.vx = runDir * 12;
+                        }
+                    } else {
+                        // 12 이상인 경우 오르막에서는 가속되지 않으며, 고속 진입 시 서서히 12로 자연스럽게 정착
+                        if (currentSpeed > 12) {
+                            const newSpeed = Math.max(12, currentSpeed - 0.05);
+                            this.vx = runDir * newSpeed;
+                        }
+                    }
                 } else {
-                    // Not holding forward key: smoothly settle back to 12
-                    if (currentSpeed > 12) {
-                        const newSpeed = Math.max(12, currentSpeed - 0.1);
-                        this.vx = runDir * newSpeed;
+                    // 평지 (Flat Ground)
+                    if (currentSpeed < 12) {
+                        // 기본 마하 3 속도(12)까지 가속
+                        this.vx += runDir * this.runAccel;
+                        if (Math.abs(this.vx) > 12 && !isHoldingForward) {
+                            this.vx = runDir * 12;
+                        }
+                    } else if (isHoldingForward) {
+                        // 앞으로 가는 키를 누르면 12 초과로 가속
+                        if (currentSpeed < 16) {
+                            // 12 넘고 16 전까지는 서서히 점진적으로 증가 (0.025)
+                            this.vx += runDir * 0.025;
+                        } else {
+                            // 16 넘으면 급가속 (0.25)
+                            this.vx += runDir * 0.25;
+                        }
+                        if (Math.abs(this.vx) > this.runMaxSpeed) {
+                            this.vx = runDir * this.runMaxSpeed;
+                        }
+                    } else {
+                        // 앞으로 가는 키를 뗐을 때: 부드럽게 12로 복귀
+                        if (currentSpeed > 12) {
+                            const newSpeed = Math.max(12, currentSpeed - 0.1);
+                            this.vx = runDir * newSpeed;
+                        }
                     }
                 }
             }
         }
 
-        // Tumble on slope acceleration
+        // Tumble on slope acceleration (내리막길에서만 가속)
         if (this.isTumbling && (this.isOnSlope || (this.standingOnEntity && (this.standingOnEntity.type === 'left-up' || this.standingOnEntity.type === 'right-up')))) {
             const slopeEnt = (this.standingOnEntity && (this.standingOnEntity.type === 'left-up' || this.standingOnEntity.type === 'right-up')) ? this.standingOnEntity : null;
             const tumbleDir = Math.sign(this.vx) || this.facingDir;
             const isDownhillTumble = slopeEnt ? ((slopeEnt.type === 'left-up' && tumbleDir === -1) || (slopeEnt.type === 'right-up' && tumbleDir === 1)) : false;
-            const tumbleAccel = isDownhillTumble ? 0.3 : 0.15;
-            this.vx += tumbleDir * tumbleAccel;
-            if (Math.abs(this.vx) > this.runMaxSpeed) {
-                this.vx = tumbleDir * this.runMaxSpeed;
+            if (isDownhillTumble) {
+                this.vx += tumbleDir * 0.3;
+                if (Math.abs(this.vx) > this.runMaxSpeed) {
+                    this.vx = tumbleDir * this.runMaxSpeed;
+                }
             }
         }
 
