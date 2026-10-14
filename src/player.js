@@ -569,7 +569,8 @@ class Player {
                 } else if (isHoldingForward) {
                     // Holding forward key accelerates beyond 12!
                     if (currentSpeed < 16) {
-                        this.vx += runDir * 0.08;
+                        // 12 넘고 16 전까지는 속도가 서서히 점진적으로 증가
+                        this.vx += runDir * 0.025;
                     } else {
                         // Once speed exceeds 16, acceleration shoots up sharply ("확 높아지게")
                         this.vx += runDir * 0.25;
