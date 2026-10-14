@@ -876,11 +876,11 @@ class Player {
         }
 
         if (this.isClimbing) {
-            if (this.vy > -this.runMaxSpeed) this.vy = -this.runMaxSpeed;
+            if (this.vy > -12) this.vy = -12;
             // Accelerate upward by 0.05 each frame.
             this.vy -= 0.05;
             // ・・箕 ・鷺巡・ｼ ・罹劇 20・ｼ・・・懦復 (・・箕・ ・護・ ・廷擽・・・-20 ・ｴ﨑俯｡・・ｴ・､・・ ・伎ｲ・﨑ｨ)
-            if (this.vy < -20) this.vy = -20;
+            if (this.vy < -12) this.vy = -12;
             this.vx = 0;
             // Force player against the wall
             this.x += this.climbSide * 2;
@@ -1111,8 +1111,8 @@ class Player {
                             // resolution.amount < 0 ・ｴ・ｴ ・ｽ・ｴ ・､・ｸ・ｽ・・・溢搆 -> climbSide = 1
                             this.climbSide = resolution.amount < 0 ? 1 : -1;
                             // 嶸・椪 ・倆初 ・鷺巡・ｼ ・們ｧ・・ｱ・・・鷺巡・・・・劍
-                            this.vy = -Math.abs(this.vx);
-                            if (this.vy > -this.runMaxSpeed) this.vy = -this.runMaxSpeed; // ・懍・ ・一ｸｰ ・ｱ・・・鷺巡 ・ｴ・･ (・�夋・・ｬ﨑ｭ)
+                            this.vy = -Math.min(12, Math.abs(this.vx));
+                            if (this.vy > -12) this.vy = -12; // ・懍・ ・一ｸｰ ・ｱ・・・鷺巡 ・ｴ・･ (・�夋・・ｬ﨑ｭ)
                         }
 
                         this.isWalled = true;
