@@ -96,6 +96,7 @@ class Player {
             spr_player_mach2: [],
             spr_player_mach3: [],
             spr_player_mach3jump: [],
+            spr_player_machslideboost3: [],
             spr_player_rollgetup: [],
             spr_player_climbwall: [],
             spr_player_groundpoundland: [],
@@ -183,6 +184,14 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_mach3jump/spr_player_mach3_jump${i}.png`;
             this.sprites.spr_player_mach3jump.push(img);
+        }
+
+        // Load machslideboost3 sprite (17 frames: 3 to 19)
+        this.sprites.spr_player_machslideboost3 = [];
+        for (let i = 3; i <= 19; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_machslideboost3/spr_playerT_machslideboost${i}.png`;
+            this.sprites.spr_player_machslideboost3.push(img);
         }
 
         // Load ground pound start sprite (10 frames)
@@ -556,12 +565,10 @@ class Player {
         // Trigger: isRunning AND fast AND pressing opposite direction AND grounded
         const isPressingOpposite = (this.vx >= this.machThreshold && keys.actionLeft) || (this.vx <= -this.machThreshold && keys.actionRight);
         if (this.isRunning && Math.abs(this.vx) >= this.machThreshold && isPressingOpposite && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling) {
-            if (Math.abs(this.vx) >= this.machThreshold) {
-                this.isDrifting = true;
-            } else {
-                this.isDrifting1 = true;
-            }
+            this.isDrifting = true;
             this.driftTimer = 35;
+            this.sprite_index = 'spr_player_machslideboost3';
+            this.image_index = 0;
             // ・罹ｦｬ嵓・敢・ ・晤あ ・・孖・ｴ・俾ｰ・・ｩ嵂･ ・・･ (嶸・椪 ・鷺巡・・・俯劇 ・ｩ嵂･)
             this.driftTargetDir = this.vx > 0 ? -1 : 1;
             if (audio) {
@@ -572,7 +579,7 @@ class Player {
         }
 
         if (this.isDrifting) {
-            // ・鷺巡・ｼ 0.4・ｩ ・・牟・､・・﨑ｨ (・ｩ嵂･・・・樌ｶｰ・・
+            this.sprite_index = 'spr_player_machslideboost3';
             if (this.vx > 0) {
                 this.vx -= 0.4;
                 if (this.vx < 0) this.vx = 0;
@@ -586,9 +593,11 @@ class Player {
             // ・・｣・・ｰ・ｴ: 35嵓・�溢桷・ｴ ・ｨ・・・・ｬ・� + ・・乱 ・ｿ・・・壱株 ・・・・ｬ・ｼ 﨑ｨ
             if (this.driftTimer <= 0 && this.isGrounded) {
                 this.isDrifting = false;
-                // ・罹ｦｬ嵓・敢 ・・｣・・・・ｩ岺・・ｩ嵂･・ｼ・・・鷺巡・ｼ 12・・・､・・
                 this.vx = this.driftTargetDir * 12;
                 this.facingDir = this.driftTargetDir;
+                this.sprite_index = 'spr_player_mach3';
+                this.image_index = 0;
+                if (audio) audio.playFile('mach3');
             }
         }
 
@@ -899,7 +908,7 @@ class Player {
         // isGroundPounding will be reset upon hitting ground in collision resolution
 
         // Mach Afterimage Update (・懍・ ・逸葺 ・ｬ・ｬ・ｰ/・戦売 ・・・・ｼ ・誤ｧ・・肥メ ・晧┳)
-        if (Math.abs(this.vx) >= this.machThreshold && !this.isSuplexGrabbing && !this.isTumbling) {
+        if ((Math.abs(this.vx) >= this.machThreshold || this.sprite_index === 'spr_player_machslideboost3') && !this.isSuplexGrabbing && !this.isTumbling) {
             this.machFlashTimer++;
             this.machFrameCount++;
 
@@ -1322,7 +1331,7 @@ class Player {
         
         if (this.isTumbling) {
             this.sprite_index = 'spr_player_roll';
-        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3') {
+        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_machslideboost3') {
             this.sprite_index = 'spr_player_fall';
         } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand && !this.isSuplexGrabbing) {
             if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
@@ -1415,11 +1424,13 @@ class Player {
                     });
                 }
             }
+        } else if (this.sprite_index === 'spr_player_machslideboost3') {
+            this.image_speed = 0.5;
         }
 
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
-        if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+        if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump' || this.sprite_index === 'spr_player_machslideboost3') {
             this.machEffectIndex += 0.5;
         }
         }
@@ -1539,7 +1550,7 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
-            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump' || m.sprite_index === 'spr_player_rollgetup' || m.sprite_index === 'spr_player_roll') {
+            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump' || m.sprite_index === 'spr_player_machslideboost3' || m.sprite_index === 'spr_player_rollgetup' || m.sprite_index === 'spr_player_roll') {
                 const frames = this.sprites[m.sprite_index];
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
@@ -1837,6 +1848,33 @@ class Player {
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+            }
+        } else if (this.sprite_index === 'spr_player_machslideboost3') {
+            const frames = this.sprites.spr_player_machslideboost3;
+            if (frames && frames.length > 0) {
+                let frameIndex = Math.floor(this.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    if (this.facingDir === -1) {
+                        ctx.scale(-1, 1);
+                    }
+                    const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                    
+                    const effectFrames = this.effectSprites.spr_mach_effect;
+                    if (effectFrames && effectFrames.length > 0) {
+                        const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
+                        const efImg = effectFrames[efIndex];
+                        if (efImg && efImg.complete && efImg.naturalWidth > 0) {
+                            ctx.drawImage(efImg, -51, offsetY, 100, 100);
+                        }
+                    }
+                }
             }
         } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
             const frames = this.sprites[this.sprite_index];
