@@ -11,7 +11,7 @@ class Player {
         this.speed = 0.5;
         this.maxSpeed = 7;
         this.runInitialSpeed = 6;
-        this.runMaxSpeed = 12;
+        this.runMaxSpeed = 20;
         this.runAccel = 0.1;
         this.friction = 0.85;
         this.gravity = 0.5;
@@ -556,8 +556,34 @@ class Player {
                 if (Math.abs(this.vx) < this.runInitialSpeed) {
                     this.vx = runDir * this.runInitialSpeed;
                 }
-                // Gradually accelerate up to max speed
-                this.vx += runDir * this.runAccel;
+
+                const currentSpeed = Math.abs(this.vx);
+                const isHoldingForward = (runDir === 1 && keys.actionRight) || (runDir === -1 && keys.actionLeft);
+
+                if (currentSpeed < 12) {
+                    // Gradually accelerate up to Mach 3 base speed (12)
+                    this.vx += runDir * this.runAccel;
+                    if (Math.abs(this.vx) > 12 && !isHoldingForward) {
+                        this.vx = runDir * 12;
+                    }
+                } else if (isHoldingForward) {
+                    // Holding forward key accelerates beyond 12!
+                    if (currentSpeed < 16) {
+                        this.vx += runDir * 0.08;
+                    } else {
+                        // Once speed exceeds 16, acceleration shoots up sharply ("확 높아지게")
+                        this.vx += runDir * 0.25;
+                    }
+                    if (Math.abs(this.vx) > this.runMaxSpeed) {
+                        this.vx = runDir * this.runMaxSpeed;
+                    }
+                } else {
+                    // Not holding forward key: smoothly settle back to 12
+                    if (currentSpeed > 12) {
+                        const newSpeed = Math.max(12, currentSpeed - 0.1);
+                        this.vx = runDir * newSpeed;
+                    }
+                }
             }
         }
 
@@ -908,7 +934,7 @@ class Player {
         // isGroundPounding will be reset upon hitting ground in collision resolution
 
         // Mach Afterimage Update (・懍・ ・逸葺 ・ｬ・ｬ・ｰ/・戦売 ・・・・ｼ ・誤ｧ・・肥メ ・晧┳)
-        if ((Math.abs(this.vx) >= this.machThreshold || this.sprite_index === 'spr_player_machslideboost3') && !this.isSuplexGrabbing && !this.isTumbling) {
+        if (Math.abs(this.vx) >= this.machThreshold && !this.isDrifting && this.sprite_index !== 'spr_player_machslideboost3' && !this.isSuplexGrabbing && !this.isTumbling) {
             this.machFlashTimer++;
             this.machFrameCount++;
 
@@ -1430,7 +1456,7 @@ class Player {
 
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
-        if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump' || this.sprite_index === 'spr_player_machslideboost3') {
+        if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
             this.machEffectIndex += 0.5;
         }
         }
@@ -1865,15 +1891,6 @@ class Player {
                     }
                     const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                     ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
-                    
-                    const effectFrames = this.effectSprites.spr_mach_effect;
-                    if (effectFrames && effectFrames.length > 0) {
-                        const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
-                        const efImg = effectFrames[efIndex];
-                        if (efImg && efImg.complete && efImg.naturalWidth > 0) {
-                            ctx.drawImage(efImg, -51, offsetY, 100, 100);
-                        }
-                    }
                 }
             }
         } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
