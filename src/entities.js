@@ -1271,7 +1271,12 @@ class OnlineComputer {
         this.playerTouching = false;
         
         this.sprite = new Image();
-        this.sprite.src = 'Tileset/tile_tutorial.png'; // Assuming it's in the tileset somewhere
+        this.sprite.src = '이미지/spr_computer.png';
+        this.sprite.onerror = () => {
+            if (this.sprite.src.indexOf('assets/') === -1) {
+                this.sprite.src = 'assets/spr_computer.png';
+            }
+        };
     }
 
     update(game) {
@@ -1296,16 +1301,30 @@ class OnlineComputer {
     }
 
     render(ctx) {
-        if (this.game && this.game.isEditorMode) {
+        if (this.sprite && this.sprite.complete && this.sprite.naturalWidth > 0) {
+            ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
+        } else {
             ctx.fillStyle = 'rgba(100, 200, 100, 0.5)';
             ctx.fillRect(this.x, this.y, this.width, this.height);
         }
+
+        if (this.game && this.game.isEditorMode) {
+            ctx.strokeStyle = 'rgba(100, 255, 100, 0.8)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
         
         if (this.playerTouching && (!this.game || this.game.gameState !== 'ONLINE_MENU')) {
+            ctx.save();
             ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
             ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
+            ctx.strokeText("PRESS UP", this.x + this.width/2, this.y - 10);
             ctx.fillText("PRESS UP", this.x + this.width/2, this.y - 10);
+            ctx.restore();
         }
     }
 }
+
