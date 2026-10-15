@@ -905,7 +905,7 @@ class Player {
             this.isSuplexGrabbing = true;
             this.image_index = 0;
             this.grabBufferTimer = 0; // Consume the buffer
-            if (!this.isGrounded && this.vy >= 0) {
+            if (!this.isGrounded) {
                 this.sprite_index = 'spr_player_suplexgrabfall';
             } else {
                 this.sprite_index = 'spr_player_suplexgrab';
@@ -1418,7 +1418,7 @@ class Player {
         if (this.isClimbing) {
             this.sprite_index = 'spr_player_climbwall';
         } else if (this.isSuplexGrabbing) {
-            if (!this.isGrounded && this.vy >= 0) {
+            if (!this.isGrounded) {
                 if (this.sprite_index !== 'spr_player_suplexgrabfall' && this.sprite_index !== 'spr_player_suplexgrabfallloop') {
                     this.sprite_index = 'spr_player_suplexgrabfall';
                     this.image_index = 0;
