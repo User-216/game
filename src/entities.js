@@ -880,7 +880,7 @@ class Slime extends Entity {
             
             const absV = Math.abs(p.vx);
             const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index === 'spr_player_mach3jump';
-            const isMach1or2 = (absV >= 8 && absV < 12) || p.sprite_index.includes('mach2') || p.sprite_index === 'spr_player_suplexgrab' || p.sprite_index.includes('dash');
+            const isMach1or2 = (absV >= 8 && absV < 12) || p.sprite_index.includes('mach2') || p.sprite_index.includes('suplexgrab') || p.sprite_index.includes('dash');
             const isStomp = p.vy > 0 && p.y + p.height < this.y + 20 && !p.isGroundPounding;
             const isGroundPound = p.isGroundPounding;
             

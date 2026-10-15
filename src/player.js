@@ -101,7 +101,9 @@ class Player {
             spr_player_rollgetup: [],
             spr_player_climbwall: [],
             spr_player_groundpoundland: [],
-            spr_player_suplexgrab: []
+            spr_player_suplexgrab: [],
+            spr_player_suplexgrabfall: [],
+            spr_player_suplexgrabfallloop: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -166,6 +168,22 @@ class Player {
             this.sprites.spr_player_suplexgrab.push(img);
         }
 
+        // Load suplexgrabfall sprite (6 frames)
+        this.sprites.spr_player_suplexgrabfall = [];
+        for (let i = 1; i <= 6; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_suplexgrabfall/spr_playerT_suplexgrabfall${i}.png`;
+            this.sprites.spr_player_suplexgrabfall.push(img);
+        }
+
+        // Load suplexgrabfallloop sprite (3 frames)
+        this.sprites.spr_player_suplexgrabfallloop = [];
+        for (let i = 1; i <= 3; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_suplexgrabfallloop/spr_playerT_suplexgrabfallloop${i}.png`;
+            this.sprites.spr_player_suplexgrabfallloop.push(img);
+        }
+
         // Load mach2 sprite (7 frames)
         for (let i = 1; i <= 7; i++) {
             let img = new Image();
@@ -187,9 +205,9 @@ class Player {
             this.sprites.spr_player_mach3jump.push(img);
         }
 
-        // Load machslideboost3 sprite (17 frames: 3 to 19)
+        // Load machslideboost3 sprite (20 frames: 3 to 22)
         this.sprites.spr_player_machslideboost3 = [];
-        for (let i = 3; i <= 19; i++) {
+        for (let i = 3; i <= 22; i++) {
             let img = new Image();
             img.src = `player/spr_player_machslideboost3/spr_playerT_machslideboost${i}.png`;
             this.sprites.spr_player_machslideboost3.push(img);
@@ -887,12 +905,20 @@ class Player {
             this.isSuplexGrabbing = true;
             this.image_index = 0;
             this.grabBufferTimer = 0; // Consume the buffer
-            if (audio) audio.playFile('sfx_suplexdash', true); // ・｡・ｰ ・懍梠﨑� ・・﨑・・壱ｧ・・ｬ・・(forceRestart)
+            if (!this.isGrounded && this.vy >= 0) {
+                this.sprite_index = 'spr_player_suplexgrabfall';
+            } else {
+                this.sprite_index = 'spr_player_suplexgrab';
+            }
+            if (audio) audio.playFile('sfx_suplexdash', true); // 잡기 시작 시 효과음 재생 (forceRestart)
         }
 
         // Suplex Grab Logic
         if (this.isSuplexGrabbing) {
             let animFinished = (this.sprite_index === 'spr_player_suplexgrab' && this.image_index >= this.sprites.spr_player_suplexgrab.length);
+            if (this.isGrounded && (this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop')) {
+                animFinished = true;
+            }
             if (!animFinished || !this.isGrounded) {
                 let absVx = Math.abs(this.vx);
                 if (absVx < 8) {
@@ -1392,7 +1418,20 @@ class Player {
         if (this.isClimbing) {
             this.sprite_index = 'spr_player_climbwall';
         } else if (this.isSuplexGrabbing) {
-            this.sprite_index = 'spr_player_suplexgrab';
+            if (!this.isGrounded && this.vy >= 0) {
+                if (this.sprite_index !== 'spr_player_suplexgrabfall' && this.sprite_index !== 'spr_player_suplexgrabfallloop') {
+                    this.sprite_index = 'spr_player_suplexgrabfall';
+                    this.image_index = 0;
+                }
+            } else if (this.isGrounded) {
+                if (this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop') {
+                    this.isSuplexGrabbing = false;
+                } else {
+                    this.sprite_index = 'spr_player_suplexgrab';
+                }
+            } else if (this.sprite_index !== 'spr_player_suplexgrabfall' && this.sprite_index !== 'spr_player_suplexgrabfallloop') {
+                this.sprite_index = 'spr_player_suplexgrab';
+            }
         } else if (this.isGroundPoundLand) {
             this.sprite_index = 'spr_player_groundpoundland';
         } else if (this.isRollGettingUp) {
@@ -1470,7 +1509,7 @@ class Player {
             this.image_speed = (this.vy !== 0) ? 0.65 : 0;
                 } else if (this.sprite_index === 'spr_player_groundpoundland') {
             this.image_speed = 0.5;
-        } else if (this.sprite_index === 'spr_player_suplexgrab') {
+        } else if (this.sprite_index === 'spr_player_suplexgrab' || this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop') {
             this.image_speed = 0.45;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55; // 30ms per frame (at 60fps)
@@ -1528,6 +1567,10 @@ class Player {
         }
         if (this.sprite_index === 'spr_player_mach3jump' && this.image_index >= this.sprites.spr_player_mach3jump.length) {
             this.sprite_index = 'spr_player_mach3';
+            this.image_index = 0;
+        }
+        if (this.sprite_index === 'spr_player_suplexgrabfall' && this.image_index >= this.sprites.spr_player_suplexgrabfall.length) {
+            this.sprite_index = 'spr_player_suplexgrabfallloop';
             this.image_index = 0;
         }
 
@@ -1642,13 +1685,19 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
-            } else if (m.sprite_index === 'spr_player_suplexgrab') {
-                const frames = this.sprites.spr_player_suplexgrab;
-                let frameIndex = Math.floor(m.image_index);
-                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
-                const frame = frames[frameIndex];
-                if (frame && frame.complete && frame.naturalWidth > 0) {
-                    imgToDraw = frame;
+            } else if (m.sprite_index === 'spr_player_suplexgrab' || m.sprite_index === 'spr_player_suplexgrabfall' || m.sprite_index === 'spr_player_suplexgrabfallloop') {
+                const frames = this.sprites[m.sprite_index];
+                if (frames && frames.length > 0) {
+                    let frameIndex = Math.floor(m.image_index);
+                    if (m.sprite_index === 'spr_player_suplexgrabfallloop') {
+                        frameIndex = frameIndex % frames.length;
+                    } else if (frameIndex >= frames.length) {
+                        frameIndex = frames.length - 1;
+                    }
+                    const frame = frames[frameIndex];
+                    if (frame && frame.complete && frame.naturalWidth > 0) {
+                        imgToDraw = frame;
+                    }
                 }
             } else if (m.sprite_index === 'spr_player_groundpoundland') {
                 const frames = this.sprites.spr_player_groundpoundland;
@@ -1979,20 +2028,26 @@ class Player {
                     }
                 }
             }
-        } else if (this.sprite_index === 'spr_player_suplexgrab') {
-            const frames = this.sprites.spr_player_suplexgrab;
-            let frameIndex = Math.floor(this.image_index);
-            if (frameIndex >= frames.length) frameIndex = frames.length - 1;
-            const img = frames[frameIndex];
-            if (img && img.complete && img.naturalWidth > 0) {
-                const drawX = this.x;
-                const drawY = this.y;
-                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
-                if (this.facingDir === -1) {
-                    ctx.scale(-1, 1);
+        } else if (this.sprite_index === 'spr_player_suplexgrab' || this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop') {
+            const frames = this.sprites[this.sprite_index];
+            if (frames && frames.length > 0) {
+                let frameIndex = Math.floor(this.image_index);
+                if (this.sprite_index === 'spr_player_suplexgrabfallloop') {
+                    frameIndex = frameIndex % frames.length;
+                } else if (frameIndex >= frames.length) {
+                    frameIndex = frames.length - 1;
                 }
-                const offsetY = -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    if (this.facingDir === -1) {
+                        ctx.scale(-1, 1);
+                    }
+                    const offsetY = -57.5;
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                }
             }
         } else if (this.sprite_index === 'spr_player_groundpoundland') {
             const frames = this.sprites.spr_player_groundpoundland;
