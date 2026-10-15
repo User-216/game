@@ -2988,7 +2988,7 @@ this.entities.push(
             if (this.player.sprites.spr_player_lookdoor && this.player.sprites.spr_player_lookdoor.length > 0) {
                 this.player.sprite_index = 'spr_player_lookdoor';
                 this.player.image_index = 0;
-                this.player.image_speed = 0.35;
+                this.player.image_speed = 0.45;
             }
             this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);
             this.clearActionKey('up'); // Prevent immediate multi-entry

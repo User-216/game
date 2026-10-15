@@ -337,7 +337,7 @@ class Player {
                 if (this.sprite_index !== 'spr_player_lookdoor') {
                     this.sprite_index = 'spr_player_lookdoor';
                     this.image_index = 0;
-                    this.image_speed = 0.35;
+                    this.image_speed = 0.45;
                 }
                 this.image_index += this.image_speed;
                 if (this.image_index >= this.sprites.spr_player_lookdoor.length) {
