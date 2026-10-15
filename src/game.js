@@ -2700,6 +2700,11 @@ this.entities.push(
                 this.transitionState = 'NONE';
                 this.pendingRoom = null;
                 this.pendingDoor = null;
+                if (this.player && this.player.state === 'enterdoor') {
+                    this.player.state = 'normal';
+                    this.player.sprite_index = 'spr_player_idle';
+                    this.player.image_index = 0;
+                }
             }
         }
 
@@ -2952,7 +2957,8 @@ this.entities.push(
 
         // Update state info UI
         let currentStates = [];
-        if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
+        if (this.player.state === 'enterdoor') currentStates.push('enterdoor');
+        else if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
         else if (this.player.isGroundPoundLand) currentStates.push(dict['state.groundpoundland']);
         else if (!this.player.isGrounded) currentStates.push(dict['state.airborne']);
         else if (this.player.isRunning) currentStates.push(dict['state.running']);
@@ -2973,7 +2979,17 @@ this.entities.push(
             this.player.y + this.player.height > e.y
         );
 
-        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded) {
+        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.transitionState === 'NONE') {
+            this.player.state = 'enterdoor';
+            this.player.vx = 0;
+            this.player.vy = 0;
+            this.player.isRunning = false;
+            this.player.x = overlappingDoor.x + overlappingDoor.width / 2 - this.player.width / 2;
+            if (this.player.sprites.spr_player_lookdoor && this.player.sprites.spr_player_lookdoor.length > 0) {
+                this.player.sprite_index = 'spr_player_lookdoor';
+                this.player.image_index = 0;
+                this.player.image_speed = 0.35;
+            }
             this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);
             this.clearActionKey('up'); // Prevent immediate multi-entry
             this.keys.actionUp = false;

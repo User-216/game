@@ -103,7 +103,8 @@ class Player {
             spr_player_groundpoundland: [],
             spr_player_suplexgrab: [],
             spr_player_suplexgrabfall: [],
-            spr_player_suplexgrabfallloop: []
+            spr_player_suplexgrabfallloop: [],
+            spr_player_lookdoor: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -182,6 +183,14 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_suplexgrabfallloop/spr_playerT_suplexgrabfallloop${i}.png`;
             this.sprites.spr_player_suplexgrabfallloop.push(img);
+        }
+
+        // Load lookdoor sprite (10 frames)
+        this.sprites.spr_player_lookdoor = [];
+        for (let i = 1; i <= 10; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_lookdoor/spr_playerT_lookdoor${i}.png`;
+            this.sprites.spr_player_lookdoor.push(img);
         }
 
         // Load mach2 sprite (7 frames)
@@ -308,6 +317,35 @@ class Player {
     update(keys, entities, audio) {
         this.frameCount++;
         this.wasGrounded = this.isGrounded;
+
+        if (this.state === 'enterdoor') {
+            this.vx = 0;
+            this.vy = 0;
+            this.isRunning = false;
+            this.isDrifting = false;
+            this.isDrifting1 = false;
+            this.isMachSliding = false;
+            this.isClimbing = false;
+            this.isGroundPounding = false;
+            this.isSuplexGrabbing = false;
+            this.isTumbling = false;
+            this.isCrouching = false;
+            this.machAfters = [];
+            this.ghostAfters = [];
+
+            if (this.sprites.spr_player_lookdoor && this.sprites.spr_player_lookdoor.length > 0) {
+                if (this.sprite_index !== 'spr_player_lookdoor') {
+                    this.sprite_index = 'spr_player_lookdoor';
+                    this.image_index = 0;
+                    this.image_speed = 0.35;
+                }
+                this.image_index += this.image_speed;
+                if (this.image_index >= this.sprites.spr_player_lookdoor.length) {
+                    this.image_index = this.sprites.spr_player_lookdoor.length - 1;
+                }
+            }
+            return;
+        }
 
         if (this.isTaunting) {
             this.tauntTimer--;
@@ -824,7 +862,9 @@ class Player {
         this.isCrouching = wantCrouch;
         this.isTumbling = wantTumble;
 
-        if (this.isSuplexGrabbing) {
+        if (this.state === 'enterdoor') {
+            // Keep enterdoor state
+        } else if (this.isSuplexGrabbing) {
             this.state = 'suplexgrab';
         } else if (this.isTumbling) {
             this.state = 'tumble';
@@ -2049,6 +2089,23 @@ class Player {
                     ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
                 }
             }
+        } else if (this.sprite_index === 'spr_player_lookdoor') {
+            const frames = this.sprites.spr_player_lookdoor;
+            if (frames && frames.length > 0) {
+                let frameIndex = Math.floor(this.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    if (this.facingDir === -1) {
+                        ctx.scale(-1, 1);
+                    }
+                    const offsetY = -57.5;
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                }
+            }
         } else if (this.sprite_index === 'spr_player_groundpoundland') {
             const frames = this.sprites.spr_player_groundpoundland;
             let frameIndex = Math.floor(this.image_index);
@@ -2141,8 +2198,9 @@ class Player {
         ctx.fillStyle = 'white';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
-        let debugState = this.state; // 'normal', 'crouch', 'tumble'
-        if (this.isGroundPounding) debugState = 'groundpound';
+        let debugState = this.state; // 'normal', 'crouch', 'tumble', 'enterdoor'
+        if (this.state === 'enterdoor') debugState = 'enterdoor';
+        else if (this.isGroundPounding) debugState = 'groundpound';
         else if (this.isGroundPoundLand) debugState = 'groundpound land';
         else if (this.isClimbing) debugState = 'climbing';
         else if (this.isMachSliding) debugState = 'machslide';
