@@ -2009,6 +2009,7 @@ this.entities.push(
                     this.player.vx = 0;
                     this.player.vy = 0;
                 }
+                this.player.targetDoorX = null;
                 
                 this.cameraX = this.player.x - this.canvas.width / 2;
                 this.cameraY = this.player.y - this.canvas.height / 2;
@@ -2702,6 +2703,7 @@ this.entities.push(
                 this.pendingDoor = null;
                 if (this.player && this.player.state === 'enterdoor') {
                     this.player.state = 'normal';
+                    this.player.targetDoorX = null;
                     this.player.sprite_index = 'spr_player_idle';
                     this.player.image_index = 0;
                 }
@@ -2984,7 +2986,7 @@ this.entities.push(
             this.player.vx = 0;
             this.player.vy = 0;
             this.player.isRunning = false;
-            this.player.x = overlappingDoor.x + overlappingDoor.width / 2 - this.player.width / 2;
+            this.player.targetDoorX = overlappingDoor.x + overlappingDoor.width / 2 - this.player.width / 2;
             if (this.player.sprites.spr_player_lookdoor && this.player.sprites.spr_player_lookdoor.length > 0) {
                 this.player.sprite_index = 'spr_player_lookdoor';
                 this.player.image_index = 0;

@@ -84,6 +84,7 @@ class Player {
 
         // Sprites
         this.state = 'normal';
+        this.targetDoorX = null;
         this.sprite_index = 'spr_player_idle';
         this.image_index = 0;
         this.image_speed = 0.4;
@@ -332,6 +333,18 @@ class Player {
             this.isCrouching = false;
             this.machAfters = [];
             this.ghostAfters = [];
+
+            // Move gradually toward door center instead of teleporting
+            if (this.targetDoorX !== null && typeof this.targetDoorX === 'number') {
+                const diff = this.targetDoorX - this.x;
+                const step = 2;
+                if (Math.abs(diff) <= step) {
+                    this.x = this.targetDoorX;
+                    this.targetDoorX = null;
+                } else {
+                    this.x += Math.sign(diff) * step;
+                }
+            }
 
             if (this.sprites.spr_player_lookdoor && this.sprites.spr_player_lookdoor.length > 0) {
                 if (this.sprite_index !== 'spr_player_lookdoor') {
