@@ -1419,7 +1419,7 @@ class Player {
             this.jumpBufferTimer--;
         }
 
-        if (keys.actionJump && this.canJump && !this.isDrifting && !this.isDrifting1 && !this.isClimbingLadder) {
+        if (keys.actionJump && this.canJump && !this.isClimbingLadder) {
             this.jumpBufferTimer = 18; // 18 frames (0.3s) of jump buffer
             this.canJump = false; // Consume the jump press immediately
         }
@@ -1434,7 +1434,23 @@ class Player {
                 
                 this.isGrounded = false;
                 this.standingOnEntity = null;
-                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || (this.sprite_index === 'spr_player_rollgetup' && Math.abs(this.vx) >= this.machThreshold);
+                const wasDrifting = this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3';
+                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || (this.sprite_index === 'spr_player_rollgetup' && Math.abs(this.vx) >= this.machThreshold) || wasDrifting;
+                
+                if (wasDrifting) {
+                    this.isDrifting = false;
+                    this.isDrifting1 = false;
+                    const launchDir = this.driftTargetDir || this.facingDir;
+                    this.facingDir = launchDir;
+                    this.vx = launchDir * Math.max(12, Math.abs(this.vx));
+                    this.isRunning = true;
+                    this.wasRunningLastFrame = true;
+                    if (audio) {
+                        audio.stopFile('machslideboost');
+                        audio.playFile('mach3');
+                    }
+                }
+
                 this.isRollGettingUp = false;
                 this.jumpBufferTimer = 0;
                 this.sprite_index = isMach3Jump ? 'spr_player_mach3jump' : 'spr_player_jump';
