@@ -2689,6 +2689,16 @@ this.entities.push(
                 this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity).then(() => {
                     this.transitionState = 'FADE_IN';
                     this.transitionTimer = 0;
+                    if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor')) {
+                        this.player.state = 'walkfront';
+                        this.player.isEnteringDoor = false;
+                        this.player.sprite_index = 'spr_player_walkfront';
+                        this.player.image_index = 0;
+                        this.player.image_speed = 0.45;
+                        this.player.targetDoorX = null;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                    }
                 });
             }
         } else if (this.transitionState === 'LOADING_ROOM') {
@@ -2701,11 +2711,13 @@ this.entities.push(
                 this.transitionState = 'NONE';
                 this.pendingRoom = null;
                 this.pendingDoor = null;
-                if (this.player && this.player.state === 'enterdoor') {
-                    this.player.state = 'normal';
+                if (this.player) {
                     this.player.targetDoorX = null;
-                    this.player.sprite_index = 'spr_player_idle';
-                    this.player.image_index = 0;
+                    if (this.player.state === 'enterdoor') {
+                        this.player.state = 'normal';
+                        this.player.sprite_index = 'spr_player_idle';
+                        this.player.image_index = 0;
+                    }
                 }
             }
         }
@@ -2959,7 +2971,7 @@ this.entities.push(
 
         // Update state info UI
         let currentStates = [];
-        if (this.player.state === 'enterdoor') currentStates.push('enterdoor');
+        if (this.player.state === 'enterdoor' || this.player.state === 'walkfront') currentStates.push('walkfront');
         else if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
         else if (this.player.isGroundPoundLand) currentStates.push(dict['state.groundpoundland']);
         else if (!this.player.isGrounded) currentStates.push(dict['state.airborne']);
@@ -2981,17 +2993,16 @@ this.entities.push(
             this.player.y + this.player.height > e.y
         );
 
-        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.transitionState === 'NONE') {
-            this.player.state = 'enterdoor';
+        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
+            this.player.state = 'walkfront';
+            this.player.isEnteringDoor = true;
             this.player.vx = 0;
             this.player.vy = 0;
             this.player.isRunning = false;
             this.player.targetDoorX = overlappingDoor.x + overlappingDoor.width / 2 - this.player.width / 2;
-            if (this.player.sprites.spr_player_lookdoor && this.player.sprites.spr_player_lookdoor.length > 0) {
-                this.player.sprite_index = 'spr_player_lookdoor';
-                this.player.image_index = 0;
-                this.player.image_speed = 0.45;
-            }
+            this.player.sprite_index = 'spr_player_walkfront';
+            this.player.image_index = 0;
+            this.player.image_speed = 0.45;
             this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);
             this.clearActionKey('up'); // Prevent immediate multi-entry
             this.keys.actionUp = false;
