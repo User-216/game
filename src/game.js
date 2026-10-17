@@ -245,6 +245,7 @@ class Game {
             this.transitionImages.push(img);
         }
         this.loadingScreenLoaded = false;
+        this.loadingBounds = { minX: 226, maxX: 476 };
         let lsLoadedCount = 0;
         for (let i = 0; i < 2; i++) {
             let img = new Image();
@@ -252,6 +253,7 @@ class Game {
             img.onload = () => {
                 lsLoadedCount++;
                 if (lsLoadedCount === 2) {
+                    this.computeLoadingScreenBounds();
                     this.loadingScreenLoaded = true;
                 }
             };
@@ -425,6 +427,37 @@ class Game {
         this.canvas.style.width = '100vw';
         this.canvas.style.height = '100vh';
         this.canvas.style.objectFit = 'contain';
+    }
+
+    computeLoadingScreenBounds() {
+        try {
+            const img1 = this.loadingScreenImages[1];
+            if (!img1 || !img1.width || !img1.height) return;
+            if (img1.width === 718 && img1.height === 259) {
+                this.loadingBounds = { minX: 226, maxX: 476 };
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = img1.width;
+            canvas.height = img1.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img1, 0, 0);
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let minX = canvas.width, maxX = 0;
+            for (let y = 0; y < canvas.height; y++) {
+                const rowOffset = y * canvas.width * 4;
+                for (let x = 0; x < canvas.width; x++) {
+                    if (data[rowOffset + x * 4 + 3] > 10) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                    }
+                }
+            }
+            if (maxX >= minX) {
+                this.loadingBounds = { minX, maxX };
+            }
+        } catch (e) {
+            // Keep existing fallback
+        }
     }
 
     getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 2, isSolidColor = false, color = '#000000') {
@@ -3183,12 +3216,18 @@ this.entities.push(
                 // Draw silhouette
                 this.ctx.drawImage(img0, centerX, centerY, w0, h0);
                 
-                // Draw colored image revealed from left to right
+                // Draw colored image revealed from left to right based on character content bounds
                 let progress = this.bootLoadTimer / this.bootLoadDuration;
                 if (progress > 1) progress = 1;
                 
-                const revealWidthSrc = img1.width * progress;
-                const revealWidthDest = w0 * progress;
+                const minX = (this.loadingBounds && this.loadingBounds.minX !== undefined) ? this.loadingBounds.minX : 0;
+                const maxX = (this.loadingBounds && this.loadingBounds.maxX !== undefined) ? this.loadingBounds.maxX : img1.width;
+                const charWidth = Math.max(1, maxX - minX);
+                
+                // Map progress (0 -> 1) across the actual visible character bounds (minX -> maxX)
+                const revealX = minX + charWidth * progress;
+                const revealWidthSrc = Math.min(img1.width, revealX);
+                const revealWidthDest = revealWidthSrc * scale;
                 
                 if (revealWidthSrc > 0) {
                     this.ctx.drawImage(
