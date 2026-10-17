@@ -33,6 +33,9 @@ class Player {
         
         this.isTaunting = false;
         this.tauntTimer = 0;
+        this.tauntStoredSprite = null;
+        this.tauntStoredImageIndex = 0;
+        this.tauntStoredImageSpeed = 0.4;
         
         this.canSuplexGrab = true;
         this.isTumbling = false;
@@ -364,13 +367,34 @@ class Player {
             this.tauntTimer--;
             if (this.tauntTimer <= 0) {
                 this.isTaunting = false;
+                if (this.tauntStoredSprite && this.tauntStoredSprite !== 'spr_player_taunt') {
+                    this.sprite_index = this.tauntStoredSprite;
+                    this.image_index = this.tauntStoredImageIndex !== undefined ? this.tauntStoredImageIndex : 0;
+                    this.image_speed = this.tauntStoredImageSpeed !== undefined ? this.tauntStoredImageSpeed : 0.4;
+                } else {
+                    this.sprite_index = this.isGrounded ? 'spr_player_idle' : 'spr_player_fall';
+                    this.image_index = 0;
+                    this.image_speed = 0.4;
+                }
+                this.tauntStoredSprite = null;
+            } else {
+                return;
             }
-            return; // ・・ｰ・・卓乱・・・ｼ・ｬ ・肥ｧ・ｳｼ ・・・ ・・魂・ｴ孖ｸ・ｼ ・・�・梭 ・菩ｧ (・ｬ・ｬ・ｰ ・・・ ・ｱ ・・ｲｽ ・�・)
         } else if (keys.actionTaunt && !this.prevKeysTaunt) {
             this.isTaunting = true;
             this.tauntTimer = 20;
             
-            // ・�・ ・肥ｲｭ: ・・ｰ・・・spr_player_taunt・・・・ｽ ・・8・・・・・罹墾 嵓・�溢桷 ・�夋・
+            // Store original sprite_index, image_index, image_speed
+            if (this.sprite_index && this.sprite_index !== "spr_player_taunt") {
+                this.tauntStoredSprite = this.sprite_index;
+                this.tauntStoredImageIndex = this.image_index;
+                this.tauntStoredImageSpeed = this.image_speed;
+            } else {
+                this.tauntStoredSprite = this.isGrounded ? "spr_player_idle" : "spr_player_fall";
+                this.tauntStoredImageIndex = 0;
+                this.tauntStoredImageSpeed = 0.4;
+            }
+            
             this.sprite_index = 'spr_player_taunt';
             this.image_index = Math.floor(Math.random() * 8);
             this.image_speed = 0; // 嵓・�溢桷 ・�・・
@@ -1522,6 +1546,9 @@ class Player {
                 } else {
                     this.sprite_index = 'spr_player_mach2';
                 } // ・�・ ・肥ｲｭ: ・逸葺 1・ｼ ・誤巡 ・ｼ・ｨ mach2 ・�・壱ｩ肥擽・・・ｬ・ｩ
+            } else if (this.sprite_index === 'spr_player_taunt' && !this.isTaunting) {
+                this.sprite_index = 'spr_player_idle';
+                this.image_speed = 0.4;
             }
         }
         
