@@ -277,12 +277,37 @@ class Game {
         this.transitionTimer = 0;
         this.pendingRoom = null;
         this.pendingDoor = null;
-        this.roomLoadTimer = 0;
-        this.roomLoadDuration = 45; // 45 frames ≈ 0.75s loading screen for rooms
-        this.roomLoaded = false;
         
         this.initRooms();
-        this.loadRoom('tutorial_1');
+        this.bootRoomLoaded = false;
+        
+        // Preload rooms and load initial room during boot loading
+        const roomsToPreload = ['tutorial_1', 'tutorial_2', 'tutorial_3'];
+        let preloadedCount = 0;
+        roomsToPreload.forEach(rName => {
+            const script = document.createElement('script');
+            script.src = `room/${rName}.js?t=${new Date().getTime()}`;
+            script.onload = () => {
+                if (window.roomData && window.roomData[rName]) {
+                    this.rooms[rName] = window.roomData[rName];
+                }
+                preloadedCount++;
+                if (preloadedCount === roomsToPreload.length) {
+                    this.loadRoom('tutorial_1').then(() => {
+                        this.bootRoomLoaded = true;
+                    });
+                }
+            };
+            script.onerror = () => {
+                preloadedCount++;
+                if (preloadedCount === roomsToPreload.length) {
+                    this.loadRoom('tutorial_1').then(() => {
+                        this.bootRoomLoaded = true;
+                    });
+                }
+            };
+            document.body.appendChild(script);
+        });
         
         this.isEditorMode = false;
         this.selectedType = 'platform';
@@ -2110,6 +2135,13 @@ this.entities.push(
                 resolve();
             };
 
+            // If roomData is already preloaded, use it immediately
+            if (window.roomData && window.roomData[roomName]) {
+                this.rooms[roomName] = window.roomData[roomName];
+                finishLoading();
+                return;
+            }
+
             // Inject script to bypass CORS
             let roomScript = document.getElementById('dynamic-room-script');
             if (roomScript) roomScript.remove();
@@ -2273,6 +2305,14 @@ this.entities.push(
                             readyCount++;
                         }
                     }
+                }
+                
+                // Also wait for room loading to finish
+                totalAssets += 1;
+                if (this.bootRoomLoaded) {
+                    readyCount += 1;
+                } else {
+                    allReady = false;
                 }
                 
                 let progress = totalAssets > 0 ? readyCount / totalAssets : 1;
@@ -2778,31 +2818,23 @@ this.entities.push(
             if (this.transitionTimer >= this.transitionDuration) {
                 this.transitionAlpha = 1;
                 this.transitionState = 'LOADING_ROOM';
-                this.roomLoadTimer = 0;
-                this.roomLoadDuration = 45; // 45 frames ≈ 0.75s loading screen for room
-                this.roomLoaded = false;
-                if (this.uiOverlay) this.uiOverlay.style.display = 'none';
                 this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity).then(() => {
-                    this.roomLoaded = true;
+                    this.transitionState = 'FADE_IN';
+                    this.transitionTimer = 0;
+                    if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor')) {
+                        this.player.state = 'walkfront';
+                        this.player.isEnteringDoor = false;
+                        this.player.sprite_index = 'spr_player_walkfront';
+                        this.player.image_index = 0;
+                        this.player.image_speed = 0.45;
+                        this.player.targetDoorX = null;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                    }
                 });
             }
         } else if (this.transitionState === 'LOADING_ROOM') {
-            this.roomLoadTimer++;
-            if (this.roomLoaded && this.roomLoadTimer >= this.roomLoadDuration) {
-                this.transitionState = 'FADE_IN';
-                this.transitionTimer = 0;
-                if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor')) {
-                    this.player.state = 'walkfront';
-                    this.player.isEnteringDoor = false;
-                    this.player.sprite_index = 'spr_player_walkfront';
-                    this.player.image_index = 0;
-                    this.player.image_speed = 0.45;
-                    this.player.targetDoorX = null;
-                    this.player.vx = 0;
-                    this.player.vy = 0;
-                }
-            }
-            return;
+            // do nothing while waiting for the promise
         } else if (this.transitionState === 'FADE_IN') {
             this.transitionTimer++;
             this.transitionAlpha = 1 - (this.transitionTimer / this.transitionDuration);
@@ -2811,9 +2843,6 @@ this.entities.push(
                 this.transitionState = 'NONE';
                 this.pendingRoom = null;
                 this.pendingDoor = null;
-                if (this.gameState === 'PLAYING' && this.uiOverlay) {
-                    this.uiOverlay.style.display = '';
-                }
                 if (this.player) {
                     this.player.targetDoorX = null;
                     if (this.player.state === 'enterdoor') {
@@ -3271,17 +3300,6 @@ this.entities.push(
             
             if (this.loadingScreenLoaded) {
                 let progress = this.bootLoadTimer / this.bootLoadDuration;
-                this.renderLoadingScreen(progress);
-            }
-            return;
-        }
-
-        if (this.transitionState === 'LOADING_ROOM') {
-            this.ctx.fillStyle = '#000';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            if (this.loadingScreenLoaded) {
-                let progress = this.roomLoadDuration > 0 ? (this.roomLoadTimer / this.roomLoadDuration) : 1;
                 this.renderLoadingScreen(progress);
             }
             return;
