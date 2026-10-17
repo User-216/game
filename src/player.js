@@ -1425,13 +1425,15 @@ class Player {
             this.jumpBufferTimer--;
         }
 
-        if (keys.actionJump && this.canJump && !this.isClimbingLadder) {
+        if (keys.actionJump && this.canJump && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && !this.isClimbingLadder) {
             this.jumpBufferTimer = 18; // 18 frames (0.3s) of jump buffer
             this.canJump = false; // Consume the jump press immediately
         }
 
         if (this.jumpBufferTimer > 0) {
-            if (this.isGrounded && !this.isGroundPoundLand) {
+            if (this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3') {
+                this.jumpBufferTimer = 0; // 드리프트 중 점프 금지
+            } else if (this.isGrounded && !this.isGroundPoundLand) {
                 if (this.isCrouching) {
                     this.vy = -8;
                 } else {
@@ -1440,22 +1442,7 @@ class Player {
                 
                 this.isGrounded = false;
                 this.standingOnEntity = null;
-                const wasDrifting = this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3';
-                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || ((this.sprite_index === 'spr_player_rollgetup' || this.isRollGettingUp) && Math.abs(this.vx) >= this.machThreshold) || wasDrifting;
-                
-                if (wasDrifting) {
-                    this.isDrifting = false;
-                    this.isDrifting1 = false;
-                    const launchDir = this.driftTargetDir || this.facingDir;
-                    this.facingDir = launchDir;
-                    this.vx = launchDir * Math.max(12, Math.abs(this.vx));
-                    this.isRunning = true;
-                    this.wasRunningLastFrame = true;
-                    if (audio) {
-                        audio.stopFile('machslideboost');
-                        audio.playFile('mach3');
-                    }
-                }
+                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || ((this.sprite_index === 'spr_player_rollgetup' || this.isRollGettingUp) && Math.abs(this.vx) >= this.machThreshold);
 
                 this.isRollGettingUp = false;
                 this.jumpBufferTimer = 0;
