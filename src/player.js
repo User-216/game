@@ -1433,9 +1433,11 @@ class Player {
                 }
                 
                 this.isGrounded = false;
-        this.standingOnEntity = null;
+                this.standingOnEntity = null;
+                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || (this.sprite_index === 'spr_player_rollgetup' && Math.abs(this.vx) >= this.machThreshold);
+                this.isRollGettingUp = false;
                 this.jumpBufferTimer = 0;
-                this.sprite_index = (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3') ? 'spr_player_mach3jump' : 'spr_player_jump';
+                this.sprite_index = isMach3Jump ? 'spr_player_mach3jump' : 'spr_player_jump';
                 this.image_index = 0;
                 if (audio) audio.play('jump');
                 
@@ -1511,7 +1513,7 @@ class Player {
             }
         } else if (this.isGroundPoundLand) {
             this.sprite_index = 'spr_player_groundpoundland';
-        } else if (this.isRollGettingUp) {
+        } else if (this.isRollGettingUp && this.isGrounded) {
             this.sprite_index = 'spr_player_rollgetup';
             if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
                 this.isRollGettingUp = false;
