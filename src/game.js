@@ -2971,7 +2971,8 @@ this.entities.push(
 
         // Update state info UI
         let currentStates = [];
-        if (this.player.state === 'enterdoor' || this.player.state === 'walkfront') currentStates.push('walkfront');
+        if (this.player.state === 'enterdoor') currentStates.push('enterdoor');
+        else if (this.player.state === 'walkfront') currentStates.push('walkfront');
         else if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
         else if (this.player.isGroundPoundLand) currentStates.push(dict['state.groundpoundland']);
         else if (!this.player.isGrounded) currentStates.push(dict['state.airborne']);
@@ -2994,13 +2995,13 @@ this.entities.push(
         );
 
         if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
-            this.player.state = 'walkfront';
+            this.player.state = 'enterdoor';
             this.player.isEnteringDoor = true;
             this.player.vx = 0;
             this.player.vy = 0;
             this.player.isRunning = false;
             this.player.targetDoorX = overlappingDoor.x + overlappingDoor.width / 2 - this.player.width / 2;
-            this.player.sprite_index = 'spr_player_walkfront';
+            this.player.sprite_index = 'spr_player_lookdoor';
             this.player.image_index = 0;
             this.player.image_speed = 0.45;
             this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);

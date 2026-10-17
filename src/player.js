@@ -333,7 +333,7 @@ class Player {
         this.frameCount++;
         this.wasGrounded = this.isGrounded;
 
-        if (this.state === 'walkfront' || this.state === 'enterdoor') {
+        if (this.state === 'enterdoor') {
             this.vx = 0;
             this.vy = 0;
             this.isRunning = false;
@@ -349,7 +349,7 @@ class Player {
             this.ghostAfters = [];
 
             // Move gradually toward door center instead of teleporting (when entering door)
-            if (this.isEnteringDoor && this.targetDoorX !== null && typeof this.targetDoorX === 'number') {
+            if (this.targetDoorX !== null && typeof this.targetDoorX === 'number') {
                 const diff = this.targetDoorX - this.x;
                 const step = 2;
                 if (Math.abs(diff) <= step) {
@@ -360,30 +360,52 @@ class Player {
                 }
             }
 
-            const walkfrontFrames = (this.sprites.spr_player_walkfront && this.sprites.spr_player_walkfront.length > 0)
-                ? this.sprites.spr_player_walkfront
-                : this.sprites.spr_player_lookdoor;
+            if (this.sprites.spr_player_lookdoor && this.sprites.spr_player_lookdoor.length > 0) {
+                if (this.sprite_index !== 'spr_player_lookdoor') {
+                    this.sprite_index = 'spr_player_lookdoor';
+                    this.image_index = 0;
+                    this.image_speed = 0.45;
+                }
+                this.image_index += this.image_speed;
+                if (this.image_index >= this.sprites.spr_player_lookdoor.length) {
+                    this.image_index = this.sprites.spr_player_lookdoor.length - 1;
+                }
+            }
+            return;
+        }
 
-            if (walkfrontFrames && walkfrontFrames.length > 0) {
-                if (this.sprite_index !== 'spr_player_walkfront' && this.sprite_index !== 'spr_player_lookdoor') {
+        if (this.state === 'walkfront') {
+            this.vx = 0;
+            this.vy = 0;
+            this.isRunning = false;
+            this.isDrifting = false;
+            this.isDrifting1 = false;
+            this.isMachSliding = false;
+            this.isClimbing = false;
+            this.isGroundPounding = false;
+            this.isSuplexGrabbing = false;
+            this.isTumbling = false;
+            this.isCrouching = false;
+            this.machAfters = [];
+            this.ghostAfters = [];
+
+            if (this.sprites.spr_player_walkfront && this.sprites.spr_player_walkfront.length > 0) {
+                if (this.sprite_index !== 'spr_player_walkfront') {
                     this.sprite_index = 'spr_player_walkfront';
                     this.image_index = 0;
                     this.image_speed = 0.45;
                 }
                 this.image_index += this.image_speed;
-                if (this.isEnteringDoor) {
-                    if (this.image_index >= walkfrontFrames.length) {
-                        this.image_index = walkfrontFrames.length - 1;
-                    }
-                } else {
-                    // Exiting door: when walkfront finishes, return to normal idle state
-                    if (this.image_index >= walkfrontFrames.length) {
-                        this.state = 'normal';
-                        this.sprite_index = 'spr_player_idle';
-                        this.image_index = 0;
-                        this.image_speed = 0.4;
-                    }
+                if (this.image_index >= this.sprites.spr_player_walkfront.length) {
+                    this.state = 'normal';
+                    this.sprite_index = 'spr_player_idle';
+                    this.image_index = 0;
+                    this.image_speed = 0.4;
                 }
+            } else {
+                this.state = 'normal';
+                this.sprite_index = 'spr_player_idle';
+                this.image_index = 0;
             }
             return;
         }
@@ -929,7 +951,9 @@ class Player {
         this.isCrouching = wantCrouch;
         this.isTumbling = wantTumble;
 
-        if (this.state === 'enterdoor' || this.state === 'walkfront') {
+        if (this.state === 'enterdoor') {
+            // Keep enterdoor state
+        } else if (this.state === 'walkfront') {
             // Keep walkfront state
         } else if (this.isSuplexGrabbing) {
             this.state = 'suplexgrab';
@@ -2274,7 +2298,8 @@ class Player {
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         let debugState = this.state; // 'normal', 'crouch', 'tumble', 'enterdoor'
-        if (this.state === 'enterdoor' || this.state === 'walkfront') debugState = 'walkfront';
+        if (this.state === 'enterdoor') debugState = 'enterdoor';
+        else if (this.state === 'walkfront') debugState = 'walkfront';
         else if (this.isGroundPounding) debugState = 'groundpound';
         else if (this.isGroundPoundLand) debugState = 'groundpound land';
         else if (this.isClimbing) debugState = 'climbing';
