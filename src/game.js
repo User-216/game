@@ -277,6 +277,9 @@ class Game {
         this.transitionTimer = 0;
         this.pendingRoom = null;
         this.pendingDoor = null;
+        this.roomLoadTimer = 0;
+        this.roomLoadDuration = 45; // 45 frames ≈ 0.75s loading screen for rooms
+        this.roomLoaded = false;
         
         this.initRooms();
         this.loadRoom('tutorial_1');
@@ -457,6 +460,46 @@ class Game {
             }
         } catch (e) {
             // Keep existing fallback
+        }
+    }
+
+    renderLoadingScreen(progress) {
+        if (!this.loadingScreenLoaded || !this.loadingScreenImages || this.loadingScreenImages.length < 2) return;
+        const img0 = this.loadingScreenImages[0];
+        const img1 = this.loadingScreenImages[1];
+        if (!img0.complete || !img1.complete) return;
+        
+        const scale = Math.min(
+            this.canvas.width / img0.width,
+            this.canvas.height / img0.height
+        ) * 0.8; 
+        
+        const w0 = img0.width * scale;
+        const h0 = img0.height * scale;
+        const centerX = this.canvas.width / 2 - w0 / 2;
+        const centerY = this.canvas.height / 2 - h0 / 2;
+        
+        // Draw silhouette
+        this.ctx.drawImage(img0, centerX, centerY, w0, h0);
+        
+        // Draw colored image revealed from left to right based on character content bounds
+        let clampedProgress = Math.max(0, Math.min(1, progress));
+        
+        const minX = (this.loadingBounds && this.loadingBounds.minX !== undefined) ? this.loadingBounds.minX : 0;
+        const maxX = (this.loadingBounds && this.loadingBounds.maxX !== undefined) ? this.loadingBounds.maxX : img1.width;
+        const charWidth = Math.max(1, maxX - minX);
+        
+        // Map progress (0 -> 1) across the actual visible character bounds (minX -> maxX)
+        const revealX = minX + charWidth * clampedProgress;
+        const revealWidthSrc = Math.min(img1.width, revealX);
+        const revealWidthDest = revealWidthSrc * scale;
+        
+        if (revealWidthSrc > 0) {
+            this.ctx.drawImage(
+                img1,
+                0, 0, revealWidthSrc, img1.height,
+                centerX, centerY, revealWidthDest, h0
+            );
         }
     }
 
@@ -2044,8 +2087,24 @@ this.entities.push(
                 }
                 this.player.targetDoorX = null;
                 
-                this.cameraX = this.player.x - this.canvas.width / 2;
-                this.cameraY = this.player.y - this.canvas.height / 2;
+                let targetCamX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
+                let playerBottom = this.player.y + this.player.height;
+                let targetCamY = playerBottom - 22.5 - this.canvas.height / 2;
+                if (!this.isEditorMode) {
+                    if (this.roomWidth > 0) {
+                        const maxX = Math.max(0, this.roomWidth - this.canvas.width);
+                        if (targetCamX < 0) targetCamX = 0;
+                        if (targetCamX > maxX) targetCamX = maxX;
+                    }
+                    if (this.roomHeight > 0) {
+                        const maxY = Math.max(0, this.roomHeight - this.canvas.height);
+                        if (targetCamY < 0) targetCamY = 0;
+                        if (targetCamY > maxY) targetCamY = maxY;
+                    }
+                }
+                this.camera.x = targetCamX;
+                this.camera.y = targetCamY;
+                this.cameraSpeedOffset = 0;
                 
                 this.currentRoom = roomName;
                 resolve();
@@ -2719,23 +2778,31 @@ this.entities.push(
             if (this.transitionTimer >= this.transitionDuration) {
                 this.transitionAlpha = 1;
                 this.transitionState = 'LOADING_ROOM';
+                this.roomLoadTimer = 0;
+                this.roomLoadDuration = 45; // 45 frames ≈ 0.75s loading screen for room
+                this.roomLoaded = false;
+                if (this.uiOverlay) this.uiOverlay.style.display = 'none';
                 this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity).then(() => {
-                    this.transitionState = 'FADE_IN';
-                    this.transitionTimer = 0;
-                    if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor')) {
-                        this.player.state = 'walkfront';
-                        this.player.isEnteringDoor = false;
-                        this.player.sprite_index = 'spr_player_walkfront';
-                        this.player.image_index = 0;
-                        this.player.image_speed = 0.45;
-                        this.player.targetDoorX = null;
-                        this.player.vx = 0;
-                        this.player.vy = 0;
-                    }
+                    this.roomLoaded = true;
                 });
             }
         } else if (this.transitionState === 'LOADING_ROOM') {
-            // do nothing while waiting for the promise
+            this.roomLoadTimer++;
+            if (this.roomLoaded && this.roomLoadTimer >= this.roomLoadDuration) {
+                this.transitionState = 'FADE_IN';
+                this.transitionTimer = 0;
+                if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor')) {
+                    this.player.state = 'walkfront';
+                    this.player.isEnteringDoor = false;
+                    this.player.sprite_index = 'spr_player_walkfront';
+                    this.player.image_index = 0;
+                    this.player.image_speed = 0.45;
+                    this.player.targetDoorX = null;
+                    this.player.vx = 0;
+                    this.player.vy = 0;
+                }
+            }
+            return;
         } else if (this.transitionState === 'FADE_IN') {
             this.transitionTimer++;
             this.transitionAlpha = 1 - (this.transitionTimer / this.transitionDuration);
@@ -2744,6 +2811,9 @@ this.entities.push(
                 this.transitionState = 'NONE';
                 this.pendingRoom = null;
                 this.pendingDoor = null;
+                if (this.gameState === 'PLAYING' && this.uiOverlay) {
+                    this.uiOverlay.style.display = '';
+                }
                 if (this.player) {
                     this.player.targetDoorX = null;
                     if (this.player.state === 'enterdoor') {
@@ -3200,42 +3270,19 @@ this.entities.push(
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
             if (this.loadingScreenLoaded) {
-                const img0 = this.loadingScreenImages[0];
-                const img1 = this.loadingScreenImages[1];
-                
-                const scale = Math.min(
-                    this.canvas.width / img0.width,
-                    this.canvas.height / img0.height
-                ) * 0.8; 
-                
-                const w0 = img0.width * scale;
-                const h0 = img0.height * scale;
-                const centerX = this.canvas.width / 2 - w0 / 2;
-                const centerY = this.canvas.height / 2 - h0 / 2;
-                
-                // Draw silhouette
-                this.ctx.drawImage(img0, centerX, centerY, w0, h0);
-                
-                // Draw colored image revealed from left to right based on character content bounds
                 let progress = this.bootLoadTimer / this.bootLoadDuration;
-                if (progress > 1) progress = 1;
-                
-                const minX = (this.loadingBounds && this.loadingBounds.minX !== undefined) ? this.loadingBounds.minX : 0;
-                const maxX = (this.loadingBounds && this.loadingBounds.maxX !== undefined) ? this.loadingBounds.maxX : img1.width;
-                const charWidth = Math.max(1, maxX - minX);
-                
-                // Map progress (0 -> 1) across the actual visible character bounds (minX -> maxX)
-                const revealX = minX + charWidth * progress;
-                const revealWidthSrc = Math.min(img1.width, revealX);
-                const revealWidthDest = revealWidthSrc * scale;
-                
-                if (revealWidthSrc > 0) {
-                    this.ctx.drawImage(
-                        img1,
-                        0, 0, revealWidthSrc, img1.height,
-                        centerX, centerY, revealWidthDest, h0
-                    );
-                }
+                this.renderLoadingScreen(progress);
+            }
+            return;
+        }
+
+        if (this.transitionState === 'LOADING_ROOM') {
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            if (this.loadingScreenLoaded) {
+                let progress = this.roomLoadDuration > 0 ? (this.roomLoadTimer / this.roomLoadDuration) : 1;
+                this.renderLoadingScreen(progress);
             }
             return;
         }
