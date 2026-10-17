@@ -39,6 +39,7 @@ class Player {
         
         this.canSuplexGrab = true;
         this.isTumbling = false;
+        this.isRollGettingUp = false;
             this.sprite_index = 'spr_player_idle';
             this.image_speed = (this.vy !== 0) ? 0.3 : 0;
         this.isSuplexGrabbing = false;
@@ -563,6 +564,24 @@ class Player {
             }
         }
 
+        // Drifting Trigger (반대 키 입력 시 즉각 드리프트 전환, rollgetup 중 드리프트 포함)
+        const isPressingOpposite = (this.vx >= this.machThreshold && keys.actionLeft) || (this.vx <= -this.machThreshold && keys.actionRight) ||
+            ((this.isRollGettingUp || this.sprite_index === 'spr_player_rollgetup') && ((this.vx > 0 && keys.actionLeft) || (this.vx < 0 && keys.actionRight) || (this.facingDir === 1 && keys.actionLeft) || (this.facingDir === -1 && keys.actionRight)));
+        const canStartDrift = this.isRunning && (Math.abs(this.vx) >= this.machThreshold || ((this.isRollGettingUp || this.sprite_index === 'spr_player_rollgetup') && Math.abs(this.vx) >= 8)) && isPressingOpposite && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling;
+        if (canStartDrift) {
+            this.isDrifting = true;
+            this.isRollGettingUp = false;
+            this.driftTimer = 35;
+            this.sprite_index = 'spr_player_machslideboost3';
+            this.image_index = 0;
+            this.driftTargetDir = this.vx > 0 ? -1 : (this.vx < 0 ? 1 : -this.facingDir);
+            if (audio) {
+                audio.stopFile('mach2');
+                audio.stopFile('mach3');
+                audio.playFile('machslideboost', true);
+            }
+        }
+
         // Horizontal Movement (・罹ｦｬ嵓・敢・・・逸葺 ・ｬ・ｼ・ｴ・・・卓擽 ・・巨 ・誤ｧ・・ｰ・・・・･)
         if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isClimbingLadder && this.kickWindupTimer <= 0 && (this.kickKnockbackTimer || 0) <= 0) {
             let effLeft = keys.actionLeft;
@@ -635,22 +654,8 @@ class Player {
             }
         }
 
-        // Drifting Logic (드리프트 체크를 달리기 가속보다 먼저 수행하여 반대 키 입력 시 즉각 드리프트 전환)
-        const isPressingOpposite = (this.vx >= this.machThreshold && keys.actionLeft) || (this.vx <= -this.machThreshold && keys.actionRight);
-        if (this.isRunning && Math.abs(this.vx) >= this.machThreshold && isPressingOpposite && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling) {
-            this.isDrifting = true;
-            this.driftTimer = 35;
-            this.sprite_index = 'spr_player_machslideboost3';
-            this.image_index = 0;
-            this.driftTargetDir = this.vx > 0 ? -1 : 1;
-            if (audio) {
-                audio.stopFile('mach2');
-                audio.stopFile('mach3');
-                audio.playFile('machslideboost', true);
-            }
-        }
-
         if (this.isDrifting) {
+            this.isRollGettingUp = false;
             this.sprite_index = 'spr_player_machslideboost3';
             if (this.vx > 0) {
                 this.vx -= 0.4;
@@ -665,6 +670,7 @@ class Player {
             // 드리프트 종료: 35프레임 후 반대방향으로 대시 시작
             if (this.driftTimer <= 0 && this.isGrounded) {
                 this.isDrifting = false;
+                this.isRollGettingUp = false;
                 this.vx = this.driftTargetDir * 12;
                 this.facingDir = this.driftTargetDir;
                 this.sprite_index = 'spr_player_mach3';
@@ -1435,7 +1441,7 @@ class Player {
                 this.isGrounded = false;
                 this.standingOnEntity = null;
                 const wasDrifting = this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3';
-                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || (this.sprite_index === 'spr_player_rollgetup' && Math.abs(this.vx) >= this.machThreshold) || wasDrifting;
+                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || ((this.sprite_index === 'spr_player_rollgetup' || this.isRollGettingUp) && Math.abs(this.vx) >= this.machThreshold) || wasDrifting;
                 
                 if (wasDrifting) {
                     this.isDrifting = false;
@@ -1529,7 +1535,7 @@ class Player {
             }
         } else if (this.isGroundPoundLand) {
             this.sprite_index = 'spr_player_groundpoundland';
-        } else if (this.isRollGettingUp && this.isGrounded) {
+        } else if (this.isRollGettingUp && this.isGrounded && !this.isDrifting && !this.isDrifting1) {
             this.sprite_index = 'spr_player_rollgetup';
             if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
                 this.isRollGettingUp = false;
