@@ -686,6 +686,174 @@ class Game {
         return result;
     }
 
+    layoutTutorialText(processedText, maxTextWidth) {
+        const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
+        
+        const formatKey = (key) => {
+            if (!key) return "NONE";
+            if (key.startsWith("Arrow")) return key.replace("Arrow", "").toUpperCase();
+            if (key === " ") return "SPACE";
+            return key.toUpperCase();
+        };
+        
+        const macros = {
+            '[J]': formatKey(this.settings.bindings.jump),
+            '[S]': formatKey(this.settings.bindings.run || this.settings.bindings.dash),
+            '[Q]': formatKey(this.settings.bindings.run || this.settings.bindings.dash),
+            '[L]': formatKey(this.settings.bindings.left),
+            '[R]': formatKey(this.settings.bindings.right),
+            '[U]': formatKey(this.settings.bindings.up),
+            '[D]': formatKey(this.settings.bindings.down),
+            '[G]': formatKey(this.settings.bindings.grab),
+            '[T]': formatKey(this.settings.bindings.taunt)
+        };
+
+        const getKeyWidth = (keyName) => {
+            const img = this.getKeyImage(keyName);
+            if (img && img.loaded && !img.error && img.width > 0) {
+                return img.width + 4;
+            } else if (this.tutorialBlankKeyLoaded && this.tutorialBlankKeyImage && this.tutorialBlankKeyImage.width > 0) {
+                return this.tutorialBlankKeyImage.width + 4;
+            }
+            return 36;
+        };
+
+        const getCharWidth = (char) => {
+            if (char === ' ') return 16;
+            const charIdx = charset.indexOf(char);
+            const isKoreanChar = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(char);
+            if (charIdx !== -1 && !isKoreanChar && this.settings.language !== 'ko' && this.tutorialFontImages && this.tutorialFontImages[charIdx]) {
+                return Math.max(8, this.tutorialFontImages[charIdx].width - 12);
+            } else {
+                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_KyoboHandwriting2019', 26, 0, true, '#000000');
+                return Math.max(14, (pixelated ? pixelated.textWidth : 16) + 1);
+            }
+        };
+
+        // 1. Build atoms
+        const atoms = [];
+        for (let i = 0; i < processedText.length; i++) {
+            let matched = false;
+            for (let m in macros) {
+                if (processedText.substring(i, i + m.length) === m) {
+                    const keyName = macros[m];
+                    atoms.push({ type: 'key', val: keyName, width: getKeyWidth(keyName) });
+                    i += m.length - 1;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                const c = processedText[i];
+                if (c === '\n') {
+                    atoms.push({ type: 'newline' });
+                } else if (c === ' ') {
+                    atoms.push({ type: 'space', width: 16 });
+                } else {
+                    atoms.push({ type: 'char', char: c, width: getCharWidth(c) });
+                }
+            }
+        }
+
+        // 2. Group into layout elements (Word, Space, Newline)
+        const elements = [];
+        let currentWordItems = [];
+        let currentWordWidth = 0;
+
+        const flushWord = () => {
+            if (currentWordItems.length > 0) {
+                elements.push({
+                    type: 'word',
+                    items: currentWordItems,
+                    totalWidth: currentWordWidth
+                });
+                currentWordItems = [];
+                currentWordWidth = 0;
+            }
+        };
+
+        for (let i = 0; i < atoms.length; i++) {
+            const atom = atoms[i];
+            if (atom.type === 'newline') {
+                flushWord();
+                elements.push({ type: 'newline' });
+            } else if (atom.type === 'space') {
+                flushWord();
+                elements.push({ type: 'space', width: atom.width });
+            } else {
+                currentWordItems.push(atom);
+                currentWordWidth += atom.width;
+            }
+        }
+        flushWord();
+
+        // 3. Wrap elements into lines fitting within maxTextWidth
+        const lines = [];
+        let currentLine = [];
+        let currentLineWidth = 0;
+        let pendingSpace = false;
+
+        const pushLine = () => {
+            lines.push(currentLine);
+            currentLine = [];
+            currentLineWidth = 0;
+            pendingSpace = false;
+        };
+
+        for (let i = 0; i < elements.length; i++) {
+            const el = elements[i];
+            if (el.type === 'newline') {
+                pushLine();
+            } else if (el.type === 'space') {
+                if (pendingSpace && currentLineWidth > 0) {
+                    currentLine.push({ type: 'space', width: 16 });
+                    currentLineWidth += 16;
+                }
+                if (currentLine.length > 0) {
+                    pendingSpace = true;
+                }
+            } else if (el.type === 'word') {
+                const spaceW = pendingSpace ? 16 : 0;
+                if (currentLineWidth + spaceW + el.totalWidth <= maxTextWidth) {
+                    if (pendingSpace) {
+                        currentLine.push({ type: 'space', width: 16 });
+                        currentLineWidth += 16;
+                        pendingSpace = false;
+                    }
+                    for (let j = 0; j < el.items.length; j++) {
+                        currentLine.push(el.items[j]);
+                    }
+                    currentLineWidth += el.totalWidth;
+                } else {
+                    if (currentLine.length > 0) {
+                        pushLine();
+                    }
+                    if (el.totalWidth <= maxTextWidth) {
+                        for (let j = 0; j < el.items.length; j++) {
+                            currentLine.push(el.items[j]);
+                        }
+                        currentLineWidth = el.totalWidth;
+                    } else {
+                        // Word itself is wider than a line: break item-by-item
+                        for (let j = 0; j < el.items.length; j++) {
+                            const itm = el.items[j];
+                            if (currentLineWidth + itm.width > maxTextWidth && currentLine.length > 0) {
+                                pushLine();
+                            }
+                            currentLine.push(itm);
+                            currentLineWidth += itm.width;
+                        }
+                    }
+                }
+            }
+        }
+        if (currentLine.length > 0 || lines.length === 0) {
+            lines.push(currentLine);
+        }
+
+        return lines;
+    }
+
     getMenuLabel(text) {
         if (!text || typeof text !== 'string') return text;
         const lang = (this.settings && this.settings.language) || 'ko';
@@ -4822,11 +4990,14 @@ this.entities.push(
         // Draw Tutorial Book Banner UI
         if (this.currentTutorialText && this.gameState === 'PLAYING') {
             let processedText = this.currentTutorialText.replace(/\\n/g, '\n');
-            const linesCount = processedText.split('\n').length;
-            
             const waveX = Math.sin(this.tutorialWaveTimer * 0.8) * 5;
             const bWidth = this.canvas.width - 128;
-            const bHeight = Math.max(150, linesCount * 36 + 60);
+            const startX = 64 + waveX + 45;
+            const maxTextWidth = bWidth - 90;
+            const lines = this.layoutTutorialText(processedText, maxTextWidth);
+            const totalLines = lines.length;
+            const lineHeight = 36;
+            const bHeight = Math.max(150, totalLines * lineHeight + 50);
             const bX = 64 + waveX;
             const bY = 50 + Math.sin(this.tutorialWaveTimer) * 10;
             
@@ -4897,139 +5068,92 @@ this.entities.push(
                 this.ctx.drawImage(this.tutorialOffscreenCanvas, bX, bY);
             }
             
-            // Draw text
-            if (this.currentTutorialText) {
-                const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
-                
-                const formatKey = (key) => {
-                    if (!key) return "NONE";
-                    if (key.startsWith("Arrow")) return key.replace("Arrow", "").toUpperCase();
-                    if (key === " ") return "SPACE";
-                    return key.toUpperCase();
-                };
-                
-                const macros = {
-                    '[J]': formatKey(this.settings.bindings.jump),
-                    '[S]': formatKey(this.settings.bindings.run),
-                    '[L]': formatKey(this.settings.bindings.left),
-                    '[R]': formatKey(this.settings.bindings.right),
-                    '[U]': formatKey(this.settings.bindings.up),
-                    '[D]': formatKey(this.settings.bindings.down),
-                    '[G]': formatKey(this.settings.bindings.grab)
-                };
-                
-                // Parse text into tokens of either string or key macro
-                let tokens = [];
-                let currentStr = "";
-                for (let i = 0; i < processedText.length; i++) {
-                    let matched = false;
-                    for (let m in macros) {
-                        if (processedText.substring(i, i + 3) === m) {
-                            if (currentStr.length > 0) tokens.push({ type: 'text', val: currentStr });
-                            tokens.push({ type: 'key', val: macros[m] });
-                            currentStr = "";
-                            i += 2;
-                            matched = true;
-                            break;
-                        }
-                    }
-                    if (!matched) {
-                        currentStr += processedText[i];
-                    }
-                }
-                if (currentStr.length > 0) tokens.push({ type: 'text', val: currentStr });
-                
-                let startX = bX + 40;
+            // Draw text lines
+            let firstLineY = bY + 30;
+            if (totalLines === 1) {
+                firstLineY = bY + 32;
+            } else if (totalLines === 2) {
+                firstLineY = bY + 28;
+            } else {
+                firstLineY = bY + 24;
+            }
+
+            const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
+            let charCount = 0;
+            for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                const lineItems = lines[lineIdx];
                 let charX = startX;
-                let charY = bY + 30; // Top-left alignment inside banner
-                
-                let charCount = 0;
-                
-                // Use regular for loop to allow breaking
-                for (let t = 0; t < tokens.length; t++) {
-                    const token = tokens[t];
-                    
-                    if (token.type === 'text') {
-                        for (let i = 0; i < token.val.length; i++) {
-                            charCount++;
-                            const char = token.val[i];
-                            if (char === '\n') {
-                                charX = startX;
-                                charY += 36;
-                                continue;
-                            }
-                            if (char === ' ') {
-                                charX += 16;
-                                continue;
-                            }
-                            
-                            const bounceY = Math.sin(this.tutorialWaveTimer * 10 + charCount) * 1.5;
-                            
-                            const charIdx = charset.indexOf(char);
-                            let imgToDraw = null;
-                            
-                            // If in Korean mode or character is not in English font charset
-                            const isKoreanChar = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(char);
-                            if (charIdx !== -1 && !isKoreanChar && this.settings.language !== 'ko') {
-                                imgToDraw = this.tutorialFontImages[charIdx]; 
-                            }
-                            
-                            if (imgToDraw) {
-                                this.ctx.drawImage(imgToDraw, charX, charY + bounceY);
-                                charX += imgToDraw.width - 12;
-                            } else {
-                                // Real-time pixelated Custom_KyoboHandwriting2019 at 26px
-                                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_KyoboHandwriting2019', 26, 0, true, '#000000');
-                                this.ctx.save();
-                                this.ctx.imageSmoothingEnabled = false;
-                                this.ctx.drawImage(pixelated.canvas, Math.round(charX - pixelated.padding), Math.round(charY + 6 + bounceY - pixelated.padding));
-                                this.ctx.restore();
-                                charX += Math.max(14, pixelated.textWidth + 1);
-                            }
+                const charY = firstLineY + lineIdx * lineHeight;
+
+                for (let i = 0; i < lineItems.length; i++) {
+                    const item = lineItems[i];
+                    if (item.type === 'space') {
+                        charX += item.width;
+                        continue;
+                    }
+
+                    charCount++;
+                    const bounceY = Math.sin(this.tutorialWaveTimer * 10 + charCount) * 1.5;
+
+                    if (item.type === 'char') {
+                        const char = item.char;
+                        const charIdx = charset.indexOf(char);
+                        const isKoreanChar = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(char);
+                        let imgToDraw = null;
+                        if (charIdx !== -1 && !isKoreanChar && this.settings.language !== 'ko' && this.tutorialFontImages && this.tutorialFontImages[charIdx]) {
+                            imgToDraw = this.tutorialFontImages[charIdx];
                         }
-                    } else if (token.type === 'key') {
-                        charCount++;
-                        const bounceY = Math.sin(this.tutorialWaveTimer * 10 + charCount) * 1.5;
-                        const keyName = token.val;
+
+                        if (imgToDraw) {
+                            this.ctx.drawImage(imgToDraw, charX, charY + bounceY);
+                            charX += imgToDraw.width - 12;
+                        } else {
+                            const pixelated = this.getPixelatedTextCanvas(char, 'Custom_KyoboHandwriting2019', 26, 0, true, '#000000');
+                            this.ctx.save();
+                            this.ctx.imageSmoothingEnabled = false;
+                            this.ctx.drawImage(pixelated.canvas, Math.round(charX - pixelated.padding), Math.round(charY + 6 + bounceY - pixelated.padding));
+                            this.ctx.restore();
+                            charX += Math.max(14, pixelated.textWidth + 1);
+                        }
+                    } else if (item.type === 'key') {
+                        const keyName = item.val;
                         const img = this.getKeyImage(keyName);
                         
                         if (img && img.loaded && !img.error) {
-                            this.ctx.drawImage(img, charX, charY + 6 + bounceY); // Adjust Y for vertical alignment
+                            this.ctx.drawImage(img, charX, charY + 6 + bounceY);
                             charX += img.width + 4;
                         } else if (this.tutorialBlankKeyLoaded) {
-                            // Fallback to blank key
                             const bImg = this.tutorialBlankKeyImage;
                             this.ctx.drawImage(bImg, charX, charY + 6 + bounceY);
                             
                             let totalW = 0;
-                            for(let i=0; i<keyName.length; i++) {
-                               const c = keyName[i];
-                               const idx = charset.indexOf(c);
-                               if (c === ' ') totalW += 8;
-                               else if (idx !== -1 && this.tutorialFontImages[idx]) totalW += this.tutorialFontImages[idx].width - 12;
-                               else totalW += 8;
+                            for (let k = 0; k < keyName.length; k++) {
+                                const c = keyName[k];
+                                const idx = charset.indexOf(c);
+                                if (c === ' ') totalW += 8;
+                                else if (idx !== -1 && this.tutorialFontImages && this.tutorialFontImages[idx]) totalW += this.tutorialFontImages[idx].width - 12;
+                                else totalW += 8;
                             }
                             if (keyName.length > 0) totalW += 12;
 
-                            let kx = charX + bImg.width/2 - totalW/2;
-                            let ky = charY - 2; // Align with regular text baseline but slightly higher
-                            for(let i=0; i<keyName.length; i++) {
-                               const c = keyName[i];
-                               if (c === ' ') { kx += 8; continue; }
-                               const idx = charset.indexOf(c);
-                               if (idx !== -1 && this.tutorialFontImages[idx]) {
-                                   this.ctx.drawImage(this.tutorialFontImages[idx], kx, ky + bounceY);
-                                   kx += this.tutorialFontImages[idx].width - 12;
-                               } else {
-                                   this.ctx.save();
-                                   this.ctx.fillStyle = '#000000';
-                                   this.ctx.font = 'bold 14px "Outfit", sans-serif';
-                                   this.ctx.fillText(c, kx, ky + 12 + bounceY);
-                                   this.ctx.restore();
-                                   kx += 8;
-                               }
+                            let kx = charX + bImg.width / 2 - totalW / 2;
+                            let ky = charY - 2;
+                            for (let k = 0; k < keyName.length; k++) {
+                                const c = keyName[k];
+                                if (c === ' ') { kx += 8; continue; }
+                                const idx = charset.indexOf(c);
+                                if (idx !== -1 && this.tutorialFontImages && this.tutorialFontImages[idx]) {
+                                    this.ctx.drawImage(this.tutorialFontImages[idx], kx, ky + bounceY);
+                                    kx += this.tutorialFontImages[idx].width - 12;
+                                } else {
+                                    this.ctx.save();
+                                    this.ctx.fillStyle = '#000000';
+                                    this.ctx.font = 'bold 14px "Outfit", sans-serif';
+                                    this.ctx.fillText(c, kx, ky + 12 + bounceY);
+                                    this.ctx.restore();
+                                    kx += 8;
+                                }
                             }
-                            
                             charX += bImg.width + 4;
                         } else {
                             this.ctx.save();
