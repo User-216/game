@@ -365,6 +365,8 @@ class Game {
         this.rightDragStart = null;
         this.justExecutedRightDrag = false;
         this.mousePos = { x: 0, y: 0 };
+        this.showCollisions = true;
+        this.collisionToggleTimer = 0;
         
         // Load tutorial bubble and border texture
         this.tutorialBorderImage = new Image();
@@ -908,6 +910,12 @@ class Game {
             if (this.isEditorMode && (e.key === 'f' || e.key === 'F')) {
                 this.flipSelectedTool();
             }
+            if (!this.bindingKeyFor && (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4')) {
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+                    this.toggleCollisions();
+                }
+            }
         });
         window.addEventListener('keyup', (e) => {
             if (e.key === 'Escape') this.keys['Escape'] = false;
@@ -1371,6 +1379,43 @@ class Game {
                 bgOverlay.style.display = 'none';
             });
         }
+        // Toggle Collisions button in topbar
+        const toggleColBtn = document.getElementById('toggle-collision-btn');
+        if (toggleColBtn) {
+            toggleColBtn.addEventListener('click', () => {
+                this.toggleCollisions();
+            });
+        }
+    }
+
+    toggleCollisions() {
+        this.showCollisions = !this.showCollisions;
+        this.collisionToggleTimer = 1.5;
+        const colBtn = document.getElementById('toggle-collision-btn');
+        if (colBtn) {
+            if (this.showCollisions) {
+                colBtn.style.color = '#00ffcc';
+                colBtn.style.borderColor = '#00ffcc';
+            } else {
+                colBtn.style.color = '#888';
+                colBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+            }
+        }
+    }
+
+    isCollisionEntity(e) {
+        if (!e) return false;
+        if (e instanceof Tile || e.type === 'tile') return false;
+        const type = e.type;
+        if (type === 'platform' || e instanceof Platform) return true;
+        if (type === 'oneway' || e instanceof OneWayPlatform) return true;
+        if (type === 'ladder' || e instanceof Ladder) return true;
+        if (type === 'slope' || type === 'left-up' || type === 'right-up' || e instanceof Slope) return true;
+        if (type === 'destroyable' || type === 'metal' || e instanceof Destroyable) {
+            if (e.isDestroyed) return false;
+            return true;
+        }
+        return false;
     }
 
     updateTileWaveUI() {
@@ -3857,6 +3902,7 @@ this.entities.push(
             for (let i = 0; i < this.entities.length; i++) {
                 const e = this.entities[i];
                 if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile') {
+                    if (!this.showCollisions && this.isCollisionEntity(e)) continue;
                     if (e.x + e.width > viewLeft && e.x < viewRight && 
                         e.y + e.height > viewTop && e.y < viewBottom) {
                         e.render(this.ctx);
@@ -3867,6 +3913,7 @@ this.entities.push(
             for (let i = 0; i < this.entities.length; i++) {
                 const e = this.entities[i];
                 if (e.type !== 'hallway' && e.type !== 'obj_debris') {
+                    if (!this.showCollisions && this.isCollisionEntity(e)) continue;
                     if (e.x + e.width > viewLeft && e.x < viewRight && 
                         e.y + e.height > viewTop && e.y < viewBottom) {
                         e.render(this.ctx);
@@ -3943,6 +3990,39 @@ this.entities.push(
         }
         
         this.ctx.restore();
+
+        // Collision Toggle Toast Notification
+        if (this.collisionToggleTimer > 0) {
+            this.collisionToggleTimer -= 1 / 60;
+            this.ctx.save();
+            const alpha = Math.min(1.0, this.collisionToggleTimer * 2);
+            this.ctx.globalAlpha = alpha;
+            const text = this.showCollisions ? 'COLLISION: VISIBLE [4]' : 'COLLISION: HIDDEN [4]';
+            this.ctx.font = 'bold 15px "Outfit", sans-serif';
+            const metrics = this.ctx.measureText(text);
+            const boxW = metrics.width + 28;
+            const boxH = 32;
+            const boxX = this.canvas.width / 2 - boxW / 2;
+            const boxY = 24;
+
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            this.ctx.strokeStyle = this.showCollisions ? '#00ffcc' : '#ff4444';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            if (this.ctx.roundRect) {
+                this.ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+            } else {
+                this.ctx.rect(boxX, boxY, boxW, boxH);
+            }
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = this.showCollisions ? '#00ffcc' : '#ff8888';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(text, this.canvas.width / 2, boxY + boxH / 2);
+            this.ctx.restore();
+        }
 
         // Update Palette UI Alpha
         if (this.paletteUIActive) {
