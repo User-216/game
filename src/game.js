@@ -112,7 +112,9 @@ class Game {
         this.chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.stopPropagation(); // Prevent bubbling up to window
-                this.sendChatMessage(this.chatInput.value);
+                if (this.isOnline()) {
+                    this.sendChatMessage(this.chatInput.value);
+                }
                 this.chatInput.value = '';
                 this.chatInput.style.display = 'none';
                 this.isTyping = false;
@@ -840,12 +842,14 @@ class Game {
             if (this.isTyping) return; // Ignore keys for game if typing
             
             if (e.key === 'Enter' && this.gameState === 'PLAYING') {
-                this.isTyping = true;
-                this.keys = {}; // Clear all keys so player stops moving
-                this.chatInput.style.display = 'block';
-                this.chatInput.focus();
-                e.preventDefault();
-                return;
+                if (this.isOnline()) {
+                    this.isTyping = true;
+                    this.keys = {}; // Clear all keys so player stops moving
+                    this.chatInput.style.display = 'block';
+                    this.chatInput.focus();
+                    e.preventDefault();
+                    return;
+                }
             }
 
             if (this.bindingKeyFor) {
@@ -1329,7 +1333,17 @@ class Game {
         }
     }
 
+    isOnline() {
+        if (!this.peer || this.peer.destroyed) return false;
+        if (this.isHost) {
+            return !!this.myOnlineId;
+        } else {
+            return !!(this.networkConns && this.networkConns.length > 0 && this.networkConns.some(c => c && c.open));
+        }
+    }
+
     sendChatMessage(text) {
+        if (!this.isOnline()) return;
         if (!text || text.trim() === '') return;
         text = text.trim();
         const sender = this.myUsername || "You";
@@ -1454,6 +1468,11 @@ class Game {
                         // If host closes, clear everyone since host was relay
                         this.otherPlayers = {};
                         this.networkConns = this.networkConns.filter(c => c !== conn);
+                        if (this.chatInput) {
+                            this.chatInput.value = '';
+                            this.chatInput.style.display = 'none';
+                            this.isTyping = false;
+                        }
                     });
                 });
             }
@@ -3099,6 +3118,11 @@ this.entities.push(
                     this.peer = null;
                     this.networkConns = [];
                     this.otherPlayers = {};
+                    if (this.chatInput) {
+                        this.chatInput.value = '';
+                        this.chatInput.style.display = 'none';
+                        this.isTyping = false;
+                    }
                     this.toggleOnlineMenu();
                     this.addChatMessage("SERVER", "Disconnected.");
                 } else if (sel === 'CHANGE USERNAME' || sel === this.myUsername) {
@@ -3652,7 +3676,7 @@ this.entities.push(
         }
 
         // Draw Chat Messages
-        if (this.chatMessages && this.chatMessages.length > 0) {
+        if (this.chatMessages && this.chatMessages.length > 0 && (this.isOnline() || this.chatMessages.some(m => m.sender === 'SERVER'))) {
             this.ctx.save();
             this.ctx.textAlign = 'left';
             
