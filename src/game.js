@@ -183,20 +183,34 @@ class Game {
             savedLang = localStorage.getItem('gameLanguage') || 'ko';
         } catch(e) {}
 
+        let savedSettings = {};
+        try {
+            const raw = localStorage.getItem('gameSettings');
+            if (raw) savedSettings = JSON.parse(raw);
+        } catch(e) {}
+
         this.settings = {
             language: savedLang,
-            masterVolume: 100,
-            musicVolume: 80,
-            sfxVolume: 100,
-            unfocusedMute: true,
+            masterVolume: savedSettings.masterVolume !== undefined ? savedSettings.masterVolume : 100,
+            musicVolume: savedSettings.musicVolume !== undefined ? savedSettings.musicVolume : 80,
+            sfxVolume: savedSettings.sfxVolume !== undefined ? savedSettings.sfxVolume : 100,
+            shakeIntens: savedSettings.shakeIntens !== undefined ? savedSettings.shakeIntens : 100,
+            screenShake: savedSettings.shakeIntens !== undefined ? (savedSettings.shakeIntens > 0) : true,
+            unfocusedMute: savedSettings.unfocusedMute !== undefined ? savedSettings.unfocusedMute : true,
             isFocused: true,
             resolution: 'native',
-            vsync: true,
-            textureFiltering: false,
-            screenShake: true,
+            vsync: savedSettings.vsync !== undefined ? savedSettings.vsync : true,
+            textureFiltering: savedSettings.textureFiltering !== undefined ? savedSettings.textureFiltering : false,
             cameraSpeed: 100,
             showHitboxes: false,
-            bindings: {
+            resolutions: ['960 X 540', '1280 X 720', '1920 X 1080'],
+            resolutionIndex: savedSettings.resolutionIndex !== undefined ? savedSettings.resolutionIndex : 0,
+            windowMode: savedSettings.windowMode || 'WINDOWED',
+            hideHud: savedSettings.hideHud !== undefined ? savedSettings.hideHud : false,
+            timer: savedSettings.timer !== undefined ? savedSettings.timer : false,
+            dirSuperjump: savedSettings.dirSuperjump !== undefined ? savedSettings.dirSuperjump : true,
+            dirGroundpound: savedSettings.dirGroundpound !== undefined ? savedSettings.dirGroundpound : true,
+            bindings: savedSettings.bindings || {
                 left: 'ArrowLeft',
                 right: 'ArrowRight',
                 up: 'ArrowUp',
@@ -216,7 +230,8 @@ class Game {
                 menu_confirm: 'z',
                 menu_back: 'x',
                 menu_clear: 'c'
-            }
+            },
+            bindings_2: savedSettings.bindings_2 || {}
         };
         this.bindingKeyFor = null;
         this.audio = new AudioManager(this.settings);
@@ -836,6 +851,7 @@ class Game {
                 this.bindingKeyFor = null;
                 document.getElementById('bind-overlay').classList.add('hidden');
                 if (this.refreshControlList) this.refreshControlList();
+                this.saveSettings();
                 return;
             }
 
@@ -1416,6 +1432,8 @@ class Game {
     togglePause() {
         if (this.gameState === 'PLAYING') {
             this.gameState = 'PAUSED';
+            this.cameraShake = 0;
+            if (this.player) this.player.requestScreenShake = 0;
             this.pauseMenuIndex = 0;
             this.pauseBubbles = [];
             for (let i = 0; i < 30; i++) {
@@ -1435,6 +1453,8 @@ class Game {
             document.getElementById('pause-overlay').classList.add('hidden');
         } else if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
             this.gameState = 'PLAYING';
+            this.cameraShake = 0;
+            if (this.player) this.player.requestScreenShake = 0;
             if (this.audio) {
                 this.audio.resumeAll();
                 this.audio.playFile('sfx_pausestart', true);
@@ -1443,6 +1463,30 @@ class Game {
             document.getElementById('pause-overlay').classList.add('hidden');
             document.getElementById('options-overlay').style.display = 'none';
             document.getElementById('options-overlay').classList.add('hidden');
+        }
+    }
+
+    saveSettings() {
+        try {
+            localStorage.setItem('gameSettings', JSON.stringify({
+                masterVolume: this.settings.masterVolume,
+                musicVolume: this.settings.musicVolume,
+                sfxVolume: this.settings.sfxVolume,
+                shakeIntens: this.settings.shakeIntens,
+                unfocusedMute: this.settings.unfocusedMute,
+                vsync: this.settings.vsync,
+                textureFiltering: this.settings.textureFiltering,
+                hideHud: this.settings.hideHud,
+                timer: this.settings.timer,
+                dirSuperjump: this.settings.dirSuperjump,
+                dirGroundpound: this.settings.dirGroundpound,
+                windowMode: this.settings.windowMode,
+                resolutionIndex: this.settings.resolutionIndex,
+                bindings: this.settings.bindings,
+                bindings_2: this.settings.bindings_2
+            }));
+        } catch(e) {
+            console.warn('Failed to save settings to localStorage:', e);
         }
     }
 
@@ -1655,6 +1699,13 @@ class Game {
         screenShakeSelect.value = this.settings.screenShake ? "on" : "off";
         screenShakeSelect.addEventListener('change', (e) => {
             this.settings.screenShake = (e.target.value === "on");
+            if (!this.settings.screenShake) {
+                this.settings.shakeIntens = 0;
+                this.cameraShake = 0;
+            } else if (this.settings.shakeIntens === 0) {
+                this.settings.shakeIntens = 100;
+            }
+            this.saveSettings();
         });
 
         document.getElementById('btn-fullscreen').addEventListener('click', () => {
@@ -2464,6 +2515,8 @@ this.entities.push(
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     } else if (sel === 'OPTIONS') {
                         this.gameState = 'OPTIONS';
+                        this.cameraShake = 0;
+                        if (this.player) this.player.requestScreenShake = 0;
                         this.optionsMenuIndex = 0;
                         this.optionsMenuLevel = 'MAIN';
                         document.getElementById('options-overlay').style.display = 'none'; // just in case
@@ -2563,7 +2616,11 @@ this.entities.push(
                     if (sel === 'MASTER') this.settings.masterVolume = Math.max(0, this.settings.masterVolume - 1);
                     if (sel === 'MUSIC') this.settings.musicVolume = Math.max(0, this.settings.musicVolume - 1);
                     if (sel === 'SFX') this.settings.sfxVolume = Math.max(0, this.settings.sfxVolume - 1);
-                    if (sel === 'SHAKE INTENS') this.settings.shakeIntens = Math.max(0, this.settings.shakeIntens - 1);
+                    if (sel === 'SHAKE INTENS') {
+                        this.settings.shakeIntens = Math.max(0, this.settings.shakeIntens - 1);
+                        this.settings.screenShake = this.settings.shakeIntens > 0;
+                        if (this.settings.shakeIntens === 0) this.cameraShake = 0;
+                    }
 
                     // Discrete toggles (change only once per press)
                     if (!this.prevKeysLeft) {
@@ -2586,6 +2643,7 @@ this.entities.push(
                         if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
                         if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
                         if (this.audio && sel !== 'BACK') this.audio.playFile('sfx_step', true);
+                        this.saveSettings();
                     }
                 }
                 
@@ -2594,7 +2652,10 @@ this.entities.push(
                     if (sel === 'MASTER') this.settings.masterVolume = Math.min(100, this.settings.masterVolume + 1);
                     if (sel === 'MUSIC') this.settings.musicVolume = Math.min(100, this.settings.musicVolume + 1);
                     if (sel === 'SFX') this.settings.sfxVolume = Math.min(100, this.settings.sfxVolume + 1);
-                    if (sel === 'SHAKE INTENS') this.settings.shakeIntens = Math.min(100, this.settings.shakeIntens + 1);
+                    if (sel === 'SHAKE INTENS') {
+                        this.settings.shakeIntens = Math.min(100, this.settings.shakeIntens + 1);
+                        this.settings.screenShake = this.settings.shakeIntens > 0;
+                    }
 
                     // Discrete toggles (change only once per press)
                     if (!this.prevKeysRight) {
@@ -2617,7 +2678,12 @@ this.entities.push(
                         if (sel === 'DIR SUPERJUMP') this.settings.dirSuperjump = !this.settings.dirSuperjump;
                         if (sel === 'DIR GROUNDPOUND') this.settings.dirGroundpound = !this.settings.dirGroundpound;
                         if (this.audio && sel !== 'BACK') this.audio.playFile('sfx_step', true);
+                        this.saveSettings();
                     }
+                }
+
+                if ((this.prevKeysLeft && !this.keys['ArrowLeft']) || (this.prevKeysRight && !this.keys['ArrowRight'])) {
+                    this.saveSettings();
                 }
 
 
@@ -2654,6 +2720,7 @@ this.entities.push(
                         this.optionsMenuLevel = currentOptions[this.optionsMenuIndex];
                         this.optionsMenuIndex = 0;
                     } else if (currentOptions[this.optionsMenuIndex] === 'BACK') {
+                        this.saveSettings();
                         if (this.optionsMenuLevel === 'KEYBOARD') {
                             this.optionsMenuLevel = 'CONTROLS';
                         } else if (this.optionsMenuLevel === 'BINDINGS') {
@@ -2675,6 +2742,7 @@ this.entities.push(
                             this.settings.language = (this.settings.language === 'en') ? 'ko' : 'en';
                             this.loadLangFile();
                             this.translateUI();
+                            this.saveSettings();
                         }
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     } else if (this.optionsMenuLevel === 'CONTROLS' && currentOptions[this.optionsMenuIndex] === 'RESET CONFIG') {
@@ -2685,6 +2753,7 @@ this.entities.push(
                             groundpound: 'ArrowDown', taunt: 'c', pause: 'Escape', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
                             menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'Delete'
                         };
+                        this.saveSettings();
                         
                         // Reset Mobile Layout
                         localStorage.removeItem('mobileLayout');
@@ -2775,6 +2844,7 @@ this.entities.push(
                 const isBackPress = (this.isActionPressed('menu_back') || this.keys['Escape']) && !this.prevMenuBackKey;
                 
                 if (isBackPress && !this.bindingKeyFor) {
+                    this.saveSettings();
                     if (this.optionsMenuLevel !== 'MAIN') {
                         if (this.optionsMenuLevel === 'KEYBOARD') {
                             this.optionsMenuLevel = 'CONTROLS';
@@ -3017,7 +3087,12 @@ this.entities.push(
         
         // Handle screen shake requests
         if (this.player.requestScreenShake > 0) {
-            this.cameraShake = this.player.requestScreenShake;
+            const shakeMult = (this.settings.screenShake && this.settings.shakeIntens !== undefined) ? (this.settings.shakeIntens / 100) : (this.settings.screenShake ? 1 : 0);
+            if (shakeMult > 0) {
+                this.cameraShake = this.player.requestScreenShake;
+            } else {
+                this.cameraShake = 0;
+            }
             this.player.requestScreenShake = 0;
         }
 
@@ -3309,9 +3384,10 @@ this.entities.push(
         
         let shakeX = 0;
         let shakeY = 0;
-        if (this.settings.screenShake && this.cameraShake > 0) {
-            shakeX = (Math.random() - 0.5) * this.cameraShake;
-            shakeY = (Math.random() - 0.5) * this.cameraShake;
+        const shakeMult = (this.settings.screenShake && this.settings.shakeIntens !== undefined) ? (this.settings.shakeIntens / 100) : (this.settings.screenShake ? 1 : 0);
+        if (this.gameState === 'PLAYING' && shakeMult > 0 && this.cameraShake > 0) {
+            shakeX = (Math.random() - 0.5) * this.cameraShake * shakeMult;
+            shakeY = (Math.random() - 0.5) * this.cameraShake * shakeMult;
         }
         
         // 카메라 위치를 반올림(Math.round)하여 소수점 픽셀로 인한 화면 전체 흐려짐(Sub-pixel blur) 방지
