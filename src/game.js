@@ -354,6 +354,8 @@ class Game {
         this.initTilesetPalette();
         this.gridSize = 32;
         this.dragStart = null;
+        this.rightDragStart = null;
+        this.justExecutedRightDrag = false;
         this.mousePos = { x: 0, y: 0 };
         
         // Load tutorial bubble and border texture
@@ -1024,6 +1026,11 @@ class Game {
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+        window.addEventListener('mouseup', (e) => {
+            if (this.dragStart || this.rightDragStart) {
+                this.handleMouseUp(e);
+            }
+        });
         this.canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.handleRightClick(e);
@@ -1991,12 +1998,47 @@ class Game {
         }
     }
 
+    executeRightDragDelete(worldPos) {
+        if (!this.rightDragStart) return false;
+        const endX = this.snapToGrid(worldPos.x);
+        const endY = this.snapToGrid(worldPos.y);
+        const minX = Math.min(this.rightDragStart.x, endX);
+        const minY = Math.min(this.rightDragStart.y, endY);
+        const maxX = Math.max(this.rightDragStart.x, endX) + this.gridSize;
+        const maxY = Math.max(this.rightDragStart.y, endY) + this.gridSize;
+
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            const ent = this.entities[i];
+            if ((this.selectedType === 'tile' || this.selectedType === 'erase') && !(ent instanceof Tile || ent.type === 'tile')) {
+                continue;
+            }
+            if (ent.x < maxX && ent.x + ent.width > minX &&
+                ent.y < maxY && ent.y + ent.height > minY) {
+                this.entities.splice(i, 1);
+            }
+        }
+        this.rightDragStart = null;
+        this.justExecutedRightDrag = true;
+        return true;
+    }
+
     handleMouseDown(e) {
-        if (!this.isEditorMode || e.button !== 0) return;
-        
+        if (!this.isEditorMode) return;
         if (e.target.closest('#tileset-palette') || e.target.closest('#editor-toolbar')) return;
 
         const worldPos = this.getMouseInWorld(e);
+        this.justExecutedRightDrag = false;
+
+        // Right-Click (e.button === 2): Start drag area delete
+        if (e.button === 2) {
+            this.rightDragStart = {
+                x: this.snapToGrid(worldPos.x),
+                y: this.snapToGrid(worldPos.y)
+            };
+            return;
+        }
+
+        if (e.button !== 0) return;
         
         if (this.selectedType === 'tile') {
             if (e.shiftKey) {
@@ -2008,6 +2050,14 @@ class Game {
             }
             this.isPaintingTile = true;
             this.paintTile(worldPos.x, worldPos.y);
+            return;
+        }
+
+        if (this.selectedType === 'erase') {
+            this.dragStart = {
+                x: this.snapToGrid(worldPos.x),
+                y: this.snapToGrid(worldPos.y)
+            };
             return;
         }
 
@@ -2024,22 +2074,17 @@ class Game {
         if (this.isEditorMode && this.isPaintingTile && e.buttons === 1) {
             this.paintTile(worldPos.x, worldPos.y);
         }
-        if (this.isEditorMode && e.buttons === 2) {
-            for (let i = this.entities.length - 1; i >= 0; i--) {
-                const ent = this.entities[i];
-                if (this.selectedType === 'tile' && !(ent instanceof Tile || ent.type === 'tile')) {
-                    continue;
-                }
-                if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
-                    worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
-                    this.entities.splice(i, 1);
-                    break;
-                }
-            }
-        }
     }
 
     handleMouseUp(e) {
+        if (e.button === 2) {
+            if (this.rightDragStart) {
+                const worldPos = this.getMouseInWorld(e);
+                this.executeRightDragDelete(worldPos);
+            }
+            return;
+        }
+
         if (this.isPaintingTile) {
             this.isPaintingTile = false;
             return;
@@ -2050,8 +2095,28 @@ class Game {
         const endX = this.snapToGrid(worldPos.x);
         const endY = this.snapToGrid(worldPos.y);
 
-        const x = Math.min(this.dragStart.x, endX);
-        const y = Math.min(this.dragStart.y, endY);
+        const minX = Math.min(this.dragStart.x, endX);
+        const minY = Math.min(this.dragStart.y, endY);
+        const maxX = Math.max(this.dragStart.x, endX) + this.gridSize;
+        const maxY = Math.max(this.dragStart.y, endY) + this.gridSize;
+
+        if (this.selectedType === 'erase') {
+            for (let i = this.entities.length - 1; i >= 0; i--) {
+                const ent = this.entities[i];
+                if (!(ent instanceof Tile || ent.type === 'tile')) {
+                    continue;
+                }
+                if (ent.x < maxX && ent.x + ent.width > minX &&
+                    ent.y < maxY && ent.y + ent.height > minY) {
+                    this.entities.splice(i, 1);
+                }
+            }
+            this.dragStart = null;
+            return;
+        }
+
+        const x = minX;
+        const y = minY;
         let w = Math.abs(this.dragStart.x - endX);
         let h = Math.abs(this.dragStart.y - endY);
 
@@ -2151,14 +2216,28 @@ class Game {
         if (!this.isEditorMode) return;
         const worldPos = this.getMouseInWorld(e);
         
+        if (this.justExecutedRightDrag) {
+            this.justExecutedRightDrag = false;
+            return;
+        }
+
+        if (this.rightDragStart) {
+            this.executeRightDragDelete(worldPos);
+            return;
+        }
+        
         // Find and remove entity at this position
+        const snapX = this.snapToGrid(worldPos.x);
+        const snapY = this.snapToGrid(worldPos.y);
+        const maxX = snapX + this.gridSize;
+        const maxY = snapY + this.gridSize;
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const ent = this.entities[i];
-            if (this.selectedType === 'tile' && !(ent instanceof Tile || ent.type === 'tile')) {
+            if ((this.selectedType === 'tile' || this.selectedType === 'erase') && !(ent instanceof Tile || ent.type === 'tile')) {
                 continue;
             }
-            if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
-                worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
+            if (ent.x < maxX && ent.x + ent.width > snapX &&
+                ent.y < maxY && ent.y + ent.height > snapY) {
                 this.entities.splice(i, 1);
                 break;
             }
@@ -4762,49 +4841,91 @@ this.entities.push(
                 ctx.fillStyle = '#8B4513';
                 ctx.fillRect(snapX, snapY, this.selectedTileW || 32, this.selectedTileH || 32);
             }
+        } else if (this.selectedType === 'erase') {
+            ctx.fillStyle = 'rgba(255, 60, 60, 0.4)';
+            ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
+            ctx.strokeStyle = '#ff3333';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(snapX, snapY, this.gridSize, this.gridSize);
         } else {
             ctx.fillStyle = '#00aa9e';
             ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
         }
         ctx.globalAlpha = 1.0;
 
-        // Drag Preview
+        // Right-Click Drag Area Delete Preview
+        if (this.rightDragStart) {
+            const endX = this.snapToGrid(this.mousePos.x);
+            const endY = this.snapToGrid(this.mousePos.y);
+            const minX = Math.min(this.rightDragStart.x, endX);
+            const minY = Math.min(this.rightDragStart.y, endY);
+            const maxX = Math.max(this.rightDragStart.x, endX) + this.gridSize;
+            const maxY = Math.max(this.rightDragStart.y, endY) + this.gridSize;
+            const w = maxX - minX;
+            const h = maxY - minY;
+
+            ctx.fillStyle = 'rgba(255, 60, 60, 0.3)';
+            ctx.fillRect(minX, minY, w, h);
+            ctx.strokeStyle = '#ff3333';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(minX, minY, w, h);
+            ctx.setLineDash([]);
+        }
+
+        // Left-Click Drag Preview
         if (this.dragStart) {
             const endX = this.snapToGrid(this.mousePos.x);
             const endY = this.snapToGrid(this.mousePos.y);
             const minX = Math.min(this.dragStart.x, endX);
             const minY = Math.min(this.dragStart.y, endY);
-            let w = Math.abs(endX - this.dragStart.x);
-            let h = Math.abs(endY - this.dragStart.y);
-            if (w === 0) w = this.gridSize;
-            if (h === 0) h = this.gridSize;
 
-            if (this.selectedType === 'tile') {
-                const img = document.getElementById('tileset-image');
-                const patW = this.selectedTileW || 32;
-                const patH = this.selectedTileH || 32;
-                ctx.globalAlpha = 0.5;
-                for (let cx = minX; cx < minX + w; cx += 32) {
-                    for (let cy = minY; cy < minY + h; cy += 32) {
-                        const relX = (cx - minX) % patW;
-                        const relY = (cy - minY) % patH;
-                        const srcX = (this.selectedTileX || 0) + relX;
-                        const srcY = (this.selectedTileY || 0) + relY;
-                        if (img && img.complete && img.naturalWidth > 0) {
-                            ctx.drawImage(img, srcX, srcY, 32, 32, cx, cy, 32, 32);
-                        } else {
-                            ctx.fillStyle = '#8B4513';
-                            ctx.fillRect(cx, cy, 32, 32);
+            if (this.selectedType === 'erase') {
+                const maxX = Math.max(this.dragStart.x, endX) + this.gridSize;
+                const maxY = Math.max(this.dragStart.y, endY) + this.gridSize;
+                const w = maxX - minX;
+                const h = maxY - minY;
+
+                ctx.fillStyle = 'rgba(255, 60, 60, 0.3)';
+                ctx.fillRect(minX, minY, w, h);
+                ctx.strokeStyle = '#ff3333';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(minX, minY, w, h);
+                ctx.setLineDash([]);
+            } else {
+                let w = Math.abs(endX - this.dragStart.x);
+                let h = Math.abs(endY - this.dragStart.y);
+                if (w === 0) w = this.gridSize;
+                if (h === 0) h = this.gridSize;
+
+                if (this.selectedType === 'tile') {
+                    const img = document.getElementById('tileset-image');
+                    const patW = this.selectedTileW || 32;
+                    const patH = this.selectedTileH || 32;
+                    ctx.globalAlpha = 0.5;
+                    for (let cx = minX; cx < minX + w; cx += 32) {
+                        for (let cy = minY; cy < minY + h; cy += 32) {
+                            const relX = (cx - minX) % patW;
+                            const relY = (cy - minY) % patH;
+                            const srcX = (this.selectedTileX || 0) + relX;
+                            const srcY = (this.selectedTileY || 0) + relY;
+                            if (img && img.complete && img.naturalWidth > 0) {
+                                ctx.drawImage(img, srcX, srcY, 32, 32, cx, cy, 32, 32);
+                            } else {
+                                ctx.fillStyle = '#8B4513';
+                                ctx.fillRect(cx, cy, 32, 32);
+                            }
                         }
                     }
+                    ctx.globalAlpha = 1.0;
                 }
-                ctx.globalAlpha = 1.0;
-            }
 
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.setLineDash([5, 5]);
-            ctx.strokeRect(minX, minY, w, h);
-            ctx.setLineDash([]);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(minX, minY, w, h);
+                ctx.setLineDash([]);
+            }
         }
     }
 
