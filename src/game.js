@@ -2027,6 +2027,9 @@ class Game {
         if (this.isEditorMode && e.buttons === 2) {
             for (let i = this.entities.length - 1; i >= 0; i--) {
                 const ent = this.entities[i];
+                if (this.selectedType === 'tile' && !(ent instanceof Tile || ent.type === 'tile')) {
+                    continue;
+                }
                 if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
                     worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
                     this.entities.splice(i, 1);
@@ -2151,6 +2154,9 @@ class Game {
         // Find and remove entity at this position
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const ent = this.entities[i];
+            if (this.selectedType === 'tile' && !(ent instanceof Tile || ent.type === 'tile')) {
+                continue;
+            }
             if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
                 worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
                 this.entities.splice(i, 1);

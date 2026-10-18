@@ -136,13 +136,16 @@
                             tab.classList.add('active');
                             const target = tab.dataset.target;
                             
+                            let firstBtn = null;
                             toolBtns.forEach(btn => {
                                 if (btn.dataset.category === target) {
                                     btn.style.display = 'flex';
+                                    if (!firstBtn) firstBtn = btn;
                                 } else {
                                     btn.style.display = 'none';
                                 }
                             });
+                            if (firstBtn) firstBtn.click();
                         });
                     });
                     
