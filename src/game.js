@@ -1932,24 +1932,52 @@ class Game {
 
 
     paintTile(wx, wy) {
-        const x = this.snapToGrid(wx);
-        const y = this.snapToGrid(wy);
-        const w = this.selectedTileW;
-        const h = this.selectedTileH;
+        const startX = this.snapToGrid(wx);
+        const startY = this.snapToGrid(wy);
+        const totalW = this.selectedTileW || 32;
+        const totalH = this.selectedTileH || 32;
+        const tileSize = 32;
         
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            let ent = this.entities[i];
-            if (ent instanceof Tile && ent.x === x && ent.y === y && ent.width === w && ent.height === h) {
-                ent.tx = this.selectedTileX;
-                ent.ty = this.selectedTileY;
-                ent.sw = this.selectedTileW;
-                ent.sh = this.selectedTileH;
-                ent.tileImageName = this.currentTilesetName;
-                return;
+        let changed = false;
+        for (let ox = 0; ox < totalW; ox += tileSize) {
+            for (let oy = 0; oy < totalH; oy += tileSize) {
+                const cellX = startX + ox;
+                const cellY = startY + oy;
+                const srcX = (this.selectedTileX || 0) + ox;
+                const srcY = (this.selectedTileY || 0) + oy;
+
+                let existing = null;
+                for (let i = this.entities.length - 1; i >= 0; i--) {
+                    let ent = this.entities[i];
+                    if (ent instanceof Tile) {
+                        if (ent.x === cellX && ent.y === cellY && ent.width === tileSize && ent.height === tileSize) {
+                            existing = ent;
+                            break;
+                        } else if (cellX >= ent.x && cellX < ent.x + ent.width && cellY >= ent.y && cellY < ent.y + ent.height) {
+                            this.entities.splice(i, 1);
+                            changed = true;
+                        }
+                    }
+                }
+
+                if (existing) {
+                    if (existing.tx !== srcX || existing.ty !== srcY || existing.tileImageName !== this.currentTilesetName) {
+                        existing.tx = srcX;
+                        existing.ty = srcY;
+                        existing.sw = tileSize;
+                        existing.sh = tileSize;
+                        existing.tileImageName = this.currentTilesetName;
+                        changed = true;
+                    }
+                } else {
+                    this.entities.push(new Tile(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize));
+                    changed = true;
+                }
             }
         }
-        
-        this.entities.push(new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY, this.currentTilesetName, this.selectedTileW, this.selectedTileH));
+        if (changed) {
+            this.saveCurrentRoomToMemory();
+        }
     }
 
     handleMouseDown(e) {
@@ -1960,6 +1988,13 @@ class Game {
         const worldPos = this.getMouseInWorld(e);
         
         if (this.selectedType === 'tile') {
+            if (e.shiftKey) {
+                this.dragStart = {
+                    x: this.snapToGrid(worldPos.x),
+                    y: this.snapToGrid(worldPos.y)
+                };
+                return;
+            }
             this.isPaintingTile = true;
             this.paintTile(worldPos.x, worldPos.y);
             return;
@@ -1977,6 +2012,17 @@ class Game {
         
         if (this.isEditorMode && this.isPaintingTile && e.buttons === 1) {
             this.paintTile(worldPos.x, worldPos.y);
+        }
+        if (this.isEditorMode && e.buttons === 2) {
+            for (let i = this.entities.length - 1; i >= 0; i--) {
+                const ent = this.entities[i];
+                if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
+                    worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
+                    this.entities.splice(i, 1);
+                    this.saveCurrentRoomToMemory();
+                    break;
+                }
+            }
         }
     }
 
@@ -2010,7 +2056,34 @@ class Game {
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
             case 'metal': entity = new Metal(x, y, w, h); break;
-            case 'tile': return new Tile(x, y, w, h, this.selectedTileX, this.selectedTileY, this.currentTilesetName, this.selectedTileW, this.selectedTileH);
+            case 'tile': {
+                const tileSize = 32;
+                const patW = this.selectedTileW || 32;
+                const patH = this.selectedTileH || 32;
+                let changed = false;
+                for (let cx = x; cx < x + w; cx += tileSize) {
+                    for (let cy = y; cy < y + h; cy += tileSize) {
+                        const relX = (cx - x) % patW;
+                        const relY = (cy - y) % patH;
+                        const srcX = (this.selectedTileX || 0) + relX;
+                        const srcY = (this.selectedTileY || 0) + relY;
+                        
+                        // Replace existing tile at this cell
+                        for (let i = this.entities.length - 1; i >= 0; i--) {
+                            const ent = this.entities[i];
+                            if (ent instanceof Tile && cx >= ent.x && cx < ent.x + ent.width && cy >= ent.y && cy < ent.y + ent.height) {
+                                this.entities.splice(i, 1);
+                            }
+                        }
+                        this.entities.push(new Tile(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize));
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    this.saveCurrentRoomToMemory();
+                }
+                break;
+            }
             case 'hallway': 
                 let tRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
                 let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
@@ -2049,12 +2122,6 @@ class Game {
             case 'obj_bigcollect':
                 entity = new BigCollect(x, y, w, h);
                 break;
-            case 'obj_palettedresser':
-                entity = new PaletteDresser(x, y, w, h);
-                break;
-            case 'obj_computer':
-                entity = new OnlineComputer(x, y, w, h);
-                break;
             case 'obj_slime':
                 entity = new Slime(x, y, w, h);
                 break;
@@ -2065,6 +2132,7 @@ class Game {
 
         if (entity) {
             this.entities.push(entity);
+            this.saveCurrentRoomToMemory();
         }
 
         this.dragStart = null;
@@ -2080,6 +2148,7 @@ class Game {
             if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
                 worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
                 this.entities.splice(i, 1);
+                this.saveCurrentRoomToMemory();
                 break;
             }
         }
@@ -2118,7 +2187,7 @@ class Game {
             let line = `    `;
             if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
-            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 16}, ${ent.sh || 16})`;
+            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32})`;
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -4721,14 +4790,38 @@ this.entities.push(
         if (this.dragStart) {
             const endX = this.snapToGrid(this.mousePos.x);
             const endY = this.snapToGrid(this.mousePos.y);
-            let w = endX - this.dragStart.x;
-            let h = endY - this.dragStart.y;
+            const minX = Math.min(this.dragStart.x, endX);
+            const minY = Math.min(this.dragStart.y, endY);
+            let w = Math.abs(endX - this.dragStart.x);
+            let h = Math.abs(endY - this.dragStart.y);
             if (w === 0) w = this.gridSize;
             if (h === 0) h = this.gridSize;
 
+            if (this.selectedType === 'tile') {
+                const img = document.getElementById('tileset-image');
+                const patW = this.selectedTileW || 32;
+                const patH = this.selectedTileH || 32;
+                ctx.globalAlpha = 0.5;
+                for (let cx = minX; cx < minX + w; cx += 32) {
+                    for (let cy = minY; cy < minY + h; cy += 32) {
+                        const relX = (cx - minX) % patW;
+                        const relY = (cy - minY) % patH;
+                        const srcX = (this.selectedTileX || 0) + relX;
+                        const srcY = (this.selectedTileY || 0) + relY;
+                        if (img && img.complete && img.naturalWidth > 0) {
+                            ctx.drawImage(img, srcX, srcY, 32, 32, cx, cy, 32, 32);
+                        } else {
+                            ctx.fillStyle = '#8B4513';
+                            ctx.fillRect(cx, cy, 32, 32);
+                        }
+                    }
+                }
+                ctx.globalAlpha = 1.0;
+            }
+
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.setLineDash([5, 5]);
-            ctx.strokeRect(this.dragStart.x, this.dragStart.y, w, h);
+            ctx.strokeRect(minX, minY, w, h);
             ctx.setLineDash([]);
         }
     }
