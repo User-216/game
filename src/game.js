@@ -297,6 +297,9 @@ class Game {
         this.roomBackground = 'bg_beaker';
         this.bgFollowCamera = true;
         this.bgSpeed = 1.0;
+        this.bgSecret = false;
+        this.bgWave = false;
+        this.bgWaveAmp = 8;
 
         this.initRooms();
         this.bootRoomLoaded = false;
@@ -1225,26 +1228,71 @@ class Game {
             });
         }
 
-        // Set Background button
+        // Set Background button & Modal
         const setBgBtn = document.getElementById('set-bg-btn');
+        const bgOverlay = document.getElementById('bg-settings-overlay');
+        const bgNameInput = document.getElementById('bg-name-input');
+        const bgFollowCamChk = document.getElementById('bg-follow-cam-chk');
+        const bgSecretChk = document.getElementById('bg-secret-chk');
+        const bgWaveChk = document.getElementById('bg-wave-chk');
+        const bgSpeedInput = document.getElementById('bg-speed-input');
+        const bgQuickBeaker = document.getElementById('bg-quick-beaker');
+        const bgQuickTutorial = document.getElementById('bg-quick-tutorial');
+        const bgQuickNone = document.getElementById('bg-quick-none');
+        const bgApplyBtn = document.getElementById('bg-apply-btn');
+        const bgCancelBtn = document.getElementById('bg-cancel-btn');
+
         if (setBgBtn) {
             setBgBtn.addEventListener('click', () => {
-                let currentBg = this.roomBackground || "bg_beaker";
-                let bg = prompt("배경 이름을 입력하세요 (예: bg_beaker, none) 또는 취소:", currentBg);
-                if (bg !== null) {
-                    this.roomBackground = (bg.trim() === "none" || bg.trim() === "") ? null : bg.trim();
-                    if (this.roomBackground) {
-                        let follow = confirm("맨 뒤 배경이 카메라를 따라가게(화면 고정) 할까요?\n\n[확인]: 카메라 따라감 (화면 고정)\n[취소]: 카메라 안 따라감 (느리게 이동)");
-                        this.bgFollowCamera = follow;
-                        let spd = prompt("배경 스크롤 속도 배율을 입력하세요 (기본값: 1.0):", this.bgSpeed !== undefined ? this.bgSpeed : "1.0");
-                        if (spd !== null) {
-                            this.bgSpeed = parseFloat(spd) || 1.0;
-                        }
-                    }
-                    if (this.bgManager) {
-                        this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed);
-                    }
+                if (bgOverlay) {
+                    if (bgNameInput) bgNameInput.value = this.roomBackground || "bg_beaker";
+                    if (bgFollowCamChk) bgFollowCamChk.checked = this.bgFollowCamera !== false;
+                    if (bgSecretChk) bgSecretChk.checked = !!this.bgSecret;
+                    if (bgWaveChk) bgWaveChk.checked = !!this.bgWave;
+                    if (bgSpeedInput) bgSpeedInput.value = this.bgSpeed !== undefined ? this.bgSpeed : 1.0;
+
+                    bgOverlay.classList.remove('hidden');
+                    bgOverlay.style.display = 'flex';
                 }
+            });
+        }
+
+        if (bgQuickBeaker && bgNameInput) {
+            bgQuickBeaker.addEventListener('click', () => { bgNameInput.value = 'bg_beaker'; });
+        }
+        if (bgQuickTutorial && bgNameInput) {
+            bgQuickTutorial.addEventListener('click', () => { bgNameInput.value = 'bg_tutorial'; });
+        }
+        if (bgQuickNone && bgNameInput) {
+            bgQuickNone.addEventListener('click', () => { bgNameInput.value = 'none'; });
+        }
+        if (bgCancelBtn && bgOverlay) {
+            bgCancelBtn.addEventListener('click', () => {
+                bgOverlay.classList.add('hidden');
+                bgOverlay.style.display = 'none';
+            });
+        }
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && bgOverlay && !bgOverlay.classList.contains('hidden') && bgOverlay.style.display !== 'none') {
+                bgOverlay.classList.add('hidden');
+                bgOverlay.style.display = 'none';
+            }
+        });
+        if (bgApplyBtn && bgOverlay) {
+            bgApplyBtn.addEventListener('click', () => {
+                const rawName = bgNameInput ? bgNameInput.value.trim() : "";
+                this.roomBackground = (rawName === "none" || rawName === "") ? null : rawName;
+                this.bgFollowCamera = bgFollowCamChk ? bgFollowCamChk.checked : true;
+                this.bgSecret = bgSecretChk ? bgSecretChk.checked : false;
+                this.bgWave = bgWaveChk ? bgWaveChk.checked : false;
+                const spd = bgSpeedInput ? parseFloat(bgSpeedInput.value) : 1.0;
+                this.bgSpeed = (!isNaN(spd) && spd >= 0) ? spd : 1.0;
+
+                if (this.bgManager) {
+                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8);
+                }
+                bgOverlay.classList.add('hidden');
+                bgOverlay.style.display = 'none';
             });
         }
     }
@@ -2016,6 +2064,15 @@ class Game {
             if (this.bgSpeed !== undefined && this.bgSpeed !== 1.0) {
                 code += `this.bgSpeed = ${this.bgSpeed};\n`;
             }
+            if (this.bgSecret) {
+                code += `this.bgSecret = true;\n`;
+            }
+            if (this.bgWave) {
+                code += `this.bgWave = true;\n`;
+                if (this.bgWaveAmp !== undefined && this.bgWaveAmp !== 8) {
+                    code += `this.bgWaveAmp = ${this.bgWaveAmp};\n`;
+                }
+            }
         }
         code += `this.entities.push(\n`;
         this.entities.forEach(ent => {
@@ -2157,6 +2214,9 @@ this.entities.push(
             const currentBg = this.roomBackground;
             const currentBgFollow = this.bgFollowCamera;
             const currentBgSpeed = this.bgSpeed;
+            const currentBgSecret = this.bgSecret;
+            const currentBgWave = this.bgWave;
+            const currentBgWaveAmp = this.bgWaveAmp;
             this.rooms[this.currentRoom] = () => {
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
@@ -2164,6 +2224,9 @@ this.entities.push(
                 this.roomBackground = currentBg;
                 this.bgFollowCamera = currentBgFollow;
                 this.bgSpeed = currentBgSpeed;
+                this.bgSecret = currentBgSecret;
+                this.bgWave = currentBgWave;
+                this.bgWaveAmp = currentBgWaveAmp;
                 currentEntities.forEach(ent => this.entities.push(ent));
             };
         }
@@ -2184,10 +2247,13 @@ this.entities.push(
                 this.roomBackground = 'bg_beaker';
                 this.bgFollowCamera = true;
                 this.bgSpeed = 1.0;
+                this.bgSecret = false;
+                this.bgWave = false;
+                this.bgWaveAmp = 8;
                 this.rooms[roomName].call(this);
 
                 if (this.bgManager) {
-                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed);
+                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp);
                 }
                 
                 if (this.audio) {
@@ -2306,6 +2372,10 @@ this.entities.push(
     }
 
     update() {
+        if (this.bgManager) {
+            this.bgManager.update(1);
+        }
+
         if (navigator.getGamepads) {
             const gps = navigator.getGamepads();
             const gp = gps[0] || gps[1] || gps[2] || gps[3];
