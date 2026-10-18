@@ -2,6 +2,8 @@ window.roomData = window.roomData || {};
 window.roomData['tutorial_2'] = function() {
 this.roomWidth = 4000;
 this.roomHeight = 1100;
+this.roomBackground = 'bg_beaker';
+this.bgFollowCamera = true;
 this.entities.push(
     new TargetDoor_B(416, 512, 32, 32),
     new Door(416, 480, 32, 64, 'B', 'tutorial_1'),

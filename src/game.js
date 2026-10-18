@@ -293,6 +293,11 @@ class Game {
         this.pendingRoom = null;
         this.pendingDoor = null;
         
+        this.bgManager = typeof BackgroundManager !== 'undefined' ? new BackgroundManager(this) : null;
+        this.roomBackground = 'bg_beaker';
+        this.bgFollowCamera = true;
+        this.bgSpeed = 1.0;
+
         this.initRooms();
         this.bootRoomLoaded = false;
         
@@ -1219,6 +1224,29 @@ class Game {
                 }
             });
         }
+
+        // Set Background button
+        const setBgBtn = document.getElementById('set-bg-btn');
+        if (setBgBtn) {
+            setBgBtn.addEventListener('click', () => {
+                let currentBg = this.roomBackground || "bg_beaker";
+                let bg = prompt("배경 이름을 입력하세요 (예: bg_beaker, none) 또는 취소:", currentBg);
+                if (bg !== null) {
+                    this.roomBackground = (bg.trim() === "none" || bg.trim() === "") ? null : bg.trim();
+                    if (this.roomBackground) {
+                        let follow = confirm("맨 뒤 배경이 카메라를 따라가게(화면 고정) 할까요?\n\n[확인]: 카메라 따라감 (화면 고정)\n[취소]: 카메라 안 따라감 (느리게 이동)");
+                        this.bgFollowCamera = follow;
+                        let spd = prompt("배경 스크롤 속도 배율을 입력하세요 (기본값: 1.0):", this.bgSpeed !== undefined ? this.bgSpeed : "1.0");
+                        if (spd !== null) {
+                            this.bgSpeed = parseFloat(spd) || 1.0;
+                        }
+                    }
+                    if (this.bgManager) {
+                        this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed);
+                    }
+                }
+            });
+        }
     }
 
     toggleOnlineMenu() {
@@ -1982,6 +2010,13 @@ class Game {
         if (this.roomMusic) {
             code += `this.roomMusic = '${this.roomMusic}';\n`;
         }
+        if (this.roomBackground) {
+            code += `this.roomBackground = '${this.roomBackground}';\n`;
+            code += `this.bgFollowCamera = ${this.bgFollowCamera !== false};\n`;
+            if (this.bgSpeed !== undefined && this.bgSpeed !== 1.0) {
+                code += `this.bgSpeed = ${this.bgSpeed};\n`;
+            }
+        }
         code += `this.entities.push(\n`;
         this.entities.forEach(ent => {
             let line = `    `;
@@ -2030,6 +2065,8 @@ class Game {
             'tutorial_1': () => {
 this.roomWidth = 2000;
 this.roomHeight = 10;
+this.roomBackground = 'bg_beaker';
+this.bgFollowCamera = true;
 this.entities.push(
     new TargetDoor_A(480, 576, 32, 32),
     new Platform(192, 224, 96, 384, '#00aa9e66'),
@@ -2117,10 +2154,16 @@ this.entities.push(
             const currentW = this.roomWidth;
             const currentH = this.roomHeight;
             const currentMusic = this.roomMusic;
+            const currentBg = this.roomBackground;
+            const currentBgFollow = this.bgFollowCamera;
+            const currentBgSpeed = this.bgSpeed;
             this.rooms[this.currentRoom] = () => {
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
                 this.roomMusic = currentMusic;
+                this.roomBackground = currentBg;
+                this.bgFollowCamera = currentBgFollow;
+                this.bgSpeed = currentBgSpeed;
                 currentEntities.forEach(ent => this.entities.push(ent));
             };
         }
@@ -2138,7 +2181,14 @@ this.entities.push(
                 this.roomWidth = 0;
                 this.roomHeight = 0;
                 this.roomMusic = null;
+                this.roomBackground = 'bg_beaker';
+                this.bgFollowCamera = true;
+                this.bgSpeed = 1.0;
                 this.rooms[roomName].call(this);
+
+                if (this.bgManager) {
+                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed);
+                }
                 
                 if (this.audio) {
                     this.audio.playMusic(this.roomMusic);
@@ -3388,6 +3438,11 @@ this.entities.push(
         if (this.gameState === 'PLAYING' && shakeMult > 0 && this.cameraShake > 0) {
             shakeX = (Math.random() - 0.5) * this.cameraShake * shakeMult;
             shakeY = (Math.random() - 0.5) * this.cameraShake * shakeMult;
+        }
+        
+        // Render Background (Parallax layers)
+        if (this.bgManager) {
+            this.bgManager.render(this.ctx, this.camera, shakeX, shakeY);
         }
         
         // 카메라 위치를 반올림(Math.round)하여 소수점 픽셀로 인한 화면 전체 흐려짐(Sub-pixel blur) 방지

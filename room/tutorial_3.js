@@ -1,5 +1,7 @@
 window.roomData = window.roomData || {};
 window.roomData['tutorial_3'] = function() {
+this.roomBackground = 'bg_beaker';
+this.bgFollowCamera = true;
 this.entities.push(
     new TargetDoor_C(-672, -384, 32, 32),
     new Platform(-800, -608, 64, 256, '#00aa9e66'),
