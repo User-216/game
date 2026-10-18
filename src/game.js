@@ -304,6 +304,14 @@ class Game {
         this.bgWaveAmp = 8;
         this.bgWaveSpeed = 1.0;
 
+        this.tileWave = false;
+        this.tileWaveAmp = 3.5;
+        this.tileWaveSpeed = 1.0;
+        this.tileWaveFreq = 0.025;
+        this.tileWaveTimer = 0;
+        this.tileOffscreenCanvas = null;
+        this.tileOffscreenCtx = null;
+
         this.initRooms();
         this.bootRoomLoaded = false;
         
@@ -1148,9 +1156,22 @@ class Game {
         // Palette buttons
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                this.selectTool(btn.dataset.type);
+                if (btn.id === 'tile-wave-btn') return;
+                if (btn.dataset.type) {
+                    this.selectTool(btn.dataset.type);
+                }
             });
         });
+
+        // Quick Tile Wave Toggle button
+        const tileWaveBtn = document.getElementById('tile-wave-btn');
+        if (tileWaveBtn) {
+            tileWaveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.tileWave = !this.tileWave;
+                this.updateTileWaveUI();
+            });
+        }
 
         // Export button
         const exportBtn = document.getElementById('export-btn');
@@ -1275,6 +1296,9 @@ class Game {
         const bgWaveChk = document.getElementById('bg-wave-chk');
         const bgSpeedInput = document.getElementById('bg-speed-input');
         const bgWaveSpeedInput = document.getElementById('bg-wave-speed-input');
+        const tileWaveChk = document.getElementById('tile-wave-chk');
+        const tileWaveSpeedInput = document.getElementById('tile-wave-speed-input');
+        const tileWaveAmpInput = document.getElementById('tile-wave-amp-input');
         const bgQuickBeaker = document.getElementById('bg-quick-beaker');
         const bgQuickTutorial = document.getElementById('bg-quick-tutorial');
         const bgQuickNone = document.getElementById('bg-quick-none');
@@ -1290,6 +1314,9 @@ class Game {
                     if (bgWaveChk) bgWaveChk.checked = !!this.bgWave;
                     if (bgSpeedInput) bgSpeedInput.value = this.bgSpeed !== undefined ? this.bgSpeed : 1.0;
                     if (bgWaveSpeedInput) bgWaveSpeedInput.value = this.bgWaveSpeed !== undefined ? this.bgWaveSpeed : 1.0;
+                    if (tileWaveChk) tileWaveChk.checked = !!this.tileWave;
+                    if (tileWaveSpeedInput) tileWaveSpeedInput.value = this.tileWaveSpeed !== undefined ? this.tileWaveSpeed : 1.0;
+                    if (tileWaveAmpInput) tileWaveAmpInput.value = this.tileWaveAmp !== undefined ? this.tileWaveAmp : 3.5;
 
                     bgOverlay.classList.remove('hidden');
                     bgOverlay.style.display = 'flex';
@@ -1330,12 +1357,48 @@ class Game {
                 const waveSpd = bgWaveSpeedInput ? parseFloat(bgWaveSpeedInput.value) : 1.0;
                 this.bgWaveSpeed = (!isNaN(waveSpd) && waveSpd >= 0) ? waveSpd : 1.0;
 
+                this.tileWave = tileWaveChk ? tileWaveChk.checked : false;
+                const tileWaveSpd = tileWaveSpeedInput ? parseFloat(tileWaveSpeedInput.value) : 1.0;
+                this.tileWaveSpeed = (!isNaN(tileWaveSpd) && tileWaveSpd >= 0) ? tileWaveSpd : 1.0;
+                const tileWaveAmpVal = tileWaveAmpInput ? parseFloat(tileWaveAmpInput.value) : 3.5;
+                this.tileWaveAmp = (!isNaN(tileWaveAmpVal) && tileWaveAmpVal >= 0) ? tileWaveAmpVal : 3.5;
+
                 if (this.bgManager) {
                     this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8, this.bgWaveSpeed);
                 }
+                this.updateTileWaveUI();
                 bgOverlay.classList.add('hidden');
                 bgOverlay.style.display = 'none';
             });
+        }
+    }
+
+    updateTileWaveUI() {
+        const tileWaveBtn = document.getElementById('tile-wave-btn');
+        if (tileWaveBtn) {
+            if (this.tileWave) {
+                tileWaveBtn.innerText = 'WAVE: ON';
+                tileWaveBtn.style.background = '#00ffcc';
+                tileWaveBtn.style.color = '#000';
+                tileWaveBtn.style.fontWeight = 'bold';
+            } else {
+                tileWaveBtn.innerText = 'WAVE: OFF';
+                tileWaveBtn.style.background = '#444';
+                tileWaveBtn.style.color = '#aaa';
+                tileWaveBtn.style.fontWeight = 'normal';
+            }
+        }
+        const tileWaveChk = document.getElementById('tile-wave-chk');
+        if (tileWaveChk) {
+            tileWaveChk.checked = !!this.tileWave;
+        }
+        const tileWaveSpeedInput = document.getElementById('tile-wave-speed-input');
+        if (tileWaveSpeedInput) {
+            tileWaveSpeedInput.value = this.tileWaveSpeed !== undefined ? this.tileWaveSpeed : 1.0;
+        }
+        const tileWaveAmpInput = document.getElementById('tile-wave-amp-input');
+        if (tileWaveAmpInput) {
+            tileWaveAmpInput.value = this.tileWaveAmp !== undefined ? this.tileWaveAmp : 3.5;
         }
     }
 
@@ -1901,8 +1964,10 @@ class Game {
     }
 
     selectTool(type) {
+        if (!type) return;
         this.selectedType = type;
         document.querySelectorAll('.tool-btn').forEach(btn => {
+            if (btn.id === 'tile-wave-btn') return;
             if (btn.dataset.type === type) {
                 btn.classList.add('active');
             } else {
@@ -2272,6 +2337,15 @@ class Game {
                 }
             }
         }
+        if (this.tileWave) {
+            code += `this.tileWave = true;\n`;
+            if (this.tileWaveSpeed !== undefined && this.tileWaveSpeed !== 1.0) {
+                code += `this.tileWaveSpeed = ${this.tileWaveSpeed};\n`;
+            }
+            if (this.tileWaveAmp !== undefined && this.tileWaveAmp !== 3.5) {
+                code += `this.tileWaveAmp = ${this.tileWaveAmp};\n`;
+            }
+        }
         code += `this.entities.push(\n`;
         this.entities.forEach(ent => {
             let line = `    `;
@@ -2444,6 +2518,9 @@ this.entities.push(
             const currentBgWave = this.bgWave;
             const currentBgWaveAmp = this.bgWaveAmp;
             const currentBgWaveSpeed = this.bgWaveSpeed;
+            const currentTileWave = this.tileWave;
+            const currentTileWaveAmp = this.tileWaveAmp;
+            const currentTileWaveSpeed = this.tileWaveSpeed;
             this.rooms[this.currentRoom] = () => {
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
@@ -2455,6 +2532,9 @@ this.entities.push(
                 this.bgWave = currentBgWave;
                 this.bgWaveAmp = currentBgWaveAmp;
                 this.bgWaveSpeed = currentBgWaveSpeed;
+                this.tileWave = currentTileWave;
+                this.tileWaveAmp = currentTileWaveAmp;
+                this.tileWaveSpeed = currentTileWaveSpeed;
                 currentEntities.forEach(ent => this.entities.push(ent));
             };
         }
@@ -2479,11 +2559,15 @@ this.entities.push(
                 this.bgWave = false;
                 this.bgWaveAmp = 8;
                 this.bgWaveSpeed = 1.0;
+                this.tileWave = false;
+                this.tileWaveAmp = 3.5;
+                this.tileWaveSpeed = 1.0;
                 this.rooms[roomName].call(this);
 
                 if (this.bgManager) {
                     this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp, this.bgWaveSpeed);
                 }
+                this.updateTileWaveUI();
                 
                 if (this.audio) {
                     this.audio.playMusic(this.roomMusic);
@@ -2596,6 +2680,9 @@ this.entities.push(
     update() {
         if (this.bgManager) {
             this.bgManager.update(1);
+        }
+        if (this.tileWave) {
+            this.tileWaveTimer = (this.tileWaveTimer || 0) + 0.018 * (this.tileWaveSpeed || 1.0);
         }
 
         if (navigator.getGamepads) {
@@ -3765,12 +3852,25 @@ this.entities.push(
         }
         
         // 2. Foreground objects (Platforms, slopes, etc.)
-        for (let i = 0; i < this.entities.length; i++) {
-            const e = this.entities[i];
-            if (e.type !== 'hallway' && e.type !== 'obj_debris') {
-                if (e.x + e.width > viewLeft && e.x < viewRight && 
-                    e.y + e.height > viewTop && e.y < viewBottom) {
-                    e.render(this.ctx);
+        if (this.tileWave) {
+            this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY);
+            for (let i = 0; i < this.entities.length; i++) {
+                const e = this.entities[i];
+                if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile') {
+                    if (e.x + e.width > viewLeft && e.x < viewRight && 
+                        e.y + e.height > viewTop && e.y < viewBottom) {
+                        e.render(this.ctx);
+                    }
+                }
+            }
+        } else {
+            for (let i = 0; i < this.entities.length; i++) {
+                const e = this.entities[i];
+                if (e.type !== 'hallway' && e.type !== 'obj_debris') {
+                    if (e.x + e.width > viewLeft && e.x < viewRight && 
+                        e.y + e.height > viewTop && e.y < viewBottom) {
+                        e.render(this.ctx);
+                    }
                 }
             }
         }
@@ -4798,6 +4898,73 @@ this.entities.push(
                 this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
             }
         }
+    }
+
+    renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY) {
+        if (!this.tileOffscreenCanvas) {
+            this.tileOffscreenCanvas = document.createElement('canvas');
+            this.tileOffscreenCtx = this.tileOffscreenCanvas.getContext('2d');
+        }
+
+        const amp = (typeof this.tileWaveAmp === 'number' && !isNaN(this.tileWaveAmp)) ? this.tileWaveAmp : 3.5;
+        const pad = Math.ceil(amp + 16);
+        const canvasW = this.canvas.width;
+        const canvasH = this.canvas.height;
+        const neededW = canvasW + pad * 2;
+        const neededH = canvasH;
+
+        if (this.tileOffscreenCanvas.width !== neededW || this.tileOffscreenCanvas.height !== neededH) {
+            this.tileOffscreenCanvas.width = neededW;
+            this.tileOffscreenCanvas.height = neededH;
+            this.tileOffscreenCtx.imageSmoothingEnabled = false;
+        } else {
+            this.tileOffscreenCtx.clearRect(0, 0, neededW, neededH);
+        }
+
+        const tileViewLeft = viewLeft - pad;
+        const tileViewRight = viewRight + pad;
+
+        this.tileOffscreenCtx.save();
+        this.tileOffscreenCtx.translate(
+            Math.round(-this.camera.x + shakeX + pad),
+            Math.round(-this.camera.y + shakeY)
+        );
+
+        let count = 0;
+        for (let i = 0; i < this.entities.length; i++) {
+            const e = this.entities[i];
+            if (e.type === 'tile') {
+                if (e.x + e.width > tileViewLeft && e.x < tileViewRight &&
+                    e.y + e.height > viewTop && e.y < viewBottom) {
+                    e.render(this.tileOffscreenCtx);
+                    count++;
+                }
+            }
+        }
+        this.tileOffscreenCtx.restore();
+
+        if (count === 0) return;
+
+        const sliceH = 2; // 2px slices for smooth wave
+        const freq = (typeof this.tileWaveFreq === 'number' && !isNaN(this.tileWaveFreq)) ? this.tileWaveFreq : 0.025;
+        const timer = this.tileWaveTimer || 0;
+
+        this.ctx.save();
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Pure screen coordinates
+
+        for (let y = 0; y < canvasH; y += sliceH) {
+            const curH = Math.min(sliceH, canvasH - y);
+            const worldY = y + this.camera.y - shakeY;
+            const offset = Math.sin((worldY * freq) - timer) * amp;
+
+            this.ctx.drawImage(
+                this.tileOffscreenCanvas,
+                pad + offset, y, canvasW, curH,
+                0, y, canvasW, curH
+            );
+        }
+
+        this.ctx.restore();
     }
 
     renderEditorGuides() {

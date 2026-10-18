@@ -96,6 +96,7 @@
                         <button class="tool-btn" data-type="metal" style="background:#555" data-category="solids">MTL</button>
                         <button class="tool-btn" data-type="tile" data-category="tiles" style="background:#8B4513; display:none;">TILE</button>
                         <button class="tool-btn" data-type="erase" data-category="tiles" style="background:#e74c3c; display:none;">ERASE</button>
+                        <button class="tool-btn" id="tile-wave-btn" data-category="tiles" style="background:#444; color:#aaa; display:none;">WAVE: OFF</button>
                         
                         <button class="tool-btn" data-type="hallway" data-category="triggers" style="display:none;">HALL</button>
                         <button class="tool-btn" data-type="door" data-category="objects" style="display:none;">DOOR</button>
@@ -141,7 +142,7 @@
                             toolBtns.forEach(btn => {
                                 if (btn.dataset.category === target) {
                                     btn.style.display = 'flex';
-                                    if (!firstBtn) firstBtn = btn;
+                                    if (!firstBtn && btn.dataset.type) firstBtn = btn;
                                 } else {
                                     btn.style.display = 'none';
                                 }
@@ -280,7 +281,12 @@
 
                     <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; color: #00ffcc; font-size: 0.9rem; font-weight: 600;">
                         <input type="checkbox" id="bg-wave-chk" style="width: 18px; height: 18px; accent-color: #00ffcc; cursor: pointer;">
-                        <span>🌊 웨이브(물결) 왜곡 효과</span>
+                        <span>🌊 배경 웨이브(물결) 왜곡 효과</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; color: #00e1d9; font-size: 0.9rem; font-weight: 600;">
+                        <input type="checkbox" id="tile-wave-chk" style="width: 18px; height: 18px; accent-color: #00e1d9; cursor: pointer;">
+                        <span>🌊 타일 웨이브(물결) 왜곡 효과</span>
                     </label>
                 </div>
 
@@ -290,8 +296,18 @@
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label style="font-weight: 700; color: #00ffcc; font-size: 0.9rem;">🌊 파도(웨이브) 속도:</label>
+                    <label style="font-weight: 700; color: #00ffcc; font-size: 0.9rem;">🌊 배경 파도 속도:</label>
                     <input type="number" id="bg-wave-speed-input" step="0.1" min="0" max="10" value="1.0" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; color: #00e1d9; font-size: 0.9rem;">🌊 타일 파도 속도:</label>
+                    <input type="number" id="tile-wave-speed-input" step="0.1" min="0" max="10" value="1.0" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; color: #00e1d9; font-size: 0.9rem;">🌊 타일 파도 강도 (기본 3.5):</label>
+                    <input type="number" id="tile-wave-amp-input" step="0.5" min="0.5" max="15" value="3.5" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
                 </div>
 
                 <div style="display: flex; gap: 0.8rem; margin-top: 0.3rem;">
