@@ -1415,6 +1415,8 @@ class Game {
             if (e.isDestroyed) return false;
             return true;
         }
+        if (type === 'door' || e instanceof Door) return true;
+        if ((type && type.startsWith('targetDoor')) || e instanceof TargetDoorBase) return true;
         return false;
     }
 
