@@ -616,6 +616,7 @@ class Player {
         const canStartDrift = this.isRunning && (Math.abs(this.vx) >= this.machThreshold || ((this.isRollGettingUp || this.sprite_index === 'spr_player_rollgetup') && Math.abs(this.vx) >= 8)) && isPressingOpposite && !this.isDrifting && !this.isDrifting1 && this.isGrounded && !this.isTumbling;
         if (canStartDrift) {
             this.isDrifting = true;
+            this.isClimbing = false;
             this.isRollGettingUp = false;
             this.driftTimer = 35;
             this.sprite_index = 'spr_player_machslideboost3';
@@ -1317,7 +1318,7 @@ class Player {
                         if (audio) audio.play('break');
                     } else {
                         // ・ｬ・ｬ・ｰ ・・・尖株 ・｡・ｰ ・・・ｽ・・・ｿ・們揆 ・・・尖徐・ｼ・・・ｽ夋・ｰ 孖ｸ・ｬ・ｰ
-                        if (!this.isClimbing && (this.isRunning || this.isSuplexGrabbing)) {
+                        if (!this.isClimbing && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && (this.isRunning || this.isSuplexGrabbing)) {
                             this.isClimbing = true;
                             if (this.isSuplexGrabbing) {
                                 this.wallClimbGraceTimer = 10; // ・｡・ｰ・川・ ・們牟・ｨ ・ｽ・ｰ 10嵓・�溢桷 ・�・・
