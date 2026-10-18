@@ -2189,8 +2189,38 @@ class Player {
                     ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
                 }
             }
-        } else if (this.sprite_index === 'spr_player_lookdoor' || this.sprite_index === 'spr_player_walkfront') {
-            const frames = this.sprites[this.sprite_index] || this.sprites.spr_player_walkfront || this.sprites.spr_player_lookdoor;
+        } else if (this.sprite_index === 'spr_player_walkfront') {
+            const frames = this.sprites.spr_player_walkfront;
+            if (frames && frames.length > 0) {
+                let frameIndex = Math.floor(this.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    if (this.facingDir === -1) {
+                        ctx.scale(-1, 1);
+                    }
+                    const offsetY = -57.5;
+                    
+                    // 문 밖으로 나올 때: 검정색 실루엣(0%)에서 점차 원래 색상(100%)으로 밝아짐
+                    const progress = Math.min(1.0, Math.max(0, this.image_index / (frames.length * 0.75)));
+                    const brightnessPct = Math.round(progress * 100);
+                    
+                    const imgToDraw = this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img;
+                    
+                    if (brightnessPct < 100) {
+                        ctx.filter = `brightness(${brightnessPct}%)`;
+                    }
+                    ctx.drawImage(imgToDraw, -51, offsetY, 100, 100);
+                    if (brightnessPct < 100) {
+                        ctx.filter = 'none';
+                    }
+                }
+            }
+        } else if (this.sprite_index === 'spr_player_lookdoor') {
+            const frames = this.sprites.spr_player_lookdoor;
             if (frames && frames.length > 0) {
                 let frameIndex = Math.floor(this.image_index);
                 if (frameIndex >= frames.length) frameIndex = frames.length - 1;

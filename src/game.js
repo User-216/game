@@ -3450,7 +3450,16 @@ this.entities.push(
                         // Default size in player.js is -51 offset, 100x100
                         const isCrouched = (p.sprite === 'spr_player_crouch' || p.sprite === 'spr_player_tumble' || p.sprite === 'spr_player_roll');
                         const offsetY = isCrouched ? -68.5 : -57.5; // from player.js
-                        this.ctx.drawImage(imgToDraw, -51, offsetY, 100, 100);
+                        if (p.sprite === 'spr_player_walkfront') {
+                            const maxF = (frames && frames.length > 0) ? frames.length : 15;
+                            const prog = Math.min(1.0, Math.max(0, p.image / (maxF * 0.75)));
+                            const bPct = Math.round(prog * 100);
+                            if (bPct < 100) this.ctx.filter = `brightness(${bPct}%)`;
+                            this.ctx.drawImage(imgToDraw, -51, offsetY, 100, 100);
+                            if (bPct < 100) this.ctx.filter = 'none';
+                        } else {
+                            this.ctx.drawImage(imgToDraw, -51, offsetY, 100, 100);
+                        }
                         
                         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
                         this.ctx.font = '10px Arial';
