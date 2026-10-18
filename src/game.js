@@ -317,6 +317,15 @@ class Game {
                 if (window.roomData && window.roomData[rName]) {
                     this.rooms[rName] = window.roomData[rName];
                 }
+                try {
+                    const saved = localStorage.getItem('saved_room_' + rName);
+                    if (saved) {
+                        new Function(saved)();
+                        if (window.roomData && window.roomData[rName]) {
+                            this.rooms[rName] = window.roomData[rName];
+                        }
+                    }
+                } catch(e) {}
                 preloadedCount++;
                 if (preloadedCount === roomsToPreload.length) {
                     this.loadRoom('tutorial_1').then(() => {
@@ -1212,6 +1221,7 @@ class Game {
                     if (h !== null) {
                         this.roomWidth = parseInt(w) || 0;
                         this.roomHeight = parseInt(h) || 0;
+                        this.saveCurrentRoomToMemory();
                     }
                 }
             });
@@ -1229,6 +1239,7 @@ class Game {
                     } else {
                         this.audio.playMusic(null);
                     }
+                    this.saveCurrentRoomToMemory();
                 }
             });
         }
@@ -1300,6 +1311,7 @@ class Game {
                 if (this.bgManager) {
                     this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8, this.bgWaveSpeed);
                 }
+                this.saveCurrentRoomToMemory();
                 bgOverlay.classList.add('hidden');
                 bgOverlay.style.display = 'none';
             });
@@ -2073,7 +2085,7 @@ class Game {
         }
     }
 
-    exportLevel() {
+    getLevelCode() {
         let code = ``;
         if (this.roomWidth || this.roomHeight) {
             code += `this.roomWidth = ${this.roomWidth || 0};\n`;
@@ -2115,19 +2127,50 @@ class Game {
             else if (ent instanceof Door) line += `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if (ent instanceof TargetDoorBase) line += `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof TutorialBook) line += `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
+            else if (ent instanceof PaletteDresser) line += `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof OnlineComputer) line += `new OnlineComputer(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Slime) line += `new Slime(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof BaddieSpawner) line += `new BaddieSpawner(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof BigCollect) line += `new BigCollect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Collect) line += `new Collect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             code += line + `,\n`;
         });
-        code += `);`;
-        
-        let roomName = prompt("방 이름을 입력하세요 (예: tutorial_3):", "new_room");
+        code += `);\n`;
+        return code;
+    }
+
+    saveRoomToLocalStorage(roomName) {
+        if (!roomName) return;
+        try {
+            const code = this.getLevelCode();
+            const finalCode = `window.roomData = window.roomData || {};\nwindow.roomData['${roomName}'] = function() {\n${code}\n};`;
+            localStorage.setItem('saved_room_' + roomName, finalCode);
+            new Function(finalCode)();
+            if (window.roomData && window.roomData[roomName]) {
+                this.rooms[roomName] = window.roomData[roomName];
+            }
+            this.showSaveIcon();
+        } catch(e) {
+            console.warn('Failed to save room to localStorage:', e);
+        }
+    }
+
+    saveCurrentRoomToMemory() {
+        if (!this.currentRoom) return;
+        this.saveRoomToLocalStorage(this.currentRoom);
+    }
+
+    exportLevel() {
+        const code = this.getLevelCode();
+        let defaultName = this.currentRoom || "tutorial_1";
+        let roomName = prompt("방 이름을 입력하세요 (예: tutorial_1):", defaultName);
         if (!roomName) return;
         
         let finalCode = `window.roomData = window.roomData || {};\nwindow.roomData['${roomName}'] = function() {\n${code}\n};`;
         
+        // Save to localStorage immediately so changes persist in browser
+        this.saveRoomToLocalStorage(roomName);
+
         const blob = new Blob([finalCode], {type: 'text/javascript'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2136,7 +2179,7 @@ class Game {
         a.click();
         URL.revokeObjectURL(url);
         
-        alert(`다운로드된 ${roomName}.js 파일을 폴더의 'room' 방 폴더에 넣어주세요!`);
+        alert(`방이 브라우저에 자동 저장되었습니다!\n다운로드된 ${roomName}.js 파일을 프로젝트의 'room' 폴더에 넣어주시면 영구 보존됩니다.`);
     }
 
     initRooms() {
@@ -2332,7 +2375,26 @@ this.entities.push(
                 resolve();
             };
 
-            // If roomData is already preloaded, use it immediately
+            // If custom saved version exists in localStorage, load it
+            try {
+                const saved = localStorage.getItem('saved_room_' + roomName);
+                if (saved) {
+                    new Function(saved)();
+                    if (window.roomData && window.roomData[roomName]) {
+                        this.rooms[roomName] = window.roomData[roomName];
+                        finishLoading();
+                        return;
+                    }
+                }
+            } catch(e) {}
+
+            // If room is already in this.rooms (in-memory changes preserved), use it!
+            if (this.rooms[roomName]) {
+                finishLoading();
+                return;
+            }
+
+            // If roomData is already preloaded, use it
             if (window.roomData && window.roomData[roomName]) {
                 this.rooms[roomName] = window.roomData[roomName];
                 finishLoading();
