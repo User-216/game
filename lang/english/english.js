@@ -9,7 +9,7 @@ window.langData = {
     "[T]": "Taunt",
     "[S]": "Start",
     "language": "en",
-    "tutorial1": "Hey there kid, I know you've been here before but we're gonna go over the basics again. You can press [D] to crouch and [J] To jump.",
+    "tutorial1": "Hey! First time here? Let me show you the basic controls. Press [D] to crouch and [J] to jump.",
     "tutorial1B": "Who the hell are you?",
     "tutorial2": "To run you must hold down [Q]. You can bash through enemies and such with this. Holding the direction you're facing also lets you build up speed faster.",
     "tutorial3": "If you wanna break through safes you must be at top speeds, Not as fast as I was back at vietnam though!",
