@@ -307,8 +307,17 @@ class Game {
         this.initRooms();
         this.bootRoomLoaded = false;
         
+        // Clear any old saved_room_ cache from localStorage so files always take priority
+        try {
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('saved_room_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+        } catch(e) {}
+
         // Preload rooms and load initial room during boot loading
-        const roomsToPreload = ['tutorial_1', 'tutorial_2', 'tutorial_3'];
+        const roomsToPreload = ['tutorial_1'];
         let preloadedCount = 0;
         roomsToPreload.forEach(rName => {
             const script = document.createElement('script');
@@ -317,15 +326,6 @@ class Game {
                 if (window.roomData && window.roomData[rName]) {
                     this.rooms[rName] = window.roomData[rName];
                 }
-                try {
-                    const saved = localStorage.getItem('saved_room_' + rName);
-                    if (saved) {
-                        new Function(saved)();
-                        if (window.roomData && window.roomData[rName]) {
-                            this.rooms[rName] = window.roomData[rName];
-                        }
-                    }
-                } catch(e) {}
                 preloadedCount++;
                 if (preloadedCount === roomsToPreload.length) {
                     this.loadRoom('tutorial_1').then(() => {
@@ -1151,6 +1151,23 @@ class Game {
             exportBtn.addEventListener('click', () => this.exportLevel());
         }
 
+        // Reset Room button (Revert to file version)
+        const resetRoomBtn = document.getElementById('reset-room-btn');
+        if (resetRoomBtn) {
+            resetRoomBtn.addEventListener('click', () => {
+                if (confirm('현재 방의 변경사항을 취소하고 파일 원본으로 다시 불러올까요?')) {
+                    if (this.currentRoom) {
+                        try {
+                            localStorage.removeItem('saved_room_' + this.currentRoom);
+                        } catch(e) {}
+                        delete this.rooms[this.currentRoom];
+                        if (window.roomData) delete window.roomData[this.currentRoom];
+                        this.loadRoom(this.currentRoom);
+                    }
+                }
+            });
+        }
+
         // Add Room button
         const addRoomBtn = document.getElementById('add-room-btn');
         if (addRoomBtn) {
@@ -1221,7 +1238,6 @@ class Game {
                     if (h !== null) {
                         this.roomWidth = parseInt(w) || 0;
                         this.roomHeight = parseInt(h) || 0;
-                        this.saveCurrentRoomToMemory();
                     }
                 }
             });
@@ -1239,7 +1255,6 @@ class Game {
                     } else {
                         this.audio.playMusic(null);
                     }
-                    this.saveCurrentRoomToMemory();
                 }
             });
         }
@@ -1311,7 +1326,6 @@ class Game {
                 if (this.bgManager) {
                     this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8, this.bgWaveSpeed);
                 }
-                this.saveCurrentRoomToMemory();
                 bgOverlay.classList.add('hidden');
                 bgOverlay.style.display = 'none';
             });
@@ -1975,9 +1989,6 @@ class Game {
                 }
             }
         }
-        if (changed) {
-            this.saveCurrentRoomToMemory();
-        }
     }
 
     handleMouseDown(e) {
@@ -2019,7 +2030,6 @@ class Game {
                 if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
                     worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
                     this.entities.splice(i, 1);
-                    this.saveCurrentRoomToMemory();
                     break;
                 }
             }
@@ -2079,9 +2089,6 @@ class Game {
                         changed = true;
                     }
                 }
-                if (changed) {
-                    this.saveCurrentRoomToMemory();
-                }
                 break;
             }
             case 'hallway': 
@@ -2132,7 +2139,6 @@ class Game {
 
         if (entity) {
             this.entities.push(entity);
-            this.saveCurrentRoomToMemory();
         }
 
         this.dragStart = null;
@@ -2148,7 +2154,6 @@ class Game {
             if (worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
                 worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height) {
                 this.entities.splice(i, 1);
-                this.saveCurrentRoomToMemory();
                 break;
             }
         }
@@ -2237,9 +2242,6 @@ class Game {
         
         let finalCode = `window.roomData = window.roomData || {};\nwindow.roomData['${roomName}'] = function() {\n${code}\n};`;
         
-        // Save to localStorage immediately so changes persist in browser
-        this.saveRoomToLocalStorage(roomName);
-
         const blob = new Blob([finalCode], {type: 'text/javascript'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2248,7 +2250,7 @@ class Game {
         a.click();
         URL.revokeObjectURL(url);
         
-        alert(`방이 브라우저에 자동 저장되었습니다!\n다운로드된 ${roomName}.js 파일을 프로젝트의 'room' 폴더에 넣어주시면 영구 보존됩니다.`);
+        alert(`다운로드된 ${roomName}.js 파일을 프로젝트의 'room' 폴더에 덮어써주시면 영구 보존됩니다.`);
     }
 
     initRooms() {
@@ -2444,33 +2446,7 @@ this.entities.push(
                 resolve();
             };
 
-            // If custom saved version exists in localStorage, load it
-            try {
-                const saved = localStorage.getItem('saved_room_' + roomName);
-                if (saved) {
-                    new Function(saved)();
-                    if (window.roomData && window.roomData[roomName]) {
-                        this.rooms[roomName] = window.roomData[roomName];
-                        finishLoading();
-                        return;
-                    }
-                }
-            } catch(e) {}
-
-            // If room is already in this.rooms (in-memory changes preserved), use it!
-            if (this.rooms[roomName]) {
-                finishLoading();
-                return;
-            }
-
-            // If roomData is already preloaded, use it
-            if (window.roomData && window.roomData[roomName]) {
-                this.rooms[roomName] = window.roomData[roomName];
-                finishLoading();
-                return;
-            }
-
-            // Inject script to bypass CORS
+            // Inject script to bypass CORS and always load latest file changes from disk
             let roomScript = document.getElementById('dynamic-room-script');
             if (roomScript) roomScript.remove();
             
@@ -2484,7 +2460,7 @@ this.entities.push(
                 finishLoading();
             };
             roomScript.onerror = () => {
-                console.warn(`Could not load room/${roomName}.js, using fallback.`);
+                // If room file does not exist on disk (e.g. titlescreen or custom room), fallback to in-memory
                 finishLoading();
             };
             document.body.appendChild(roomScript);
