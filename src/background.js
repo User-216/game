@@ -47,7 +47,7 @@ class BackgroundManager {
         this.loadBackground('bg_tutorial');
     }
 
-    setBackground(bgName, followCameraRear = true, speedMultiplier = 1.0, secretMovement = false, waveEnabled = false, waveAmp = 8) {
+    setBackground(bgName, followCameraRear = true, speedMultiplier = 1.0, secretMovement = false, waveEnabled = false, waveAmp = 8, waveSpeed = 1.0) {
         this.currentBgName = (bgName && bgName !== 'none') ? bgName.trim() : null;
         this.followCameraRear = followCameraRear !== false;
         this.speedMultiplier = (typeof speedMultiplier === 'number' && !isNaN(speedMultiplier)) ? speedMultiplier : 1.0;
@@ -55,6 +55,9 @@ class BackgroundManager {
         this.waveEnabled = !!waveEnabled;
         if (typeof waveAmp === 'number' && !isNaN(waveAmp)) {
             this.waveAmp = waveAmp;
+        }
+        if (typeof waveSpeed === 'number' && !isNaN(waveSpeed)) {
+            this.waveSpeed = waveSpeed;
         }
 
         if (!this.currentBgName) {
@@ -169,7 +172,7 @@ class BackgroundManager {
             this.secretTimerY += this.secretSpeedY * this.speedMultiplier * dt;
         }
         if (this.waveEnabled) {
-            this.waveTimer += 0.05 * this.waveSpeed * dt;
+            this.waveTimer += 0.018 * this.waveSpeed * dt;
         }
     }
 

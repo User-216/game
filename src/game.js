@@ -300,6 +300,7 @@ class Game {
         this.bgSecret = false;
         this.bgWave = false;
         this.bgWaveAmp = 8;
+        this.bgWaveSpeed = 1.0;
 
         this.initRooms();
         this.bootRoomLoaded = false;
@@ -1236,6 +1237,7 @@ class Game {
         const bgSecretChk = document.getElementById('bg-secret-chk');
         const bgWaveChk = document.getElementById('bg-wave-chk');
         const bgSpeedInput = document.getElementById('bg-speed-input');
+        const bgWaveSpeedInput = document.getElementById('bg-wave-speed-input');
         const bgQuickBeaker = document.getElementById('bg-quick-beaker');
         const bgQuickTutorial = document.getElementById('bg-quick-tutorial');
         const bgQuickNone = document.getElementById('bg-quick-none');
@@ -1250,6 +1252,7 @@ class Game {
                     if (bgSecretChk) bgSecretChk.checked = !!this.bgSecret;
                     if (bgWaveChk) bgWaveChk.checked = !!this.bgWave;
                     if (bgSpeedInput) bgSpeedInput.value = this.bgSpeed !== undefined ? this.bgSpeed : 1.0;
+                    if (bgWaveSpeedInput) bgWaveSpeedInput.value = this.bgWaveSpeed !== undefined ? this.bgWaveSpeed : 1.0;
 
                     bgOverlay.classList.remove('hidden');
                     bgOverlay.style.display = 'flex';
@@ -1287,9 +1290,11 @@ class Game {
                 this.bgWave = bgWaveChk ? bgWaveChk.checked : false;
                 const spd = bgSpeedInput ? parseFloat(bgSpeedInput.value) : 1.0;
                 this.bgSpeed = (!isNaN(spd) && spd >= 0) ? spd : 1.0;
+                const waveSpd = bgWaveSpeedInput ? parseFloat(bgWaveSpeedInput.value) : 1.0;
+                this.bgWaveSpeed = (!isNaN(waveSpd) && waveSpd >= 0) ? waveSpd : 1.0;
 
                 if (this.bgManager) {
-                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8);
+                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8, this.bgWaveSpeed);
                 }
                 bgOverlay.classList.add('hidden');
                 bgOverlay.style.display = 'none';
@@ -2069,6 +2074,9 @@ class Game {
             }
             if (this.bgWave) {
                 code += `this.bgWave = true;\n`;
+                if (this.bgWaveSpeed !== undefined && this.bgWaveSpeed !== 1.0) {
+                    code += `this.bgWaveSpeed = ${this.bgWaveSpeed};\n`;
+                }
                 if (this.bgWaveAmp !== undefined && this.bgWaveAmp !== 8) {
                     code += `this.bgWaveAmp = ${this.bgWaveAmp};\n`;
                 }
@@ -2217,6 +2225,7 @@ this.entities.push(
             const currentBgSecret = this.bgSecret;
             const currentBgWave = this.bgWave;
             const currentBgWaveAmp = this.bgWaveAmp;
+            const currentBgWaveSpeed = this.bgWaveSpeed;
             this.rooms[this.currentRoom] = () => {
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
@@ -2227,6 +2236,7 @@ this.entities.push(
                 this.bgSecret = currentBgSecret;
                 this.bgWave = currentBgWave;
                 this.bgWaveAmp = currentBgWaveAmp;
+                this.bgWaveSpeed = currentBgWaveSpeed;
                 currentEntities.forEach(ent => this.entities.push(ent));
             };
         }
@@ -2250,10 +2260,11 @@ this.entities.push(
                 this.bgSecret = false;
                 this.bgWave = false;
                 this.bgWaveAmp = 8;
+                this.bgWaveSpeed = 1.0;
                 this.rooms[roomName].call(this);
 
                 if (this.bgManager) {
-                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp);
+                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp, this.bgWaveSpeed);
                 }
                 
                 if (this.audio) {
