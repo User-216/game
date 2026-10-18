@@ -367,6 +367,10 @@ class Game {
         this.mousePos = { x: 0, y: 0 };
         this.showCollisions = true;
         this.collisionToggleTimer = 0;
+        this.tileFlipX = false;
+        this.tileFlipY = false;
+        this.flipToastTimer = 0;
+        this.flipToastMsg = '';
         
         // Load tutorial bubble and border texture
         this.tutorialBorderImage = new Image();
@@ -907,8 +911,15 @@ class Game {
             if (e.key === 'e' || e.key === 'E') {
                 this.toggleEditorMode();
             }
-            if (this.isEditorMode && (e.key === 'f' || e.key === 'F')) {
-                this.flipSelectedTool();
+            if (this.isEditorMode) {
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+                    if (e.key === 'x' || e.key === 'X' || e.key === 'f' || e.key === 'F') {
+                        this.flipSelectedTool(false);
+                    } else if (e.key === 'y' || e.key === 'Y') {
+                        this.flipSelectedTool(true);
+                    }
+                }
             }
             if (!this.bindingKeyFor && (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4')) {
                 const activeTag = document.activeElement ? document.activeElement.tagName : '';
@@ -2031,12 +2042,55 @@ class Game {
         }
     }
 
-    flipSelectedTool() {
-        if (this.selectedType === 'slope-left') {
-            this.selectTool('slope-right');
-        } else if (this.selectedType === 'slope-right') {
-            this.selectTool('slope-left');
+    flipSelectedTool(isVertical = false) {
+        if (!isVertical) {
+            if (this.selectedType === 'slope-left') {
+                this.selectTool('slope-right');
+                return;
+            } else if (this.selectedType === 'slope-right') {
+                this.selectTool('slope-left');
+                return;
+            }
         }
+
+        // Check if mouse is hovering over an existing placed tile
+        const snapX = this.snapToGrid(this.mousePos.x);
+        const snapY = this.snapToGrid(this.mousePos.y);
+        let hoveredTile = null;
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            const ent = this.entities[i];
+            if (ent instanceof Tile && ent.x === snapX && ent.y === snapY) {
+                hoveredTile = ent;
+                break;
+            }
+        }
+
+        if (isVertical) {
+            if (hoveredTile) {
+                hoveredTile.flipY = !hoveredTile.flipY;
+                this.tileFlipY = hoveredTile.flipY;
+                this.saveCurrentRoomToMemory();
+                this.showFlipToast(hoveredTile.flipY ? 'TILE VERT-FLIP: ON [Y]' : 'TILE VERT-FLIP: OFF [Y]');
+            } else {
+                this.tileFlipY = !this.tileFlipY;
+                this.showFlipToast(this.tileFlipY ? 'TILE VERT-FLIP: ON [Y]' : 'TILE VERT-FLIP: OFF [Y]');
+            }
+        } else {
+            if (hoveredTile) {
+                hoveredTile.flipX = !hoveredTile.flipX;
+                this.tileFlipX = hoveredTile.flipX;
+                this.saveCurrentRoomToMemory();
+                this.showFlipToast(hoveredTile.flipX ? 'TILE FLIP: ON [X]' : 'TILE FLIP: OFF [X]');
+            } else {
+                this.tileFlipX = !this.tileFlipX;
+                this.showFlipToast(this.tileFlipX ? 'TILE FLIP: ON [X]' : 'TILE FLIP: OFF [X]');
+            }
+        }
+    }
+
+    showFlipToast(msg) {
+        this.flipToastMsg = msg;
+        this.flipToastTimer = 1.2;
     }
 
     getMouseInWorld(e) {
@@ -2076,8 +2130,10 @@ class Game {
             for (let oy = 0; oy < totalH; oy += tileSize) {
                 const cellX = startX + ox;
                 const cellY = startY + oy;
-                const srcX = (this.selectedTileX || 0) + ox;
-                const srcY = (this.selectedTileY || 0) + oy;
+                const srcOx = this.tileFlipX ? (totalW - tileSize - ox) : ox;
+                const srcOy = this.tileFlipY ? (totalH - tileSize - oy) : oy;
+                const srcX = (this.selectedTileX || 0) + srcOx;
+                const srcY = (this.selectedTileY || 0) + srcOy;
 
                 let existing = null;
                 for (let i = this.entities.length - 1; i >= 0; i--) {
@@ -2093,20 +2149,28 @@ class Game {
                     }
                 }
 
+                const flipX = !!this.tileFlipX;
+                const flipY = !!this.tileFlipY;
+
                 if (existing) {
-                    if (existing.tx !== srcX || existing.ty !== srcY || existing.tileImageName !== this.currentTilesetName) {
+                    if (existing.tx !== srcX || existing.ty !== srcY || existing.tileImageName !== this.currentTilesetName || existing.flipX !== flipX || existing.flipY !== flipY) {
                         existing.tx = srcX;
                         existing.ty = srcY;
                         existing.sw = tileSize;
                         existing.sh = tileSize;
                         existing.tileImageName = this.currentTilesetName;
+                        existing.flipX = flipX;
+                        existing.flipY = flipY;
                         changed = true;
                     }
                 } else {
-                    this.entities.push(new Tile(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize));
+                    this.entities.push(new Tile(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, flipX, flipY));
                     changed = true;
                 }
             }
+        }
+        if (changed) {
+            this.saveCurrentRoomToMemory();
         }
     }
 
@@ -2255,8 +2319,10 @@ class Game {
                     for (let cy = y; cy < y + h; cy += tileSize) {
                         const relX = (cx - x) % patW;
                         const relY = (cy - y) % patH;
-                        const srcX = (this.selectedTileX || 0) + relX;
-                        const srcY = (this.selectedTileY || 0) + relY;
+                        const srcOx = this.tileFlipX ? (patW - tileSize - relX) : relX;
+                        const srcOy = this.tileFlipY ? (patH - tileSize - relY) : relY;
+                        const srcX = (this.selectedTileX || 0) + srcOx;
+                        const srcY = (this.selectedTileY || 0) + srcOy;
                         
                         // Replace existing tile at this cell
                         for (let i = this.entities.length - 1; i >= 0; i--) {
@@ -2265,9 +2331,12 @@ class Game {
                                 this.entities.splice(i, 1);
                             }
                         }
-                        this.entities.push(new Tile(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize));
+                        this.entities.push(new Tile(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, !!this.tileFlipX, !!this.tileFlipY));
                         changed = true;
                     }
+                }
+                if (changed) {
+                    this.saveCurrentRoomToMemory();
                 }
                 break;
             }
@@ -2398,7 +2467,13 @@ class Game {
             let line = `    `;
             if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
-            else if (ent instanceof Tile) line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32})`;
+            else if (ent instanceof Tile) {
+                if (ent.flipX || ent.flipY) {
+                    line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32}, ${!!ent.flipX}, ${!!ent.flipY})`;
+                } else {
+                    line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32})`;
+                }
+            }
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
             else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -4026,6 +4101,39 @@ this.entities.push(
             this.ctx.restore();
         }
 
+        // Flip Tile Toast Notification
+        if (this.flipToastTimer > 0) {
+            this.flipToastTimer -= 1 / 60;
+            this.ctx.save();
+            const alpha = Math.min(1.0, this.flipToastTimer * 2);
+            this.ctx.globalAlpha = alpha;
+            const text = this.flipToastMsg || 'TILE FLIPPED';
+            this.ctx.font = 'bold 15px "Outfit", sans-serif';
+            const metrics = this.ctx.measureText(text);
+            const boxW = metrics.width + 28;
+            const boxH = 32;
+            const boxX = this.canvas.width / 2 - boxW / 2;
+            const boxY = this.collisionToggleTimer > 0 ? 64 : 24;
+
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            this.ctx.strokeStyle = '#00e5ff';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            if (this.ctx.roundRect) {
+                this.ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+            } else {
+                this.ctx.rect(boxX, boxY, boxW, boxH);
+            }
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = '#00e5ff';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(text, this.canvas.width / 2, boxY + boxH / 2);
+            this.ctx.restore();
+        }
+
         // Update Palette UI Alpha
         if (this.paletteUIActive) {
             this.paletteUIAlpha = Math.min(1, (this.paletteUIAlpha || 0) + 0.15);
@@ -5080,15 +5188,23 @@ this.entities.push(
         ctx.globalAlpha = 0.5;
         if (this.selectedType === 'tile') {
             const img = document.getElementById('tileset-image');
+            const sw = this.selectedTileW || 32;
+            const sh = this.selectedTileH || 32;
+            const tx = this.selectedTileX || 0;
+            const ty = this.selectedTileY || 0;
             if (img && img.complete && img.naturalWidth > 0) {
-                const sw = this.selectedTileW || 32;
-                const sh = this.selectedTileH || 32;
-                const tx = this.selectedTileX || 0;
-                const ty = this.selectedTileY || 0;
-                ctx.drawImage(img, tx, ty, sw, sh, snapX, snapY, sw, sh);
+                if (this.tileFlipX || this.tileFlipY) {
+                    ctx.save();
+                    ctx.translate(snapX + (this.tileFlipX ? sw : 0), snapY + (this.tileFlipY ? sh : 0));
+                    ctx.scale(this.tileFlipX ? -1 : 1, this.tileFlipY ? -1 : 1);
+                    ctx.drawImage(img, tx, ty, sw, sh, 0, 0, sw, sh);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(img, tx, ty, sw, sh, snapX, snapY, sw, sh);
+                }
             } else {
                 ctx.fillStyle = '#8B4513';
-                ctx.fillRect(snapX, snapY, this.selectedTileW || 32, this.selectedTileH || 32);
+                ctx.fillRect(snapX, snapY, sw, sh);
             }
         } else if (this.selectedType === 'erase') {
             ctx.fillStyle = 'rgba(255, 60, 60, 0.4)';
@@ -5157,10 +5273,20 @@ this.entities.push(
                         for (let cy = minY; cy < minY + h; cy += 32) {
                             const relX = (cx - minX) % patW;
                             const relY = (cy - minY) % patH;
-                            const srcX = (this.selectedTileX || 0) + relX;
-                            const srcY = (this.selectedTileY || 0) + relY;
+                            const srcOx = this.tileFlipX ? (patW - 32 - relX) : relX;
+                            const srcOy = this.tileFlipY ? (patH - 32 - relY) : relY;
+                            const srcX = (this.selectedTileX || 0) + srcOx;
+                            const srcY = (this.selectedTileY || 0) + srcOy;
                             if (img && img.complete && img.naturalWidth > 0) {
-                                ctx.drawImage(img, srcX, srcY, 32, 32, cx, cy, 32, 32);
+                                if (this.tileFlipX || this.tileFlipY) {
+                                    ctx.save();
+                                    ctx.translate(cx + (this.tileFlipX ? 32 : 0), cy + (this.tileFlipY ? 32 : 0));
+                                    ctx.scale(this.tileFlipX ? -1 : 1, this.tileFlipY ? -1 : 1);
+                                    ctx.drawImage(img, srcX, srcY, 32, 32, 0, 0, 32, 32);
+                                    ctx.restore();
+                                } else {
+                                    ctx.drawImage(img, srcX, srcY, 32, 32, cx, cy, 32, 32);
+                                }
                             } else {
                                 ctx.fillStyle = '#8B4513';
                                 ctx.fillRect(cx, cy, 32, 32);

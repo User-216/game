@@ -192,7 +192,7 @@ class Metal extends Destroyable {
 }
 
 class Tile extends Platform {
-    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32) {
+    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32, flipX = false, flipY = false) {
         super(x, y, width, height, 'transparent');
         this.type = 'tile';
         this.tx = tx;
@@ -200,6 +200,8 @@ class Tile extends Platform {
         this.sw = sw;
         this.sh = sh;
         this.tileImageName = tileImageName;
+        this.flipX = !!flipX;
+        this.flipY = !!flipY;
         
         if (!Tile.images) Tile.images = {};
         if (!Tile.images[tileImageName]) {
@@ -215,7 +217,15 @@ class Tile extends Platform {
                 for(let dy = 0; dy < this.height; dy += this.sh) {
                     let drawW = Math.min(this.sw, this.width - dx);
                     let drawH = Math.min(this.sh, this.height - dy);
-                    ctx.drawImage(img, this.tx, this.ty, drawW, drawH, this.x + dx, this.y + dy, drawW, drawH);
+                    if (this.flipX || this.flipY) {
+                        ctx.save();
+                        ctx.translate(this.x + dx + (this.flipX ? drawW : 0), this.y + dy + (this.flipY ? drawH : 0));
+                        ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+                        ctx.drawImage(img, this.tx, this.ty, drawW, drawH, 0, 0, drawW, drawH);
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(img, this.tx, this.ty, drawW, drawH, this.x + dx, this.y + dy, drawW, drawH);
+                    }
                 }
             }
         } else {
