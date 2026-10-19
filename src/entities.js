@@ -458,9 +458,10 @@ Pillar.initImages();
 
 
 class Tile extends Platform {
-    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32, flipX = false, flipY = false) {
+    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32, flipX = false, flipY = false, layer = 1) {
         super(x, y, width, height, 'transparent');
         this.type = 'tile';
+        this.layer = layer || 1;
         this.tx = tx;
         this.ty = ty;
         this.sw = sw;
@@ -495,12 +496,25 @@ class Tile extends Platform {
                 }
             }
         } else {
-            ctx.fillStyle = '#8B4513';
+            const fallbackColor = this.layer === 2 ? '#2e7d32' : (this.layer === 3 ? '#455a64' : '#8B4513');
+            ctx.fillStyle = fallbackColor;
             ctx.fillRect(this.x, this.y, this.width, this.height);
-            ctx.strokeStyle = '#654321';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#222222';
+            ctx.lineWidth = 1;
             ctx.strokeRect(this.x, this.y, this.width, this.height);
         }
+    }
+}
+
+class Tile2 extends Tile {
+    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32, flipX = false, flipY = false) {
+        super(x, y, width, height, tx, ty, tileImageName, sw, sh, flipX, flipY, 2);
+    }
+}
+
+class Tile3 extends Tile {
+    constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32, flipX = false, flipY = false) {
+        super(x, y, width, height, tx, ty, tileImageName, sw, sh, flipX, flipY, 3);
     }
 }
 

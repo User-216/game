@@ -2243,12 +2243,22 @@ class Game {
         if (this.isEditorMode) {
             toolbar.classList.remove('hidden');
             this.player.isNoClip = true; // Auto-noclip for building
-            if (palette && this.selectedType === 'tile') palette.classList.remove('hidden');
+            if (palette && this.isTileType(this.selectedType)) palette.classList.remove('hidden');
         } else {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
             if (palette) palette.classList.add('hidden');
         }
+    }
+
+    isTileType(type) {
+        return type === 'tile' || type === 'tile1' || type === 'tile2' || type === 'tile3';
+    }
+
+    getTileLayerFromType(type) {
+        if (type === 'tile2') return 2;
+        if (type === 'tile3') return 3;
+        return 1;
     }
 
     selectTool(type) {
@@ -2264,8 +2274,13 @@ class Game {
         });
         const palette = document.getElementById('tileset-palette');
         if (palette) {
-            if (type === 'tile') {
+            if (this.isTileType(type)) {
                 palette.classList.remove('hidden');
+                const titleElem = palette.querySelector('h4');
+                if (titleElem) {
+                    const layerName = type === 'tile2' ? 'Layer 2 (Front/앞)' : (type === 'tile3' ? 'Layer 3 (Back/뒤)' : 'Layer 1 (Main)');
+                    titleElem.innerText = `Tileset - ${layerName}`;
+                }
             } else {
                 palette.classList.add('hidden');
             }
@@ -2286,12 +2301,17 @@ class Game {
         // Check if mouse is hovering over an existing placed tile
         const snapX = this.snapToGrid(this.mousePos.x);
         const snapY = this.snapToGrid(this.mousePos.y);
+        const targetLayer = this.getTileLayerFromType(this.selectedType);
         let hoveredTile = null;
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const ent = this.entities[i];
             if (ent instanceof Tile && ent.x === snapX && ent.y === snapY) {
-                hoveredTile = ent;
-                break;
+                if ((ent.layer || 1) === targetLayer) {
+                    hoveredTile = ent;
+                    break;
+                } else if (!hoveredTile) {
+                    hoveredTile = ent;
+                }
             }
         }
 
@@ -2354,6 +2374,7 @@ class Game {
         const totalW = this.selectedTileW || 32;
         const totalH = this.selectedTileH || 32;
         const tileSize = 32;
+        const targetLayer = this.getTileLayerFromType(this.selectedType);
         
         let changed = false;
         for (let ox = 0; ox < totalW; ox += tileSize) {
@@ -2368,7 +2389,7 @@ class Game {
                 let existing = null;
                 for (let i = this.entities.length - 1; i >= 0; i--) {
                     let ent = this.entities[i];
-                    if (ent instanceof Tile) {
+                    if (ent instanceof Tile && (ent.layer || 1) === targetLayer) {
                         if (ent.x === cellX && ent.y === cellY && ent.width === tileSize && ent.height === tileSize) {
                             existing = ent;
                             break;
@@ -2394,7 +2415,12 @@ class Game {
                         changed = true;
                     }
                 } else {
-                    this.entities.push(new Tile(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, flipX, flipY));
+                    const newTile = (targetLayer === 2)
+                        ? new Tile2(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, flipX, flipY)
+                        : ((targetLayer === 3)
+                            ? new Tile3(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, flipX, flipY)
+                            : new Tile(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, flipX, flipY));
+                    this.entities.push(newTile);
                     changed = true;
                 }
             }
@@ -2413,10 +2439,16 @@ class Game {
         const maxX = Math.max(this.rightDragStart.x, endX) + this.gridSize;
         const maxY = Math.max(this.rightDragStart.y, endY) + this.gridSize;
 
+        const isTile = this.isTileType(this.selectedType);
+        const targetLayer = isTile ? this.getTileLayerFromType(this.selectedType) : null;
+
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const ent = this.entities[i];
-            if ((this.selectedType === 'tile' || this.selectedType === 'erase') && !(ent instanceof Tile || ent.type === 'tile')) {
-                continue;
+            if (isTile) {
+                if (!(ent instanceof Tile || ent.type === 'tile')) continue;
+                if ((ent.layer || 1) !== targetLayer) continue;
+            } else if (this.selectedType === 'erase') {
+                if (!(ent instanceof Tile || ent.type === 'tile')) continue;
             }
             if (ent.x < maxX && ent.x + ent.width > minX &&
                 ent.y < maxY && ent.y + ent.height > minY) {
@@ -2425,6 +2457,7 @@ class Game {
         }
         this.rightDragStart = null;
         this.justExecutedRightDrag = true;
+        this.saveCurrentRoomToMemory();
         return true;
     }
 
@@ -2446,7 +2479,7 @@ class Game {
 
         if (e.button !== 0) return;
         
-        if (this.selectedType === 'tile') {
+        if (this.isTileType(this.selectedType)) {
             if (e.shiftKey) {
                 this.dragStart = {
                     x: this.snapToGrid(worldPos.x),
@@ -2558,7 +2591,11 @@ class Game {
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
             case 'metal': entity = new Metal(x, y, w, h); break;
             case 'pillar': entity = new Pillar(x, y, w, h); break;
-            case 'tile': {
+            case 'tile':
+            case 'tile1':
+            case 'tile2':
+            case 'tile3': {
+                const targetLayer = this.getTileLayerFromType(this.selectedType);
                 const tileSize = 32;
                 const patW = this.selectedTileW || 32;
                 const patH = this.selectedTileH || 32;
@@ -2572,14 +2609,19 @@ class Game {
                         const srcX = (this.selectedTileX || 0) + srcOx;
                         const srcY = (this.selectedTileY || 0) + srcOy;
                         
-                        // Replace existing tile at this cell
+                        // Replace existing tile at this cell on the SAME layer
                         for (let i = this.entities.length - 1; i >= 0; i--) {
                             const ent = this.entities[i];
-                            if (ent instanceof Tile && cx >= ent.x && cx < ent.x + ent.width && cy >= ent.y && cy < ent.y + ent.height) {
+                            if (ent instanceof Tile && (ent.layer || 1) === targetLayer && cx >= ent.x && cx < ent.x + ent.width && cy >= ent.y && cy < ent.y + ent.height) {
                                 this.entities.splice(i, 1);
                             }
                         }
-                        this.entities.push(new Tile(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, !!this.tileFlipX, !!this.tileFlipY));
+                        const newTile = (targetLayer === 2)
+                            ? new Tile2(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, !!this.tileFlipX, !!this.tileFlipY)
+                            : ((targetLayer === 3)
+                                ? new Tile3(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, !!this.tileFlipX, !!this.tileFlipY)
+                                : new Tile(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, !!this.tileFlipX, !!this.tileFlipY));
+                        this.entities.push(newTile);
                         changed = true;
                     }
                 }
@@ -2660,14 +2702,20 @@ class Game {
         const snapY = this.snapToGrid(worldPos.y);
         const maxX = snapX + this.gridSize;
         const maxY = snapY + this.gridSize;
+        const isTile = this.isTileType(this.selectedType);
+        const targetLayer = isTile ? this.getTileLayerFromType(this.selectedType) : null;
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const ent = this.entities[i];
-            if ((this.selectedType === 'tile' || this.selectedType === 'erase') && !(ent instanceof Tile || ent.type === 'tile')) {
-                continue;
+            if (isTile) {
+                if (!(ent instanceof Tile || ent.type === 'tile')) continue;
+                if ((ent.layer || 1) !== targetLayer) continue;
+            } else if (this.selectedType === 'erase') {
+                if (!(ent instanceof Tile || ent.type === 'tile')) continue;
             }
             if (ent.x < maxX && ent.x + ent.width > snapX &&
                 ent.y < maxY && ent.y + ent.height > snapY) {
                 this.entities.splice(i, 1);
+                this.saveCurrentRoomToMemory();
                 break;
             }
         }
@@ -2719,10 +2767,11 @@ class Game {
             if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Tile) {
+                const className = (ent.layer === 2 || ent instanceof Tile2) ? 'Tile2' : ((ent.layer === 3 || ent instanceof Tile3) ? 'Tile3' : 'Tile');
                 if (ent.flipX || ent.flipY) {
-                    line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32}, ${!!ent.flipX}, ${!!ent.flipY})`;
+                    line += `new ${className}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32}, ${!!ent.flipX}, ${!!ent.flipY})`;
                 } else {
-                    line += `new Tile(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32})`;
+                    line += `new ${className}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32})`;
                 }
             }
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
@@ -4265,12 +4314,27 @@ this.entities.push(
             }
         }
         
-        // 2. Foreground objects (Platforms, slopes, etc.)
+        // 1.5. Tile Layer 3 (Background Tiles - behind Tile 1)
         if (this.tileWave) {
-            this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY);
+            this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 3);
+        } else {
             for (let i = 0; i < this.entities.length; i++) {
                 const e = this.entities[i];
-                if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile') {
+                if ((e.type === 'tile' || e instanceof Tile) && e.layer === 3) {
+                    if (e.x + e.width > viewLeft && e.x < viewRight && 
+                        e.y + e.height > viewTop && e.y < viewBottom) {
+                        e.render(this.ctx);
+                    }
+                }
+            }
+        }
+        
+        // 2. Tile Layer 1 (Main Tiles) & Foreground objects (Platforms, slopes, etc.)
+        if (this.tileWave) {
+            this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 1);
+            for (let i = 0; i < this.entities.length; i++) {
+                const e = this.entities[i];
+                if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
                     if (!this.showCollisions && this.isCollisionEntity(e)) continue;
                     if (e.x + e.width > viewLeft && e.x < viewRight && 
                         e.y + e.height > viewTop && e.y < viewBottom) {
@@ -4282,6 +4346,9 @@ this.entities.push(
             for (let i = 0; i < this.entities.length; i++) {
                 const e = this.entities[i];
                 if (e.type !== 'hallway' && e.type !== 'obj_debris') {
+                    if (e.type === 'tile' || e instanceof Tile) {
+                        if (e.layer === 2 || e.layer === 3) continue;
+                    }
                     if (!this.showCollisions && this.isCollisionEntity(e)) continue;
                     if (e.x + e.width > viewLeft && e.x < viewRight && 
                         e.y + e.height > viewTop && e.y < viewBottom) {
@@ -4337,6 +4404,21 @@ this.entities.push(
                         this.ctx.fillText(p.name || ("Player " + id.substring(0, 4)), 0, -40);
                         
                         this.ctx.restore();
+                    }
+                }
+            }
+        }
+        
+        // 2.5. Tile Layer 2 (Foreground Tiles - in front of Tile 1 & Player)
+        if (this.tileWave) {
+            this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 2);
+        } else {
+            for (let i = 0; i < this.entities.length; i++) {
+                const e = this.entities[i];
+                if ((e.type === 'tile' || e instanceof Tile) && e.layer === 2) {
+                    if (e.x + e.width > viewLeft && e.x < viewRight && 
+                        e.y + e.height > viewTop && e.y < viewBottom) {
+                        e.render(this.ctx);
                     }
                 }
             }
@@ -5338,7 +5420,7 @@ this.entities.push(
         }
     }
 
-    renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY) {
+    renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, targetLayer = 1) {
         if (!this.tileOffscreenCanvas) {
             this.tileOffscreenCanvas = document.createElement('canvas');
             this.tileOffscreenCtx = this.tileOffscreenCanvas.getContext('2d');
@@ -5371,7 +5453,9 @@ this.entities.push(
         let count = 0;
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
-            if (e.type === 'tile') {
+            if (e.type === 'tile' || e instanceof Tile) {
+                const eLayer = e.layer || 1;
+                if (eLayer !== targetLayer) continue;
                 if (e.x + e.width > tileViewLeft && e.x < tileViewRight &&
                     e.y + e.height > viewTop && e.y < viewBottom) {
                     e.render(this.tileOffscreenCtx);
@@ -5456,7 +5540,7 @@ this.entities.push(
         const snapY = this.snapToGrid(this.mousePos.y);
         
         ctx.globalAlpha = 0.5;
-        if (this.selectedType === 'tile') {
+        if (this.isTileType(this.selectedType)) {
             const img = document.getElementById('tileset-image');
             const sw = this.selectedTileW || 32;
             const sh = this.selectedTileH || 32;
@@ -5473,7 +5557,8 @@ this.entities.push(
                     ctx.drawImage(img, tx, ty, sw, sh, snapX, snapY, sw, sh);
                 }
             } else {
-                ctx.fillStyle = '#8B4513';
+                const targetLayer = this.getTileLayerFromType(this.selectedType);
+                ctx.fillStyle = targetLayer === 2 ? '#2e7d32' : (targetLayer === 3 ? '#455a64' : '#8B4513');
                 ctx.fillRect(snapX, snapY, sw, sh);
             }
         } else if (this.selectedType === 'erase') {
@@ -5566,10 +5651,12 @@ this.entities.push(
                 if (w === 0) w = this.gridSize;
                 if (h === 0) h = this.gridSize;
 
-                if (this.selectedType === 'tile') {
+                if (this.isTileType(this.selectedType)) {
                     const img = document.getElementById('tileset-image');
                     const patW = this.selectedTileW || 32;
                     const patH = this.selectedTileH || 32;
+                    const targetLayer = this.getTileLayerFromType(this.selectedType);
+                    const fallbackColor = targetLayer === 2 ? '#2e7d32' : (targetLayer === 3 ? '#455a64' : '#8B4513');
                     ctx.globalAlpha = 0.5;
                     for (let cx = minX; cx < minX + w; cx += 32) {
                         for (let cy = minY; cy < minY + h; cy += 32) {
@@ -5590,7 +5677,7 @@ this.entities.push(
                                     ctx.drawImage(img, srcX, srcY, 32, 32, cx, cy, 32, 32);
                                 }
                             } else {
-                                ctx.fillStyle = '#8B4513';
+                                ctx.fillStyle = fallbackColor;
                                 ctx.fillRect(cx, cy, 32, 32);
                             }
                         }
