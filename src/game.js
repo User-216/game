@@ -4329,31 +4329,44 @@ this.entities.push(
             }
         }
         
-        // 2. Tile Layer 1 (Main Tiles) & Foreground objects (Platforms, slopes, etc.)
+        // 2. Tile Layer 1 (Main Tiles)
         if (this.tileWave) {
             this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 1);
+        } else {
             for (let i = 0; i < this.entities.length; i++) {
                 const e = this.entities[i];
-                if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
-                    if (!this.showCollisions && this.isCollisionEntity(e)) continue;
+                if ((e.type === 'tile' || e instanceof Tile) && (e.layer === 1 || !e.layer)) {
                     if (e.x + e.width > viewLeft && e.x < viewRight && 
                         e.y + e.height > viewTop && e.y < viewBottom) {
                         e.render(this.ctx);
                     }
                 }
             }
+        }
+
+        // 2.2. Tile Layer 2 (in front of Tile 1, behind Player)
+        if (this.tileWave) {
+            this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 2);
         } else {
             for (let i = 0; i < this.entities.length; i++) {
                 const e = this.entities[i];
-                if (e.type !== 'hallway' && e.type !== 'obj_debris') {
-                    if (e.type === 'tile' || e instanceof Tile) {
-                        if (e.layer === 2 || e.layer === 3) continue;
-                    }
-                    if (!this.showCollisions && this.isCollisionEntity(e)) continue;
+                if ((e.type === 'tile' || e instanceof Tile) && e.layer === 2) {
                     if (e.x + e.width > viewLeft && e.x < viewRight && 
                         e.y + e.height > viewTop && e.y < viewBottom) {
                         e.render(this.ctx);
                     }
+                }
+            }
+        }
+
+        // 2.5. Objects & Platforms (Platforms, slopes, enemies, doors, etc.)
+        for (let i = 0; i < this.entities.length; i++) {
+            const e = this.entities[i];
+            if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
+                if (!this.showCollisions && this.isCollisionEntity(e)) continue;
+                if (e.x + e.width > viewLeft && e.x < viewRight && 
+                    e.y + e.height > viewTop && e.y < viewBottom) {
+                    e.render(this.ctx);
                 }
             }
         }
@@ -4404,21 +4417,6 @@ this.entities.push(
                         this.ctx.fillText(p.name || ("Player " + id.substring(0, 4)), 0, -40);
                         
                         this.ctx.restore();
-                    }
-                }
-            }
-        }
-        
-        // 2.5. Tile Layer 2 (Foreground Tiles - in front of Tile 1 & Player)
-        if (this.tileWave) {
-            this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 2);
-        } else {
-            for (let i = 0; i < this.entities.length; i++) {
-                const e = this.entities[i];
-                if ((e.type === 'tile' || e instanceof Tile) && e.layer === 2) {
-                    if (e.x + e.width > viewLeft && e.x < viewRight && 
-                        e.y + e.height > viewTop && e.y < viewBottom) {
-                        e.render(this.ctx);
                     }
                 }
             }
