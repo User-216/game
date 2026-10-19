@@ -545,37 +545,96 @@ class Hallway extends Entity {
     }
 }
 class Door extends Entity {
+    static image = null;
+    static imageLoaded = false;
+
+    static initImage() {
+        if (!Door.image) {
+            Door.image = new Image();
+            Door.image.src = '이미지/spr_door.png';
+            Door.image.onload = () => {
+                Door.imageLoaded = true;
+            };
+        }
+    }
+
     constructor(x, y, width, height, label, targetRoom, color = 'rgba(191, 0, 255, 0.6)') {
         super(x, y, width, height, color);
         this.label = label;
         this.targetRoom = targetRoom;
         this.type = 'door';
+        Door.initImage();
     }
 
     render(ctx) {
         if (this.isDestroyed) return;
         
-        // Door body
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // Door frame
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(this.x, this.y, this.width, this.height);
-        
-        // Label text
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`DOOR ${this.label}`, this.x + this.width / 2, this.y - 10);
-        
-        // Arrow hint if close (optional visual polish)
-        ctx.font = '12px Arial';
-        ctx.fillText('↑ ENTER', this.x + this.width / 2, this.y + this.height + 20);
+        Door.initImage();
+
+        const img = Door.image;
+        if (img && img.complete && img.naturalWidth > 0) {
+            const drawW = (this.width >= 100) ? this.width : 100;
+            const drawH = (this.height >= 100) ? this.height : 100;
+            const drawX = Math.round(this.x + this.width / 2 - drawW / 2);
+            const drawY = Math.round(this.y + this.height - drawH);
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        } else {
+            // Door body fallback
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            
+            // Door frame fallback
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
+
+        const showDebug = (window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
+        if (showDebug) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+            ctx.setLineDash([]);
+
+            // Label text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(`DOOR ${this.label}`, this.x + this.width / 2, this.y - 8);
+            ctx.restore();
+        } else if (window.gameInstance && window.gameInstance.player) {
+            const p = window.gameInstance.player;
+            const drawW = Math.max(this.width, 70);
+            const drawH = Math.max(this.height, 90);
+            const left = this.x + this.width / 2 - drawW / 2;
+            const right = left + drawW;
+            const bottom = this.y + this.height;
+            const top = bottom - drawH;
+            const isNear = (
+                p.x + p.width > left &&
+                p.x < right &&
+                p.y + p.height > top &&
+                p.y < bottom
+            );
+            if (isNear && p.isGrounded && p.state !== 'enterdoor') {
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 4;
+                ctx.fillText('▲ UP', this.x + this.width / 2, this.y - 12);
+                ctx.restore();
+            }
+        }
     }
 }
+Door.initImage();
+
 
 class TargetDoorBase extends Entity {
     constructor(x, y, width, height, doorId) {

@@ -1656,7 +1656,6 @@ class Game {
         if (type === 'oneway' || e instanceof OneWayPlatform) return true;
         if (type === 'ladder' || e instanceof Ladder) return true;
         if (type === 'slope' || type === 'left-up' || type === 'right-up' || e instanceof Slope) return true;
-        if (type === 'door' || e instanceof Door) return true;
         if ((type && type.startsWith('targetDoor')) || e instanceof TargetDoorBase) return true;
         return false;
     }
@@ -2567,6 +2566,9 @@ class Game {
             } else if (this.selectedType === 'pillar') {
                 w = 128;
                 h = 224;
+            } else if (this.selectedType === 'door') {
+                w = 100;
+                h = 100;
             } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal') {
                 w = 64;
                 h = 64;
@@ -4090,13 +4092,21 @@ this.entities.push(
         if (Math.abs(this.player.vx) >= this.player.machThreshold) currentStates.push(dict['state.mach']);
 
         // Door Interaction Check
-        const overlappingDoor = this.entities.find(e => 
-            e.type === 'door' && 
-            this.player.x < e.x + e.width &&
-            this.player.x + this.player.width > e.x &&
-            this.player.y < e.y + e.height &&
-            this.player.y + this.player.height > e.y
-        );
+        const overlappingDoor = this.entities.find(e => {
+            if (e.type !== 'door' || e.isDestroyed) return false;
+            const drawW = Math.max(e.width, 70);
+            const drawH = Math.max(e.height, 90);
+            const left = e.x + e.width / 2 - drawW / 2;
+            const right = left + drawW;
+            const bottom = e.y + e.height;
+            const top = bottom - drawH;
+            return (
+                this.player.x < right &&
+                this.player.x + this.player.width > left &&
+                this.player.y < bottom &&
+                this.player.y + this.player.height > top
+            );
+        });
 
         if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
             this.player.state = 'enterdoor';
@@ -5597,6 +5607,14 @@ this.entities.push(
                 ctx.fillStyle = '#b88958';
                 ctx.fillRect(snapX, snapY, 128, 224);
             }
+        } else if (this.selectedType === 'door') {
+            const img = Door.image;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, snapX, snapY, 100, 100);
+            } else {
+                ctx.fillStyle = 'rgba(191, 0, 255, 0.6)';
+                ctx.fillRect(snapX, snapY, 100, 100);
+            }
         } else {
             ctx.fillStyle = '#00aa9e';
             ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
@@ -5723,6 +5741,16 @@ this.entities.push(
                         ctx.drawImage(img, minX, minY, w, h);
                     } else {
                         ctx.fillStyle = '#b88958';
+                        ctx.fillRect(minX, minY, w, h);
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'door') {
+                    const img = Door.image;
+                    ctx.globalAlpha = 0.6;
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, minX, minY, w, h);
+                    } else {
+                        ctx.fillStyle = 'rgba(191, 0, 255, 0.6)';
                         ctx.fillRect(minX, minY, w, h);
                     }
                     ctx.globalAlpha = 1.0;
