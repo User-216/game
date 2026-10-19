@@ -49,6 +49,9 @@ window.lang_get_value = function(key) {
     if (window.langData_ko && window.langData_ko[key] !== undefined) {
         return window.langData_ko[key];
     }
+    return key;
+};
+
 try {
     Object.defineProperty(window, 'escape', {
         configurable: true,
