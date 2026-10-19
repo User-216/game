@@ -406,7 +406,7 @@ class Game {
         this.rightDragStart = null;
         this.justExecutedRightDrag = false;
         this.mousePos = { x: 0, y: 0 };
-        this.showCollisions = true;
+        this.showCollisions = false;
         this.collisionToggleTimer = 0;
         this.tileFlipX = false;
         this.tileFlipY = false;
