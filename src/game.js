@@ -2724,6 +2724,7 @@ class Game {
             'tutorial_1': () => {
 this.roomWidth = 2000;
 this.roomHeight = 1000;
+this.roomMusic = 'mu_tutorial.wav';
 this.roomBackground = 'bg_beaker';
 this.bgFollowCamera = true;
 this.entities.push(

@@ -2,6 +2,7 @@ window.roomData = window.roomData || {};
 window.roomData['tutorial_1'] = function() {
 this.roomWidth = 2000;
 this.roomHeight = 1000;
+this.roomMusic = 'mu_tutorial.wav';
 this.roomBackground = 'bg_tutorial';
 this.bgFollowCamera = true;
 this.bgSecret = true;
