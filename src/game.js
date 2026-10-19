@@ -1592,10 +1592,6 @@ class Game {
         if (type === 'oneway' || e instanceof OneWayPlatform) return true;
         if (type === 'ladder' || e instanceof Ladder) return true;
         if (type === 'slope' || type === 'left-up' || type === 'right-up' || e instanceof Slope) return true;
-        if (type === 'destroyable' || type === 'metal' || e instanceof Destroyable) {
-            if (e.isDestroyed) return false;
-            return true;
-        }
         if (type === 'door' || e instanceof Door) return true;
         if ((type && type.startsWith('targetDoor')) || e instanceof TargetDoorBase) return true;
         return false;
@@ -2466,9 +2462,22 @@ class Game {
         let w = Math.abs(this.dragStart.x - endX);
         let h = Math.abs(this.dragStart.y - endY);
 
-        // Minimum size
-        if (w < this.gridSize) w = this.gridSize;
-        if (h < this.gridSize) h = this.gridSize;
+        // Minimum / default size
+        if (w === 0 && h === 0) {
+            if (this.selectedType === 'destroyable-small') {
+                w = 32;
+                h = 32;
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal') {
+                w = 64;
+                h = 64;
+            } else {
+                w = this.gridSize;
+                h = this.gridSize;
+            }
+        } else {
+            if (w < this.gridSize) w = this.gridSize;
+            if (h < this.gridSize) h = this.gridSize;
+        }
 
         // Create entity
         let entity;
@@ -2478,6 +2487,7 @@ class Game {
             case 'ladder': entity = new Ladder(x, y, w, h); break;
             case 'slope-left': entity = new Slope(x, y, w, h, 'left-up'); break;
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
+            case 'destroyable-small': entity = new Destroyable(x, y, w, h); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
             case 'metal': entity = new Metal(x, y, w, h); break;
             case 'tile': {
@@ -5362,6 +5372,30 @@ this.entities.push(
             ctx.strokeStyle = '#ff3333';
             ctx.lineWidth = 1;
             ctx.strokeRect(snapX, snapY, this.gridSize, this.gridSize);
+        } else if (this.selectedType === 'destroyable-small') {
+            const img = Destroyable.imageSmall;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, snapX, snapY, 32, 32);
+            } else {
+                ctx.fillStyle = '#df7208';
+                ctx.fillRect(snapX, snapY, 32, 32);
+            }
+        } else if (this.selectedType === 'destroyable') {
+            const img = Destroyable.imageBig;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, snapX, snapY, 64, 64);
+            } else {
+                ctx.fillStyle = '#df7208';
+                ctx.fillRect(snapX, snapY, 64, 64);
+            }
+        } else if (this.selectedType === 'metal') {
+            const img = Metal.image;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, snapX, snapY, 64, 64);
+            } else {
+                ctx.fillStyle = '#c2dedc';
+                ctx.fillRect(snapX, snapY, 64, 64);
+            }
         } else {
             ctx.fillStyle = '#00aa9e';
             ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
@@ -5440,6 +5474,41 @@ this.entities.push(
                             } else {
                                 ctx.fillStyle = '#8B4513';
                                 ctx.fillRect(cx, cy, 32, 32);
+                            }
+                        }
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'destroyable-small' || this.selectedType === 'destroyable') {
+                    const isSmall = this.selectedType === 'destroyable-small';
+                    const img = isSmall ? Destroyable.imageSmall : Destroyable.imageBig;
+                    const tileSize = isSmall ? 32 : 64;
+                    ctx.globalAlpha = 0.5;
+                    for (let cx = minX; cx < minX + w; cx += tileSize) {
+                        for (let cy = minY; cy < minY + h; cy += tileSize) {
+                            const dw = Math.min(tileSize, minX + w - cx);
+                            const dh = Math.min(tileSize, minY + h - cy);
+                            if (img && img.complete && img.naturalWidth > 0) {
+                                ctx.drawImage(img, 0, 0, dw, dh, cx, cy, dw, dh);
+                            } else {
+                                ctx.fillStyle = '#df7208';
+                                ctx.fillRect(cx, cy, dw, dh);
+                            }
+                        }
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'metal') {
+                    const img = Metal.image;
+                    const tileSize = 64;
+                    ctx.globalAlpha = 0.5;
+                    for (let cx = minX; cx < minX + w; cx += tileSize) {
+                        for (let cy = minY; cy < minY + h; cy += tileSize) {
+                            const dw = Math.min(tileSize, minX + w - cx);
+                            const dh = Math.min(tileSize, minY + h - cy);
+                            if (img && img.complete && img.naturalWidth > 0) {
+                                ctx.drawImage(img, 0, 0, dw, dh, cx, cy, dw, dh);
+                            } else {
+                                ctx.fillStyle = '#c2dedc';
+                                ctx.fillRect(cx, cy, dw, dh);
                             }
                         }
                     }

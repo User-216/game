@@ -97,17 +97,29 @@ class Slope extends Entity {
 }
 
 class Destroyable extends Entity {
-    constructor(x, y, width, height, color = '#ff0073') {
+    constructor(x, y, width, height, color = '#df7208') {
         super(x, y, width, height, color);
         this.health = 1;
         this.particles = [];
         this.type = 'destroyable';
+        Destroyable.initImages();
+    }
+
+    static initImages() {
+        if (!Destroyable.imageSmall) {
+            Destroyable.imageSmall = new Image();
+            Destroyable.imageSmall.src = '이미지/spr_towerblocksmall.png';
+        }
+        if (!Destroyable.imageBig) {
+            Destroyable.imageBig = new Image();
+            Destroyable.imageBig.src = '이미지/spr_towerblock.png';
+        }
     }
 
     destroy() {
         if (this.isDestroyed) return;
         this.isDestroyed = true;
-        // Create explosion particles
+        const particleColors = ['#df7208', '#7f2800', '#ffaa44', '#b85400'];
         for (let i = 0; i < 20; i++) {
             this.particles.push({
                 x: this.x + this.width / 2,
@@ -117,25 +129,46 @@ class Destroyable extends Entity {
                 size: Math.random() * 4 + 2,
                 life: 1.0,
                 decay: Math.random() * 0.05 + 0.01,
-                color: this.color
+                color: particleColors[Math.floor(Math.random() * particleColors.length)]
             });
         }
     }
 
     render(ctx) {
         if (!this.isDestroyed) {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            
-            // Add cross pattern for visual hint
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(this.x + 5, this.y + 5);
-            ctx.lineTo(this.x + this.width - 5, this.y + this.height - 5);
-            ctx.moveTo(this.x + this.width - 5, this.y + 5);
-            ctx.lineTo(this.x + 5, this.y + this.height - 5);
-            ctx.stroke();
+            const isSmall = (this.width <= 32 && this.height <= 32);
+            const img = isSmall ? Destroyable.imageSmall : Destroyable.imageBig;
+            const tileSize = isSmall ? 32 : 64;
+
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                if (this.width === tileSize && this.height === tileSize) {
+                    ctx.drawImage(img, this.x, this.y, tileSize, tileSize);
+                } else {
+                    for (let ox = 0; ox < this.width; ox += tileSize) {
+                        for (let oy = 0; oy < this.height; oy += tileSize) {
+                            const dw = Math.min(tileSize, this.width - ox);
+                            const dh = Math.min(tileSize, this.height - oy);
+                            ctx.drawImage(img, 0, 0, dw, dh, this.x + ox, this.y + oy, dw, dh);
+                        }
+                    }
+                }
+                ctx.restore();
+            } else {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Add cross pattern for visual hint
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x + 5, this.y + 5);
+                ctx.lineTo(this.x + this.width - 5, this.y + this.height - 5);
+                ctx.moveTo(this.x + this.width - 5, this.y + 5);
+                ctx.lineTo(this.x + 5, this.y + this.height - 5);
+                ctx.stroke();
+            }
         }
 
         // Always update and render particles
@@ -156,25 +189,73 @@ class Destroyable extends Entity {
         ctx.globalAlpha = 1.0;
     }
 }
+Destroyable.initImages();
 
 class Metal extends Destroyable {
     constructor(x, y, width, height) {
-        super(x, y, width, height, '#999999');
+        super(x, y, width, height, '#c2dedc');
         this.type = 'metal';
+        Metal.initImages();
+    }
+
+    static initImages() {
+        if (!Metal.image) {
+            Metal.image = new Image();
+            Metal.image.src = '이미지/spr_metaltowerblock.png';
+        }
+    }
+
+    destroy() {
+        if (this.isDestroyed) return;
+        this.isDestroyed = true;
+        const metalColors = ['#c2dedc', '#65998f', '#888888', '#e0f4f2'];
+        for (let i = 0; i < 24; i++) {
+            this.particles.push({
+                x: this.x + this.width / 2,
+                y: this.y + this.height / 2,
+                vx: (Math.random() - 0.5) * 12,
+                vy: (Math.random() - 0.5) * 12,
+                size: Math.random() * 5 + 2,
+                life: 1.0,
+                decay: Math.random() * 0.04 + 0.01,
+                color: metalColors[Math.floor(Math.random() * metalColors.length)]
+            });
+        }
     }
 
     render(ctx) {
         if (!this.isDestroyed) {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            ctx.strokeStyle = '#cccccc';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(this.x + 2, this.y + 2, this.width - 4, this.height - 4);
-            ctx.fillStyle = '#666666';
-            ctx.fillRect(this.x + 6, this.y + 6, 4, 4);
-            ctx.fillRect(this.x + this.width - 10, this.y + 6, 4, 4);
-            ctx.fillRect(this.x + 6, this.y + this.height - 10, 4, 4);
-            ctx.fillRect(this.x + this.width - 10, this.y + this.height - 10, 4, 4);
+            const img = Metal.image;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                if (this.width === 64 && this.height === 64) {
+                    ctx.drawImage(img, this.x, this.y, 64, 64);
+                } else if (this.width <= 32 && this.height <= 32) {
+                    ctx.drawImage(img, this.x, this.y, this.width, this.height);
+                } else {
+                    const tileSize = 64;
+                    for (let ox = 0; ox < this.width; ox += tileSize) {
+                        for (let oy = 0; oy < this.height; oy += tileSize) {
+                            const dw = Math.min(tileSize, this.width - ox);
+                            const dh = Math.min(tileSize, this.height - oy);
+                            ctx.drawImage(img, 0, 0, dw, dh, this.x + ox, this.y + oy, dw, dh);
+                        }
+                    }
+                }
+                ctx.restore();
+            } else {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.strokeStyle = '#cccccc';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(this.x + 2, this.y + 2, this.width - 4, this.height - 4);
+                ctx.fillStyle = '#666666';
+                ctx.fillRect(this.x + 6, this.y + 6, 4, 4);
+                ctx.fillRect(this.x + this.width - 10, this.y + 6, 4, 4);
+                ctx.fillRect(this.x + 6, this.y + this.height - 10, 4, 4);
+                ctx.fillRect(this.x + this.width - 10, this.y + this.height - 10, 4, 4);
+            }
         }
         this.particles.forEach((p, index) => {
             p.x += p.vx;
@@ -190,6 +271,7 @@ class Metal extends Destroyable {
         ctx.globalAlpha = 1.0;
     }
 }
+Metal.initImages();
 
 class Tile extends Platform {
     constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32, flipX = false, flipY = false) {
