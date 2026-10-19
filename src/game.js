@@ -4108,7 +4108,18 @@ this.entities.push(
             );
         });
 
+        if (this.player) {
+            this.player.showUpArrow = !!(
+                overlappingDoor && 
+                this.player.isGrounded && 
+                this.player.state !== 'enterdoor' && 
+                this.player.state !== 'walkfront' && 
+                this.transitionState === 'NONE'
+            );
+        }
+
         if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
+            this.player.showUpArrow = false;
             this.player.state = 'enterdoor';
             this.player.isEnteringDoor = true;
             this.player.vx = 0;

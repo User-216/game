@@ -606,30 +606,6 @@ class Door extends Entity {
             ctx.shadowBlur = 4;
             ctx.fillText(`DOOR ${this.label}`, this.x + this.width / 2, this.y - 8);
             ctx.restore();
-        } else if (window.gameInstance && window.gameInstance.player) {
-            const p = window.gameInstance.player;
-            const drawW = Math.max(this.width, 70);
-            const drawH = Math.max(this.height, 90);
-            const left = this.x + this.width / 2 - drawW / 2;
-            const right = left + drawW;
-            const bottom = this.y + this.height;
-            const top = bottom - drawH;
-            const isNear = (
-                p.x + p.width > left &&
-                p.x < right &&
-                p.y + p.height > top &&
-                p.y < bottom
-            );
-            if (isNear && p.isGrounded && p.state !== 'enterdoor') {
-                ctx.save();
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                ctx.shadowBlur = 4;
-                ctx.fillText('▲ UP', this.x + this.width / 2, this.y - 12);
-                ctx.restore();
-            }
         }
     }
 }

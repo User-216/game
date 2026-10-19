@@ -312,6 +312,14 @@ class Player {
             this.effectSprites.spr_mach_effect.push(img);
         }
         
+        this.effectSprites.spr_uparrow = [];
+        for (let i = 0; i <= 1; i++) {
+            let img = new Image();
+            img.src = `effect/spr_uparrow/spr_uparrow_${i}.png`;
+            this.effectSprites.spr_uparrow.push(img);
+        }
+
+        this.showUpArrow = false;
         this.activeEffects = [];
         this.machColorIndex = 0;
         this.machEffectIndex = 0;
@@ -332,6 +340,28 @@ class Player {
     update(keys, entities, audio) {
         this.frameCount++;
         this.wasGrounded = this.isGrounded;
+
+        // Check if standing in front of a door for uparrow
+        let atDoor = false;
+        if (entities && this.isGrounded && this.state !== 'enterdoor' && this.state !== 'walkfront') {
+            for (let i = 0; i < entities.length; i++) {
+                const e = entities[i];
+                if (e.type === 'door' && !e.isDestroyed) {
+                    const drawW = Math.max(e.width, 70);
+                    const drawH = Math.max(e.height, 90);
+                    const left = e.x + e.width / 2 - drawW / 2;
+                    const right = left + drawW;
+                    const bottom = e.y + e.height;
+                    const top = bottom - drawH;
+                    if (this.x < right && this.x + this.width > left &&
+                        this.y < bottom && this.y + this.height > top) {
+                        atDoor = true;
+                        break;
+                    }
+                }
+            }
+        }
+        this.showUpArrow = atDoor;
 
         if (this.state === 'enterdoor') {
             this.vx = 0;
@@ -2333,8 +2363,21 @@ class Player {
             ctx.fillStyle = 'white';
             const eyeX = this.facingDir >= 0 ? this.x + 20 : this.x + 5;
             ctx.fillRect(Math.round(eyeX), Math.round(this.y + 10), 5, 5);
-        }
         ctx.restore();
+
+        // Draw spr_uparrow above player when standing at a door
+        if (this.showUpArrow) {
+            const frames = this.effectSprites ? this.effectSprites.spr_uparrow : null;
+            if (frames && frames.length > 0) {
+                const frameIndex = Math.floor(this.frameCount * 0.15) % frames.length;
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = Math.round(this.x + this.width / 2 - 32);
+                    const drawY = Math.round((this.isCrouching || this.isTumbling) ? (this.y - 38) : (this.y - 60));
+                    ctx.drawImage(img, drawX, drawY, 64, 64);
+                }
+            }
+        }
 
         // ・罷ｲ・ｹ・・・・・・ 嶹菩攤・ｩ: 嵓誤�溢擽・ｴ ・ｸ・ｬ ・・乱 嶸・椪 ・・・ 岺懍亨
         ctx.fillStyle = 'white';
