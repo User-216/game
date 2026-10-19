@@ -1447,12 +1447,14 @@ class Game {
         const setSizeBtn = document.getElementById('set-size-btn');
         if (setSizeBtn) {
             setSizeBtn.addEventListener('click', () => {
-                let w = prompt("Enter Room Width (e.g., 2000) or Cancel for infinite:", this.roomWidth || "");
+                let w = prompt("Enter Room Width (e.g., 2000) or 0 / Cancel for infinite:", this.roomWidth || "");
                 if (w !== null) {
-                    let h = prompt("Enter Room Height (e.g., 1000) or Cancel for infinite:", this.roomHeight || "");
+                    let h = prompt("Enter Room Height (e.g., 1000) or 0 / Cancel for infinite:", this.roomHeight || "");
                     if (h !== null) {
                         this.roomWidth = parseInt(w) || 0;
                         this.roomHeight = parseInt(h) || 0;
+                        this.saveCurrentRoomToMemory();
+                        this.showFlipToast(`ROOM SIZE: ${this.roomWidth || '∞'} x ${this.roomHeight || '∞'}`);
                     }
                 }
             });
@@ -2711,7 +2713,7 @@ class Game {
             },
             'tutorial_1': () => {
 this.roomWidth = 2000;
-this.roomHeight = 10;
+this.roomHeight = 1000;
 this.roomBackground = 'bg_beaker';
 this.bgFollowCamera = true;
 this.entities.push(
@@ -3791,9 +3793,9 @@ this.entities.push(
             }
         }
 
-        // Out of bounds respawn
+        // Out of bounds respawn (only active in play mode, never in editor mode)
         const boundsBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
-        if (this.player.y > boundsBottom && !this.isPlayingTransition) {
+        if (!this.isEditorMode && this.player.y > boundsBottom && !this.isPlayingTransition) {
             this.isPlayingTransition = true;
             this.transitionFrameIndex = 0;
             this.transitionTimer = 0;
@@ -3832,15 +3834,17 @@ this.entities.push(
         
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
 
-        // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 직접 Y좌표 제한
-        let lowestEntityY = 0;
-        for (let e of this.entities) {
-            if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
-        }
-        // 화면 하단(targetY + height)이 가장 낮은 엔티티보다 약간(100px)만 더 내려가게 제한
-        let maxTargetY = lowestEntityY + 100 - this.canvas.height;
-        if (targetY > maxTargetY) {
-            targetY = maxTargetY;
+        if (!this.isEditorMode) {
+            // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 직접 Y좌표 제한 (플레이 모드에서만 동작)
+            let lowestEntityY = 0;
+            for (let e of this.entities) {
+                if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
+            }
+            // 화면 하단(targetY + height)이 가장 낮은 엔티티보다 약간(100px)만 더 내려가게 제한
+            let maxTargetY = lowestEntityY + 100 - this.canvas.height;
+            if (targetY > maxTargetY) {
+                targetY = maxTargetY;
+            }
         }
         
         // Speed-based camera offset (look ahead in direction of movement when speed > 7)
@@ -5303,6 +5307,28 @@ this.entities.push(
             ctx.moveTo(startX, y);
             ctx.lineTo(endX, y);
             ctx.stroke();
+        }
+
+        // Draw Room Boundaries (if set)
+        if (this.roomWidth > 0 || this.roomHeight > 0) {
+            const rw = this.roomWidth || 100000;
+            const rh = this.roomHeight || 100000;
+            ctx.save();
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 8]);
+            ctx.strokeRect(0, 0, rw, rh);
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 16px "Outfit", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`ROOM BOUNDS: ${this.roomWidth || '∞'} x ${this.roomHeight || '∞'}`, 10, 25);
+            if (this.roomWidth > 0 && this.roomHeight > 0) {
+                ctx.textAlign = 'right';
+                ctx.fillText(`(${this.roomWidth}, ${this.roomHeight})`, this.roomWidth - 10, this.roomHeight - 10);
+            }
+            ctx.restore();
         }
 
         // Mouse snapped crosshair (Preview)
