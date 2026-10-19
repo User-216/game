@@ -2363,6 +2363,7 @@ class Player {
             ctx.fillStyle = 'white';
             const eyeX = this.facingDir >= 0 ? this.x + 20 : this.x + 5;
             ctx.fillRect(Math.round(eyeX), Math.round(this.y + 10), 5, 5);
+        }
         ctx.restore();
 
         // Draw spr_uparrow above player when standing at a door
