@@ -273,6 +273,167 @@ class Metal extends Destroyable {
 }
 Metal.initImages();
 
+class Pillar extends Destroyable {
+    constructor(x, y, width = 64, height = 128) {
+        super(x, y, width, height, '#b88958');
+        this.type = 'pillar';
+        this.isPillar = true;
+        this.debrisList = [];
+        Pillar.initImages();
+    }
+
+    static initImages() {
+        if (!Pillar.image) {
+            Pillar.image = new Image();
+            Pillar.image.src = '이미지/spr_pillarjohn.png';
+        }
+        if (!Pillar.debrisImage) {
+            Pillar.debrisImage = new Image();
+            Pillar.debrisImage.src = '이미지/spr_pillarjohndebris.png';
+        }
+    }
+
+    destroy(game) {
+        if (this.isDestroyed) return;
+        this.isDestroyed = true;
+
+        const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
+        if (g) {
+            // Activate Escape Sequence!
+            g.escape = true;
+            
+            // Screen Shake
+            if (g.player) {
+                g.player.requestScreenShake = 30;
+            }
+            if (g.cameraShake !== undefined) {
+                g.cameraShake = 30;
+            }
+            
+            // Play powerful impact sound
+            if (g.audio) {
+                if (typeof g.audio.playFile === 'function') {
+                    g.audio.playFile('sfx_groundpound', true);
+                }
+                if (typeof g.audio.play === 'function') {
+                    g.audio.play('break');
+                }
+            }
+
+            // Floating Text: "IT'S PIZZA TIME!"
+            if (g.floatingTexts) {
+                g.floatingTexts.push({
+                    x: this.x + this.width / 2,
+                    y: this.y - 20,
+                    text: "IT'S PIZZA TIME!!",
+                    alpha: 1.0,
+                    vy: -2,
+                    color: '#ff2222',
+                    scale: 1.5
+                });
+            }
+        }
+
+        // Generate debris chunks
+        const debrisColors = ['#d2b991', '#a88c69', '#735a41', '#4b3726', '#e6d2af'];
+        for (let i = 0; i < 45; i++) {
+            this.particles.push({
+                x: this.x + Math.random() * this.width,
+                y: this.y + Math.random() * this.height,
+                vx: (Math.random() - 0.5) * 16,
+                vy: (Math.random() - 0.7) * 16,
+                size: Math.random() * 8 + 4,
+                life: 1.0,
+                decay: Math.random() * 0.02 + 0.01,
+                color: debrisColors[Math.floor(Math.random() * debrisColors.length)]
+            });
+        }
+        // Flying larger chunks
+        for (let i = 0; i < 8; i++) {
+            this.debrisList.push({
+                x: this.x + this.width / 2,
+                y: this.y + this.height / 2,
+                vx: (Math.random() - 0.5) * 14,
+                vy: (Math.random() - 0.8) * 18,
+                angle: Math.random() * Math.PI * 2,
+                vrot: (Math.random() - 0.5) * 0.3,
+                size: Math.random() * 16 + 16,
+                alpha: 1.0,
+                decay: 0.015
+            });
+        }
+    }
+
+    render(ctx) {
+        if (!this.isDestroyed) {
+            const img = Pillar.image;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(img, this.x, this.y, this.width, this.height);
+                ctx.restore();
+            } else {
+                // Procedural fallback
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.strokeStyle = '#4b3726';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                // Draw face
+                ctx.fillStyle = '#22150c';
+                const eyeY = this.y + this.height * 0.35;
+                ctx.fillRect(this.x + this.width * 0.25, eyeY, 8, 6);
+                ctx.fillRect(this.x + this.width * 0.65, eyeY, 8, 6);
+                ctx.fillRect(this.x + this.width * 0.45, eyeY + 12, 8, 14);
+            }
+        }
+
+        // Particles
+        this.particles.forEach((p, index) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.35;
+            p.life -= p.decay;
+            if (p.life <= 0) {
+                this.particles.splice(index, 1);
+            } else {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+        });
+
+        // Debris chunks
+        const dImg = Pillar.debrisImage;
+        this.debrisList.forEach((d, index) => {
+            d.x += d.vx;
+            d.y += d.vy;
+            d.vy += 0.4;
+            d.angle += d.vrot;
+            d.alpha -= d.decay;
+            if (d.alpha <= 0) {
+                this.debrisList.splice(index, 1);
+            } else {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, d.alpha);
+                ctx.translate(d.x, d.y);
+                ctx.rotate(d.angle);
+                if (dImg && dImg.complete && dImg.naturalWidth > 0) {
+                    ctx.drawImage(dImg, -d.size / 2, -d.size / 2, d.size, d.size);
+                } else {
+                    ctx.fillStyle = '#a88c69';
+                    ctx.fillRect(-d.size / 2, -d.size / 2, d.size, d.size);
+                }
+                ctx.restore();
+            }
+        });
+
+        ctx.globalAlpha = 1.0;
+    }
+}
+Pillar.initImages();
+
+
 class Tile extends Platform {
     constructor(x, y, width, height, tx = 0, ty = 0, tileImageName = 'tile_tutorial.png', sw = 32, sh = 32, flipX = false, flipY = false) {
         super(x, y, width, height, 'transparent');

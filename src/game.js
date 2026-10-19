@@ -2531,6 +2531,9 @@ class Game {
             if (this.selectedType === 'destroyable-small') {
                 w = 32;
                 h = 32;
+            } else if (this.selectedType === 'pillar') {
+                w = 64;
+                h = 128;
             } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal') {
                 w = 64;
                 h = 64;
@@ -2554,6 +2557,7 @@ class Game {
             case 'destroyable-small': entity = new Destroyable(x, y, w, h); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
             case 'metal': entity = new Metal(x, y, w, h); break;
+            case 'pillar': entity = new Pillar(x, y, w, h); break;
             case 'tile': {
                 const tileSize = 32;
                 const patW = this.selectedTileW || 32;
@@ -2723,6 +2727,7 @@ class Game {
             }
             else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
+            else if (ent instanceof Pillar) line += `new Pillar(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Destroyable) line += `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Hallway) line += `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
@@ -5501,6 +5506,14 @@ this.entities.push(
                 ctx.fillStyle = '#c2dedc';
                 ctx.fillRect(snapX, snapY, 64, 64);
             }
+        } else if (this.selectedType === 'pillar') {
+            const img = Pillar.image;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, snapX, snapY, 64, 128);
+            } else {
+                ctx.fillStyle = '#b88958';
+                ctx.fillRect(snapX, snapY, 64, 128);
+            }
         } else {
             ctx.fillStyle = '#00aa9e';
             ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
@@ -5616,6 +5629,16 @@ this.entities.push(
                                 ctx.fillRect(cx, cy, dw, dh);
                             }
                         }
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'pillar') {
+                    const img = Pillar.image;
+                    ctx.globalAlpha = 0.5;
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, minX, minY, w, h);
+                    } else {
+                        ctx.fillStyle = '#b88958';
+                        ctx.fillRect(minX, minY, w, h);
                     }
                     ctx.globalAlpha = 1.0;
                 }

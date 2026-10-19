@@ -1247,12 +1247,12 @@ class Player {
                 if (resolution.axis === 'y') {
                     if (resolution.amount < 0) {
                         // Ground Pound breaks blocks beneath
-                        if (this.isGroundPounding && entity.type === 'destroyable') {
-                            entity.destroy();
+                        if (this.isGroundPounding && (entity.type === 'destroyable' || entity.type === 'pillar')) {
+                            entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                             return; // Skip collision resolution to plow through
                         } else if (this.isGroundPounding && entity.type === 'metal' && this.vy >= 20) {
-                            entity.destroy();
+                            entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                             return; // Skip collision resolution to plow through
                         }
@@ -1301,8 +1301,8 @@ class Player {
                             this.image_index = 0;
                             this.groundPoundLandTimer = 8;
                         }
-                        if (entity.type === 'destroyable') {
-                            entity.destroy();
+                        if (entity.type === 'destroyable' || entity.type === 'pillar') {
+                            entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                         }
                         this.vy = 0;
@@ -1310,11 +1310,11 @@ class Player {
                     this.y += resolution.amount;
                 } else {
                     // Collision on side (Wall)
-                    if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing)) {
-                        entity.destroy();
+                    if ((entity.type === 'destroyable' || entity.type === 'pillar') && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || Math.abs(this.vx) >= 3)) {
+                        entity.destroy(window.gameInstance);
                         if (audio) audio.play('break');
                     } else if (entity.type === 'metal' && Math.abs(this.vx) >= 11.5) {
-                        entity.destroy();
+                        entity.destroy(window.gameInstance);
                         if (audio) audio.play('break');
                     } else {
                         // ・ｬ・ｬ・ｰ ・・・尖株 ・｡・ｰ ・・・ｽ・・・ｿ・們揆 ・・・尖徐・ｼ・・・ｽ夋・ｰ 孖ｸ・ｬ・ｰ
