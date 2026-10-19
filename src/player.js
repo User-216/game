@@ -1247,7 +1247,7 @@ class Player {
                 if (resolution.axis === 'y') {
                     if (resolution.amount < 0) {
                         // Ground Pound breaks blocks beneath
-                        if (this.isGroundPounding && (entity.type === 'destroyable' || entity.type === 'pillar')) {
+                        if (this.isGroundPounding && entity.type === 'destroyable') {
                             entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                             return; // Skip collision resolution to plow through
@@ -1301,7 +1301,7 @@ class Player {
                             this.image_index = 0;
                             this.groundPoundLandTimer = 8;
                         }
-                        if (entity.type === 'destroyable' || entity.type === 'pillar') {
+                        if (entity.type === 'destroyable') {
                             entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                         }
@@ -1310,7 +1310,19 @@ class Player {
                     this.y += resolution.amount;
                 } else {
                     // Collision on side (Wall)
-                    if ((entity.type === 'destroyable' || entity.type === 'pillar') && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || Math.abs(this.vx) >= 3)) {
+                    if (entity.type === 'pillar') {
+                        if (this.isRunning || this.isSuplexGrabbing) {
+                            entity.destroy(window.gameInstance);
+                            if (audio) audio.play('break');
+                        } else {
+                            this.isWalled = true;
+                            this.isWallJumping = false;
+                            this.isClimbingLadder = false;
+                            this.wallSide = resolution.amount < 0 ? 1 : -1;
+                            this.vx = 0;
+                            this.x += resolution.amount;
+                        }
+                    } else if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || Math.abs(this.vx) >= 3)) {
                         entity.destroy(window.gameInstance);
                         if (audio) audio.play('break');
                     } else if (entity.type === 'metal' && Math.abs(this.vx) >= 11.5) {
