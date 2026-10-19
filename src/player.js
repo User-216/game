@@ -1301,7 +1301,7 @@ class Player {
                             this.image_index = 0;
                             this.groundPoundLandTimer = 8;
                         }
-                        if (entity.type === 'destroyable') {
+                        if (entity.type === 'destroyable' && this.vy < 0) {
                             entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                         }
@@ -1322,7 +1322,7 @@ class Player {
                             this.vx = 0;
                             this.x += resolution.amount;
                         }
-                    } else if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || Math.abs(this.vx) >= 3)) {
+                    } else if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || this.isTumbling)) {
                         entity.destroy(window.gameInstance);
                         if (audio) audio.play('break');
                     } else if (entity.type === 'metal' && Math.abs(this.vx) >= 11.5) {
