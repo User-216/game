@@ -4392,9 +4392,19 @@ this.entities.push(
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
             if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
+                if (this.tileWave && (e.type === 'door' || e instanceof Door)) continue;
                 if (!this.showCollisions && this.isCollisionEntity(e)) continue;
-                if (e.x + e.width > viewLeft && e.x < viewRight && 
-                    e.y + e.height > viewTop && e.y < viewBottom) {
+                let eLeft = e.x;
+                let eRight = e.x + e.width;
+                let eTop = e.y;
+                let eBottom = e.y + e.height;
+                if (e.type === 'door' || e instanceof Door) {
+                    eLeft = e.x + e.width / 2 - 50;
+                    eRight = eLeft + 100;
+                    eTop = e.y + e.height - 100;
+                }
+                if (eRight > viewLeft && eLeft < viewRight && 
+                    eBottom > viewTop && eTop < viewBottom) {
                     e.render(this.ctx);
                 }
             }
@@ -5490,6 +5500,28 @@ this.entities.push(
                 }
             }
         }
+
+        // When waving Layer 1 (main tiles), render doors onto the same waving canvas
+        if (targetLayer === 1) {
+            for (let i = 0; i < this.entities.length; i++) {
+                const e = this.entities[i];
+                if (e.type === 'door' || e instanceof Door) {
+                    const doorW = Math.max(e.width, 100);
+                    const doorH = Math.max(e.height, 100);
+                    const doorLeft = e.x + e.width / 2 - doorW / 2;
+                    const doorRight = doorLeft + doorW;
+                    const doorBottom = e.y + e.height;
+                    const doorTop = doorBottom - doorH;
+
+                    if (doorRight > tileViewLeft && doorLeft < tileViewRight &&
+                        doorBottom > viewTop && doorTop < viewBottom) {
+                        e.render(this.tileOffscreenCtx);
+                        count++;
+                    }
+                }
+            }
+        }
+
         this.tileOffscreenCtx.restore();
 
         if (count === 0) return;
