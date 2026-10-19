@@ -297,6 +297,8 @@ class Game {
         
         this.bgManager = typeof BackgroundManager !== 'undefined' ? new BackgroundManager(this) : null;
         this.roomBackground = 'bg_beaker';
+        this.roomMusic = null;
+        this.hasExplicitMusic = false;
         this.bgFollowCamera = true;
         this.bgSpeed = 1.0;
         this.bgSecret = false;
@@ -1464,13 +1466,20 @@ class Game {
         const setMusicBtn = document.getElementById('set-music-btn');
         if (setMusicBtn) {
             setMusicBtn.addEventListener('click', () => {
-                let m = prompt("Enter music file name (e.g., mu_oldlevel.wav) or Cancel to clear:", this.roomMusic || "");
+                let m = prompt("Enter music file name (e.g., mu_oldlevel.wav), 'none'/'stop' to stop music, or leave blank to continue current music:", this.hasExplicitMusic ? (this.roomMusic || "") : "");
                 if (m !== null) {
-                    this.roomMusic = m.trim() === "" ? null : m.trim();
-                    if (this.roomMusic) {
-                        this.audio.playMusic(this.roomMusic);
+                    const trimmed = m.trim();
+                    if (trimmed === "" || trimmed.toLowerCase() === "inherit") {
+                        this.roomMusic = (this.audio && this.audio.currentMusicName) ? this.audio.currentMusicName : null;
+                        this.hasExplicitMusic = false;
+                    } else if (trimmed.toLowerCase() === "none" || trimmed.toLowerCase() === "stop") {
+                        this.roomMusic = null;
+                        this.hasExplicitMusic = true;
+                        if (this.audio) this.audio.playMusic(null);
                     } else {
-                        this.audio.playMusic(null);
+                        this.roomMusic = trimmed;
+                        this.hasExplicitMusic = true;
+                        if (this.audio) this.audio.playMusic(this.roomMusic);
                     }
                 }
             });
@@ -2611,7 +2620,7 @@ class Game {
             code += `this.roomWidth = ${this.roomWidth || 0};\n`;
             code += `this.roomHeight = ${this.roomHeight || 0};\n`;
         }
-        if (this.roomMusic) {
+        if (this.hasExplicitMusic && this.roomMusic) {
             code += `this.roomMusic = '${this.roomMusic}';\n`;
         }
         if (this.roomBackground) {
@@ -2814,6 +2823,7 @@ this.entities.push(
             const currentW = this.roomWidth;
             const currentH = this.roomHeight;
             const currentMusic = this.roomMusic;
+            const currentHasExplicitMusic = this.hasExplicitMusic;
             const currentBg = this.roomBackground;
             const currentBgFollow = this.bgFollowCamera;
             const currentBgSpeed = this.bgSpeed;
@@ -2827,7 +2837,9 @@ this.entities.push(
             this.rooms[this.currentRoom] = () => {
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
-                this.roomMusic = currentMusic;
+                if (currentHasExplicitMusic) {
+                    this.roomMusic = currentMusic;
+                }
                 this.roomBackground = currentBg;
                 this.bgFollowCamera = currentBgFollow;
                 this.bgSpeed = currentBgSpeed;
@@ -2851,10 +2863,12 @@ this.entities.push(
                 }
                 
                 console.log(`Loading Room: ${roomName}`);
+                const previousMusic = (this.audio && this.audio.currentMusicName) ? this.audio.currentMusicName : (this.roomMusic || null);
                 this.entities = [];
                 this.roomWidth = 0;
                 this.roomHeight = 0;
-                this.roomMusic = null;
+                this.roomMusic = undefined;
+                this.hasExplicitMusic = false;
                 this.roomBackground = 'bg_beaker';
                 this.bgFollowCamera = true;
                 this.bgSpeed = 1.0;
@@ -2866,6 +2880,21 @@ this.entities.push(
                 this.tileWaveAmp = 3.5;
                 this.tileWaveSpeed = 1.0;
                 this.rooms[roomName].call(this);
+
+                if (typeof this.roomMusic === 'string' && this.roomMusic.trim() !== '') {
+                    const trimmed = this.roomMusic.trim();
+                    if (trimmed.toLowerCase() === 'none' || trimmed.toLowerCase() === 'stop') {
+                        this.roomMusic = null;
+                        this.hasExplicitMusic = true;
+                    } else {
+                        this.roomMusic = trimmed;
+                        this.hasExplicitMusic = true;
+                    }
+                } else {
+                    // Blank / empty string / undefined / null -> inherit currently playing music!
+                    this.roomMusic = previousMusic || null;
+                    this.hasExplicitMusic = false;
+                }
 
                 if (this.bgManager) {
                     this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp, this.bgWaveSpeed);
