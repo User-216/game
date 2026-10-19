@@ -279,10 +279,24 @@ class Pillar extends Destroyable {
         this.type = 'pillar';
         this.isPillar = true;
         this.debrisList = [];
+        this.image_index = 0;
+        this.image_speed = 0.3;
         Pillar.initImages();
     }
 
     static initImages() {
+        if (!Pillar.frames) {
+            Pillar.frames = [];
+            for (let i = 0; i < 16; i++) {
+                const img = new Image();
+                if (i < 5) {
+                    img.src = `이미지/spr_pillarjohn/spr_pillar_${i}.png`;
+                } else {
+                    img.src = `이미지/spr_pillarjohn/spr_mugmonolith_${i}.png`;
+                }
+                Pillar.frames.push(img);
+            }
+        }
         if (!Pillar.image) {
             Pillar.image = new Image();
             Pillar.image.src = '이미지/spr_pillarjohn.png';
@@ -290,6 +304,17 @@ class Pillar extends Destroyable {
         if (!Pillar.debrisImage) {
             Pillar.debrisImage = new Image();
             Pillar.debrisImage.src = '이미지/spr_pillarjohndebris.png';
+        }
+    }
+
+    update(game) {
+        if (!this.isDestroyed) {
+            this.image_index += this.image_speed;
+            if (Pillar.frames && Pillar.frames.length > 0) {
+                if (this.image_index >= Pillar.frames.length) {
+                    this.image_index = 0;
+                }
+            }
         }
     }
 
@@ -366,11 +391,14 @@ class Pillar extends Destroyable {
 
     render(ctx) {
         if (!this.isDestroyed) {
-            const img = Pillar.image;
-            if (img && img.complete && img.naturalWidth > 0) {
+            const frameIdx = Math.floor(this.image_index) % (Pillar.frames ? Pillar.frames.length : 1);
+            const frameImg = (Pillar.frames && Pillar.frames[frameIdx] && Pillar.frames[frameIdx].complete && Pillar.frames[frameIdx].naturalWidth > 0)
+                             ? Pillar.frames[frameIdx]
+                             : Pillar.image;
+            if (frameImg && frameImg.complete && frameImg.naturalWidth > 0) {
                 ctx.save();
                 ctx.imageSmoothingEnabled = false;
-                ctx.drawImage(img, this.x, this.y, this.width, this.height);
+                ctx.drawImage(frameImg, this.x, this.y, this.width, this.height);
                 ctx.restore();
             } else {
                 // Procedural fallback
