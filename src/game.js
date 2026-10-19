@@ -288,6 +288,27 @@ class Game {
         });
         this.settings.isFocused = true;
 
+        // Prevent Esc from exiting fullscreen via Keyboard Lock API
+        const applyKeyboardLock = async () => {
+            if (document.fullscreenElement) {
+                if (navigator.keyboard && navigator.keyboard.lock) {
+                    try {
+                        await navigator.keyboard.lock(['Escape']);
+                    } catch (e) {
+                        console.warn("Keyboard lock failed:", e);
+                    }
+                }
+            } else {
+                if (navigator.keyboard && navigator.keyboard.unlock) {
+                    try {
+                        navigator.keyboard.unlock();
+                    } catch (e) {}
+                }
+            }
+        };
+        document.addEventListener('fullscreenchange', applyKeyboardLock);
+        document.addEventListener('webkitfullscreenchange', applyKeyboardLock);
+
         this.loadingScreenImages = [];
         this.introVideo = document.createElement('video');
         this.introVideo.src = 'gamedata/intro.mp4';
@@ -1124,7 +1145,10 @@ class Game {
             if (k2 && (key === k2 || key === k2.toLowerCase() || key === k2.toUpperCase())) isPauseKey = true;
             
             if (isPauseKey && this.gameState !== 'OPTIONS') {
+                e.preventDefault();
                 this.togglePause();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
             }
 
             if (e.key === 'e' || e.key === 'E') {
@@ -2191,9 +2215,16 @@ class Game {
             this.saveSettings();
         });
 
-        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+        document.getElementById('btn-fullscreen').addEventListener('click', async () => {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
+                try {
+                    await document.documentElement.requestFullscreen();
+                    if (navigator.keyboard && navigator.keyboard.lock) {
+                        await navigator.keyboard.lock(['Escape']);
+                    }
+                } catch (err) {
+                    console.warn("Fullscreen request error:", err);
+                }
             } else {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
@@ -3718,7 +3749,13 @@ this.entities.push(
                         // Apply Window Mode
                         if (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS') {
                             if (!document.fullscreenElement) {
-                                document.documentElement.requestFullscreen().catch(err => {
+                                document.documentElement.requestFullscreen().then(async () => {
+                                    if (navigator.keyboard && navigator.keyboard.lock) {
+                                        try {
+                                            await navigator.keyboard.lock(['Escape']);
+                                        } catch (e) {}
+                                    }
+                                }).catch(err => {
                                     console.log("Error attempting to enable fullscreen:", err);
                                 });
                             }
