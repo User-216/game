@@ -24,6 +24,7 @@ class AudioManager {
         this.currentMusicName = null;
         this.currentMusicAudio = null;
         this.fadeIntervals = [];
+        this.isPausedAll = false;
 
         // Auto-unlock audio on user interaction
         this.unlockAudio = () => {
@@ -32,6 +33,10 @@ class AudioManager {
             }
             if (this.ctx && this.ctx.state === 'suspended') {
                 this.ctx.resume().catch(() => {});
+            }
+            // Do NOT unpause or play music if the game is paused!
+            if (this.isPausedAll) {
+                return;
             }
             if (this.currentMusicAudio && this.currentMusicName) {
                 const vol = this.getMusicVolume();
@@ -104,8 +109,8 @@ class AudioManager {
         }
 
         if (this.currentMusicName === filename) {
-            // Same track: make sure it's unpaused and volume is active
-            if (this.currentMusicAudio) {
+            // Same track: if not paused, make sure it's unpaused and volume is active
+            if (this.currentMusicAudio && !this.isPausedAll) {
                 const targetVol = this.getMusicVolume();
                 if (this.currentMusicAudio.paused) {
                     this.currentMusicAudio.volume = targetVol;
@@ -142,6 +147,15 @@ class AudioManager {
 
         this.currentMusicName = filename;
         this.currentMusicAudio = newAudio;
+
+        if (this.isPausedAll) {
+            if (oldAudio) oldAudio.pause();
+            if (newAudio) {
+                newAudio.pause();
+                newAudio.wasPlaying = true;
+            }
+            return;
+        }
 
         const masterVol = this.getMusicVolume();
 
@@ -229,6 +243,10 @@ class AudioManager {
         }
     }
     pauseAll() {
+        this.isPausedAll = true;
+        this.fadeIntervals.forEach(interval => clearInterval(interval));
+        this.fadeIntervals = [];
+
         if (this.ctx && this.ctx.state === 'running') {
             this.ctx.suspend();
         }
@@ -250,9 +268,14 @@ class AudioManager {
                 audio.wasPlaying = false;
             }
         }
+        if (this.currentMusicAudio && !this.currentMusicAudio.paused) {
+            this.currentMusicAudio.wasPlaying = true;
+            this.currentMusicAudio.pause();
+        }
     }
 
     resumeAll() {
+        this.isPausedAll = false;
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
@@ -266,9 +289,15 @@ class AudioManager {
         for (const key in this.musicFiles) {
             const audio = this.musicFiles[key];
             if (audio.wasPlaying) {
+                audio.volume = this.getMusicVolume();
                 audio.play().catch(e => console.log('Resume blocked:', e));
                 audio.wasPlaying = false;
             }
+        }
+        if (this.currentMusicAudio && this.currentMusicAudio.wasPlaying) {
+            this.currentMusicAudio.volume = this.getMusicVolume();
+            this.currentMusicAudio.play().catch(e => console.log('Resume blocked:', e));
+            this.currentMusicAudio.wasPlaying = false;
         }
     }
 

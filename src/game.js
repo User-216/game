@@ -3306,6 +3306,7 @@ this.entities.push(
                     } else if (sel === 'EXIT LEVEL') {
                         this.togglePause();
                         this.gameState = 'TITLE';
+                        if (this.audio) this.audio.playMusic(null);
                         if (this.uiOverlay) this.uiOverlay.style.display = 'none';
                     }
                 }
