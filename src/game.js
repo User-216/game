@@ -49,10 +49,42 @@ window.lang_get_value = function(key) {
     if (window.langData_ko && window.langData_ko[key] !== undefined) {
         return window.langData_ko[key];
     }
-    return key;
-};
+try {
+    Object.defineProperty(window, 'escape', {
+        configurable: true,
+        get() {
+            if (window.gameInstance) return window.gameInstance.escape;
+            return window._globalEscape || false;
+        },
+        set(val) {
+            window._globalEscape = !!val;
+            if (window.gameInstance) {
+                window.gameInstance.escape = !!val;
+            }
+        }
+    });
+} catch (e) {}
 
 class Game {
+    get escape() {
+        return this._escape || false;
+    }
+    set escape(val) {
+        const prev = this._escape || false;
+        this._escape = !!val;
+        if (this._escape && !prev) {
+            // Escape mode activated! Play Breaking News escape theme immediately!
+            if (this.audio) {
+                this.audio.playMusic('mu_escape.wav');
+            }
+        } else if (!this._escape && prev) {
+            // Escape mode deactivated! Revert to room music
+            if (this.audio) {
+                this.audio.playMusic(this.roomMusic || null);
+            }
+        }
+    }
+
     isKeyPressed(k) {
         if (!k) return false;
         return !!(this.keys[k] || this.keys[k.toLowerCase()] || this.keys[k.toUpperCase()]);
@@ -302,6 +334,7 @@ class Game {
         this.roomBackground = 'bg_beaker';
         this.roomMusic = null;
         this.hasExplicitMusic = false;
+        this._escape = false;
         this.bgFollowCamera = true;
         this.bgSpeed = 1.0;
         this.bgSecret = false;
@@ -1479,7 +1512,7 @@ class Game {
         const setMusicBtn = document.getElementById('set-music-btn');
         if (setMusicBtn) {
             setMusicBtn.addEventListener('click', () => {
-                let m = prompt("Enter music file name (e.g., mu_oldlevel.wav), 'none'/'stop' to stop music, or leave blank to continue current music:", this.hasExplicitMusic ? (this.roomMusic || "") : "");
+                let m = prompt("Enter music file name (e.g., mu_oldlevel.wav, mu_escape.wav), 'escape' for escape mode, 'none'/'stop' to stop music, or leave blank to continue current music:", this.hasExplicitMusic ? (this.roomMusic || "") : "");
                 if (m !== null) {
                     const trimmed = m.trim();
                     if (trimmed === "" || trimmed.toLowerCase() === "inherit") {
@@ -1488,7 +1521,13 @@ class Game {
                     } else if (trimmed.toLowerCase() === "none" || trimmed.toLowerCase() === "stop") {
                         this.roomMusic = null;
                         this.hasExplicitMusic = true;
+                        this.escape = false;
                         if (this.audio) this.audio.playMusic(null);
+                    } else if (trimmed.toLowerCase() === "escape" || trimmed.toLowerCase() === "escape=true" || trimmed.toLowerCase() === "breaking") {
+                        this.escape = true;
+                        this.roomMusic = 'mu_escape.wav';
+                        this.hasExplicitMusic = true;
+                        if (this.audio) this.audio.playMusic(this.roomMusic);
                     } else {
                         this.roomMusic = trimmed;
                         this.hasExplicitMusic = true;
@@ -2633,6 +2672,9 @@ class Game {
             code += `this.roomWidth = ${this.roomWidth || 0};\n`;
             code += `this.roomHeight = ${this.roomHeight || 0};\n`;
         }
+        if (this.escape) {
+            code += `this.escape = true;\n`;
+        }
         if (this.hasExplicitMusic && this.roomMusic) {
             code += `this.roomMusic = '${this.roomMusic}';\n`;
         }
@@ -2837,6 +2879,7 @@ this.entities.push(
             const currentH = this.roomHeight;
             const currentMusic = this.roomMusic;
             const currentHasExplicitMusic = this.hasExplicitMusic;
+            const currentEscape = this.escape;
             const currentBg = this.roomBackground;
             const currentBgFollow = this.bgFollowCamera;
             const currentBgSpeed = this.bgSpeed;
@@ -2850,6 +2893,9 @@ this.entities.push(
             this.rooms[this.currentRoom] = () => {
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
+                if (currentEscape) {
+                    this.escape = true;
+                }
                 if (currentHasExplicitMusic) {
                     this.roomMusic = currentMusic;
                 }
@@ -2894,7 +2940,11 @@ this.entities.push(
                 this.tileWaveSpeed = 1.0;
                 this.rooms[roomName].call(this);
 
-                if (typeof this.roomMusic === 'string' && this.roomMusic.trim() !== '') {
+                if (this.escape) {
+                    // Escape sequence is active! Force Breaking News escape theme across all rooms!
+                    this.roomMusic = 'mu_escape.wav';
+                    this.hasExplicitMusic = true;
+                } else if (typeof this.roomMusic === 'string' && this.roomMusic.trim() !== '') {
                     const trimmed = this.roomMusic.trim();
                     if (trimmed.toLowerCase() === 'none' || trimmed.toLowerCase() === 'stop') {
                         this.roomMusic = null;
@@ -3301,9 +3351,11 @@ this.entities.push(
                         this.optionsMenuLevel = 'MAIN';
                         document.getElementById('options-overlay').style.display = 'none'; // just in case
                     } else if (sel === 'RESTART') {
+                        this.escape = false;
                         this.togglePause();
                         this.loadRoom(this.currentRoom);
                     } else if (sel === 'EXIT LEVEL') {
+                        this.escape = false;
                         this.togglePause();
                         this.gameState = 'TITLE';
                         if (this.audio) this.audio.playMusic(null);
