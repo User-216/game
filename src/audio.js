@@ -141,9 +141,9 @@ class AudioManager {
 
         const oldAudio = this.currentMusicAudio;
         
-        // Immediate change if filename contains 'secret' or old filename contained 'secret'
-        const isSecret = (filename && filename.toLowerCase().includes('secret')) || 
-                         (this.currentMusicName && this.currentMusicName.toLowerCase().includes('secret'));
+        // Immediate change if filename contains 'secret', 'escape', or 'breaking'
+        const isImmediate = (filename && (filename.toLowerCase().includes('secret') || filename.toLowerCase().includes('escape') || filename.toLowerCase().includes('breaking'))) || 
+                            (this.currentMusicName && (this.currentMusicName.toLowerCase().includes('secret') || this.currentMusicName.toLowerCase().includes('escape') || this.currentMusicName.toLowerCase().includes('breaking')));
 
         this.currentMusicName = filename;
         this.currentMusicAudio = newAudio;
@@ -159,7 +159,7 @@ class AudioManager {
 
         const masterVol = this.getMusicVolume();
 
-        if (isSecret) {
+        if (isImmediate) {
             if (oldAudio) {
                 oldAudio.pause();
             }
