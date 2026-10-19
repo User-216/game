@@ -4092,29 +4092,37 @@ this.entities.push(
         if (Math.abs(this.player.vx) >= this.player.machThreshold) currentStates.push(dict['state.mach']);
 
         // Door Interaction Check
-        const overlappingDoor = this.entities.find(e => {
-            if (e.type !== 'door' || e.isDestroyed) return false;
-            const drawW = Math.max(e.width, 70);
-            const drawH = Math.max(e.height, 90);
-            const left = e.x + e.width / 2 - drawW / 2;
-            const right = left + drawW;
-            const bottom = e.y + e.height;
-            const top = bottom - drawH;
-            return (
-                this.player.x < right &&
-                this.player.x + this.player.width > left &&
-                this.player.y < bottom &&
-                this.player.y + this.player.height > top
-            );
+        const overlappingInteractable = this.entities.find(e => {
+            if (!e || e.isDestroyed) return false;
+            if (e.type === 'door' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
+                const minW = (e.type === 'door') ? 70 : 64;
+                const minH = (e.type === 'door') ? 90 : 64;
+                const drawW = Math.max(e.width, minW);
+                const drawH = Math.max(e.height, minH);
+                const left = e.x + e.width / 2 - drawW / 2;
+                const right = left + drawW;
+                const bottom = e.y + e.height;
+                const top = bottom - drawH;
+                return (
+                    this.player.x < right &&
+                    this.player.x + this.player.width > left &&
+                    this.player.y < bottom &&
+                    this.player.y + this.player.height > top
+                );
+            }
+            return false;
         });
+
+        const overlappingDoor = (overlappingInteractable && overlappingInteractable.type === 'door') ? overlappingInteractable : null;
 
         if (this.player) {
             this.player.showUpArrow = !!(
-                overlappingDoor && 
+                overlappingInteractable && 
                 this.player.isGrounded && 
                 this.player.state !== 'enterdoor' && 
                 this.player.state !== 'walkfront' && 
-                this.transitionState === 'NONE'
+                this.transitionState === 'NONE' &&
+                this.gameState !== 'ONLINE_MENU'
             );
         }
 

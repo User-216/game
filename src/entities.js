@@ -1575,11 +1575,6 @@ class PaletteDresser extends Entity {
                 this.game.paletteUIActive = true;
                 this.game.paletteUIName = palName;
                 this.game.paletteUIDesc = palDesc;
-            } else {
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText("UP/DOWN", this.x + this.width/2, this.y - 10);
             }
         }
     }
@@ -1637,18 +1632,6 @@ class OnlineComputer {
             ctx.strokeStyle = 'rgba(100, 255, 100, 0.8)';
             ctx.lineWidth = 1;
             ctx.strokeRect(this.x, this.y, this.width, this.height);
-        }
-        
-        if (this.playerTouching && (!this.game || this.game.gameState !== 'ONLINE_MENU')) {
-            ctx.save();
-            ctx.fillStyle = 'white';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.strokeText("PRESS UP", this.x + this.width/2, this.y - 10);
-            ctx.fillText("PRESS UP", this.x + this.width/2, this.y - 10);
-            ctx.restore();
         }
     }
 }

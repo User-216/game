@@ -341,27 +341,30 @@ class Player {
         this.frameCount++;
         this.wasGrounded = this.isGrounded;
 
-        // Check if standing in front of a door for uparrow
-        let atDoor = false;
+        // Check if standing in front of an interactable (door, dresser, computer) for uparrow
+        let atInteractable = false;
         if (entities && this.isGrounded && this.state !== 'enterdoor' && this.state !== 'walkfront') {
             for (let i = 0; i < entities.length; i++) {
                 const e = entities[i];
-                if (e.type === 'door' && !e.isDestroyed) {
-                    const drawW = Math.max(e.width, 70);
-                    const drawH = Math.max(e.height, 90);
+                if (!e || e.isDestroyed) continue;
+                if (e.type === 'door' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
+                    const minW = (e.type === 'door') ? 70 : 64;
+                    const minH = (e.type === 'door') ? 90 : 64;
+                    const drawW = Math.max(e.width, minW);
+                    const drawH = Math.max(e.height, minH);
                     const left = e.x + e.width / 2 - drawW / 2;
                     const right = left + drawW;
                     const bottom = e.y + e.height;
                     const top = bottom - drawH;
                     if (this.x < right && this.x + this.width > left &&
                         this.y < bottom && this.y + this.height > top) {
-                        atDoor = true;
+                        atInteractable = true;
                         break;
                     }
                 }
             }
         }
-        this.showUpArrow = atDoor;
+        this.showUpArrow = atInteractable;
 
         if (this.state === 'enterdoor') {
             this.vx = 0;
