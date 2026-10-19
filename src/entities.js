@@ -274,7 +274,7 @@ class Metal extends Destroyable {
 Metal.initImages();
 
 class Pillar extends Destroyable {
-    constructor(x, y, width = 64, height = 128) {
+    constructor(x, y, width = 128, height = 224) {
         super(x, y, width, height, '#b88958');
         this.type = 'pillar';
         this.isPillar = true;
@@ -289,17 +289,12 @@ class Pillar extends Destroyable {
             Pillar.frames = [];
             for (let i = 0; i < 16; i++) {
                 const img = new Image();
-                if (i < 5) {
-                    img.src = `이미지/spr_pillarjohn/spr_pillar_${i}.png`;
-                } else {
-                    img.src = `이미지/spr_pillarjohn/spr_mugmonolith_${i}.png`;
-                }
+                img.src = `이미지/spr_pillarjohn/spr_pillar_${i}.png`;
                 Pillar.frames.push(img);
             }
         }
-        if (!Pillar.image) {
-            Pillar.image = new Image();
-            Pillar.image.src = '이미지/spr_pillarjohn.png';
+        if (!Pillar.image && Pillar.frames && Pillar.frames.length > 0) {
+            Pillar.image = Pillar.frames[0];
         }
         if (!Pillar.debrisImage) {
             Pillar.debrisImage = new Image();

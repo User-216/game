@@ -2532,8 +2532,8 @@ class Game {
                 w = 32;
                 h = 32;
             } else if (this.selectedType === 'pillar') {
-                w = 64;
-                h = 128;
+                w = 128;
+                h = 224;
             } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal') {
                 w = 64;
                 h = 64;
@@ -5509,10 +5509,10 @@ this.entities.push(
         } else if (this.selectedType === 'pillar') {
             const img = Pillar.image;
             if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, snapX, snapY, 64, 128);
+                ctx.drawImage(img, snapX, snapY, 128, 224);
             } else {
                 ctx.fillStyle = '#b88958';
-                ctx.fillRect(snapX, snapY, 64, 128);
+                ctx.fillRect(snapX, snapY, 128, 224);
             }
         } else {
             ctx.fillStyle = '#00aa9e';
