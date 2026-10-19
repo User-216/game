@@ -38,7 +38,6 @@ this.entities.push(
     new Platform(3648, 544, 512, 64, '#00aa9e66'),
     new Platform(3840, 96, 288, 192, '#00aa9e66'),
     new Platform(4160, 544, 416, 64, '#00aa9e66'),
-    new Pillar(3968, 320, 128, 224),
     new Platform(4128, 96, 96, 448, '#00aa9e66'),
     new Tile(96, 448, 32, 32, 64, 96, 'tile_tutorial.png', 32, 32, true, false),
     new Tile(96, 480, 32, 32, 64, 128, 'tile_tutorial.png', 32, 32),
@@ -2611,6 +2610,8 @@ this.entities.push(
     new Tile(4160, 256, 32, 32, 192, 96, 'tile_tutorial.png', 32, 32, true, false),
     new Tile(4128, 192, 32, 32, 192, 96, 'tile_tutorial.png', 32, 32, true, false),
     new Tile(4128, 224, 32, 32, 192, 96, 'tile_tutorial.png', 32, 32, true, false),
+    new Door(3968, 480, 32, 64, 'C', 'tutorial_3'),
+    new TargetDoor_C(3968, 512, 32, 32),
 );
 
 };
