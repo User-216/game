@@ -246,9 +246,12 @@ class Game {
         });
         window.addEventListener('focus', () => {
             this.settings.isFocused = true;
-            if (this.audio && this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+            if (this.audio) {
+                if (this.audio.unlockAudio) this.audio.unlockAudio();
+                if (this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+            }
         });
-        this.settings.isFocused = document.hasFocus();
+        this.settings.isFocused = true;
 
         this.loadingScreenImages = [];
         this.introVideo = document.createElement('video');
@@ -1031,9 +1034,19 @@ class Game {
             tVid.style.objectFit = 'contain';
         }
         this.mouseClicked = false;
-        window.addEventListener('mousedown', () => { this.mouseClicked = true; });
-        window.addEventListener('touchstart', () => { this.mouseClicked = true; }, {passive: true});
+        window.addEventListener('mousedown', () => { 
+            this.mouseClicked = true; 
+            this.settings.isFocused = true;
+            if (this.audio && this.audio.unlockAudio) this.audio.unlockAudio();
+        });
+        window.addEventListener('touchstart', () => { 
+            this.mouseClicked = true; 
+            this.settings.isFocused = true;
+            if (this.audio && this.audio.unlockAudio) this.audio.unlockAudio();
+        }, {passive: true});
         window.addEventListener('keydown', (e) => {
+            this.settings.isFocused = true;
+            if (this.audio && this.audio.unlockAudio) this.audio.unlockAudio();
             if (this.isTyping) return; // Ignore keys for game if typing
             
             if (e.key === 'Enter' && this.gameState === 'PLAYING') {
@@ -3220,6 +3233,12 @@ this.entities.push(
                 if (this.uiOverlay) this.uiOverlay.style.display = 'block';
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
+                if (this.audio) {
+                    this.audio.unlockAudio();
+                    if (this.roomMusic) {
+                        this.audio.playMusic(this.roomMusic);
+                    }
+                }
             }
             return;
         }

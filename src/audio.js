@@ -1,4 +1,4 @@
-﻿class AudioManager {
+class AudioManager {
     constructor(settings) {
         this.settings = settings;
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -24,16 +24,46 @@
         this.currentMusicName = null;
         this.currentMusicAudio = null;
         this.fadeIntervals = [];
+
+        // Auto-unlock audio on user interaction
+        this.unlockAudio = () => {
+            if (this.settings) {
+                this.settings.isFocused = true;
+            }
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume().catch(() => {});
+            }
+            if (this.currentMusicAudio && this.currentMusicName) {
+                const vol = this.getMusicVolume();
+                if (this.currentMusicAudio.paused) {
+                    this.currentMusicAudio.volume = vol;
+                    this.currentMusicAudio.play().catch(e => {
+                        console.log('Unlock audio play blocked:', e);
+                    });
+                } else if (!this.currentMusicAudio.isFading && vol > 0) {
+                    this.currentMusicAudio.volume = vol;
+                }
+            }
+        };
+
+        ['click', 'keydown', 'pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
+            window.addEventListener(evt, this.unlockAudio, { passive: true });
+        });
+        window.addEventListener('focus', this.unlockAudio, { passive: true });
     }
 
     getMusicVolume() {
-        if (this.settings.unfocusedMute && !this.settings.isFocused) return 0;
-        return (this.settings.masterVolume / 100) * (this.settings.musicVolume / 100);
+        if (this.settings && this.settings.unfocusedMute && !this.settings.isFocused) return 0;
+        const master = (this.settings && typeof this.settings.masterVolume === 'number') ? this.settings.masterVolume : 100;
+        const music = (this.settings && typeof this.settings.musicVolume === 'number') ? this.settings.musicVolume : 80;
+        return Math.max(0, Math.min(1, (master / 100) * (music / 100)));
     }
     
     getSFXVolume() {
-        if (this.settings.unfocusedMute && !this.settings.isFocused) return 0;
-        return (this.settings.masterVolume / 100) * (this.settings.sfxVolume / 100);
+        if (this.settings && this.settings.unfocusedMute && !this.settings.isFocused) return 0;
+        const master = (this.settings && typeof this.settings.masterVolume === 'number') ? this.settings.masterVolume : 100;
+        const sfx = (this.settings && typeof this.settings.sfxVolume === 'number') ? this.settings.sfxVolume : 100;
+        return Math.max(0, Math.min(1, (master / 100) * (sfx / 100)));
     }
 
     updateMusicVolume() {
@@ -44,7 +74,50 @@
     }
 
     playMusic(filename) {
-        if (this.currentMusicName === filename) return;
+        if (!filename) {
+            // Stop current music
+            this.fadeIntervals.forEach(interval => clearInterval(interval));
+            this.fadeIntervals = [];
+            if (this.currentMusicAudio) {
+                const oldAudio = this.currentMusicAudio;
+                this.currentMusicAudio = null;
+                this.currentMusicName = null;
+                oldAudio.isFading = true;
+                const steps = 20;
+                let oldVol = oldAudio.volume;
+                const oldStep = oldVol / steps;
+                const fadeOut = setInterval(() => {
+                    oldVol -= oldStep;
+                    if (oldVol <= 0) {
+                        oldVol = 0;
+                        oldAudio.pause();
+                        oldAudio.isFading = false;
+                        clearInterval(fadeOut);
+                    }
+                    oldAudio.volume = Math.max(0, oldVol);
+                }, 50);
+                this.fadeIntervals.push(fadeOut);
+            } else {
+                this.currentMusicName = null;
+            }
+            return;
+        }
+
+        if (this.currentMusicName === filename) {
+            // Same track: make sure it's unpaused and volume is active
+            if (this.currentMusicAudio) {
+                const targetVol = this.getMusicVolume();
+                if (this.currentMusicAudio.paused) {
+                    this.currentMusicAudio.volume = targetVol;
+                    this.currentMusicAudio.play().catch(e => {
+                        console.log('Music play blocked (waiting for interaction):', e);
+                    });
+                } else if (!this.currentMusicAudio.isFading && targetVol > 0) {
+                    this.currentMusicAudio.volume = targetVol;
+                }
+            }
+            return;
+        }
 
         // Clear existing fades
         this.fadeIntervals.forEach(interval => clearInterval(interval));
@@ -54,16 +127,12 @@
             this.currentMusicAudio.isFading = false;
         }
 
-        const masterVol = this.getMusicVolume();
-
         let newAudio = null;
-        if (filename) {
-            if (!this.musicFiles[filename]) {
-                this.musicFiles[filename] = new Audio('music/' + filename);
-                this.musicFiles[filename].loop = true;
-            }
-            newAudio = this.musicFiles[filename];
+        if (!this.musicFiles[filename]) {
+            this.musicFiles[filename] = new Audio('music/' + filename);
+            this.musicFiles[filename].loop = true;
         }
+        newAudio = this.musicFiles[filename];
 
         const oldAudio = this.currentMusicAudio;
         
@@ -74,24 +143,25 @@
         this.currentMusicName = filename;
         this.currentMusicAudio = newAudio;
 
+        const masterVol = this.getMusicVolume();
+
         if (isSecret) {
             if (oldAudio) {
                 oldAudio.pause();
-                // removed currentTime reset to allow resume
             }
             if (newAudio) {
                 newAudio.volume = masterVol;
-                newAudio.play().catch(e => console.log('Music play blocked:', e));
+                newAudio.play().catch(e => console.log('Music play blocked (waiting for interaction):', e));
             }
             return;
         }
 
         // Crossfade
-        const fadeDuration = 2000; // 2 seconds
+        const fadeDuration = 1000; // 1 second
         const steps = 20;
         const stepTime = fadeDuration / steps;
 
-        if (oldAudio) {
+        if (oldAudio && oldAudio !== newAudio) {
             oldAudio.isFading = true;
             let oldVol = oldAudio.volume;
             const oldStep = oldVol / steps;
@@ -100,33 +170,34 @@
                 if (oldVol <= 0) {
                     oldVol = 0;
                     oldAudio.pause();
-                    // removed currentTime reset to allow resume
                     oldAudio.isFading = false;
                     clearInterval(fadeOutInterval);
                 }
-                oldAudio.volume = oldVol;
+                oldAudio.volume = Math.max(0, oldVol);
             }, stepTime);
             this.fadeIntervals.push(fadeOutInterval);
         }
 
         if (newAudio) {
             newAudio.isFading = true;
+            const targetMasterVol = this.getMusicVolume();
+            const effectiveTarget = targetMasterVol > 0 ? targetMasterVol : 0.8;
             newAudio.volume = 0;
-            newAudio.play().catch(e => console.log('Music play blocked:', e));
+            newAudio.play().catch(e => console.log('Music play blocked (waiting for interaction):', e));
             let newVol = 0;
             
             const fadeInInterval = setInterval(() => {
-                const targetMasterVol = this.getMusicVolume();
-                const newStep = targetMasterVol / steps;
+                const currentTarget = this.getMusicVolume();
+                const targetToUse = currentTarget > 0 ? currentTarget : effectiveTarget;
+                const newStep = targetToUse / steps;
                 
                 newVol += newStep;
-                if (newVol >= targetMasterVol) {
-                    newVol = targetMasterVol;
+                if (newVol >= targetToUse) {
+                    newVol = targetToUse;
                     newAudio.isFading = false;
                     clearInterval(fadeInInterval);
                 }
-                // Avoid exception if volume slightly exceeds 1.0 due to float math
-                newAudio.volume = Math.min(1, Math.max(0, newVol));
+                newAudio.volume = Math.min(1, Math.max(0, currentTarget > 0 ? newVol : 0));
             }, stepTime);
             this.fadeIntervals.push(fadeInInterval);
         }
