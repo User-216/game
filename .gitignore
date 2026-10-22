@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+scratch/
+wl4.sf2
+wl4_samples/
+test_*.png
+test_*.html
+compare_*.png
+browser_*.png
+font_*.png
+scratch_*.png
+scratch_*.wav
+user_gye.png

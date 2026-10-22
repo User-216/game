@@ -177,6 +177,8 @@ class Game {
             font1.load().then(f => document.fonts.add(f));
             const font2 = new FontFace('Custom_KyoboHandwriting2019', 'url(lang/korean/Custom_KyoboHandwriting2019.ttf)');
             font2.load().then(f => document.fonts.add(f));
+            const font3 = new FontFace('Custom_SANGJU_Dajungdagam', 'url(lang/korean/Custom_SANGJU_Dajungdagam.ttf)');
+            font3.load().then(f => document.fonts.add(f));
         } catch(e) {}
         
         this.optionsBGImages = [];
@@ -641,95 +643,146 @@ class Game {
         }
     }
 
-    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 32, strokeWidth = 2, isSolidColor = false, color = '#000000') {
+    getPixelatedTextCanvas(text, fontName = 'Custom_Jejudoldam', fontSize = 36, strokeWidth = 1, isSolidColor = false, color = '#FFFFFF', shadowY = 1) {
         if (!this.pixelTextCache) this.pixelTextCache = new Map();
-        const cacheKey = `${text}_${fontName}_${fontSize}_${strokeWidth}_${isSolidColor}_${color}`;
+        const cacheKey = `${text}_${fontName}_${fontSize}_${strokeWidth}_${isSolidColor}_${color}_${shadowY}`;
         if (this.pixelTextCache.has(cacheKey)) {
             return this.pixelTextCache.get(cacheKey);
         }
 
         const measureCanvas = document.createElement('canvas');
         const measureCtx = measureCanvas.getContext('2d');
-        measureCtx.font = `bold ${fontSize}px "${fontName}", sans-serif`;
+        const isCustomFont = (typeof fontName === 'string') && (fontName.startsWith('Custom_') || fontName === 'NeoDunggeunmo');
+        const fontPrefix = isCustomFont ? '' : 'bold ';
+        measureCtx.font = `${fontPrefix}${fontSize}px "${fontName}", sans-serif`;
         const metrics = measureCtx.measureText(text);
-        const padding = Math.max(4, strokeWidth * 2 + 6);
+        const padding = Math.max(4, strokeWidth + shadowY + 4);
         const textWidth = Math.ceil(metrics.width);
         const textHeight = Math.ceil(fontSize * 1.3);
         const w = Math.max(1, textWidth + padding * 2);
-        const h = Math.max(1, textHeight + padding * 2);
+        const h = Math.max(1, textHeight + padding * 2 + shadowY);
 
         const offCanvas = document.createElement('canvas');
         offCanvas.width = w;
         offCanvas.height = h;
         const offCtx = offCanvas.getContext('2d');
 
-        offCtx.font = `bold ${fontSize}px "${fontName}", sans-serif`;
+        offCtx.font = `${fontPrefix}${fontSize}px "${fontName}", sans-serif`;
         offCtx.textBaseline = 'top';
         offCtx.textAlign = 'left';
 
         if (isSolidColor) {
-            // Pure solid colored text (e.g. pure black ink for tutorial book)
-            offCtx.fillStyle = color;
+            // Pure solid colored text (e.g. tutorial book handwriting)
+            offCtx.fillStyle = (color && color !== '#FFFFFF') ? color : '#000000';
             offCtx.fillText(text, padding, padding);
 
+            // 1-bit binarization for solid color text (optimal threshold to preserve delicate strokes)
             try {
                 const imgData = offCtx.getImageData(0, 0, w, h);
                 const data = imgData.data;
+                const solidThreshold = isCustomFont ? 130 : 90;
                 for (let i = 0; i < data.length; i += 4) {
-                    const alpha = data[i + 3];
-                    if (alpha < 70) {
-                        data[i + 3] = 0;
-                    } else {
-                        data[i] = 0;
-                        data[i + 1] = 0;
-                        data[i + 2] = 0;
+                    if (data[i + 3] >= solidThreshold) {
                         data[i + 3] = 255;
+                    } else {
+                        data[i + 3] = 0;
                     }
                 }
                 offCtx.putImageData(imgData, 0, 0);
             } catch (e) {}
         } else {
-            // Draw crisp outline
-            if (strokeWidth <= 1) {
-                offCtx.fillStyle = '#000000';
-                offCtx.fillText(text, padding - 1, padding);
-                offCtx.fillText(text, padding + 1, padding);
-                offCtx.fillText(text, padding, padding - 1);
-                offCtx.fillText(text, padding, padding + 1);
-            } else {
-                offCtx.lineWidth = strokeWidth * 2;
-                offCtx.strokeStyle = '#000000';
-                offCtx.lineJoin = 'round';
-                offCtx.strokeText(text, padding, padding);
-            }
-
-            // Draw fill
+            // 1. Draw text fill ONLY (preserves natural glyph contours without inward stroke choking)
             offCtx.fillStyle = '#FFFFFF';
             offCtx.fillText(text, padding, padding);
 
-            // Remove vector anti-aliased semi-transparent sub-pixels (pixelate / binarize)
+            // 2. Pixel binarization with EXACT 1-pixel outer outline and 1-pixel bottom shadow
             try {
                 const imgData = offCtx.getImageData(0, 0, w, h);
                 const data = imgData.data;
+                const srcData = new Uint8ClampedArray(data);
+
+                // Parse target fill color
+                let fr = 255, fg = 255, fb = 255;
+                if (color && typeof color === 'string' && color.startsWith('#')) {
+                    if (color.length === 7) {
+                        fr = parseInt(color.slice(1, 3), 16);
+                        fg = parseInt(color.slice(3, 5), 16);
+                        fb = parseInt(color.slice(5, 7), 16);
+                    }
+                }
+
+                // Identify fill pixels by optimal threshold (binarization without choking/clumping)
+                const isFill = new Uint8Array(w * h);
+                const isOutline = new Uint8Array(w * h);
+                const fillThreshold = isCustomFont ? 150 : 110;
                 for (let i = 0; i < data.length; i += 4) {
-                    const alpha = data[i + 3];
-                    if (alpha < 60) {
-                        data[i + 3] = 0;
-                    } else {
-                        const r = data[i];
-                        const g = data[i + 1];
-                        const b = data[i + 2];
-                        const brightness = (r + g + b) / 3;
-                        if (brightness > 85) {
-                            data[i] = 255;
-                            data[i + 1] = 255;
-                            data[i + 2] = 255;
-                            data[i + 3] = 255;
+                    if (srcData[i + 3] >= fillThreshold) {
+                        isFill[i >> 2] = 1;
+                    }
+                }
+
+                const outlineDist = Math.max(0, Math.round(strokeWidth));
+                if (outlineDist > 0) {
+                    for (let y = 0; y < h; y++) {
+                        const rowOffset = y * w;
+                        for (let x = 0; x < w; x++) {
+                            const idx = rowOffset + x;
+                            if (isFill[idx] === 1) continue;
+
+                            let hasNeighbor = false;
+                            for (let dy = -outlineDist; dy <= outlineDist; dy++) {
+                                const ny = y + dy;
+                                if (ny < 0 || ny >= h) continue;
+                                const nRow = ny * w;
+                                for (let dx = -outlineDist; dx <= outlineDist; dx++) {
+                                    if (dx === 0 && dy === 0) continue;
+                                    const nx = x + dx;
+                                    if (nx >= 0 && nx < w && isFill[nRow + nx] === 1) {
+                                        hasNeighbor = true;
+                                        break;
+                                    }
+                                }
+                                if (hasNeighbor) break;
+                            }
+                            if (hasNeighbor) {
+                                isOutline[idx] = 1;
+                            }
+                        }
+                    }
+                }
+
+                // Write final pixels: Fill, 1px Outline, and 1px Bottom Shadow
+                for (let y = 0; y < h; y++) {
+                    const rowOffset = y * w;
+                    for (let x = 0; x < w; x++) {
+                        const idx = rowOffset + x;
+                        const pIdx = idx * 4;
+
+                        if (isFill[idx] === 1) {
+                            // Crisp binarized fill
+                            data[pIdx] = fr;
+                            data[pIdx + 1] = fg;
+                            data[pIdx + 2] = fb;
+                            data[pIdx + 3] = 255;
+                        } else if (isOutline[idx] === 1) {
+                            // EXACT 1px crisp black border
+                            data[pIdx] = 0;
+                            data[pIdx + 1] = 0;
+                            data[pIdx + 2] = 0;
+                            data[pIdx + 3] = 255;
+                        } else if (shadowY > 0 && y >= shadowY) {
+                            // 1-pixel black shadow below
+                            const aboveIdx = (y - shadowY) * w + x;
+                            if (isOutline[aboveIdx] === 1 || isFill[aboveIdx] === 1) {
+                                data[pIdx] = 0;
+                                data[pIdx + 1] = 0;
+                                data[pIdx + 2] = 0;
+                                data[pIdx + 3] = 255;
+                            } else {
+                                data[pIdx + 3] = 0;
+                            }
                         } else {
-                            data[i] = 0;
-                            data[i + 1] = 0;
-                            data[i + 2] = 0;
-                            data[i + 3] = 255;
+                            data[pIdx + 3] = 0;
                         }
                     }
                 }
@@ -1157,9 +1210,13 @@ class Game {
             if (this.isEditorMode) {
                 const activeTag = document.activeElement ? document.activeElement.tagName : '';
                 if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
-                    if (e.key === 'x' || e.key === 'X' || e.key === 'f' || e.key === 'F') {
+                    const isFlipX = (e.code === 'KeyX' || e.code === 'KeyF' || e.key === 'x' || e.key === 'X' || e.key === 'f' || e.key === 'F' || e.key === 'ㅌ' || e.key === 'ㄹ');
+                    const isFlipY = (e.code === 'KeyY' || e.code === 'KeyV' || e.key === 'y' || e.key === 'Y' || e.key === 'v' || e.key === 'V' || e.key === 'ㅛ' || e.key === 'ㅍ');
+                    if (isFlipX) {
+                        e.preventDefault();
                         this.flipSelectedTool(false);
-                    } else if (e.key === 'y' || e.key === 'Y') {
+                    } else if (isFlipY) {
+                        e.preventDefault();
                         this.flipSelectedTool(true);
                     }
                 }
@@ -1319,6 +1376,20 @@ class Game {
                     this.currentTilesetName = tName;
                     img.src = `Tileset/${tName}`;
                 }
+            });
+        }
+
+        const flipXBtn = document.getElementById('tile-flip-x-btn');
+        if (flipXBtn) {
+            flipXBtn.addEventListener('click', () => {
+                this.flipSelectedTool(false);
+            });
+        }
+
+        const flipYBtn = document.getElementById('tile-flip-y-btn');
+        if (flipYBtn) {
+            flipYBtn.addEventListener('click', () => {
+                this.flipSelectedTool(true);
             });
         }
 
@@ -1655,6 +1726,18 @@ class Game {
                 this.toggleCollisions();
             });
         }
+        const editorFlipXBtn = document.getElementById('editor-flip-x-btn');
+        if (editorFlipXBtn) {
+            editorFlipXBtn.addEventListener('click', () => {
+                this.flipSelectedTool(false);
+            });
+        }
+        const editorFlipYBtn = document.getElementById('editor-flip-y-btn');
+        if (editorFlipYBtn) {
+            editorFlipYBtn.addEventListener('click', () => {
+                this.flipSelectedTool(true);
+            });
+        }
     }
 
     toggleCollisions() {
@@ -1674,6 +1757,8 @@ class Game {
 
     isCollisionEntity(e) {
         if (!e) return false;
+        if (e.isSecret && e.isDestroyed) return false;
+        if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
         const type = e.type;
         if (type === 'platform' || e instanceof Platform) return true;
@@ -2013,6 +2098,25 @@ class Game {
 
     drawCreditsText(ctx, textStr, x, y, center = true, scale = 1) {
         if (!textStr) return;
+        textStr = textStr.toString();
+
+        const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(textStr);
+        const useKoreanFont = hasKorean || (this.settings && this.settings.language === 'ko');
+
+        if (useKoreanFont) {
+            const fontSize = Math.round(28 * scale);
+            const strokeWidth = Math.max(1, Math.round(2 * scale));
+            const pixelated = this.getPixelatedTextCanvas(textStr, 'Custom_SANGJU_Dajungdagam', fontSize, strokeWidth);
+            if (pixelated) {
+                const drawX = center ? (x - pixelated.textWidth / 2 - pixelated.padding) : (x - pixelated.padding);
+                const drawY = y - pixelated.padding;
+                ctx.save();
+                ctx.drawImage(pixelated.canvas, Math.round(drawX), Math.round(drawY));
+                ctx.restore();
+                return;
+            }
+        }
+
         const kerning = -16 * scale;
         let totalW = 0;
         let charImages = [];
@@ -2028,8 +2132,9 @@ class Game {
                 charImages.push(img);
                 totalW += (img.width || 30) * scale + kerning; 
             } else {
-                charImages.push(null);
-                totalW += 30 * scale + kerning;
+                const pixelatedChar = this.getPixelatedTextCanvas(textStr[i], 'Custom_SANGJU_Dajungdagam', Math.round(28 * scale), Math.max(1, Math.round(2 * scale)));
+                charImages.push(pixelatedChar ? { isCanvas: true, canvas: pixelatedChar.canvas, width: pixelatedChar.textWidth, padding: pixelatedChar.padding } : null);
+                totalW += ((pixelatedChar ? pixelatedChar.textWidth : 30) * scale) + kerning;
             }
         }
         
@@ -2039,14 +2144,20 @@ class Game {
                 cx += 30 * scale + kerning;
                 continue;
             }
-            const img = charImages[i];
-            if (img && img.complete && img.naturalWidth > 0) {
+            const item = charImages[i];
+            if (item && item.isCanvas) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(item.canvas, Math.round(cx - item.padding), Math.round(y - item.padding));
+                ctx.restore();
+                cx += item.width * scale + kerning;
+            } else if (item && item.complete && item.naturalWidth > 0) {
                 if (scale !== 1) {
-                    ctx.drawImage(img, cx, y, img.naturalWidth * scale, img.naturalHeight * scale);
+                    ctx.drawImage(item, cx, y, item.naturalWidth * scale, item.naturalHeight * scale);
                 } else {
-                    ctx.drawImage(img, cx, y);
+                    ctx.drawImage(item, cx, y);
                 }
-                cx += (img.width || 30) * scale + kerning;
+                cx += (item.width || 30) * scale + kerning;
             } else {
                 cx += 30 * scale + kerning;
             }
@@ -2273,7 +2384,10 @@ class Game {
         if (this.isEditorMode) {
             toolbar.classList.remove('hidden');
             this.player.isNoClip = true; // Auto-noclip for building
-            if (palette && this.isTileType(this.selectedType)) palette.classList.remove('hidden');
+            if (palette && this.isTileType(this.selectedType)) {
+                palette.classList.remove('hidden');
+                this.updateTileFlipUI();
+            }
         } else {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
@@ -2306,6 +2420,7 @@ class Game {
         if (palette) {
             if (this.isTileType(type)) {
                 palette.classList.remove('hidden');
+                this.updateTileFlipUI();
                 const titleElem = palette.querySelector('h4');
                 if (titleElem) {
                     const layerName = type === 'tile2' ? 'Layer 2 (Front/앞)' : (type === 'tile3' ? 'Layer 3 (Back/뒤)' : 'Layer 1 (Main)');
@@ -2318,54 +2433,126 @@ class Game {
     }
 
     flipSelectedTool(isVertical = false) {
-        if (!isVertical) {
-            if (this.selectedType === 'slope-left') {
-                this.selectTool('slope-right');
-                return;
-            } else if (this.selectedType === 'slope-right') {
-                this.selectTool('slope-left');
-                return;
-            }
-        }
+        const mx = this.mousePos ? this.mousePos.x : null;
+        const my = this.mousePos ? this.mousePos.y : null;
+        const isTile = this.isTileType(this.selectedType);
+        const targetLayer = isTile ? this.getTileLayerFromType(this.selectedType) : null;
 
-        // Check if mouse is hovering over an existing placed tile
-        const snapX = this.snapToGrid(this.mousePos.x);
-        const snapY = this.snapToGrid(this.mousePos.y);
-        const targetLayer = this.getTileLayerFromType(this.selectedType);
-        let hoveredTile = null;
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            const ent = this.entities[i];
-            if (ent instanceof Tile && ent.x === snapX && ent.y === snapY) {
-                if ((ent.layer || 1) === targetLayer) {
-                    hoveredTile = ent;
-                    break;
-                } else if (!hoveredTile) {
-                    hoveredTile = ent;
+        // 1. Check if hovering over an existing placed entity under mouse
+        let hoveredEnt = null;
+        if (mx !== null && my !== null && this.isEditorMode) {
+            for (let i = this.entities.length - 1; i >= 0; i--) {
+                const ent = this.entities[i];
+                if (mx >= ent.x && mx <= ent.x + ent.width &&
+                    my >= ent.y && my <= ent.y + ent.height) {
+                    const entIsTile = (ent instanceof Tile || ent.type === 'tile');
+                    if (isTile && entIsTile) {
+                        if (!targetLayer || (ent.layer || 1) === targetLayer) {
+                            hoveredEnt = ent;
+                            break;
+                        }
+                    } else if (!isTile && !entIsTile) {
+                        hoveredEnt = ent;
+                        break;
+                    } else if (!hoveredEnt) {
+                        hoveredEnt = ent;
+                    }
                 }
             }
         }
 
-        if (isVertical) {
-            if (hoveredTile) {
-                hoveredTile.flipY = !hoveredTile.flipY;
-                this.tileFlipY = hoveredTile.flipY;
-                this.saveCurrentRoomToMemory();
-                this.showFlipToast(hoveredTile.flipY ? 'TILE VERT-FLIP: ON [Y]' : 'TILE VERT-FLIP: OFF [Y]');
+        if (hoveredEnt) {
+            let label = 'OBJECT';
+            if (hoveredEnt instanceof Tile || hoveredEnt.type === 'tile') {
+                label = 'TILE';
+                if (isVertical) {
+                    hoveredEnt.flipY = !hoveredEnt.flipY;
+                } else {
+                    hoveredEnt.flipX = !hoveredEnt.flipX;
+                }
+            } else if (hoveredEnt instanceof Slope || hoveredEnt.type === 'slope' || hoveredEnt.type === 'left-up' || hoveredEnt.type === 'right-up') {
+                label = 'SLOPE';
+                if (!isVertical) {
+                    hoveredEnt.type = (hoveredEnt.type === 'left-up' ? 'right-up' : 'left-up');
+                } else {
+                    hoveredEnt.flipY = !hoveredEnt.flipY;
+                }
+            } else if (hoveredEnt instanceof Cutoff || hoveredEnt.type === 'obj_cutoff' || hoveredEnt.type === 'obj_cutoffsmall') {
+                label = 'CUTOFF';
+                if (!isVertical) {
+                    if (hoveredEnt.side === 'left') hoveredEnt.side = 'right';
+                    else if (hoveredEnt.side === 'right') hoveredEnt.side = 'left';
+                    else hoveredEnt.flipX = !hoveredEnt.flipX;
+                } else {
+                    if (hoveredEnt.side === 'top') hoveredEnt.side = 'bottom';
+                    else if (hoveredEnt.side === 'bottom') hoveredEnt.side = 'top';
+                    else hoveredEnt.flipY = !hoveredEnt.flipY;
+                }
+            } else if (hoveredEnt instanceof Slime || hoveredEnt.type === 'obj_slime') {
+                label = 'SLIME';
+                if (!isVertical) {
+                    hoveredEnt.facingDir = (hoveredEnt.facingDir === -1 ? 1 : -1);
+                    hoveredEnt.flipX = (hoveredEnt.facingDir === -1);
+                } else {
+                    hoveredEnt.flipY = !hoveredEnt.flipY;
+                }
             } else {
-                this.tileFlipY = !this.tileFlipY;
-                this.showFlipToast(this.tileFlipY ? 'TILE VERT-FLIP: ON [Y]' : 'TILE VERT-FLIP: OFF [Y]');
+                if (hoveredEnt.type) label = hoveredEnt.type.toUpperCase().replace('OBJ_', '');
+                if (!isVertical) {
+                    hoveredEnt.flipX = !hoveredEnt.flipX;
+                } else {
+                    hoveredEnt.flipY = !hoveredEnt.flipY;
+                }
             }
-        } else {
-            if (hoveredTile) {
-                hoveredTile.flipX = !hoveredTile.flipX;
-                this.tileFlipX = hoveredTile.flipX;
-                this.saveCurrentRoomToMemory();
-                this.showFlipToast(hoveredTile.flipX ? 'TILE FLIP: ON [X]' : 'TILE FLIP: OFF [X]');
-            } else {
-                this.tileFlipX = !this.tileFlipX;
-                this.showFlipToast(this.tileFlipX ? 'TILE FLIP: ON [X]' : 'TILE FLIP: OFF [X]');
+            this.saveCurrentRoomToMemory();
+            const stateStr = isVertical ? (hoveredEnt.flipY ? 'VERT ON' : 'VERT OFF') : (hoveredEnt.flipX ? 'ON' : 'OFF');
+            this.showFlipToast(`${label} FLIP: ${stateStr}`);
+            return;
+        }
+
+        // 2. No entity hovered: flip tool placement orientation
+        if (!isVertical) {
+            if (this.selectedType === 'slope-left') {
+                this.selectTool('slope-right');
+                this.showFlipToast('SLOPE: \\ [X / F]');
+                return;
+            } else if (this.selectedType === 'slope-right') {
+                this.selectTool('slope-left');
+                this.showFlipToast('SLOPE: / [X / F]');
+                return;
             }
         }
+
+        const isObj = !this.isTileType(this.selectedType);
+        const prefix = isObj ? 'OBJECT' : 'TILE';
+
+        if (isVertical) {
+            this.tileFlipY = !this.tileFlipY;
+            this.showFlipToast(this.tileFlipY ? `${prefix} VERT-FLIP: ON [Y]` : `${prefix} VERT-FLIP: OFF [Y]`);
+        } else {
+            this.tileFlipX = !this.tileFlipX;
+            this.showFlipToast(this.tileFlipX ? `${prefix} FLIP: ON [X / F]` : `${prefix} FLIP: OFF [X / F]`);
+        }
+        this.updateTileFlipUI();
+    }
+
+    updateTileFlipUI() {
+        const updateBtn = (btn, active) => {
+            if (!btn) return;
+            if (active) {
+                btn.style.background = '#00f2ff';
+                btn.style.color = '#000';
+                btn.style.fontWeight = 'bold';
+            } else {
+                btn.style.background = '#333';
+                btn.style.color = '#fff';
+                btn.style.fontWeight = 'normal';
+            }
+        };
+        updateBtn(document.getElementById('tile-flip-x-btn'), this.tileFlipX);
+        updateBtn(document.getElementById('tile-flip-y-btn'), this.tileFlipY);
+        updateBtn(document.getElementById('editor-flip-x-btn'), this.tileFlipX);
+        updateBtn(document.getElementById('editor-flip-y-btn'), this.tileFlipY);
     }
 
     showFlipToast(msg) {
@@ -2479,6 +2666,9 @@ class Game {
                 if ((ent.layer || 1) !== targetLayer) continue;
             } else if (this.selectedType === 'erase') {
                 if (!(ent instanceof Tile || ent.type === 'tile')) continue;
+            } else {
+                // When deleting non-tiles ("딴거 삭제할 때는"), never delete tiles!
+                if (ent instanceof Tile || ent.type === 'tile') continue;
             }
             if (ent.x < maxX && ent.x + ent.width > minX &&
                 ent.y < maxY && ent.y + ent.height > minY) {
@@ -2591,7 +2781,7 @@ class Game {
 
         // Minimum / default size
         if (w === 0 && h === 0) {
-            if (this.selectedType === 'destroyable-small') {
+            if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff') {
                 w = 32;
                 h = 32;
             } else if (this.selectedType === 'pillar') {
@@ -2600,7 +2790,7 @@ class Game {
             } else if (this.selectedType === 'door') {
                 w = 100;
                 h = 100;
-            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal') {
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock') {
                 w = 64;
                 h = 64;
             } else {
@@ -2623,6 +2813,16 @@ class Game {
             case 'destroyable-small': entity = new Destroyable(x, y, w, h); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
             case 'metal': entity = new Metal(x, y, w, h); break;
+            case 'secretblock': entity = new SecretBlock(x, y, w, h); break;
+            case 'secretbigblock': entity = new SecretBigBlock(x, y, w, h); break;
+            case 'secretmetalblock': entity = new SecretMetalBlock(x, y, w, h); break;
+            case 'cutoff':
+            case 'obj_cutoff':
+            case 'obj_cutoffsmall': {
+                const side = this.tileFlipY ? 'bottom' : 'top';
+                entity = new Cutoff(x, y, w, h, side, (w >= 64 ? '64x64' : '32x32'));
+                break;
+            }
             case 'pillar': entity = new Pillar(x, y, w, h); break;
             case 'tile':
             case 'tile1':
@@ -2710,7 +2910,14 @@ class Game {
         }
 
         if (entity) {
+            if (this.tileFlipX) entity.flipX = true;
+            if (this.tileFlipY) entity.flipY = true;
+            if (entity instanceof Slime && this.tileFlipX) {
+                entity.facingDir = -1;
+                entity.vx = -Math.abs(entity.vx);
+            }
             this.entities.push(entity);
+            this.saveCurrentRoomToMemory();
         }
 
         this.dragStart = null;
@@ -2737,19 +2944,47 @@ class Game {
         const maxY = snapY + this.gridSize;
         const isTile = this.isTileType(this.selectedType);
         const targetLayer = isTile ? this.getTileLayerFromType(this.selectedType) : null;
+
+        let nonTileIndex = -1;
+        let tileIndex = -1;
+
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const ent = this.entities[i];
-            if (isTile) {
-                if (!(ent instanceof Tile || ent.type === 'tile')) continue;
-                if ((ent.layer || 1) !== targetLayer) continue;
-            } else if (this.selectedType === 'erase') {
-                if (!(ent instanceof Tile || ent.type === 'tile')) continue;
-            }
             if (ent.x < maxX && ent.x + ent.width > snapX &&
                 ent.y < maxY && ent.y + ent.height > snapY) {
-                this.entities.splice(i, 1);
+                const isEntTile = (ent instanceof Tile || ent.type === 'tile');
+                if (isEntTile) {
+                    if (tileIndex === -1 && (!targetLayer || (ent.layer || 1) === targetLayer)) {
+                        tileIndex = i;
+                    }
+                } else {
+                    if (nonTileIndex === -1) {
+                        nonTileIndex = i;
+                    }
+                }
+            }
+        }
+
+        if (this.selectedType === 'erase') {
+            if (tileIndex !== -1) {
+                this.entities.splice(tileIndex, 1);
                 this.saveCurrentRoomToMemory();
-                break;
+            }
+        } else if (!isTile) {
+            // When deleting other things (solids, objects, enemies), do not delete tiles!
+            if (nonTileIndex !== -1) {
+                this.entities.splice(nonTileIndex, 1);
+                this.saveCurrentRoomToMemory();
+            }
+        } else {
+            // Tile tool active (tile1, tile2, tile3):
+            // If user clicked on a non-tile entity ("딴거"), delete that entity without deleting the tile!
+            if (nonTileIndex !== -1) {
+                this.entities.splice(nonTileIndex, 1);
+                this.saveCurrentRoomToMemory();
+            } else if (tileIndex !== -1) {
+                this.entities.splice(tileIndex, 1);
+                this.saveCurrentRoomToMemory();
             }
         }
     }
@@ -2797,31 +3032,48 @@ class Game {
         code += `this.entities.push(\n`;
         this.entities.forEach(ent => {
             let line = `    `;
-            if (ent instanceof OneWayPlatform) line += `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
-            else if (ent instanceof Ladder) line += `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
+            let base = ``;
+            if (ent instanceof OneWayPlatform) base = `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
+            else if (ent instanceof Ladder) base = `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Tile) {
                 const className = (ent.layer === 2 || ent instanceof Tile2) ? 'Tile2' : ((ent.layer === 3 || ent instanceof Tile3) ? 'Tile3' : 'Tile');
                 if (ent.flipX || ent.flipY) {
-                    line += `new ${className}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32}, ${!!ent.flipX}, ${!!ent.flipY})`;
+                    base = `new ${className}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32}, ${!!ent.flipX}, ${!!ent.flipY})`;
                 } else {
-                    line += `new ${className}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32})`;
+                    base = `new ${className}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.tx}, ${ent.ty}, '${ent.tileImageName}', ${ent.sw || 32}, ${ent.sh || 32})`;
                 }
             }
-            else if (ent instanceof Platform) line += `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
-            else if (ent instanceof Slope) line += `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
-            else if (ent instanceof Pillar) line += `new Pillar(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Metal) line += `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Destroyable) line += `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Hallway) line += `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
-            else if (ent instanceof Door) line += `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
-            else if (ent instanceof TargetDoorBase) line += `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof TutorialBook) line += `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
-            else if (ent instanceof PaletteDresser) line += `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof OnlineComputer) line += `new OnlineComputer(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Slime) line += `new Slime(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof BaddieSpawner) line += `new BaddieSpawner(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof BigCollect) line += `new BigCollect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Collect) line += `new Collect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Platform) base = `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
+            else if (ent instanceof Slope) base = `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
+            else if (ent instanceof Pillar) base = `new Pillar(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if ((typeof SecretMetalBlock !== 'undefined' && ent instanceof SecretMetalBlock) || ent.type === 'obj_secretmetalblock') base = `new SecretMetalBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if ((typeof SecretBigBlock !== 'undefined' && ent instanceof SecretBigBlock) || ent.type === 'obj_secretbigblock') base = `new SecretBigBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if ((typeof SecretBlock !== 'undefined' && ent instanceof SecretBlock) || ent.type === 'obj_secretblock') base = `new SecretBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if ((typeof Cutoff !== 'undefined' && ent instanceof Cutoff) || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall') base = `new Cutoff(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.side || 'top'}', '${ent.spriteType || '32x32'}', ${ent.imageIndex || 0})`;
+            else if (ent instanceof Metal) base = `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Destroyable) base = `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Hallway) base = `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
+            else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
+            else if (ent instanceof TargetDoorBase) base = `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof TutorialBook) base = `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
+            else if (ent instanceof PaletteDresser) base = `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof OnlineComputer) base = `new OnlineComputer(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Slime) base = `new Slime(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof BaddieSpawner) base = `new BaddieSpawner(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof BigCollect) base = `new BigCollect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Collect) base = `new Collect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+
+            if (!base) return;
+
+            if (!(ent instanceof Tile) && (ent.flipX || ent.flipY)) {
+                let props = [];
+                if (ent.flipX) props.push(`flipX: true`);
+                if (ent.flipY) props.push(`flipY: true`);
+                if (ent instanceof Slime && ent.facingDir === -1) props.push(`facingDir: -1`);
+                line += `Object.assign(${base}, { ${props.join(', ')} })`;
+            } else {
+                line += base;
+            }
             code += line + `,\n`;
         });
         code += `);\n`;
@@ -3111,10 +3363,32 @@ this.entities.push(
                 if (window.roomData && window.roomData[roomName]) {
                     this.rooms[roomName] = window.roomData[roomName];
                 }
+                const saved = localStorage.getItem('saved_room_' + roomName);
+                if (saved) {
+                    try {
+                        new Function(saved)();
+                        if (window.roomData && window.roomData[roomName]) {
+                            this.rooms[roomName] = window.roomData[roomName];
+                        }
+                    } catch(e) {
+                        console.warn('Failed to load saved room from localStorage:', e);
+                    }
+                }
                 finishLoading();
             };
             roomScript.onerror = () => {
                 // If room file does not exist on disk (e.g. titlescreen or custom room), fallback to in-memory
+                const saved = localStorage.getItem('saved_room_' + roomName);
+                if (saved) {
+                    try {
+                        new Function(saved)();
+                        if (window.roomData && window.roomData[roomName]) {
+                            this.rooms[roomName] = window.roomData[roomName];
+                        }
+                    } catch(e) {
+                        console.warn('Failed to load saved room from localStorage:', e);
+                    }
+                }
                 finishLoading();
             };
             document.body.appendChild(roomScript);
@@ -3138,13 +3412,13 @@ this.entities.push(
         let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
         let playerBottom = this.player.y + this.player.height;
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
-        let maxX = this.roomWidth ? this.roomWidth - this.canvas.width : Infinity;
-        let maxY = this.roomHeight ? this.roomHeight - this.canvas.height : Infinity;
+        let maxX = (this.roomWidth && this.roomWidth > 0) ? Math.max(0, this.roomWidth - this.canvas.width) : Infinity;
+        let maxY = (this.roomHeight && this.roomHeight > 0) ? Math.max(0, this.roomHeight - this.canvas.height) : Infinity;
         if (!this.isEditorMode) {
-            if (targetX < 0) targetX = 0;
-            if (targetY < 0) targetY = 0;
-            if (targetX > maxX) targetX = maxX;
-            if (targetY > Math.max(0, maxY)) targetY = Math.max(0, maxY);
+            if (this.roomWidth > 0 && targetX < 0) targetX = 0;
+            if (this.roomHeight > 0 && targetY < 0) targetY = 0;
+            if (maxX !== Infinity && targetX > maxX) targetX = maxX;
+            if (maxY !== Infinity && targetY > maxY) targetY = maxY;
         }
         
         this.camera.x = targetX;
@@ -4002,7 +4276,15 @@ this.entities.push(
         }
 
         // Out of bounds respawn (only active in play mode, never in editor mode)
-        const boundsBottom = Math.max(this.roomHeight || 600, this.canvas.height) + 200;
+        let roomBottomLimit = this.roomHeight;
+        if (!roomBottomLimit || roomBottomLimit <= 0) {
+            let lowestEntityY = 0;
+            for (let e of this.entities) {
+                if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
+            }
+            roomBottomLimit = Math.max(lowestEntityY, this.canvas.height);
+        }
+        const boundsBottom = roomBottomLimit + 200;
         if (!this.isEditorMode && this.player.y > boundsBottom && !this.isPlayingTransition) {
             this.isPlayingTransition = true;
             this.transitionFrameIndex = 0;
@@ -4042,19 +4324,6 @@ this.entities.push(
         
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
 
-        if (!this.isEditorMode) {
-            // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 직접 Y좌표 제한 (플레이 모드에서만 동작)
-            let lowestEntityY = 0;
-            for (let e of this.entities) {
-                if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
-            }
-            // 화면 하단(targetY + height)이 가장 낮은 엔티티보다 약간(100px)만 더 내려가게 제한
-            let maxTargetY = lowestEntityY + 100 - this.canvas.height;
-            if (targetY > maxTargetY) {
-                targetY = maxTargetY;
-            }
-        }
-        
         // Speed-based camera offset (look ahead in direction of movement when speed > 7)
         const playerSpeed = Math.abs(this.player.vx);
         let targetSpeedOffset = 0;
@@ -4076,6 +4345,17 @@ this.entities.push(
                 const maxY = Math.max(0, this.roomHeight - this.canvas.height);
                 if (targetY < 0) targetY = 0;
                 if (targetY > maxY) targetY = maxY;
+            } else {
+                // roomHeight가 설정되지 않은(무한 맵) 경우에만:
+                // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 엔티티 최하단 기준으로 Y 제한
+                let lowestEntityY = 0;
+                for (let e of this.entities) {
+                    if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
+                }
+                let maxTargetY = lowestEntityY + 100 - this.canvas.height;
+                if (targetY > maxTargetY) {
+                    targetY = maxTargetY;
+                }
             }
         }
 
@@ -4429,7 +4709,7 @@ this.entities.push(
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
             if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
-                if (this.tileWave && (e.type === 'door' || e instanceof Door)) continue;
+                if (this.tileWave && (e.type === 'door' || e instanceof Door || e.type === 'obj_cutoff' || e.type === 'obj_cutoffsmall' || e.type === 'cutoff' || e.isCutoff || (typeof Cutoff !== 'undefined' && e instanceof Cutoff))) continue;
                 if (!this.showCollisions && this.isCollisionEntity(e)) continue;
                 let eLeft = e.x;
                 let eRight = e.x + e.width;
@@ -4708,16 +4988,16 @@ this.entities.push(
                 if (typeof text !== 'string') text = String(text);
                 this.ctx.globalAlpha = alpha;
                 
-                // If text contains Korean characters, use pixelated Custom_Jejudoldam font
+                // If text contains Korean characters, use clean Custom_Jejudoldam font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
-                    const fontSize = Math.round(42 * scale);
-                    const strokeWidth = 2;
-                    const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
+                    const fontSize = Math.round(36 * scale);
+                    const strokeWidth = 1;
+                    const fillColor = alpha >= 0.9 ? '#FFFFFF' : '#888888';
+                    const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth, false, fillColor);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
                     this.ctx.save();
-                    this.ctx.imageSmoothingEnabled = false;
                     this.ctx.drawImage(pixelated.canvas, Math.round(drawX), Math.round(drawY));
                     this.ctx.restore();
                     this.ctx.globalAlpha = 1;
@@ -4782,18 +5062,6 @@ this.entities.push(
                 // Draw text
                 if (isSelected) {
                     drawText(displayText, startX + 20, y, 1, 1);
-                    // Draw arrow manually
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(startX, y + 25);
-                    this.ctx.lineTo(startX + 15, y + 25);
-                    this.ctx.lineTo(startX + 15, y + 15);
-                    this.ctx.lineTo(startX + 25, y + 30);
-                    this.ctx.lineTo(startX + 15, y + 45);
-                    this.ctx.lineTo(startX + 15, y + 35);
-                    this.ctx.lineTo(startX, y + 35);
-                    this.ctx.closePath();
-                    this.ctx.fill();
                 } else {
                     drawText(displayText, startX + 20, y, 1, 0.5);
                 }
@@ -4838,16 +5106,16 @@ this.entities.push(
                 if (typeof text !== 'string') text = String(text);
                 this.ctx.globalAlpha = alpha;
                 
-                // If text contains Korean characters, use pixelated Custom_Jejudoldam font
+                // If text contains Korean characters, use clean Custom_Jejudoldam font
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
                 if (hasKorean) {
-                    const fontSize = Math.round(42 * scale);
-                    const strokeWidth = 2;
-                    const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth);
+                    const fontSize = Math.round(36 * scale);
+                    const strokeWidth = 1;
+                    const fillColor = alpha >= 0.9 ? '#FFFFFF' : '#888888';
+                    const pixelated = this.getPixelatedTextCanvas(text, 'Custom_Jejudoldam', fontSize, strokeWidth, false, fillColor);
                     const drawX = center ? (cursorX - pixelated.textWidth / 2 - pixelated.padding) : (cursorX - pixelated.padding);
                     const drawY = y - pixelated.padding - Math.round(2 * scale);
                     this.ctx.save();
-                    this.ctx.imageSmoothingEnabled = false;
                     this.ctx.drawImage(pixelated.canvas, Math.round(drawX), Math.round(drawY));
                     this.ctx.restore();
                     this.ctx.globalAlpha = 1;
@@ -4866,7 +5134,8 @@ this.entities.push(
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
                             } else {
                                 const fontSize = Math.round(28 * scale);
-                                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 2);
+                                const fillColor = alpha >= 0.9 ? '#FFFFFF' : '#888888';
+                                const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 1, false, fillColor);
                                 totalWidth += pixelated.textWidth + (2 * scale);
                             }
                         }
@@ -4888,9 +5157,9 @@ this.entities.push(
                         cursorX += (img.naturalWidth - 8) * scale;
                     } else {
                         const fontSize = Math.round(28 * scale);
-                        const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 2);
+                        const fillColor = alpha >= 0.9 ? '#FFFFFF' : '#888888';
+                        const pixelated = this.getPixelatedTextCanvas(char, 'Custom_Jejudoldam', fontSize, 1, false, fillColor);
                         this.ctx.save();
-                        this.ctx.imageSmoothingEnabled = false;
                         this.ctx.drawImage(pixelated.canvas, Math.round(cursorX - pixelated.padding), Math.round(y - pixelated.padding + 2 * scale));
                         this.ctx.restore();
                         cursorX += pixelated.textWidth + (2 * scale);
@@ -5191,6 +5460,23 @@ this.entities.push(
                 
                 // Use credits font for floating text
                 const textStr = ft.text.toString();
+                const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(textStr);
+                const useKoreanFont = hasKorean || (this.settings && this.settings.language === 'ko');
+
+                let screenX = ft.x - this.camera.x;
+                let screenY = ft.y - this.camera.y;
+
+                if (useKoreanFont) {
+                    const fontSize = 28;
+                    const strokeWidth = 2;
+                    const pixelated = this.getPixelatedTextCanvas(textStr, 'Custom_SANGJU_Dajungdagam', fontSize, strokeWidth);
+                    if (pixelated) {
+                        this.ctx.save();
+                        this.ctx.drawImage(pixelated.canvas, Math.round(screenX - pixelated.textWidth / 2 - pixelated.padding), Math.round(screenY - pixelated.canvas.height / 2));
+                        this.ctx.restore();
+                        continue;
+                    }
+                }
                 
                 // Calculate total width with tighter spacing
                 let totalW = 0;
@@ -5210,8 +5496,6 @@ this.entities.push(
                 
                 if (textStr.length > 0) totalW -= kerning;
                 
-                let screenX = ft.x - this.camera.x;
-                let screenY = ft.y - this.camera.y;
                 let startX = screenX - totalW / 2;
                 
                 for (let i = 0; i < textStr.length; i++) {
@@ -5221,7 +5505,7 @@ this.entities.push(
                         startX += img.width + kerning;
                     } else {
                         // Fallback text drawing if image isn't loaded or character isn't mapped
-                        this.ctx.font = 'bold 36px "Outfit", sans-serif';
+                        this.ctx.font = 'bold 32px "Custom_SANGJU_Dajungdagam", "Outfit", sans-serif';
                         this.ctx.fillStyle = `rgba(255, 215, 0, 1.0)`;
                         this.ctx.textAlign = 'left';
                         this.ctx.textBaseline = 'middle';
@@ -5467,9 +5751,8 @@ this.entities.push(
                 const lang = this.settings.language || 'ko';
                 const pressText = i18n[lang]['title.press'];
                 if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(pressText)) {
-                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 40, 2);
+                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 36, 1);
                     this.ctx.save();
-                    this.ctx.imageSmoothingEnabled = false;
                     this.ctx.drawImage(pixelated.canvas, Math.round(this.canvas.width / 2 - pixelated.textWidth / 2 - pixelated.padding), Math.round(this.canvas.height / 2 + 60 - pixelated.padding));
                     this.ctx.restore();
                 } else {
@@ -5538,7 +5821,7 @@ this.entities.push(
             }
         }
 
-        // When waving Layer 1 (main tiles), render doors onto the same waving canvas
+        // When waving Layer 1 (main tiles), render doors and cutoffs onto the same waving canvas
         if (targetLayer === 1) {
             for (let i = 0; i < this.entities.length; i++) {
                 const e = this.entities[i];
@@ -5552,6 +5835,12 @@ this.entities.push(
 
                     if (doorRight > tileViewLeft && doorLeft < tileViewRight &&
                         doorBottom > viewTop && doorTop < viewBottom) {
+                        e.render(this.tileOffscreenCtx);
+                        count++;
+                    }
+                } else if (e.type === 'obj_cutoff' || e.type === 'obj_cutoffsmall' || e.type === 'cutoff' || e.isCutoff || (typeof Cutoff !== 'undefined' && e instanceof Cutoff)) {
+                    if (e.x + e.width + 64 > tileViewLeft && e.x - 64 < tileViewRight &&
+                        e.y + e.height + 64 > viewTop && e.y - 64 < viewBottom) {
                         e.render(this.tileOffscreenCtx);
                         count++;
                     }
@@ -5663,49 +5952,177 @@ this.entities.push(
             ctx.strokeStyle = '#ff3333';
             ctx.lineWidth = 1;
             ctx.strokeRect(snapX, snapY, this.gridSize, this.gridSize);
-        } else if (this.selectedType === 'destroyable-small') {
-            const img = Destroyable.imageSmall;
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, snapX, snapY, 32, 32);
-            } else {
-                ctx.fillStyle = '#df7208';
-                ctx.fillRect(snapX, snapY, 32, 32);
-            }
-        } else if (this.selectedType === 'destroyable') {
-            const img = Destroyable.imageBig;
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, snapX, snapY, 64, 64);
-            } else {
-                ctx.fillStyle = '#df7208';
-                ctx.fillRect(snapX, snapY, 64, 64);
-            }
-        } else if (this.selectedType === 'metal') {
-            const img = Metal.image;
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, snapX, snapY, 64, 64);
-            } else {
-                ctx.fillStyle = '#c2dedc';
-                ctx.fillRect(snapX, snapY, 64, 64);
-            }
-        } else if (this.selectedType === 'pillar') {
-            const img = Pillar.image;
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, snapX, snapY, 128, 224);
-            } else {
-                ctx.fillStyle = '#b88958';
-                ctx.fillRect(snapX, snapY, 128, 224);
-            }
-        } else if (this.selectedType === 'door') {
-            const img = Door.image;
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, snapX, snapY, 100, 100);
-            } else {
-                ctx.fillStyle = 'rgba(191, 0, 255, 0.6)';
-                ctx.fillRect(snapX, snapY, 100, 100);
-            }
         } else {
-            ctx.fillStyle = '#00aa9e';
-            ctx.fillRect(snapX, snapY, this.gridSize, this.gridSize);
+            // General entity preview with flip support
+            let pw = this.gridSize;
+            let ph = this.gridSize;
+            if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff' || this.selectedType === 'obj_collect' || this.selectedType === 'tutorialbook' || this.selectedType === 'slope-left' || this.selectedType === 'slope-right') {
+                pw = 32; ph = 32;
+            } else if (this.selectedType === 'pillar') {
+                pw = 128; ph = 224;
+            } else if (this.selectedType === 'door' || this.selectedType === 'targetDoor') {
+                pw = 100; ph = 100;
+            } else if (this.selectedType === 'obj_slime' || this.selectedType === 'obj_baddiespawner') {
+                pw = 40; ph = 40;
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect') {
+                pw = 64; ph = 64;
+            }
+
+            ctx.save();
+            if (this.tileFlipX || this.tileFlipY) {
+                ctx.translate(snapX + (this.tileFlipX ? pw : 0), snapY + (this.tileFlipY ? ph : 0));
+                ctx.scale(this.tileFlipX ? -1 : 1, this.tileFlipY ? -1 : 1);
+            } else {
+                ctx.translate(snapX, snapY);
+            }
+
+            if (this.selectedType === 'destroyable-small') {
+                const img = Destroyable.imageSmall;
+                if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 32, 32);
+                else { ctx.fillStyle = '#df7208'; ctx.fillRect(0, 0, 32, 32); }
+            } else if (this.selectedType === 'destroyable') {
+                const img = Destroyable.imageBig;
+                if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 64, 64);
+                else { ctx.fillStyle = '#df7208'; ctx.fillRect(0, 0, 64, 64); }
+            } else if (this.selectedType === 'metal') {
+                const img = Metal.image;
+                if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 64, 64);
+                else { ctx.fillStyle = '#c2dedc'; ctx.fillRect(0, 0, 64, 64); }
+            } else if (this.selectedType === 'secretblock') {
+                ctx.fillStyle = 'rgba(223, 114, 8, 0.6)';
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 2]);
+                ctx.strokeRect(1, 1, 30, 30);
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px "Outfit", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('S', 16, 16);
+            } else if (this.selectedType === 'secretbigblock') {
+                ctx.fillStyle = 'rgba(223, 114, 8, 0.6)';
+                ctx.fillRect(0, 0, 64, 64);
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 2]);
+                ctx.strokeRect(1, 1, 62, 62);
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px "Outfit", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('SECRET', 32, 32);
+            } else if (this.selectedType === 'secretmetalblock') {
+                ctx.fillStyle = 'rgba(101, 153, 143, 0.6)';
+                ctx.fillRect(0, 0, 64, 64);
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 2]);
+                ctx.strokeRect(1, 1, 62, 62);
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px "Outfit", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('SEC MTL', 32, 32);
+            } else if (this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff') {
+                const side = this.tileFlipY ? 'bottom' : 'top';
+                let c = (Cutoff.canvases32 && Cutoff.canvases32[0]) ? Cutoff.canvases32[0][side] : null;
+                if (c) {
+                    ctx.drawImage(c, 0, -32);
+                } else {
+                    ctx.fillStyle = 'rgba(142, 68, 173, 0.5)';
+                    ctx.fillRect(0, 0, 32, 32);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(0, 0, 32, 32);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('CUT', 16, 16);
+                }
+            } else if (this.selectedType === 'pillar') {
+                const img = Pillar.image;
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, 0, 0, 128, 224);
+                } else {
+                    ctx.fillStyle = '#b88958';
+                    ctx.fillRect(0, 0, 128, 224);
+                }
+            } else if (this.selectedType === 'door') {
+                const img = Door.image;
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, 0, 0, 100, 100);
+                } else {
+                    ctx.fillStyle = 'rgba(191, 0, 255, 0.6)';
+                    ctx.fillRect(0, 0, 100, 100);
+                }
+            } else if (this.selectedType === 'targetDoor') {
+                ctx.fillStyle = 'rgba(191, 0, 255, 0.5)';
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.strokeStyle = '#ffffff';
+                ctx.strokeRect(0, 0, 100, 100);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('TARGET', 50, 50);
+            } else if (this.selectedType === 'slope-left') {
+                ctx.fillStyle = '#FF9FA266';
+                ctx.beginPath();
+                ctx.moveTo(0, 32); ctx.lineTo(32, 0); ctx.lineTo(32, 32); ctx.closePath();
+                ctx.fill(); ctx.strokeStyle = '#fff'; ctx.stroke();
+            } else if (this.selectedType === 'slope-right') {
+                ctx.fillStyle = '#FF9FA266';
+                ctx.beginPath();
+                ctx.moveTo(0, 0); ctx.lineTo(32, 32); ctx.lineTo(0, 32); ctx.closePath();
+                ctx.fill(); ctx.strokeStyle = '#fff'; ctx.stroke();
+            } else if (this.selectedType === 'obj_slime') {
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillRect(0, 0, 40, 40);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(10, 12, 6, 8); ctx.fillRect(24, 12, 6, 8);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(12, 14, 3, 4); ctx.fillRect(26, 14, 3, 4);
+            } else if (this.selectedType === 'obj_palettedresser') {
+                ctx.fillStyle = '#e84393';
+                ctx.fillRect(0, 0, 64, 64);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('DRESSER', 32, 32);
+            } else if (this.selectedType === 'obj_computer') {
+                ctx.fillStyle = '#3498db';
+                ctx.fillRect(0, 0, 64, 64);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('COMP', 32, 32);
+            } else if (this.selectedType === 'obj_collect') {
+                ctx.fillStyle = '#f1c40f';
+                ctx.beginPath(); ctx.arc(16, 16, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('10', 16, 16);
+            } else if (this.selectedType === 'obj_bigcollect') {
+                ctx.fillStyle = '#e67e22';
+                ctx.beginPath(); ctx.arc(32, 32, 24, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('100', 32, 32);
+            } else if (this.selectedType === 'oneway') {
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
+                ctx.fillRect(0, 0, pw, ph);
+                ctx.fillStyle = '#ff8800';
+                ctx.fillRect(0, 0, pw, 8);
+            } else if (this.selectedType === 'ladder') {
+                ctx.fillStyle = 'rgba(139, 69, 19, 0.6)';
+                ctx.fillRect(0, 0, pw, ph);
+                ctx.strokeStyle = '#fff';
+                ctx.strokeRect(0, 0, pw, ph);
+            } else {
+                ctx.fillStyle = '#00aa9e';
+                ctx.fillRect(0, 0, pw, ph);
+            }
+            ctx.restore();
         }
         ctx.globalAlpha = 1.0;
 
@@ -5822,25 +6239,66 @@ this.entities.push(
                         }
                     }
                     ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'secretblock' || this.selectedType === 'secretbigblock') {
+                    const isSmall = this.selectedType === 'secretblock';
+                    const tileSize = isSmall ? 32 : 64;
+                    ctx.globalAlpha = 0.6;
+                    for (let cx = minX; cx < minX + w; cx += tileSize) {
+                        for (let cy = minY; cy < minY + h; cy += tileSize) {
+                            const dw = Math.min(tileSize, minX + w - cx);
+                            const dh = Math.min(tileSize, minY + h - cy);
+                            ctx.fillStyle = 'rgba(223, 114, 8, 0.6)';
+                            ctx.fillRect(cx, cy, dw, dh);
+                            ctx.strokeStyle = '#ffd700';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(cx, cy, dw, dh);
+                        }
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'secretmetalblock') {
+                    const tileSize = 64;
+                    ctx.globalAlpha = 0.6;
+                    for (let cx = minX; cx < minX + w; cx += tileSize) {
+                        for (let cy = minY; cy < minY + h; cy += tileSize) {
+                            const dw = Math.min(tileSize, minX + w - cx);
+                            const dh = Math.min(tileSize, minY + h - cy);
+                            ctx.fillStyle = 'rgba(101, 153, 143, 0.6)';
+                            ctx.fillRect(cx, cy, dw, dh);
+                            ctx.strokeStyle = '#00ffff';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(cx, cy, dw, dh);
+                        }
+                    }
+                    ctx.globalAlpha = 1.0;
                 } else if (this.selectedType === 'pillar') {
                     const img = Pillar.image;
                     ctx.globalAlpha = 0.5;
-                    if (img && img.complete && img.naturalWidth > 0) {
-                        ctx.drawImage(img, minX, minY, w, h);
+                    ctx.save();
+                    if (this.tileFlipX || this.tileFlipY) {
+                        ctx.translate(minX + (this.tileFlipX ? w : 0), minY + (this.tileFlipY ? h : 0));
+                        ctx.scale(this.tileFlipX ? -1 : 1, this.tileFlipY ? -1 : 1);
+                        if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, w, h);
+                        else { ctx.fillStyle = '#b88958'; ctx.fillRect(0, 0, w, h); }
                     } else {
-                        ctx.fillStyle = '#b88958';
-                        ctx.fillRect(minX, minY, w, h);
+                        if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, minX, minY, w, h);
+                        else { ctx.fillStyle = '#b88958'; ctx.fillRect(minX, minY, w, h); }
                     }
+                    ctx.restore();
                     ctx.globalAlpha = 1.0;
                 } else if (this.selectedType === 'door') {
                     const img = Door.image;
                     ctx.globalAlpha = 0.6;
-                    if (img && img.complete && img.naturalWidth > 0) {
-                        ctx.drawImage(img, minX, minY, w, h);
+                    ctx.save();
+                    if (this.tileFlipX || this.tileFlipY) {
+                        ctx.translate(minX + (this.tileFlipX ? w : 0), minY + (this.tileFlipY ? h : 0));
+                        ctx.scale(this.tileFlipX ? -1 : 1, this.tileFlipY ? -1 : 1);
+                        if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, w, h);
+                        else { ctx.fillStyle = 'rgba(191, 0, 255, 0.6)'; ctx.fillRect(0, 0, w, h); }
                     } else {
-                        ctx.fillStyle = 'rgba(191, 0, 255, 0.6)';
-                        ctx.fillRect(minX, minY, w, h);
+                        if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, minX, minY, w, h);
+                        else { ctx.fillStyle = 'rgba(191, 0, 255, 0.6)'; ctx.fillRect(minX, minY, w, h); }
                     }
+                    ctx.restore();
                     ctx.globalAlpha = 1.0;
                 }
 

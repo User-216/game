@@ -14,6 +14,11 @@
     src: url('lang/korean/Custom_KyoboHandwriting2019.ttf') format('truetype');
 }
 
+@font-face {
+    font-family: 'Custom_SANGJU_Dajungdagam';
+    src: url('lang/korean/Custom_SANGJU_Dajungdagam.ttf') format('truetype');
+}
+
 :root {
     --bg-color: #0b0e14;
     --primary-color: #00aa9e;

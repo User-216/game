@@ -1,7 +1,7 @@
 
 
 class Entity {
-    constructor(x, y, width, height, color) {
+    constructor(x, y, width, height, color, flipX = false, flipY = false) {
         this.x = x;
         this.y = y;
         this.width = width;
@@ -9,12 +9,23 @@ class Entity {
         this.color = color;
         this.isDestroyed = false;
         this.id = Math.random().toString(36).substr(2, 9);
+        this.flipX = !!flipX;
+        this.flipY = !!flipY;
     }
 
     render(ctx) {
         if (this.isDestroyed) return;
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.restore();
     }
 }
 
@@ -67,12 +78,20 @@ class Ladder extends Entity {
 }
 
 class Slope extends Entity {
-    constructor(x, y, width, height, slopeType = 'left-up', color = '#FF9FA266') {
-        super(x, y, width, height, color);
+    constructor(x, y, width, height, slopeType = 'left-up', color = '#FF9FA266', flipX = false, flipY = false) {
+        super(x, y, width, height, color, flipX, flipY);
         this.type = slopeType; // 'left-up' / or 'right-up' \
     }
 
     render(ctx) {
+        ctx.save();
+        if (this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(1, -1);
+            ctx.translate(-cx, -cy);
+        }
         ctx.fillStyle = this.color;
         ctx.beginPath();
         if (this.type === 'left-up') {
@@ -93,12 +112,13 @@ class Slope extends Entity {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 1;
         ctx.stroke();
+        ctx.restore();
     }
 }
 
 class Destroyable extends Entity {
-    constructor(x, y, width, height, color = '#df7208') {
-        super(x, y, width, height, color);
+    constructor(x, y, width, height, color = '#df7208', flipX = false, flipY = false) {
+        super(x, y, width, height, color, flipX, flipY);
         this.health = 1;
         this.particles = [];
         this.type = 'destroyable';
@@ -140,8 +160,16 @@ class Destroyable extends Entity {
             const img = isSmall ? Destroyable.imageSmall : Destroyable.imageBig;
             const tileSize = isSmall ? 32 : 64;
 
+            ctx.save();
+            if (this.flipX || this.flipY) {
+                const cx = this.x + this.width / 2;
+                const cy = this.y + this.height / 2;
+                ctx.translate(cx, cy);
+                ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+                ctx.translate(-cx, -cy);
+            }
+
             if (img && img.complete && img.naturalWidth > 0) {
-                ctx.save();
                 ctx.imageSmoothingEnabled = false;
                 if (this.width === tileSize && this.height === tileSize) {
                     ctx.drawImage(img, this.x, this.y, tileSize, tileSize);
@@ -154,7 +182,6 @@ class Destroyable extends Entity {
                         }
                     }
                 }
-                ctx.restore();
             } else {
                 ctx.fillStyle = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -169,6 +196,7 @@ class Destroyable extends Entity {
                 ctx.lineTo(this.x + 5, this.y + this.height - 5);
                 ctx.stroke();
             }
+            ctx.restore();
         }
 
         // Always update and render particles
@@ -273,9 +301,567 @@ class Metal extends Destroyable {
 }
 Metal.initImages();
 
+class SecretBlock extends Destroyable {
+    constructor(x, y, width = 32, height = 32) {
+        super(x, y, width, height, 'rgba(223, 114, 8, 0.55)');
+        this.type = 'obj_secretblock';
+        this.isSecret = true;
+        this.secretType = 'small';
+    }
+
+    destroy(game = window.gameInstance) {
+        if (this.isDestroyed) return;
+        this.isDestroyed = true;
+
+        const particleColors = ['#df7208', '#7f2800', '#ffaa44', '#b85400', '#ffd700'];
+        for (let i = 0; i < 20; i++) {
+            this.particles.push({
+                x: this.x + this.width / 2,
+                y: this.y + this.height / 2,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                size: Math.random() * 4 + 2,
+                life: 1.0,
+                decay: Math.random() * 0.05 + 0.01,
+                color: particleColors[Math.floor(Math.random() * particleColors.length)]
+            });
+        }
+
+        this.destroyOverlappingTiles(game);
+        this.spawnCutoffs(game);
+    }
+
+    spawnCutoffs(game = window.gameInstance) {
+        const g = game || window.gameInstance;
+        if (!g || !g.entities) return;
+
+        // 1. Activate any pre-placed obj_cutoff instances touching this block
+        for (let i = 0; i < g.entities.length; i++) {
+            const ent = g.entities[i];
+            if (ent && (ent instanceof Cutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall')) {
+                if (ent.x >= this.x - 32 && ent.x <= this.x + this.width + 32 &&
+                    ent.y >= this.y - 32 && ent.y <= this.y + this.height + 32) {
+                    ent.visible = true;
+                }
+            }
+        }
+
+        // Helper to check if a secret block exists at (px, py)
+        const isSecretAt = (px, py) => {
+            for (let i = 0; i < g.entities.length; i++) {
+                const ent = g.entities[i];
+                if (!ent) continue;
+                if (ent.isSecret || ent.type === 'obj_secretblock' || ent.type === 'obj_secretbigblock' || ent.type === 'obj_secretmetalblock' ||
+                    ent.type === 'secretblock' || ent.type === 'secretbigblock' || ent.type === 'secretmetalblock') {
+                    if (px >= ent.x && px < ent.x + ent.width &&
+                        py >= ent.y && py < ent.y + ent.height) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        // Helper to check if a solid or layer-1 tile exists at (px, py)
+        const isSolidOrTileAt = (px, py) => {
+            for (let i = 0; i < g.entities.length; i++) {
+                const ent = g.entities[i];
+                if (!ent || ent.isDestroyed) continue;
+                if (px >= ent.x && px < ent.x + ent.width &&
+                    py >= ent.y && py < ent.y + ent.height) {
+                    if (ent.isSecret) continue;
+                    // Tiles: ONLY Layer 1 counts! Layer 2 and Layer 3 are NEVER solid walls!
+                    if (ent instanceof Tile || ent.type === 'tile') {
+                        const layer = ent.layer || 1;
+                        return (layer === 1) && !(typeof Tile2 !== 'undefined' && ent instanceof Tile2) && !(typeof Tile3 !== 'undefined' && ent instanceof Tile3);
+                    }
+                    if (ent instanceof Platform || ent instanceof Metal || ent instanceof Destroyable || ent instanceof Slope ||
+                        ent.type === 'platform' || ent.type === 'metal' || ent.type === 'destroyable' || ent.type === 'solid' || ent.type === 'slope' || ent.type === 'slope-left' || ent.type === 'slope-right') {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        const shouldSpawnCutoff = (px, py) => {
+            if (isSecretAt(px, py)) return false;
+            return isSolidOrTileAt(px, py);
+        };
+
+        const hasCutoffAt = (x, y, side) => {
+            return g.entities.some(e => (e instanceof Cutoff || e.type === 'obj_cutoff' || e.type === 'obj_cutoffsmall') &&
+                Math.abs(e.x - x) < 4 && Math.abs(e.y - y) < 4 && e.side === side);
+        };
+
+        const bw = this.width;
+        const bh = this.height;
+        const bx = this.x;
+        const by = this.y;
+
+        // If 64x64 or larger block (SecretBigBlock, SecretMetalBlock):
+        if (bw >= 64 && bh >= 64) {
+            for (let ox = 0; ox < bw; ox += 64) {
+                for (let oy = 0; oy < bh; oy += 64) {
+                    const cx = bx + ox;
+                    const cy = by + oy;
+
+                    // TOP:
+                    const topSolid0 = shouldSpawnCutoff(cx + 16, cy - 16);
+                    const topSolid1 = shouldSpawnCutoff(cx + 48, cy - 16);
+                    if (topSolid0 && topSolid1) {
+                        if (!hasCutoffAt(cx, cy, 'top')) {
+                            g.entities.push(new Cutoff(cx, cy, 64, 64, 'top', '64x64'));
+                        }
+                    } else {
+                        if (topSolid0 && !hasCutoffAt(cx, cy, 'top')) {
+                            g.entities.push(new Cutoff(cx, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                        if (topSolid1 && !hasCutoffAt(cx + 32, cy, 'top')) {
+                            g.entities.push(new Cutoff(cx + 32, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                    }
+
+                    // BOTTOM:
+                    const botSolid0 = shouldSpawnCutoff(cx + 16, cy + 64 + 16);
+                    const botSolid1 = shouldSpawnCutoff(cx + 48, cy + 64 + 16);
+                    if (botSolid0 && botSolid1) {
+                        if (!hasCutoffAt(cx, cy + 64, 'bottom')) {
+                            g.entities.push(new Cutoff(cx, cy + 64, 64, 64, 'bottom', '64x64'));
+                        }
+                    } else {
+                        if (botSolid0 && !hasCutoffAt(cx, cy + 64, 'bottom')) {
+                            g.entities.push(new Cutoff(cx, cy + 64, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                        if (botSolid1 && !hasCutoffAt(cx + 32, cy + 64, 'bottom')) {
+                            g.entities.push(new Cutoff(cx + 32, cy + 64, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                    }
+
+                    // LEFT:
+                    const leftSolid0 = shouldSpawnCutoff(cx - 16, cy + 16);
+                    const leftSolid1 = shouldSpawnCutoff(cx - 16, cy + 48);
+                    if (leftSolid0 && leftSolid1) {
+                        if (!hasCutoffAt(cx, cy, 'left')) {
+                            g.entities.push(new Cutoff(cx, cy, 64, 64, 'left', '64x64'));
+                        }
+                    } else {
+                        if (leftSolid0 && !hasCutoffAt(cx, cy, 'left')) {
+                            g.entities.push(new Cutoff(cx, cy, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                        if (leftSolid1 && !hasCutoffAt(cx, cy + 32, 'left')) {
+                            g.entities.push(new Cutoff(cx, cy + 32, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                    }
+
+                    // RIGHT:
+                    const rightSolid0 = shouldSpawnCutoff(cx + 64 + 16, cy + 16);
+                    const rightSolid1 = shouldSpawnCutoff(cx + 64 + 16, cy + 48);
+                    if (rightSolid0 && rightSolid1) {
+                        if (!hasCutoffAt(cx + 64, cy, 'right')) {
+                            g.entities.push(new Cutoff(cx + 64, cy, 64, 64, 'right', '64x64'));
+                        }
+                    } else {
+                        if (rightSolid0 && !hasCutoffAt(cx + 64, cy, 'right')) {
+                            g.entities.push(new Cutoff(cx + 64, cy, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                        if (rightSolid1 && !hasCutoffAt(cx + 64, cy + 32, 'right')) {
+                            g.entities.push(new Cutoff(cx + 64, cy + 32, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
+                        }
+                    }
+                }
+            }
+        } else {
+            // 32x32 block (SecretBlock)
+            for (let ox = 0; ox < bw; ox += 32) {
+                for (let oy = 0; oy < bh; oy += 32) {
+                    const cx = bx + ox;
+                    const cy = by + oy;
+
+                    // TOP:
+                    if (shouldSpawnCutoff(cx + 16, cy - 16) && !hasCutoffAt(cx, cy, 'top')) {
+                        g.entities.push(new Cutoff(cx, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
+                    }
+                    // BOTTOM:
+                    if (shouldSpawnCutoff(cx + 16, cy + 32 + 16) && !hasCutoffAt(cx, cy + 32, 'bottom')) {
+                        g.entities.push(new Cutoff(cx, cy + 32, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
+                    }
+                    // LEFT:
+                    if (shouldSpawnCutoff(cx - 16, cy + 16) && !hasCutoffAt(cx, cy, 'left')) {
+                        g.entities.push(new Cutoff(cx, cy, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
+                    }
+                    // RIGHT:
+                    if (shouldSpawnCutoff(cx + 32 + 16, cy + 16) && !hasCutoffAt(cx + 32, cy, 'right')) {
+                        g.entities.push(new Cutoff(cx + 32, cy, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
+                    }
+                }
+            }
+        }
+
+        // Clean up internal cutoffs that no longer border a solid/tile
+        for (let i = g.entities.length - 1; i >= 0; i--) {
+            const e = g.entities[i];
+            if (e && (e instanceof Cutoff || e.type === 'obj_cutoff')) {
+                let wallExists = false;
+                if (e.side === 'top') {
+                    wallExists = shouldSpawnCutoff(e.x + (e.spriteType === '64x64' ? 32 : 16), e.y - 16);
+                } else if (e.side === 'bottom') {
+                    wallExists = shouldSpawnCutoff(e.x + (e.spriteType === '64x64' ? 32 : 16), e.y + 16);
+                } else if (e.side === 'left') {
+                    wallExists = shouldSpawnCutoff(e.x - 16, e.y + (e.spriteType === '64x64' ? 32 : 16));
+                } else if (e.side === 'right') {
+                    wallExists = shouldSpawnCutoff(e.x + 16, e.y + (e.spriteType === '64x64' ? 32 : 16));
+                }
+                if (!wallExists) {
+                    g.entities.splice(i, 1);
+                }
+            }
+        }
+    }
+
+    destroyOverlappingTiles(game = window.gameInstance) {
+        const g = game || window.gameInstance;
+        if (!g || !g.entities) return;
+
+        const bx1 = this.x;
+        const by1 = this.y;
+        const bx2 = this.x + this.width;
+        const by2 = this.y + this.height;
+
+        for (let i = g.entities.length - 1; i >= 0; i--) {
+            const ent = g.entities[i];
+            if (!ent || ent.isDestroyed) continue;
+
+            const isTile = (ent instanceof Tile || ent.type === 'tile');
+            if (isTile) {
+                // Layer 1 only ("타일 1만")
+                const layer = ent.layer || 1;
+                const isLayer1 = (layer === 1) && !(ent instanceof Tile2) && !(ent instanceof Tile3);
+                if (isLayer1) {
+                    const overlapW = Math.min(bx2, ent.x + ent.width) - Math.max(bx1, ent.x);
+                    const overlapH = Math.min(by2, ent.y + ent.height) - Math.max(by1, ent.y);
+                    if (overlapW > 1 && overlapH > 1) {
+                        ent.isDestroyed = true;
+                        ent.markedForDeletion = true;
+                        g.entities.splice(i, 1);
+                    }
+                }
+            }
+        }
+    }
+
+    render(ctx) {
+        const isCollisionVisible = !!(window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
+
+        if (!this.isDestroyed) {
+            if (!isCollisionVisible) return;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(223, 114, 8, 0.55)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+
+            const isSmall = (this.width <= 32 && this.height <= 32);
+            const img = isSmall ? Destroyable.imageSmall : Destroyable.imageBig;
+            const tileSize = isSmall ? 32 : 64;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.globalAlpha = 0.5;
+                ctx.imageSmoothingEnabled = false;
+                for (let ox = 0; ox < this.width; ox += tileSize) {
+                    for (let oy = 0; oy < this.height; oy += tileSize) {
+                        const dw = Math.min(tileSize, this.width - ox);
+                        const dh = Math.min(tileSize, this.height - oy);
+                        ctx.drawImage(img, 0, 0, dw, dh, this.x + ox, this.y + oy, dw, dh);
+                    }
+                }
+                ctx.globalAlpha = 1.0;
+            }
+
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 2]);
+            ctx.strokeRect(this.x + 1, this.y + 1, this.width - 2, this.height - 2);
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px "Outfit", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = this.width >= 64 ? 'SECRET' : 'S';
+            ctx.fillText(label, this.x + this.width / 2, this.y + this.height / 2);
+
+            ctx.restore();
+        }
+
+        if (this.particles.length > 0) {
+            for (let index = this.particles.length - 1; index >= 0; index--) {
+                const p = this.particles[index];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life -= p.decay;
+
+                if (p.life <= 0) {
+                    this.particles.splice(index, 1);
+                } else {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, p.size, p.size);
+                }
+            }
+            ctx.globalAlpha = 1.0;
+        } else if (this.isDestroyed) {
+            this.markedForDeletion = true;
+        }
+    }
+}
+
+class SecretBigBlock extends SecretBlock {
+    constructor(x, y, width = 64, height = 64) {
+        super(x, y, width, height);
+        this.type = 'obj_secretbigblock';
+        this.isSecret = true;
+        this.secretType = 'big';
+    }
+}
+
+class SecretMetalBlock extends Metal {
+    constructor(x, y, width = 64, height = 64) {
+        super(x, y, width, height);
+        this.color = 'rgba(101, 153, 143, 0.6)';
+        this.type = 'obj_secretmetalblock';
+        this.isSecret = true;
+        this.secretType = 'metal';
+    }
+
+    destroy(game = window.gameInstance) {
+        if (this.isDestroyed) return;
+        this.isDestroyed = true;
+
+        const metalColors = ['#c2dedc', '#65998f', '#888888', '#e0f4f2', '#00ffff'];
+        for (let i = 0; i < 24; i++) {
+            this.particles.push({
+                x: this.x + this.width / 2,
+                y: this.y + this.height / 2,
+                vx: (Math.random() - 0.5) * 12,
+                vy: (Math.random() - 0.5) * 12,
+                size: Math.random() * 5 + 2,
+                life: 1.0,
+                decay: Math.random() * 0.04 + 0.01,
+                color: metalColors[Math.floor(Math.random() * metalColors.length)]
+            });
+        }
+
+        this.destroyOverlappingTiles(game);
+        this.spawnCutoffs(game);
+    }
+
+    spawnCutoffs(game = window.gameInstance) {
+        SecretBlock.prototype.spawnCutoffs.call(this, game);
+    }
+
+    destroyOverlappingTiles(game = window.gameInstance) {
+        SecretBlock.prototype.destroyOverlappingTiles.call(this, game);
+    }
+
+    render(ctx) {
+        const isCollisionVisible = !!(window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
+
+        if (!this.isDestroyed) {
+            if (!isCollisionVisible) return;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(101, 153, 143, 0.6)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+
+            const img = Metal.image;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.globalAlpha = 0.5;
+                ctx.imageSmoothingEnabled = false;
+                const tileSize = 64;
+                for (let ox = 0; ox < this.width; ox += tileSize) {
+                    for (let oy = 0; oy < this.height; oy += tileSize) {
+                        const dw = Math.min(tileSize, this.width - ox);
+                        const dh = Math.min(tileSize, this.height - oy);
+                        ctx.drawImage(img, 0, 0, dw, dh, this.x + ox, this.y + oy, dw, dh);
+                    }
+                }
+                ctx.globalAlpha = 1.0;
+            }
+
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 2]);
+            ctx.strokeRect(this.x + 1, this.y + 1, this.width - 2, this.height - 2);
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px "Outfit", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = this.width >= 64 ? 'SEC MTL' : 'M';
+            ctx.fillText(label, this.x + this.width / 2, this.y + this.height / 2);
+
+            ctx.restore();
+        }
+
+        if (this.particles.length > 0) {
+            for (let index = this.particles.length - 1; index >= 0; index--) {
+                const p = this.particles[index];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life -= p.decay;
+
+                if (p.life <= 0) {
+                    this.particles.splice(index, 1);
+                } else {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, p.size, p.size);
+                }
+            }
+            ctx.globalAlpha = 1.0;
+        } else if (this.isDestroyed) {
+            this.markedForDeletion = true;
+        }
+    }
+}
+
+// Global aliases for obj_secretblock, obj_secretbigblock, and obj_secretmetalblock
+window.SecretBlock = SecretBlock;
+window.obj_secretblock = SecretBlock;
+window.SecretBigBlock = SecretBigBlock;
+window.obj_secretbigblock = SecretBigBlock;
+window.SecretMetalBlock = SecretMetalBlock;
+window.obj_secretmetalblock = SecretMetalBlock;
+
+class Cutoff extends Entity {
+    constructor(x, y, width = 32, height = 64, side = 'top', spriteType = null, imageIndex = null, flipX = false, flipY = false) {
+        super(x, y, width, height, 'transparent', flipX, flipY);
+        this.type = 'obj_cutoff';
+        this.side = side || 'top';
+        this.spriteType = spriteType || ((width >= 64 && height >= 64) ? '64x64' : '32x32');
+        this.imageIndex = (imageIndex !== null && imageIndex !== undefined) ? imageIndex : Math.floor(Math.random() * 6);
+        this.visible = true;
+        this.isCutoff = true;
+        this.isSolid = false;
+        Cutoff.initImages();
+    }
+
+    static initImages() {
+        if (Cutoff.initialized) return;
+        Cutoff.initialized = true;
+
+        Cutoff.canvases64 = null;
+        Cutoff.canvases32 = [];
+
+        const img64 = new Image();
+        img64.src = '이미지/spr_64x64cutoff.png';
+        img64.onload = () => {
+            Cutoff.canvases64 = Cutoff.createOrientations(img64, 64, 64);
+        };
+
+        for (let i = 0; i < 6; i++) {
+            const img32 = new Image();
+            img32.src = `이미지/spr_32x32cutoff/spr_32x32cutoff_${i}.png`;
+            img32.onload = () => {
+                Cutoff.canvases32[i] = Cutoff.createOrientations(img32, 32, 64);
+            };
+        }
+    }
+
+    static createOrientations(img, w, h) {
+        // BOTTOM: normal (crack line at y=32, cracks extend DOWN into floor)
+        const cBot = document.createElement('canvas');
+        cBot.width = w;
+        cBot.height = h;
+        const ctxBot = cBot.getContext('2d');
+        ctxBot.imageSmoothingEnabled = false;
+        ctxBot.drawImage(img, 0, 0);
+
+        // TOP: flipped vertically (crack line at y=32, cracks extend UP into ceiling)
+        const cTop = document.createElement('canvas');
+        cTop.width = w;
+        cTop.height = h;
+        const ctxTop = cTop.getContext('2d');
+        ctxTop.imageSmoothingEnabled = false;
+        ctxTop.translate(0, h);
+        ctxTop.scale(1, -1);
+        ctxTop.drawImage(img, 0, 0);
+
+        // LEFT: 90 deg clockwise rotation (crack line at x=32, cracks extend LEFT into left wall)
+        const cLeft = document.createElement('canvas');
+        cLeft.width = h;
+        cLeft.height = w;
+        const ctxLeft = cLeft.getContext('2d');
+        ctxLeft.imageSmoothingEnabled = false;
+        ctxLeft.translate(h, 0);
+        ctxLeft.rotate(Math.PI / 2);
+        ctxLeft.drawImage(img, 0, 0);
+
+        // RIGHT: -90 deg counter-clockwise rotation (crack line at x=32, cracks extend RIGHT into right wall)
+        const cRight = document.createElement('canvas');
+        cRight.width = h;
+        cRight.height = w;
+        const ctxRight = cRight.getContext('2d');
+        ctxRight.imageSmoothingEnabled = false;
+        ctxRight.translate(0, w);
+        ctxRight.rotate(-Math.PI / 2);
+        ctxRight.drawImage(img, 0, 0);
+
+        return { top: cTop, bottom: cBot, left: cLeft, right: cRight };
+    }
+
+    render(ctx) {
+        if (!this.visible) return;
+
+        let canvasObj = null;
+        if (this.spriteType === '64x64') {
+            canvasObj = Cutoff.canvases64;
+        } else {
+            const idx = Math.max(0, Math.min(5, this.imageIndex || 0));
+            canvasObj = Cutoff.canvases32 ? Cutoff.canvases32[idx] : null;
+        }
+
+        if (canvasObj && canvasObj[this.side]) {
+            const c = canvasObj[this.side];
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            if (this.flipX || this.flipY) {
+                const cx = this.x + this.width / 2;
+                const cy = this.y + this.height / 2;
+                ctx.translate(cx, cy);
+                ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+                ctx.translate(-cx, -cy);
+            }
+            if (this.side === 'top' || this.side === 'bottom') {
+                ctx.drawImage(c, Math.round(this.x), Math.round(this.y - 32));
+            } else {
+                ctx.drawImage(c, Math.round(this.x - 32), Math.round(this.y));
+            }
+            ctx.restore();
+        }
+
+        const isCollisionVisible = !!(window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
+        if (isCollisionVisible && window.gameInstance && window.gameInstance.isEditorMode) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+            ctx.restore();
+        }
+    }
+}
+
+// Global aliases for obj_cutoff
+window.Cutoff = Cutoff;
+window.obj_cutoff = Cutoff;
+window.obj_cutoffsmall = Cutoff;
+
 class Pillar extends Destroyable {
-    constructor(x, y, width = 128, height = 224) {
-        super(x, y, width, height, '#b88958');
+    constructor(x, y, width = 128, height = 224, flipX = false, flipY = false) {
+        super(x, y, width, height, '#b88958', flipX, flipY);
         this.type = 'pillar';
         this.isPillar = true;
         this.debrisList = [];
@@ -390,11 +976,17 @@ class Pillar extends Destroyable {
             const frameImg = (Pillar.frames && Pillar.frames[frameIdx] && Pillar.frames[frameIdx].complete && Pillar.frames[frameIdx].naturalWidth > 0)
                              ? Pillar.frames[frameIdx]
                              : Pillar.image;
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            if (this.flipX || this.flipY) {
+                const cx = this.x + this.width / 2;
+                const cy = this.y + this.height / 2;
+                ctx.translate(cx, cy);
+                ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+                ctx.translate(-cx, -cy);
+            }
             if (frameImg && frameImg.complete && frameImg.naturalWidth > 0) {
-                ctx.save();
-                ctx.imageSmoothingEnabled = false;
                 ctx.drawImage(frameImg, this.x, this.y, this.width, this.height);
-                ctx.restore();
             } else {
                 // Procedural fallback
                 ctx.fillStyle = this.color;
@@ -409,6 +1001,7 @@ class Pillar extends Destroyable {
                 ctx.fillRect(this.x + this.width * 0.65, eyeY, 8, 6);
                 ctx.fillRect(this.x + this.width * 0.45, eyeY + 12, 8, 14);
             }
+            ctx.restore();
         }
 
         // Particles
@@ -558,8 +1151,8 @@ class Door extends Entity {
         }
     }
 
-    constructor(x, y, width, height, label, targetRoom, color = 'rgba(191, 0, 255, 0.6)') {
-        super(x, y, width, height, color);
+    constructor(x, y, width, height, label, targetRoom, color = 'rgba(191, 0, 255, 0.6)', flipX = false, flipY = false) {
+        super(x, y, width, height, color, flipX, flipY);
         this.label = label;
         this.targetRoom = targetRoom;
         this.type = 'door';
@@ -570,6 +1163,15 @@ class Door extends Entity {
         if (this.isDestroyed) return;
         
         Door.initImage();
+
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
 
         const img = Door.image;
         if (img && img.complete && img.naturalWidth > 0) {
@@ -607,14 +1209,15 @@ class Door extends Entity {
             ctx.fillText(`DOOR ${this.label}`, this.x + this.width / 2, this.y - 8);
             ctx.restore();
         }
+        ctx.restore();
     }
 }
 Door.initImage();
 
 
 class TargetDoorBase extends Entity {
-    constructor(x, y, width, height, doorId) {
-        super(x, y, width, height, 'transparent');
+    constructor(x, y, width, height, doorId, flipX = false, flipY = false) {
+        super(x, y, width, height, 'transparent', flipX, flipY);
         this.doorId = doorId;
         this.type = `targetDoor_${doorId}`;
         this.image = new Image();
@@ -633,6 +1236,15 @@ class TargetDoorBase extends Entity {
     render(ctx) {
         if (this.isDestroyed) return;
         
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
+
         if (this.imageLoaded) {
             ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
         } else {
@@ -646,6 +1258,7 @@ class TargetDoorBase extends Entity {
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(`Target ${this.doorId}`, this.x + this.width / 2, this.y - 10);
+        ctx.restore();
     }
 }
 
@@ -656,8 +1269,8 @@ class TargetDoor_D extends TargetDoorBase { constructor(x, y, w, h) { super(x, y
 class TargetDoor_E extends TargetDoorBase { constructor(x, y, w, h) { super(x, y, w, h, 'E'); } }
 
 class TutorialBook extends Entity {
-    constructor(x, y, width, height, text = "Tutorial Message") {
-        super(x, y, width, height, '#00f2ff');
+    constructor(x, y, width, height, text = "Tutorial Message", flipX = false, flipY = false) {
+        super(x, y, width, height, '#00f2ff', flipX, flipY);
         this.type = 'tutorialbook';
         this.text = text;
     }
@@ -676,6 +1289,13 @@ class TutorialBook extends Entity {
         if (this.isDestroyed) return;
         
         ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
         // Glow effect
         ctx.shadowColor = '#00f2ff';
         ctx.shadowBlur = 10;
@@ -719,8 +1339,8 @@ class TutorialBook extends Entity {
 
 
 class Collect extends Entity {
-    constructor(x, y, w = 32, h = 32) {
-        super(x, y, w, h);
+    constructor(x, y, w = 32, h = 32, flipX = false, flipY = false) {
+        super(x, y, w, h, 'transparent', flipX, flipY);
         this.type = 'obj_collect';
         this.state = 'idle'; // idle, following, collected
         this.vx = 0;
@@ -826,8 +1446,8 @@ class Collect extends Entity {
 }
 
 class BigCollect extends Collect {
-    constructor(x, y, w = 64, h = 64) {
-        super(x, y, w, h);
+    constructor(x, y, w = 64, h = 64, flipX = false, flipY = false) {
+        super(x, y, w, h, flipX, flipY);
         this.type = 'obj_bigcollect';
         this.points = 100;
         this.fontSize = 24;
@@ -836,8 +1456,8 @@ class BigCollect extends Collect {
 
 
 class Slime extends Entity {
-    constructor(x, y, w = 40, h = 40) {
-        super(x, y, w, h);
+    constructor(x, y, w = 40, h = 40, flipX = false, flipY = false) {
+        super(x, y, w, h, 'transparent', flipX, flipY);
         this.type = 'obj_slime';
         this.vx = 2; // Movement speed
         this.vy = 0;
@@ -849,7 +1469,10 @@ class Slime extends Entity {
         
         this.state = 'walk'; // 'walk', 'stunned'
         this.stunTimer = 0;
-        this.facingDir = 1;
+        this.flipX = !!flipX;
+        this.flipY = !!flipY;
+        this.facingDir = this.flipX ? -1 : 1;
+        this.vx = 2 * this.facingDir;
         this.hitCooldown = 0;
         
         this.sprites = [];
@@ -918,7 +1541,7 @@ class Slime extends Entity {
                 let checkY = floorY + step;
                 let foundFloor = false;
                 for (let ent of game.entities) {
-                    if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                    if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
                     if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
                         if (checkY >= ent.y && checkY <= ent.y + ent.height) {
                             floorY = ent.y;
@@ -1049,7 +1672,7 @@ class Slime extends Entity {
         
         // AABB with solid platforms
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -1115,7 +1738,7 @@ class Slime extends Entity {
         this.isGrounded = false;
         
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             // Handle oneway
             if (ent.type === 'oneway' && this.vy < 0) continue;
             
@@ -1169,7 +1792,7 @@ class Slime extends Entity {
             let probeX = (this.vx > 0) ? this.x + this.width + 5 : this.x - 5;
             let probeY = this.y + this.height + 5;
             for (let ent of game.entities) {
-                if (ent === this || ent.isDestroyed || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile') continue;
+                if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile') continue;
                 
                 if (probeX >= ent.x && probeX <= ent.x + ent.width &&
                     probeY >= ent.y && probeY <= ent.y + ent.height) {
@@ -1222,7 +1845,7 @@ class Slime extends Entity {
                     let checkY = floorY + step;
                     let foundFloor = false;
                     for (let ent of game.entities) {
-                        if (ent.isDestroyed || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                        if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
                         if (splatterX >= ent.x && splatterX <= ent.x + ent.width) {
                             if (checkY >= ent.y && checkY <= ent.y + ent.height) {
                                 floorY = ent.y;
@@ -1314,13 +1937,15 @@ class Slime extends Entity {
                 ctx.save();
                 ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 
-                if (this.facingDir === -1) {
-                    ctx.scale(-1, 1);
-                }
-                
+                let scaleX = (this.facingDir === -1) ? -1 : 1;
+                let scaleY = 1;
                 if (this.state === 'stunned' || this.state === 'dead') {
-                    ctx.scale(1, -1);
+                    scaleY = -1;
                 }
+                if (this.flipY) {
+                    scaleY *= -1;
+                }
+                ctx.scale(scaleX, scaleY);
                 
                 const offsetY = -57.5;
                 ctx.drawImage(img, -51, offsetY, 100, 100);
@@ -1334,8 +1959,8 @@ class Slime extends Entity {
 }
 
 class BaddieSpawner extends Entity {
-    constructor(x, y, width = 40, height = 40, baddieType = 'obj_slime') {
-        super(x, y, width, height, 'transparent');
+    constructor(x, y, width = 40, height = 40, baddieType = 'obj_slime', flipX = false, flipY = false) {
+        super(x, y, width, height, 'transparent', flipX, flipY);
         this.type = 'obj_baddiespawner';
         this.baddieType = baddieType;
         this.spawnTimer = 60; // Initial delay
@@ -1364,7 +1989,7 @@ class BaddieSpawner extends Entity {
             this.spawnTimer--;
             if (this.spawnTimer <= 0) {
                 if (this.baddieType === 'obj_slime') {
-                    const slime = new Slime(this.x, this.y, 40, 40);
+                    const slime = new Slime(this.x, this.y, 40, 40, this.flipX, this.flipY);
                     slime.spawnedBySpawner = true;
                     game.entities.push(slime);
                     this.currentBaddie = slime;
@@ -1376,6 +2001,14 @@ class BaddieSpawner extends Entity {
     }
     
     render(ctx) {
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
         if (this.imageLoaded) {
             ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
         } else {
@@ -1385,6 +2018,7 @@ class BaddieSpawner extends Entity {
             ctx.lineWidth = 2;
             ctx.strokeRect(this.x, this.y, this.width, this.height);
         }
+        ctx.restore();
     }
 }
 
@@ -1442,7 +2076,8 @@ class PaletteDebris extends Entity {
         this.vy += this.gravity;
         this.angle += this.rotSpeed;
 
-        if (this.y > game.roomHeight + 200) {
+        const maxH = (game.roomHeight && game.roomHeight > 0) ? game.roomHeight : 2000;
+        if (this.y > maxH + 200) {
             this.isDestroyed = true;
         }
     }
@@ -1465,8 +2100,8 @@ class PaletteDebris extends Entity {
 }
 
 class PaletteDresser extends Entity {
-    constructor(x, y, width = 64, height = 64) {
-        super(x, y, width, height, 'rgba(0,0,0,0)');
+    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false) {
+        super(x, y, width, height, 'rgba(0,0,0,0)', flipX, flipY);
         this.type = 'obj_palettedresser';
         this.sprite = new Image();
         this.sprite.src = '이미지/spr_palettedresser.png';
@@ -1528,6 +2163,14 @@ class PaletteDresser extends Entity {
     }
 
     render(ctx) {
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
         if (this.sprite && this.sprite.complete && this.sprite.naturalWidth > 0) {
             let imgToDraw = this.sprite;
             if (this.game && this.game.player && this.game.player.paletteManager) {
@@ -1551,6 +2194,7 @@ class PaletteDresser extends Entity {
             ctx.textAlign = 'center';
             ctx.fillText("DRESSER", this.x + this.width/2, this.y + this.height/2);
         }
+        ctx.restore();
 
         if (this.playerTouching) {
             if (this.game && this.game.drawCreditsText) {
@@ -1581,12 +2225,14 @@ class PaletteDresser extends Entity {
 }
 
 class OnlineComputer {
-    constructor(x, y, w=64, h=64) {
+    constructor(x, y, w=64, h=64, flipX = false, flipY = false) {
         this.type = 'obj_computer';
         this.x = x;
         this.y = y;
         this.width = w;
         this.height = h;
+        this.flipX = !!flipX;
+        this.flipY = !!flipY;
         this.game = null;
         this.playerTouching = false;
         
@@ -1621,6 +2267,14 @@ class OnlineComputer {
     }
 
     render(ctx) {
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
         if (this.sprite && this.sprite.complete && this.sprite.naturalWidth > 0) {
             ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
         } else {
@@ -1633,6 +2287,7 @@ class OnlineComputer {
             ctx.lineWidth = 1;
             ctx.strokeRect(this.x, this.y, this.width, this.height);
         }
+        ctx.restore();
     }
 }
 

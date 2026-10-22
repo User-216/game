@@ -75,6 +75,8 @@
                     <button class="editor-tab" id="set-size-btn">SIZE</button>
                     <button class="editor-tab" id="set-music-btn">MUSIC</button>
                     <button class="editor-tab" id="set-bg-btn">BG</button>
+                    <button class="editor-tab" id="editor-flip-x-btn" title="좌우 반전 (X / F 키)">FLIP [X]</button>
+                    <button class="editor-tab" id="editor-flip-y-btn" title="상하 반전 (Y / V 키)">VERT [Y]</button>
                     <button class="editor-tab" id="toggle-collision-btn" title="Toggle Collision Visibility (Key 4)" style="color: #888; border-color: rgba(255, 255, 255, 0.15);">COL [4]</button>
                 </div>
                 
@@ -97,6 +99,10 @@
                         <button class="tool-btn" data-type="destroyable" data-category="solids" style="background:#e67e22;">BRK 2</button>
                         <button class="tool-btn" data-type="metal" style="background:#555" data-category="solids">MTL</button>
                         <button class="tool-btn" data-type="pillar" data-category="solids" style="background:#795548; color:#fff;">PILR</button>
+                        <button class="tool-btn" data-type="secretblock" data-category="solids" style="background:#a04000; color:#fff;" title="Secret Block (obj_secretblock - Invisible in game, breaks Tile 1)">SEC 1</button>
+                        <button class="tool-btn" data-type="secretbigblock" data-category="solids" style="background:#873600; color:#fff;" title="Secret Big Block (obj_secretbigblock - Invisible in game, breaks Tile 1)">SEC 2</button>
+                        <button class="tool-btn" data-type="secretmetalblock" data-category="solids" style="background:#3e6b63; color:#fff;" title="Secret Metal Block (obj_secretmetalblock - Invisible in game, breaks Tile 1)">SEC MTL</button>
+                        <button class="tool-btn" data-type="cutoff" data-category="solids" style="background:#4a235a; color:#fff;" title="Cutoff Overlay (obj_cutoff)">CUT</button>
                         <button class="tool-btn" data-type="tile" data-category="tiles" style="background:#8B4513; display:none;">TILE 1</button>
                         <button class="tool-btn" data-type="tile2" data-category="tiles" style="background:#2e7d32; display:none;">TILE 2 (앞)</button>
                         <button class="tool-btn" data-type="tile3" data-category="tiles" style="background:#455a64; display:none;">TILE 3 (뒤)</button>
@@ -110,6 +116,7 @@
                         <button class="tool-btn" data-type="tutorialbook" data-category="objects" style="display:none;">BOOK</button>
                         <button class="tool-btn" data-type="obj_palettedresser" data-category="objects" style="background:#e84393; color:#fff; display:none;">DRES</button>
                         <button class="tool-btn" data-type="obj_computer" data-category="objects" style="background:#3498db; color:#fff; display:none;">COMP</button>
+                        <button class="tool-btn" data-type="cutoff" data-category="objects" style="background:#4a235a; color:#fff; display:none;" title="Cutoff Overlay (obj_cutoff)">CUTOFF</button>
                         
                         <button class="tool-btn" data-type="obj_collect" data-category="objects" style="background:#f1c40f; color:#000; display:none;">COL</button>
                         <button class="tool-btn" data-type="obj_bigcollect" data-category="objects" style="background:#e67e22; color:#fff; display:none;">BCOL</button>
@@ -119,7 +126,7 @@
                 </div>
             </div>
             
-            <div id="editor-hint-floating" class="editor-hint hidden">Press X to flip selected object before placing.</div>
+            <div id="editor-hint-floating" class="editor-hint hidden">Press X / F to flip horizontally, Y to flip vertically. (오브젝트 & 타일 반전: [X] / [F] 좌우, [Y] 상하)</div>
             <script>
                 // Make hint visibility sync with editor
                 const observer = new MutationObserver((mutations) => {
@@ -340,9 +347,13 @@
     
     <!-- Tileset Palette -->
     <div id="tileset-palette" class="glass hidden" style="position: absolute; right: 20px; top: 100px; width: 500px; max-height: 70vh; overflow: auto; z-index: 100;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px;">
             <h4 style="margin:0; color:white;">Tileset</h4>
-            <button id="change-tileset-btn" style="background:#444; color:white; border:none; padding:4px 8px; cursor:pointer;">Change Image</button>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <button id="tile-flip-x-btn" class="tool-btn" style="padding:4px 8px; font-size:0.8rem; background:#333; color:#fff;" title="좌우 반전 (X / F 키)">FLIP [X]</button>
+                <button id="tile-flip-y-btn" class="tool-btn" style="padding:4px 8px; font-size:0.8rem; background:#333; color:#fff;" title="상하 반전 (Y 키)">VERT [Y]</button>
+                <button id="change-tileset-btn" style="background:#444; color:white; border:none; padding:4px 8px; cursor:pointer;">Change Image</button>
+            </div>
         </div>
         <div style="position: relative; display: block; line-height: 0; width: fit-content;">
             <img id="tileset-image" src="Tileset/tile_tutorial.png" style="display: block; width: 2400px; cursor: crosshair; image-rendering: pixelated;" draggable="false" />

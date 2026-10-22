@@ -945,7 +945,7 @@ class Player {
             const headBox = { x: this.x, y: this.y - 22, width: 26, height: 22 };
             let hitCeiling = false;
             for (let entity of entities) {
-                if (entity.isDestroyed || entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
+                if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
                 if (Physics.checkCollision(headBox, entity)) {
                     hitCeiling = true;
                     break;
@@ -1249,7 +1249,7 @@ class Player {
         // Collision Resolution Pass 1: Normal AABB
         entities.forEach(entity => {
             if (entity.isDestroyed) return;
-            if (entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'ladder' || entity.type === 'tile') return;
+            if (entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'ladder' || entity.type === 'tile') return;
             if (entity.type === 'left-up' || entity.type === 'right-up') return;
 
             // Normal AABB Support
@@ -1280,11 +1280,14 @@ class Player {
                 if (resolution.axis === 'y') {
                     if (resolution.amount < 0) {
                         // Ground Pound breaks blocks beneath
-                        if (this.isGroundPounding && entity.type === 'destroyable') {
+                        const isDestroyableTarget = (entity.type === 'destroyable' || entity.type === 'obj_secretblock' || entity.type === 'secretblock' || entity.type === 'obj_secretbigblock' || entity.type === 'secretbigblock' || (entity instanceof Destroyable && !(entity instanceof Metal) && !(typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)));
+                        const isMetalTarget = (entity.type === 'metal' || entity.type === 'obj_secretmetalblock' || entity.type === 'secretmetalblock' || entity instanceof Metal || (typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock));
+
+                        if (this.isGroundPounding && isDestroyableTarget) {
                             entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                             return; // Skip collision resolution to plow through
-                        } else if (this.isGroundPounding && entity.type === 'metal' && this.vy >= 20) {
+                        } else if (this.isGroundPounding && isMetalTarget && this.vy >= 20) {
                             entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                             return; // Skip collision resolution to plow through
@@ -1334,7 +1337,8 @@ class Player {
                             this.image_index = 0;
                             this.groundPoundLandTimer = 8;
                         }
-                        if (entity.type === 'destroyable' && this.vy < 0) {
+                        const isDestroyableTarget = (entity.type === 'destroyable' || entity.type === 'obj_secretblock' || entity.type === 'secretblock' || entity.type === 'obj_secretbigblock' || entity.type === 'secretbigblock' || (entity instanceof Destroyable && !(entity instanceof Metal) && !(typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)));
+                        if (isDestroyableTarget && this.vy < 0) {
                             entity.destroy(window.gameInstance);
                             if (audio) audio.play('break');
                         }
@@ -1355,10 +1359,10 @@ class Player {
                             this.vx = 0;
                             this.x += resolution.amount;
                         }
-                    } else if (entity.type === 'destroyable' && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || this.isTumbling)) {
+                    } else if ((entity.type === 'destroyable' || entity.type === 'obj_secretblock' || entity.type === 'secretblock' || entity.type === 'obj_secretbigblock' || entity.type === 'secretbigblock' || (entity instanceof Destroyable && !(entity instanceof Metal) && !(typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock))) && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || this.isTumbling)) {
                         entity.destroy(window.gameInstance);
                         if (audio) audio.play('break');
-                    } else if (entity.type === 'metal' && Math.abs(this.vx) >= 11.5) {
+                    } else if ((entity.type === 'metal' || entity.type === 'obj_secretmetalblock' || entity.type === 'secretmetalblock' || entity instanceof Metal || (typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)) && Math.abs(this.vx) >= 11.5) {
                         entity.destroy(window.gameInstance);
                         if (audio) audio.play('break');
                     } else {
@@ -1459,7 +1463,7 @@ class Player {
             let targetWall = null;
 
             entities.forEach(entity => {
-                if (!entity.isDestroyed && entity.type !== 'hallway' && entity.type !== 'tutorialbook' && entity.type !== 'obj_palettedresser' && entity.type !== 'obj_computer' && entity.type !== 'obj_debris' && entity.type !== 'tile' && Physics.checkCollision(this, entity)) {
+                if (!entity.isDestroyed && entity.isSolid !== false && !entity.isCutoff && entity.type !== 'obj_cutoff' && entity.type !== 'obj_cutoffsmall' && entity.type !== 'cutoff' && entity.type !== 'hallway' && entity.type !== 'tutorialbook' && entity.type !== 'obj_palettedresser' && entity.type !== 'obj_computer' && entity.type !== 'obj_debris' && entity.type !== 'tile' && Physics.checkCollision(this, entity)) {
                     stillTouching = true;
                     targetWall = entity;
                 }
@@ -1475,7 +1479,7 @@ class Player {
 
                 // Find the wall we were just climbing (it should be very close horizontally)
                 entities.forEach(entity => {
-                    if (entity.isDestroyed || entity.type === 'hallway' || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'tile') return;
+                    if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'tile') return;
 
                     const isRightWall = this.climbSide === 1;
                     const wallX = isRightWall ? entity.x : entity.x + entity.width;
