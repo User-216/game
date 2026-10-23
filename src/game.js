@@ -314,6 +314,25 @@ class Game {
         this._hasAttemptedInitialFullscreen = false;
 
         this.loadingScreenImages = [];
+        this.selectedSaveSlot = 1;
+        this.currentSaveSlot = 1;
+        this.deleteToastTimer = 0;
+        this.sRankScore = 10000;
+
+        // Load Rank Bubble Sprites (spr_rankbubble & spr_rankbubble_fill)
+        this.rankBubbleImages = [];
+        this.rankBubbleFillImages = [];
+        for (let i = 0; i < 6; i++) {
+            const bImg = new Image();
+            bImg.src = `이미지/spr_rankbubble/spr_rankbubble_${i}.png`;
+            this.rankBubbleImages.push(bImg);
+
+            const fImg = new Image();
+            fImg.src = `이미지/spr_rankbubble_fill/spr_rankbubble_fill_${i}.png`;
+            this.rankBubbleFillImages.push(fImg);
+        }
+        this.prevRankIndex = 0;
+        this.rankPulseScale = 1.0;
         this.introVideo = document.createElement('video');
         this.introVideo.src = 'gamedata/intro.mp4';
         this.introVideo.playsInline = true;
@@ -354,6 +373,14 @@ class Game {
         this.transitionState = 'NONE';
         this.transitionAlpha = 0;
         this.transitionDuration = 12; // 12 frames (approx. 0.2s)
+
+        // Hub coordinates & room transitions (Level Gate)
+        this.hubX = null;
+        this.hubY = null;
+        this.hub_room = null;
+        this.restart_room = null;
+        this.titleCard = null;
+        this.pendingLevelGate = null;
         this.transitionTimer = 0;
         this.pendingRoom = null;
         this.pendingDoor = null;
@@ -1729,6 +1756,25 @@ class Game {
             });
         }
 
+        // Set S Rank Score button
+        const setSRankBtn = document.getElementById('set-srank-btn');
+        if (setSRankBtn) {
+            setSRankBtn.addEventListener('click', () => {
+                const currentVal = this.sRankScore || 10000;
+                const input = prompt("현재 방의 S 랭크 목표 점수를 입력하세요 (기본값: 10000):", currentVal);
+                if (input !== null) {
+                    const parsed = parseInt(input.trim(), 10);
+                    if (!isNaN(parsed) && parsed > 0) {
+                        this.sRankScore = parsed;
+                        this.saveCurrentRoomToMemory();
+                        this.showFlipToast(`S RANK SCORE: ${this.sRankScore}`);
+                    } else {
+                        alert("올바른 양수 점수를 입력해주세요.");
+                    }
+                }
+            });
+        }
+
         // Set Background button & Modal
         const setBgBtn = document.getElementById('set-bg-btn');
         const bgOverlay = document.getElementById('bg-settings-overlay');
@@ -1843,6 +1889,116 @@ class Game {
     }
 
     initTutorialBookOverlay() {
+        // Level Gate Overlay Modal Event Wiring
+        const gateOverlay = document.getElementById('levelgate-overlay');
+        const gatePreset = document.getElementById('levelgate-img-preset');
+        const gateStyleSelect = document.getElementById('levelgate-style-select');
+        const gateImgCustom = document.getElementById('levelgate-img-custom');
+        const gatePreviewImg = document.getElementById('levelgate-preview-img');
+        const gatePreviewGateImg = document.getElementById('levelgate-preview-gate-img');
+        const gateNameInput = document.getElementById('levelgate-name-input');
+        const gatePreviewName = document.getElementById('levelgate-preview-name');
+        const gateConfirmBtn = document.getElementById('levelgate-confirm-btn');
+        const gateCancelBtn = document.getElementById('levelgate-cancel-btn');
+
+        if (gateStyleSelect) {
+            gateStyleSelect.addEventListener('change', () => {
+                const sVal = gateStyleSelect.value || '0';
+                if (gatePreviewGateImg) {
+                    gatePreviewGateImg.src = `이미지/spr_gate/spr_gate_${sVal}.png`;
+                }
+            });
+        }
+
+        const presetNames = {
+            '0': 'JOHN GUTTER', '1': 'PIZZASCAPE', '2': 'ANCIENT CHEESE',
+            '3': 'BLOODSAUCE DUNGEON', '4': 'OREGANO DESERT', '5': 'WASTEYARD',
+            '6': 'FUN FARM', '7': 'FAST FOOD SALOON', '8': 'CRUST COVE',
+            '9': 'GNOME FOREST', '10': 'DEEP-DISH 9', '11': 'GOLF',
+            '12': 'PIG CITY', '13': 'PEPPIBOT FACTORY', '14': 'OH SHIT!',
+            '15': 'REFRIGERATOR-REFRIGERATOR-FREEZERATOR', '16': 'PIZZASCARE',
+            '17': "DON'T MAKE A SOUND", '18': 'WAR', '19': 'THE CRUMBLING TOWER OF PIZZA'
+        };
+
+        if (gatePreset) {
+            gatePreset.addEventListener('change', () => {
+                const val = gatePreset.value;
+                if (val === 'custom') {
+                    if (gateImgCustom) gateImgCustom.style.display = 'block';
+                    if (gatePreviewImg && gateImgCustom && gateImgCustom.value.trim()) {
+                        gatePreviewImg.src = gateImgCustom.value.trim();
+                    }
+                } else {
+                    if (gateImgCustom) gateImgCustom.style.display = 'none';
+                    if (gatePreviewImg) gatePreviewImg.src = `이미지/spr_titlecards/spr_titlecards_${val}.png`;
+                    if (gateNameInput && presetNames[val]) {
+                        gateNameInput.value = presetNames[val];
+                        if (gatePreviewName) gatePreviewName.innerText = presetNames[val];
+                    }
+                    if (gateStyleSelect && (val === '0' || val === '1' || val === '2')) {
+                        gateStyleSelect.value = val;
+                        if (gatePreviewGateImg) gatePreviewGateImg.src = `이미지/spr_gate/spr_gate_${val}.png`;
+                    }
+                }
+            });
+        }
+
+        if (gateImgCustom && gatePreviewImg) {
+            gateImgCustom.addEventListener('input', () => {
+                if (gateImgCustom.value.trim()) gatePreviewImg.src = gateImgCustom.value.trim();
+            });
+        }
+
+        if (gateNameInput && gatePreviewName) {
+            gateNameInput.addEventListener('input', () => {
+                gatePreviewName.innerText = gateNameInput.value.trim().toUpperCase() || 'LEVEL';
+            });
+        }
+
+        if (gateConfirmBtn) {
+            gateConfirmBtn.addEventListener('click', () => {
+                const room = document.getElementById('levelgate-room-input')?.value.trim() || 'tutorial_1';
+                const door = document.getElementById('levelgate-door-select')?.value || 'A';
+                const preset = gatePreset ? gatePreset.value : '0';
+                let imgSrc = preset;
+                if (preset === 'custom' && gateImgCustom) {
+                    imgSrc = gateImgCustom.value.trim() || '0';
+                }
+                const titleText = gateNameInput?.value.trim().toUpperCase() || room.toUpperCase();
+
+                const gateStyle = gateStyleSelect ? parseInt(gateStyleSelect.value, 10) : 0;
+
+                if (this.pendingLevelGate) {
+                    const { x, y, w, h } = this.pendingLevelGate;
+                    const finalW = (w <= this.gridSize) ? 192 : w;
+                    const finalH = (h <= this.gridSize) ? 288 : h;
+                    const gate = new LevelGate(x, y, finalW, finalH, room, door, imgSrc, titleText, gateStyle);
+                    if (this.objectFlipX) gate.flipX = true;
+                    if (this.objectFlipY) gate.flipY = true;
+                    this.entities.push(gate);
+                    this.saveCurrentRoomToMemory();
+                    this.pendingLevelGate = null;
+                }
+
+                if (gateOverlay) {
+                    gateOverlay.classList.add('hidden');
+                    gateOverlay.style.display = 'none';
+                }
+                this.isTyping = false;
+            });
+        }
+
+        if (gateCancelBtn) {
+            gateCancelBtn.addEventListener('click', () => {
+                this.pendingLevelGate = null;
+                if (gateOverlay) {
+                    gateOverlay.classList.add('hidden');
+                    gateOverlay.style.display = 'none';
+                }
+                this.isTyping = false;
+            });
+        }
+
         const overlay = document.getElementById('tutorialbook-overlay');
         const presetSelect = document.getElementById('tut-preset-select');
         const textInput = document.getElementById('tut-text-input');
@@ -1966,6 +2122,21 @@ class Game {
         }
     }
 
+    openLevelGateModal(x, y, w, h) {
+        this.pendingLevelGate = { x, y, w, h };
+        this.isTyping = true;
+        const overlay = document.getElementById('levelgate-overlay');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
+            const roomInput = document.getElementById('levelgate-room-input');
+            if (roomInput) {
+                roomInput.focus();
+                roomInput.select();
+            }
+        }
+    }
+
     openTutorialBookModal(x, y, w, h) {
         const overlay = document.getElementById('tutorialbook-overlay');
         const presetSelect = document.getElementById('tut-preset-select');
@@ -2018,6 +2189,7 @@ class Game {
         if (e.isSecret && e.isDestroyed) return false;
         if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
+        if (e.type === 'door' || e.type === 'levelgate' || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
         const type = e.type;
         if (type === 'platform' || e instanceof Platform) return true;
         if (type === 'oneway' || e instanceof OneWayPlatform) return true;
@@ -2439,12 +2611,11 @@ class Game {
         });
         document.getElementById('btn-restart').addEventListener('click', () => {
             this.togglePause();
-            this.loadRoom(this.currentRoom);
+            this.restartCurrentLevel();
         });
         document.getElementById('btn-exit').addEventListener('click', () => {
             this.togglePause();
-            this.gameState = 'TITLE';
-            if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+            this.exitLevelToHubOrTitle();
         });
 
         // Options Menu Back
@@ -3011,6 +3182,27 @@ class Game {
             return;
         }
 
+        if (this.gameState === 'TITLE') {
+            const rect = this.canvas.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+
+            let clickedSlot = 0;
+            if (mx < 340) clickedSlot = 1;
+            else if (mx <= 620) clickedSlot = 2;
+            else clickedSlot = 3;
+
+            if (clickedSlot >= 1 && clickedSlot <= 3) {
+                if (this.selectedSaveSlot === clickedSlot) {
+                    this.loadSaveSlot(clickedSlot);
+                } else {
+                    this.selectedSaveSlot = clickedSlot;
+                    if (this.audio) this.audio.playFile('sfx_step', true);
+                }
+            }
+            return;
+        }
+
         if (!this.isEditorMode) return;
         if (e.target.closest('#tileset-palette') || e.target.closest('#editor-toolbar')) return;
 
@@ -3116,6 +3308,26 @@ class Game {
             } else if (this.selectedType === 'pillar') {
                 w = 128;
                 h = 224;
+            } else if (this.selectedType === 'levelgate') {
+                w = 192;
+                h = 288;
+            } else if (this.selectedType === 'levelgate') {
+                const gImg = (typeof LevelGate !== 'undefined' && LevelGate.gateImages && LevelGate.gateImages[0]) ? LevelGate.gateImages[0] : null;
+                const bgImg = (typeof LevelGate !== 'undefined' && LevelGate.gateBGImages && LevelGate.gateBGImages[0]) ? LevelGate.gateBGImages[0] : null;
+                if (gImg && gImg.complete && bgImg && bgImg.complete) {
+                    ctx.drawImage(bgImg, 0, 288 - bgImg.naturalHeight, 192, bgImg.naturalHeight);
+                    ctx.drawImage(gImg, 0, 288 - gImg.naturalHeight, 192, gImg.naturalHeight);
+                } else {
+                    ctx.fillStyle = 'rgba(74, 68, 77, 0.7)';
+                    ctx.fillRect(0, 0, 192, 288);
+                }
+                ctx.strokeStyle = '#ff503c';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, 192, 288);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('LV GATE', 96, 24);
             } else if (this.selectedType === 'door') {
                 w = 100;
                 h = 100;
@@ -3204,6 +3416,10 @@ class Game {
                 if (dDoor === null) break;
                 entity = new Door(x, y, w, h, dDoor, dRoom); 
                 break;
+            case 'levelgate':
+                this.openLevelGateModal(x, y, w, h);
+                this.dragStart = null;
+                return;
             case 'targetDoor': 
                 let doorId = prompt("Target Door ID (A, B, C, D, E):", "A");
                 if (doorId === 'A') entity = new TargetDoor_A(x, y, w, h);
@@ -3325,6 +3541,9 @@ class Game {
         if (this.escape) {
             code += `this.escape = true;\n`;
         }
+        if (this.sRankScore) {
+            code += `this.sRankScore = ${this.sRankScore};\n`;
+        }
         if (this.hasExplicitMusic && this.roomMusic) {
             code += `this.roomMusic = '${this.roomMusic}';\n`;
         }
@@ -3381,6 +3600,7 @@ class Game {
             else if (ent instanceof Destroyable) base = `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Hallway) base = `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
             else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
+            else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0})`;
             else if (ent instanceof TargetDoorBase) base = `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof TutorialBook) base = `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             else if (ent instanceof PaletteDresser) base = `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -3559,7 +3779,9 @@ this.entities.push(
             const currentTileWave = this.tileWave;
             const currentTileWaveAmp = this.tileWaveAmp;
             const currentTileWaveSpeed = this.tileWaveSpeed;
+            const currentSRankScore = this.sRankScore;
             this.rooms[this.currentRoom] = () => {
+                this.sRankScore = currentSRankScore;
                 this.roomWidth = currentW;
                 this.roomHeight = currentH;
                 if (currentEscape) {
@@ -3607,6 +3829,7 @@ this.entities.push(
                 this.tileWave = false;
                 this.tileWaveAmp = 3.5;
                 this.tileWaveSpeed = 1.0;
+                this.sRankScore = 10000;
                 this.rooms[roomName].call(this);
 
                 if (this.escape) {
@@ -3677,6 +3900,7 @@ this.entities.push(
                 this.cameraSpeedOffset = 0;
                 
                 this.currentRoom = roomName;
+                this.updateSaveProgress();
                 resolve();
             };
 
@@ -3753,7 +3977,269 @@ this.entities.push(
         this.camera.y = targetY;
     }
 
+    enterLevelGate(gate) {
+        // Record Hub coordinates and room as requested by user
+        this.hubX = this.player.x;
+        this.hubY = this.player.y;
+        this.hub_room = this.currentRoom;
+        this.restart_room = gate.targetRoom;
+
+        this.player.showUpArrow = false;
+        this.player.state = 'enterlevelgate';
+        this.player.isEnteringDoor = true;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.player.isRunning = false;
+        this.player.facingDir = 1;
+        this.player.targetDoorX = gate.x + gate.width / 2 - this.player.width / 2;
+        this.player.sprite_index = 'spr_player_enterlevelgate';
+        this.player.image_index = 0;
+        this.player.image_speed = 0.35;
+        this.player.enterLevelGateFinished = false;
+        this.enteringGate = gate;
+
+        this.clearActionKey('up');
+        this.keys.actionUp = false;
+
+        if (this.audio) {
+            try {
+                this.audio.playFile('boss_gate', true);
+            } catch (e) {
+                this.audio.playFile('sfx_step', true);
+            }
+        }
+    }
+
+    startTitleCard(gate) {
+        this.gameState = 'TITLECARD';
+        if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+
+        let cardImgSrc = null;
+        let titleImgSrc = null;
+
+        const imgVal = String(gate.titleCardImage !== undefined ? gate.titleCardImage : '0').trim();
+        if (/^\d+$/.test(imgVal)) {
+            cardImgSrc = `이미지/spr_titlecards/spr_titlecards_${imgVal}.png`;
+            titleImgSrc = `이미지/spr_titlecards_title/spr_titlecards_title_${imgVal}.png`;
+        } else if (imgVal.length > 0) {
+            cardImgSrc = imgVal;
+        } else {
+            cardImgSrc = `이미지/spr_titlecards/spr_titlecards_0.png`;
+            titleImgSrc = `이미지/spr_titlecards_title/spr_titlecards_title_0.png`;
+        }
+
+        const bgImage = new Image();
+        bgImage.src = cardImgSrc;
+
+        let titleImage = null;
+        if (titleImgSrc) {
+            titleImage = new Image();
+            titleImage.src = titleImgSrc;
+        }
+
+        this.titleCard = {
+            gate: gate,
+            targetRoom: gate.targetRoom,
+            targetDoor: gate.targetDoor || 'A',
+            titleText: gate.titleCardText || gate.targetRoom || 'LEVEL',
+            timer: 0,
+            duration: 180, // ~3 seconds at 60fps
+            bgImage: bgImage,
+            titleImage: titleImage,
+            alpha: 0,
+            skipTriggered: false
+        };
+    }
+
+    updateTitleCard() {
+        if (!this.titleCard) {
+            this.gameState = 'PLAYING';
+            return;
+        }
+
+        const tc = this.titleCard;
+        tc.timer++;
+
+        const fadeInFrames = 20;
+        const fadeOutFrames = 20;
+
+        // Skip detection: Z, Enter, Space, X, Jump
+        const skipPressed = (
+            this.keys['z'] || this.keys['Z'] || 
+            this.keys['Enter'] || this.keys[' '] || 
+            this.keys['x'] || this.keys['X'] ||
+            this.isActionPressed('jump') || this.isActionPressed('menu_confirm')
+        );
+
+        if (skipPressed && !tc.skipTriggered && tc.timer > 10) {
+            tc.skipTriggered = true;
+            tc.timer = tc.duration - fadeOutFrames;
+            if (this.audio) {
+                try { this.audio.playFile('sfx_step', true); } catch(e){}
+            }
+        }
+
+        if (tc.timer < fadeInFrames) {
+            tc.alpha = tc.timer / fadeInFrames;
+        } else if (tc.timer > tc.duration - fadeOutFrames) {
+            tc.alpha = Math.max(0, (tc.duration - tc.timer) / fadeOutFrames);
+        } else {
+            tc.alpha = 1.0;
+        }
+
+        if (tc.timer >= tc.duration) {
+            const targetRoom = tc.targetRoom;
+            const targetDoor = tc.targetDoor;
+            this.titleCard = null;
+
+            this.loadRoom(targetRoom, targetDoor).then(() => {
+                this.gameState = 'PLAYING';
+                if (this.player) {
+                    this.player.state = 'normal';
+                    this.player.sprite_index = 'spr_player_idle';
+                    this.player.isEnteringDoor = false;
+                    this.player.enterLevelGateFinished = false;
+                }
+                if (this.uiOverlay) this.uiOverlay.style.display = 'block';
+            });
+        }
+    }
+
+    renderTitleCard() {
+        if (!this.titleCard) return;
+        const tc = this.titleCard;
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, tc.alpha));
+
+        // Background Artwork
+        if (tc.bgImage && tc.bgImage.complete && tc.bgImage.naturalWidth > 0) {
+            ctx.drawImage(tc.bgImage, 0, 0, w, h);
+        } else {
+            const grad = ctx.createLinearGradient(0, 0, w, h);
+            grad.addColorStop(0, '#2d0a3d');
+            grad.addColorStop(0.5, '#5c1328');
+            grad.addColorStop(1, '#1b092a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.save();
+            ctx.translate(w / 2, h / 2);
+            ctx.strokeStyle = 'rgba(255, 200, 0, 0.08)';
+            ctx.lineWidth = 14;
+            for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(a) * w, Math.sin(a) * h);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Title Overlay Logo
+        if (tc.titleImage && tc.titleImage.complete && tc.titleImage.naturalWidth > 0) {
+            const scale = (w / 960);
+            const titleW = tc.titleImage.naturalWidth * scale;
+            const titleH = tc.titleImage.naturalHeight * scale;
+            const bounce = Math.sin(Math.min(Math.PI / 2, tc.timer / 15)) * 1.0;
+            ctx.save();
+            ctx.translate(w / 2, h / 2);
+            ctx.scale(bounce, bounce);
+            ctx.drawImage(tc.titleImage, -titleW / 2, -titleH / 2, titleW, titleH);
+            ctx.restore();
+        } else {
+            const levelName = (tc.titleText || 'LEVEL').toUpperCase();
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const fontSize = Math.min(64, Math.floor(w / (levelName.length * 0.75)));
+            ctx.font = `900 ${fontSize}px "Outfit", "Arial Black", sans-serif`;
+
+            for (let off = 8; off >= 1; off--) {
+                ctx.fillStyle = '#000000';
+                ctx.fillText(levelName, w / 2 + off, h / 2 + off);
+            }
+            ctx.fillStyle = '#1a0033';
+            ctx.fillText(levelName, w / 2 + 3, h / 2 + 3);
+
+            const textGrad = ctx.createLinearGradient(0, h / 2 - fontSize, 0, h / 2 + fontSize);
+            textGrad.addColorStop(0, '#ffffff');
+            textGrad.addColorStop(0.3, '#ffea75');
+            textGrad.addColorStop(1, '#ff6a00');
+            ctx.fillStyle = textGrad;
+            ctx.fillText(levelName, w / 2, h / 2);
+
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.strokeText(levelName, w / 2, h / 2);
+            ctx.restore();
+        }
+
+        // Bottom Skip prompt
+        if (tc.timer > 20) {
+            ctx.save();
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 14px "Outfit", sans-serif';
+            const pulse = 0.5 + Math.sin(tc.timer * 0.15) * 0.5;
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + pulse * 0.5})`;
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 4;
+            ctx.fillText('PRESS [Z] / [SPACE] TO SKIP >', w - 30, h - 25);
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    restartCurrentLevel() {
+        this.escape = false;
+        this.score = 0;
+        this.combo = 0;
+        this.comboTimer = 0;
+        const roomToLoad = this.restart_room || this.currentRoom;
+        this.loadRoom(roomToLoad, 'A').then(() => {
+            this.gameState = 'PLAYING';
+            if (this.uiOverlay) this.uiOverlay.style.display = 'block';
+        });
+    }
+
+    exitLevelToHubOrTitle() {
+        this.escape = false;
+        if (this.audio) this.audio.playMusic(null);
+        this.updateSaveProgress();
+
+        if (this.hub_room) {
+            const destRoom = this.hub_room;
+            const hx = this.hubX;
+            const hy = this.hubY;
+            this.loadRoom(destRoom).then(() => {
+                if (this.player && hx !== null && hy !== null) {
+                    this.player.x = hx;
+                    this.player.y = hy;
+                    this.player.vx = 0;
+                    this.player.vy = 0;
+                }
+                this.gameState = 'PLAYING';
+                if (this.uiOverlay) this.uiOverlay.style.display = 'block';
+            });
+        } else {
+            this.gameState = 'TITLE';
+            if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+        }
+    }
+
     triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
+        if (roomName === 'hub' || roomName === 'hub_room' || roomName === 'exit') {
+            this.exitLevelToHubOrTitle();
+            return;
+        }
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         this.lastTargetDoorId = targetDoorId;
         if (this.transitionState !== 'NONE') return;
@@ -3765,6 +4251,10 @@ this.entities.push(
     }
 
     update() {
+        if (this.gameState === 'TITLECARD') {
+            this.updateTitleCard();
+            return;
+        }
         if (this.bgManager) {
             this.bgManager.update(1);
         }
@@ -3973,18 +4463,44 @@ this.entities.push(
             if (this.uiOverlay && this.uiOverlay.style.display !== 'none') {
                 this.uiOverlay.style.display = 'none';
             }
-            if (this.keys['z'] || this.keys['Z']) {
-                this.gameState = 'PLAYING';
-                if (this.uiOverlay) this.uiOverlay.style.display = 'block';
+
+            if (this.deleteToastTimer > 0) this.deleteToastTimer--;
+
+            // Left / Right / Up / Down to switch save slots
+            const isLeft = (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A'] || this.isActionPressed('left') || this.isActionPressed('menu_left') ||
+                            this.keys['ArrowUp'] || this.keys['w'] || this.keys['W'] || this.isActionPressed('up') || this.isActionPressed('menu_up'));
+            const isRight = (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D'] || this.isActionPressed('right') || this.isActionPressed('menu_right') ||
+                             this.keys['ArrowDown'] || this.keys['s'] || this.keys['S'] || this.isActionPressed('down') || this.isActionPressed('menu_down'));
+            
+            if (isLeft && !this.prevTitleLeft) {
+                this.selectedSaveSlot = this.selectedSaveSlot === 1 ? 3 : (this.selectedSaveSlot - 1);
+                if (this.audio) this.audio.playFile('sfx_step', true);
+            }
+            if (isRight && !this.prevTitleRight) {
+                this.selectedSaveSlot = this.selectedSaveSlot === 3 ? 1 : (this.selectedSaveSlot + 1);
+                if (this.audio) this.audio.playFile('sfx_step', true);
+            }
+            this.prevTitleLeft = isLeft;
+            this.prevTitleRight = isRight;
+
+            // Delete key: C
+            const isDelete = (this.keys['c'] || this.keys['C'] || this.isActionPressed('menu_clear'));
+            if (isDelete && !this.prevTitleDelete) {
+                this.deleteSaveSlot(this.selectedSaveSlot);
+            }
+            this.prevTitleDelete = isDelete;
+
+            // Confirm / Start key: Z, Enter, Space
+            const isConfirm = this.keys['z'] || this.keys['Z'] || this.keys['Enter'] || this.keys['Space'] || this.isActionPressed('jump') || this.isActionPressed('menu_confirm');
+            if (isConfirm && !this.prevTitleConfirm) {
+                this.loadSaveSlot(this.selectedSaveSlot);
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
-                if (this.audio) {
-                    this.audio.unlockAudio();
-                    if (this.roomMusic) {
-                        this.audio.playMusic(this.roomMusic);
-                    }
-                }
+                this.keys['Enter'] = false;
+                this.keys['Space'] = false;
             }
+            this.prevTitleConfirm = isConfirm;
+
             return;
         }
 
@@ -4046,15 +4562,11 @@ this.entities.push(
                         this.optionsMenuLevel = 'MAIN';
                         document.getElementById('options-overlay').style.display = 'none'; // just in case
                     } else if (sel === 'RESTART') {
-                        this.escape = false;
                         this.togglePause();
-                        this.loadRoom(this.currentRoom);
+                        this.restartCurrentLevel();
                     } else if (sel === 'EXIT LEVEL') {
-                        this.escape = false;
                         this.togglePause();
-                        this.gameState = 'TITLE';
-                        if (this.audio) this.audio.playMusic(null);
-                        if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+                        this.exitLevelToHubOrTitle();
                     }
                 }
                 } // end else MAIN
@@ -4402,6 +4914,18 @@ this.entities.push(
             return;
         }
 
+        if (this.rankPulseScale > 1.0) {
+            this.rankPulseScale = Math.max(1.0, this.rankPulseScale - 0.025);
+        }
+        if (this.getRankBubbleData) {
+            const currentRankData = this.getRankBubbleData();
+            if (this.prevRankIndex !== undefined && currentRankData.rankIndex > this.prevRankIndex) {
+                this.rankPulseScale = 1.35;
+                if (this.audio) this.audio.playFile('sfx_collect', true);
+            }
+            this.prevRankIndex = currentRankData.rankIndex;
+        }
+
         if (this.transitionState === 'FADE_OUT') {
             this.transitionTimer++;
             this.transitionAlpha = this.transitionTimer / this.transitionDuration;
@@ -4411,7 +4935,7 @@ this.entities.push(
                 this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity).then(() => {
                     this.transitionState = 'FADE_IN';
                     this.transitionTimer = 0;
-                    if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor')) {
+                    if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor' || this.player.state === 'enterlevelgate')) {
                         this.player.state = 'walkfront';
                         this.player.isEnteringDoor = false;
                         this.player.sprite_index = 'spr_player_walkfront';
@@ -4436,7 +4960,7 @@ this.entities.push(
                 this.pendingDoor = null;
                 if (this.player) {
                     this.player.targetDoorX = null;
-                    if (this.player.state === 'enterdoor') {
+                    if (this.player.state === 'enterdoor' || this.player.state === 'enterlevelgate') {
                         this.player.state = 'normal';
                         this.player.sprite_index = 'spr_player_idle';
                         this.player.image_index = 0;
@@ -4536,6 +5060,14 @@ this.entities.push(
         }
 
         this.player.update(this.keys, this.entities, this.audio);
+
+        // When player finished entering level gate animation, launch Title Card
+        if (this.player && this.player.state === 'enterlevelgate' && this.player.enterLevelGateFinished && this.enteringGate) {
+            const gate = this.enteringGate;
+            this.enteringGate = null;
+            this.player.enterLevelGateFinished = false;
+            this.startTitleCard(gate);
+        }
         
         // Send multiplayer data
         if (this.networkConns && this.networkConns.length > 0 && this.myOnlineId) {
@@ -4713,6 +5245,7 @@ this.entities.push(
         // Update state info UI
         let currentStates = [];
         if (this.player.state === 'enterdoor') currentStates.push('enterdoor');
+        else if (this.player.state === 'enterlevelgate') currentStates.push('enterlevelgate');
         else if (this.player.state === 'walkfront') currentStates.push('walkfront');
         else if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
         else if (this.player.isGroundPoundLand) currentStates.push(dict['state.groundpoundland']);
@@ -4729,9 +5262,9 @@ this.entities.push(
         // Door Interaction Check
         const overlappingInteractable = this.entities.find(e => {
             if (!e || e.isDestroyed) return false;
-            if (e.type === 'door' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
-                const minW = (e.type === 'door') ? 70 : 64;
-                const minH = (e.type === 'door') ? 90 : 64;
+            if (e.type === 'door' || e.type === 'levelgate' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
+                const minW = (e.type === 'door' || e.type === 'levelgate') ? 70 : 64;
+                const minH = (e.type === 'door' || e.type === 'levelgate') ? 90 : 64;
                 const drawW = Math.max(e.width, minW);
                 const drawH = Math.max(e.height, minH);
                 const left = e.x + e.width / 2 - drawW / 2;
@@ -4749,19 +5282,21 @@ this.entities.push(
         });
 
         const overlappingDoor = (overlappingInteractable && overlappingInteractable.type === 'door') ? overlappingInteractable : null;
+        const overlappingGate = (overlappingInteractable && overlappingInteractable.type === 'levelgate') ? overlappingInteractable : null;
 
         if (this.player) {
             this.player.showUpArrow = !!(
                 overlappingInteractable && 
                 this.player.isGrounded && 
                 this.player.state !== 'enterdoor' && 
+                this.player.state !== 'enterlevelgate' && 
                 this.player.state !== 'walkfront' && 
                 this.transitionState === 'NONE' &&
                 this.gameState !== 'ONLINE_MENU'
             );
         }
 
-        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
+        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
             this.player.showUpArrow = false;
             this.player.state = 'enterdoor';
             this.player.isEnteringDoor = true;
@@ -4775,6 +5310,10 @@ this.entities.push(
             this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);
             this.clearActionKey('up'); // Prevent immediate multi-entry
             this.keys.actionUp = false;
+        }
+
+        if (overlappingGate && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
+            this.enterLevelGate(overlappingGate);
         }
 
         // Hallway Transition Check
@@ -4865,6 +5404,11 @@ this.entities.push(
 
     render() {
         this.ctx.imageSmoothingEnabled = this.settings.textureFiltering;
+
+        if (this.gameState === 'TITLECARD') {
+            this.renderTitleCard();
+            return;
+        }
         
         if (this.gameState === 'CLICK_TO_START') {
             this.ctx.fillStyle = '#000';
@@ -5797,6 +6341,60 @@ this.entities.push(
                 this.ctx.fillStyle = '#db8449'; // light brown/orange
                 this.ctx.fillText(char, cX, scoreY - 20 + bounceY);
             }
+
+            // Draw Authentic Pizza Tower Rank Bubble HUD
+            const rankData = this.getRankBubbleData ? this.getRankBubbleData() : { rank: 'D', rankIndex: 0, fillProgress: 0 };
+            const rankIndex = rankData.rankIndex;
+            const fillProgress = rankData.fillProgress;
+
+            const bubbleCenterX = scoreX + radiusX + 38;
+            const bubbleCenterY = scoreY;
+            const bounceY = Math.sin(Date.now() / 160) * 3;
+            const scale = (this.rankPulseScale || 1.0);
+
+            const bImg = (this.rankBubbleImages && this.rankBubbleImages[rankIndex]) ? this.rankBubbleImages[rankIndex] : null;
+            const fImg = (this.rankBubbleFillImages && this.rankBubbleFillImages[rankIndex]) ? this.rankBubbleFillImages[rankIndex] : null;
+
+            this.ctx.save();
+            this.ctx.translate(bubbleCenterX, bubbleCenterY + bounceY);
+            if (scale !== 1.0) {
+                this.ctx.scale(scale, scale);
+            }
+
+            const imgW = 76;
+            const imgH = 92;
+            const originX = -Math.round(imgW / 2);
+            const originY = -Math.round(imgH / 2);
+
+            if (bImg && bImg.complete && bImg.naturalWidth > 0) {
+                // 1. Draw base bubble for current rank
+                this.ctx.drawImage(bImg, originX, originY);
+
+                // 2. Draw rising fill for next rank
+                if (rankIndex < 5 && fillProgress > 0 && fImg && fImg.complete && fImg.naturalWidth > 0) {
+                    const fillH = Math.round(imgH * fillProgress);
+                    const sy = imgH - fillH;
+                    this.ctx.drawImage(fImg, 0, sy, imgW, fillH, originX, originY + sy, imgW, fillH);
+                }
+            } else {
+                // Fallback procedural circle badge while image loads
+                const rankColors = { 'D': '#3399ff', 'C': '#33cc33', 'B': '#ffcc00', 'A': '#ff6600', 'S': '#ffdd00', 'P': '#c044ff' };
+                this.ctx.fillStyle = '#111118';
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, 24, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.lineWidth = 4;
+                this.ctx.strokeStyle = rankColors[rankData.rank] || '#ffffff';
+                this.ctx.stroke();
+
+                this.ctx.font = '900 28px "Impact", "Outfit", sans-serif';
+                this.ctx.fillStyle = rankColors[rankData.rank] || '#ffffff';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(rankData.rank, 0, 2);
+            }
+            this.ctx.restore();
+
             this.ctx.restore();
         }
         
@@ -6083,33 +6681,7 @@ this.entities.push(
         }
 
         if (this.gameState === 'TITLE') {
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            this.ctx.fillStyle = '#00f2ff';
-            this.ctx.font = 'bold 80px "Outfit", sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.shadowColor = '#00f2ff';
-            this.ctx.shadowBlur = 20;
-            const shakeX = (Math.random() - 0.5) * 10;
-            const shakeY = (Math.random() - 0.5) * 10;
-            this.ctx.fillText('NEON PLATFORMER', this.canvas.width / 2 + shakeX, this.canvas.height / 2 - 40 + shakeY);
-            this.ctx.shadowBlur = 0;
-            
-            if (Math.floor(Date.now() / 600) % 2 === 0) {
-                const lang = this.settings.language || 'ko';
-                const pressText = i18n[lang]['title.press'];
-                if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(pressText)) {
-                    const pixelated = this.getPixelatedTextCanvas(pressText, 'Custom_Jejudoldam', 36, 1);
-                    this.ctx.save();
-                    this.ctx.drawImage(pixelated.canvas, Math.round(this.canvas.width / 2 - pixelated.textWidth / 2 - pixelated.padding), Math.round(this.canvas.height / 2 + 60 - pixelated.padding));
-                    this.ctx.restore();
-                } else {
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.font = 'bold 36px "Outfit", sans-serif';
-                    this.ctx.fillText(pressText, this.canvas.width / 2, this.canvas.height / 2 + 60);
-                }
-            }
+            this.renderTitleScreen();
         }
 
         if (this.transitionState !== 'NONE' && this.transitionAlpha > 0) {
@@ -6265,7 +6837,7 @@ this.entities.push(
             ctx.fillStyle = '#ffd700';
             ctx.font = 'bold 16px "Outfit", sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText(`ROOM BOUNDS: ${this.roomWidth || '∞'} x ${this.roomHeight || '∞'}`, 10, 25);
+            ctx.fillText(`ROOM BOUNDS: ${this.roomWidth || '∞'} x ${this.roomHeight || '∞'} | S-RANK TARGET: ${this.sRankScore || 10000}`, 10, 25);
             if (this.roomWidth > 0 && this.roomHeight > 0) {
                 ctx.textAlign = 'right';
                 ctx.fillText(`(${this.roomWidth}, ${this.roomHeight})`, this.roomWidth - 10, this.roomHeight - 10);
@@ -6313,6 +6885,8 @@ this.entities.push(
                 pw = 32; ph = 32;
             } else if (this.selectedType === 'pillar') {
                 pw = 128; ph = 224;
+            } else if (this.selectedType === 'levelgate') {
+                pw = 192; ph = 288;
             } else if (this.selectedType === 'door' || this.selectedType === 'targetDoor') {
                 pw = 100; ph = 100;
             } else if (this.selectedType === 'obj_slime' || this.selectedType === 'obj_baddiespawner') {
@@ -6638,6 +7212,26 @@ this.entities.push(
                     }
                     ctx.restore();
                     ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'levelgate') {
+                    ctx.save();
+                    ctx.globalAlpha = 0.65;
+                    const gImg = (typeof LevelGate !== 'undefined' && LevelGate.gateImages && LevelGate.gateImages[0]) ? LevelGate.gateImages[0] : null;
+                    const bgImg = (typeof LevelGate !== 'undefined' && LevelGate.gateBGImages && LevelGate.gateBGImages[0]) ? LevelGate.gateBGImages[0] : null;
+                    if (gImg && gImg.complete && bgImg && bgImg.complete) {
+                        ctx.drawImage(bgImg, minX, minY + (h - (bgImg.naturalHeight * (h / 288))), w, bgImg.naturalHeight * (h / 288));
+                        ctx.drawImage(gImg, minX, minY + (h - (gImg.naturalHeight * (h / 288))), w, gImg.naturalHeight * (h / 288));
+                    } else {
+                        ctx.fillStyle = '#4a444d';
+                        ctx.fillRect(minX, minY, w, h);
+                    }
+                    ctx.strokeStyle = '#ff503c';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(minX, minY, w, h);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('LV GATE', minX + w / 2, minY + 24);
+                    ctx.restore();
                 } else if (this.selectedType === 'door') {
                     const img = Door.image;
                     ctx.globalAlpha = 0.6;
@@ -6757,6 +7351,23 @@ this.entities.push(
                         game.escapeTimer = 0;
                     }
                     return `Pizza Time: ${game.escape ? 'ON' : 'OFF'}`;
+                }
+            },
+            'srank': {
+                args: [
+                    {
+                        name: 'score',
+                        getOptions: (game, currentArg) => ['10000', '15000', '20000', '25000'].filter(s => s.startsWith(currentArg)),
+                        hint: 'score'
+                    }
+                ],
+                execute: (game, args) => {
+                    if (!args[0]) return `Current S Rank Score: ${game.sRankScore || 10000}`;
+                    const val = parseInt(args[0], 10);
+                    if (isNaN(val) || val <= 0) return 'Usage: srank <positive number>';
+                    game.sRankScore = val;
+                    game.saveCurrentRoomToMemory();
+                    return `S Rank Score for ${game.currentRoom} set to: ${game.sRankScore}`;
                 }
             },
             'showcollisions': {
@@ -7314,6 +7925,259 @@ this.entities.push(
         }
 
         this.ctx.restore();
+    }
+
+    getSaveSlotData(slot) {
+        const slotKey = 'pizza_save_' + slot;
+        try {
+            const raw = localStorage.getItem(slotKey);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+
+        // Slot 1 defaults to 100% as seen in user's drawing (all S/P ranks)
+        if (slot === 1) {
+            const defaultSlot1 = {
+                percentage: 100,
+                room: 'tutorial_1',
+                door: 'A',
+                score: 50000,
+                stages: {
+                    'tutorial_1': { rank: 'P', score: 10000, cleared: true },
+                    'tutorial_2': { rank: 'S', score: 10000, cleared: true },
+                    'tutorial_3': { rank: 'S', score: 10000, cleared: true },
+                    'tutorial_4': { rank: 'P', score: 10000, cleared: true },
+                    'tutorial_5': { rank: 'S', score: 10000, cleared: true }
+                },
+                achievements: ['chef_1', 'chef_2', 'chef_3', 'chef_4'],
+                hasAllAchievements: false,
+                unlockedRooms: ['tutorial_1', 'tutorial_2', 'tutorial_3', 'tutorial_4', 'tutorial_5'],
+                timestamp: Date.now()
+            };
+            defaultSlot1.percentage = this.calculateSaveProgress(defaultSlot1);
+            return defaultSlot1;
+        }
+        return {
+            percentage: 0,
+            room: 'tutorial_1',
+            door: 'A',
+            score: 0,
+            stages: {},
+            achievements: [],
+            hasAllAchievements: false,
+            unlockedRooms: ['tutorial_1'],
+            timestamp: Date.now()
+        };
+    }
+
+    calculateSaveProgress(data) {
+        if (!data) return 0;
+
+        // Pizza Tower Rank Progress:
+        // S rank and P rank award the exact same percentage progression!
+        const rankPercentMap = {
+            'D': 10,
+            'C': 13,
+            'B': 15,
+            'A': 17,
+            'S': 20,
+            'P': 20  // Identical to S rank!
+        };
+
+        const stages = data.stages || {};
+        const stageList = ['tutorial_1', 'tutorial_2', 'tutorial_3', 'tutorial_4', 'tutorial_5'];
+        let basePercent = 0;
+
+        for (const stageName of stageList) {
+            const stageData = stages[stageName];
+            if (stageData && stageData.rank) {
+                basePercent += (rankPercentMap[stageData.rank.toUpperCase()] || 0);
+            } else if (data.unlockedRooms && data.unlockedRooms.includes(stageName)) {
+                basePercent += 10;
+            }
+        }
+
+        let total = Math.min(100, basePercent);
+
+        // If all achievements collected, award +1% -> 101%!
+        if (total >= 100 && (data.hasAllAchievements || (data.achievements && data.achievements.length >= 5))) {
+            total = 101;
+        }
+
+        return total;
+    }
+
+    getRankBubbleData() {
+        const target = this.sRankScore || 10000;
+        const score = this.score || 0;
+        const quarter = Math.round(target / 4);
+
+        let rank = 'D';
+        let rankIndex = 0;
+        let fillProgress = 0;
+
+        if (score >= target) {
+            if (this.isLap2 && this.combo > 0) {
+                rank = 'P';
+                rankIndex = 5;
+                fillProgress = 1.0;
+            } else {
+                rank = 'S';
+                rankIndex = 4;
+                fillProgress = this.isLap2 ? 1.0 : 0.0;
+            }
+        } else if (score >= quarter * 3) {
+            rank = 'A';
+            rankIndex = 3;
+            fillProgress = Math.min(1.0, Math.max(0, (score - quarter * 3) / quarter));
+        } else if (score >= quarter * 2) {
+            rank = 'B';
+            rankIndex = 2;
+            fillProgress = Math.min(1.0, Math.max(0, (score - quarter * 2) / quarter));
+        } else if (score >= quarter) {
+            rank = 'C';
+            rankIndex = 1;
+            fillProgress = Math.min(1.0, Math.max(0, (score - quarter) / quarter));
+        } else {
+            rank = 'D';
+            rankIndex = 0;
+            fillProgress = Math.min(1.0, Math.max(0, score / quarter));
+        }
+
+        return { rank, rankIndex, fillProgress };
+    }
+
+    getCurrentRank() {
+        return this.getRankBubbleData().rank;
+    }
+
+    saveSlotData(slot, data) {
+        const key = 'pizza_save_' + slot;
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {
+            console.warn('Failed to save slot data:', e);
+        }
+    }
+
+    deleteSaveSlot(slot) {
+        const key = 'pizza_save_' + slot;
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {}
+        this.saveSlotData(slot, {
+            percentage: 0,
+            room: 'tutorial_1',
+            door: 'A',
+            score: 0,
+            stages: {},
+            achievements: [],
+            hasAllAchievements: false,
+            unlockedRooms: ['tutorial_1'],
+            timestamp: Date.now()
+        });
+        if (this.audio) this.audio.playFile('sfx_break', true);
+        this.deleteToastTimer = 90;
+    }
+
+    loadSaveSlot(slot) {
+        this.currentSaveSlot = slot;
+        const data = this.getSaveSlotData(slot);
+        const targetRoom = data.room || 'tutorial_1';
+        const targetDoor = data.door || 'A';
+        this.score = data.score || 0;
+
+        this.loadRoom(targetRoom, targetDoor).then(() => {
+            this.gameState = 'PLAYING';
+            if (this.uiOverlay) this.uiOverlay.style.display = 'block';
+            if (this.audio) {
+                this.audio.unlockAudio();
+                this.audio.playFile('sfx_step', true);
+                if (this.roomMusic) {
+                    this.audio.playMusic(this.roomMusic);
+                }
+            }
+        });
+    }
+
+    updateSaveProgress() {
+        if (!this.currentSaveSlot) return;
+        const slotKey = 'pizza_save_' + this.currentSaveSlot;
+        let data = this.getSaveSlotData(this.currentSaveSlot);
+
+        if (!data.unlockedRooms) data.unlockedRooms = ['tutorial_1'];
+        if (this.currentRoom && !data.unlockedRooms.includes(this.currentRoom)) {
+            data.unlockedRooms.push(this.currentRoom);
+        }
+
+        if (!data.stages) data.stages = {};
+        if (this.currentRoom) {
+            const currentRank = this.getCurrentRank ? this.getCurrentRank() : 'D';
+            const rankOrder = { 'D': 1, 'C': 2, 'B': 3, 'A': 4, 'S': 5, 'P': 6 };
+            const existingRank = (data.stages[this.currentRoom] && data.stages[this.currentRoom].rank) || 'D';
+            
+            if (!data.stages[this.currentRoom] || rankOrder[currentRank] >= rankOrder[existingRank]) {
+                data.stages[this.currentRoom] = {
+                    cleared: true,
+                    rank: currentRank,
+                    score: Math.max((data.stages[this.currentRoom]?.score || 0), this.score || 0),
+                    sRankScore: this.sRankScore || 10000
+                };
+            }
+        }
+
+        data.room = this.currentRoom || 'tutorial_1';
+        data.score = Math.max(data.score || 0, this.score || 0);
+        data.percentage = this.calculateSaveProgress(data);
+        data.timestamp = Date.now();
+
+        try {
+            localStorage.setItem(slotKey, JSON.stringify(data));
+        } catch (e) {
+            console.warn('Save failed:', e);
+        }
+    }
+
+    renderTitleScreen() {
+        // Pure blank black background
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const slotXPositions = [200, 480, 760];
+        const bounce = Math.sin(Date.now() / 180) * 4;
+
+        // Render File 1, File 2, File 3 in credits font
+        for (let i = 1; i <= 3; i++) {
+            const sx = slotXPositions[i - 1];
+            const isSelected = (this.selectedSaveSlot === i);
+            const data = this.getSaveSlotData(i);
+            const pct = data.percentage || 0;
+
+            const scale = isSelected ? 1.25 : 0.95;
+            const alpha = isSelected ? 1.0 : 0.4;
+            const yOffset = isSelected ? bounce : 0;
+
+            this.ctx.save();
+            this.ctx.globalAlpha = alpha;
+
+            // "File 1", "File 2", "File 3" in credits font
+            const fileText = `File ${i}`;
+            this.drawCreditsText(this.ctx, fileText, sx, 230 + yOffset, true, scale);
+
+            // Progress percentage in credits font
+            const pctText = `${pct}%`;
+            this.drawCreditsText(this.ctx, pctText, sx, 285 + yOffset, true, scale * 0.9);
+
+            this.ctx.restore();
+        }
+
+        // Deleted notification in credits font if active
+        if (this.deleteToastTimer > 0) {
+            this.ctx.save();
+            const alpha = Math.min(1.0, this.deleteToastTimer / 20);
+            this.ctx.globalAlpha = alpha;
+            this.drawCreditsText(this.ctx, "DELETED", this.canvas.width / 2, 420, true, 1.0);
+            this.ctx.restore();
+        }
     }
 
     loop(currentTime) {

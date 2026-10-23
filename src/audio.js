@@ -13,7 +13,8 @@ class AudioManager {
             sfx_step: new Audio('sound/sfx_step.wav'),
             sfx_pausestart: new Audio('sound/sfx_pausestart.wav'),
             sfx_suplexdash: new Audio('sound/sfx_suplexdash.wav'),
-            sfx_switch: new Audio('sound/switch1.ogg')
+            sfx_switch: new Audio('sound/switch1.ogg'),
+            boss_gate: new Audio('wl4_samples/boss_gate.wav')
         };
         
         // Set loops where appropriate

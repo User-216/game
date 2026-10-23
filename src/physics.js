@@ -16,7 +16,7 @@ class Physics {
      * Returns the adjustment vector
      */
     static resolveAABB(entity, platform) {
-        if (!platform || platform.isSolid === false || platform.isCutoff || platform.type === 'obj_cutoff' || platform.type === 'obj_cutoffsmall' || platform.type === 'cutoff') return null;
+        if (!platform || platform.isSolid === false || platform.type === 'levelgate' || platform.type === 'door' || platform.isCutoff || platform.type === 'obj_cutoff' || platform.type === 'obj_cutoffsmall' || platform.type === 'cutoff') return null;
         if (!this.checkCollision(entity, platform)) return null;
 
         const overlapX = Math.min(entity.x + entity.width, platform.x + platform.width) - Math.max(entity.x, platform.x);

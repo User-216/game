@@ -90,6 +90,7 @@ class Player {
         this.state = 'normal';
         this.targetDoorX = null;
         this.isEnteringDoor = false;
+        this.enterLevelGateFinished = false;
         this.sprite_index = 'spr_player_idle';
         this.image_index = 0;
         this.image_speed = 0.4;
@@ -111,7 +112,8 @@ class Player {
             spr_player_suplexgrabfall: [],
             spr_player_suplexgrabfallloop: [],
             spr_player_lookdoor: [],
-            spr_player_walkfront: []
+            spr_player_walkfront: [],
+            spr_player_enterlevelgate: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -206,6 +208,14 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_walkfront/spr_playerT_walkfront${i}.png`;
             this.sprites.spr_player_walkfront.push(img);
+        }
+
+        // Load enterlevelgate sprite (50 frames)
+        this.sprites.spr_player_enterlevelgate = [];
+        for (let i = 1; i <= 50; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_enterlevelgate/spr_playerT_enterlevelgate${i}.png`;
+            this.sprites.spr_player_enterlevelgate.push(img);
         }
 
         // Load mach2 sprite (7 frames)
@@ -343,7 +353,7 @@ class Player {
 
         // Check if standing in front of an interactable (door, dresser, computer) for uparrow
         let atInteractable = false;
-        if (entities && this.isGrounded && this.state !== 'enterdoor' && this.state !== 'walkfront') {
+        if (entities && this.isGrounded && this.state !== 'enterdoor' && this.state !== 'enterlevelgate' && this.state !== 'walkfront') {
             for (let i = 0; i < entities.length; i++) {
                 const e = entities[i];
                 if (!e || e.isDestroyed) continue;
@@ -403,6 +413,50 @@ class Player {
                 if (this.image_index >= this.sprites.spr_player_lookdoor.length) {
                     this.image_index = this.sprites.spr_player_lookdoor.length - 1;
                 }
+            }
+            return;
+        }
+
+        if (this.state === 'enterlevelgate') {
+            this.vx = 0;
+            this.vy = 0;
+            this.isRunning = false;
+            this.isDrifting = false;
+            this.isDrifting1 = false;
+            this.isMachSliding = false;
+            this.isClimbing = false;
+            this.isGroundPounding = false;
+            this.isSuplexGrabbing = false;
+            this.isTumbling = false;
+            this.isCrouching = false;
+            this.machAfters = [];
+            this.ghostAfters = [];
+
+            // Move gradually toward gate center instead of teleporting
+            if (this.targetDoorX !== null && typeof this.targetDoorX === 'number') {
+                const diff = this.targetDoorX - this.x;
+                const step = 2;
+                if (Math.abs(diff) <= step) {
+                    this.x = this.targetDoorX;
+                    this.targetDoorX = null;
+                } else {
+                    this.x += Math.sign(diff) * step;
+                }
+            }
+
+            if (this.sprites.spr_player_enterlevelgate && this.sprites.spr_player_enterlevelgate.length > 0) {
+                if (this.sprite_index !== 'spr_player_enterlevelgate') {
+                    this.sprite_index = 'spr_player_enterlevelgate';
+                    this.image_index = 0;
+                    this.image_speed = 0.35;
+                }
+                this.image_index += this.image_speed;
+                if (this.image_index >= this.sprites.spr_player_enterlevelgate.length) {
+                    this.image_index = this.sprites.spr_player_enterlevelgate.length - 1;
+                    this.enterLevelGateFinished = true;
+                }
+            } else {
+                this.enterLevelGateFinished = true;
             }
             return;
         }
@@ -945,7 +999,7 @@ class Player {
             const headBox = { x: this.x, y: this.y - 22, width: 26, height: 22 };
             let hitCeiling = false;
             for (let entity of entities) {
-                if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
+                if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'door' || entity.type === 'levelgate' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
                 if (Physics.checkCollision(headBox, entity)) {
                     hitCeiling = true;
                     break;
@@ -987,6 +1041,8 @@ class Player {
 
         if (this.state === 'enterdoor') {
             // Keep enterdoor state
+        } else if (this.state === 'enterlevelgate') {
+            // Keep enterlevelgate state
         } else if (this.state === 'walkfront') {
             // Keep walkfront state
         } else if (this.isSuplexGrabbing) {
@@ -1249,7 +1305,7 @@ class Player {
         // Collision Resolution Pass 1: Normal AABB
         entities.forEach(entity => {
             if (entity.isDestroyed) return;
-            if (entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'door' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'ladder' || entity.type === 'tile') return;
+            if (entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'door' || entity.type === 'levelgate' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'ladder' || entity.type === 'tile') return;
             if (entity.type === 'left-up' || entity.type === 'right-up') return;
 
             // Normal AABB Support
@@ -1463,7 +1519,7 @@ class Player {
             let targetWall = null;
 
             entities.forEach(entity => {
-                if (!entity.isDestroyed && entity.isSolid !== false && !entity.isCutoff && entity.type !== 'obj_cutoff' && entity.type !== 'obj_cutoffsmall' && entity.type !== 'cutoff' && entity.type !== 'hallway' && entity.type !== 'tutorialbook' && entity.type !== 'obj_palettedresser' && entity.type !== 'obj_computer' && entity.type !== 'obj_debris' && entity.type !== 'tile' && Physics.checkCollision(this, entity)) {
+                if (!entity.isDestroyed && entity.isSolid !== false && !entity.isCutoff && entity.type !== 'obj_cutoff' && entity.type !== 'obj_cutoffsmall' && entity.type !== 'cutoff' && entity.type !== 'hallway' && entity.type !== 'door' && entity.type !== 'levelgate' && entity.type !== 'tutorialbook' && entity.type !== 'obj_palettedresser' && entity.type !== 'obj_computer' && entity.type !== 'obj_debris' && entity.type !== 'tile' && Physics.checkCollision(this, entity)) {
                     stillTouching = true;
                     targetWall = entity;
                 }
@@ -1479,7 +1535,7 @@ class Player {
 
                 // Find the wall we were just climbing (it should be very close horizontally)
                 entities.forEach(entity => {
-                    if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'tile') return;
+                    if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || entity.type === 'hallway' || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'tile') return;
 
                     const isRightWall = this.climbSide === 1;
                     const wallX = isRightWall ? entity.x : entity.x + entity.width;
@@ -2268,8 +2324,8 @@ class Player {
                     }
                 }
             }
-        } else if (this.sprite_index === 'spr_player_lookdoor') {
-            const frames = this.sprites.spr_player_lookdoor;
+        } else if (this.sprite_index === 'spr_player_lookdoor' || this.sprite_index === 'spr_player_enterlevelgate') {
+            const frames = this.sprites[this.sprite_index];
             if (frames && frames.length > 0) {
                 let frameIndex = Math.floor(this.image_index);
                 if (frameIndex >= frames.length) frameIndex = frames.length - 1;
@@ -2393,6 +2449,7 @@ class Player {
         ctx.textAlign = 'center';
         let debugState = this.state; // 'normal', 'crouch', 'tumble', 'enterdoor'
         if (this.state === 'enterdoor') debugState = 'enterdoor';
+        else if (this.state === 'enterlevelgate') debugState = 'enterlevelgate';
         else if (this.state === 'walkfront') debugState = 'walkfront';
         else if (this.isGroundPounding) debugState = 'groundpound';
         else if (this.isGroundPoundLand) debugState = 'groundpound land';
