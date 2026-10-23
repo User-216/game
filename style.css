@@ -20,7 +20,7 @@
 }
 
 :root {
-    --bg-color: #0b0e14;
+    --bg-color: #000000;
     --primary-color: #00aa9e;
     --secondary-color: #7000ff;
     --text-color: #e0e6ed;
@@ -36,8 +36,8 @@
     font-family: 'Outfit', sans-serif;
 }
 
-body {
-    background-color: var(--bg-color);
+html, body {
+    background-color: #000000;
     color: var(--text-color);
     overflow: hidden; /* Prevent scrolling during gameplay */
     display: flex;
@@ -58,11 +58,12 @@ body {
     justify-content: center;
     align-items: center;
     overflow: hidden;
+    background-color: #000000;
 }
 
 canvas {
-    background: radial-gradient(circle at 50% 50%, #1a1f2b 0%, #0b0e14 100%);
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    background: #000000;
+    box-shadow: none;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
 }
@@ -287,7 +288,7 @@ input[type=range]::-webkit-slider-runnable-track {
     display: none;
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: #0b0e14;
+    background: #000000;
     color: white;
     z-index: 9999;
     flex-direction: column;

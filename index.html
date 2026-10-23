@@ -37,7 +37,7 @@
 </head>
 <body>
     <div id="portrait-warning">
-        <h2>・・・・ｨ・罹｡・巐護�・紛・ｼ・ｸ・・/h2>
+        <h2>가로 모드로 회전해 주세요</h2>
         <p>Please rotate your device to landscape mode</p>
     </div>
     <div id="game-container">
@@ -56,11 +56,11 @@
             </div>
             
             <div id="tutorial" class="glass hidden">
-                <div class="control-item"><span>竊・竊・/span> <span data-i18n="tut.move">・ｴ・・/span></div>
-                <div class="control-item"><span>Z</span> <span data-i18n="tut.jump">・戦売</span></div>
-                <div class="control-item"><span>Shift</span> <span data-i18n="tut.run">・ｬ・ｬ・ｰ</span></div>
-                <div class="control-item"><span>E</span> <span data-i18n="tut.editor">・肥梵・ｸ ・ｨ・・/span></div>
-                <div class="control-item-hint" data-i18n="tut.hint">・ｽ・川・ ・戦売 ・・･ / 甯語ｴｴ ・・･﨑・・罷｡晧揆 ・・們┷・・</div>
+                <div class="control-item"><span>← →</span> <span data-i18n="tut.move">이동</span></div>
+                <div class="control-item"><span>Z</span> <span data-i18n="tut.jump">점프</span></div>
+                <div class="control-item"><span>Shift</span> <span data-i18n="tut.run">달리기</span></div>
+                <div class="control-item"><span>E</span> <span data-i18n="tut.editor">에디터 모드</span></div>
+                <div class="control-item-hint" data-i18n="tut.hint">벽 점프 가능 / 파괴 가능한 블록을 부수세요!</div>
             </div>
 
             <!-- Editor Toolbar (Pizza Tower Style) -->
@@ -78,6 +78,7 @@
                     <button class="editor-tab" id="editor-flip-x-btn" title="좌우 반전 (X / F 키)">FLIP [X]</button>
                     <button class="editor-tab" id="editor-flip-y-btn" title="상하 반전 (Y / V 키)">VERT [Y]</button>
                     <button class="editor-tab" id="toggle-collision-btn" title="Toggle Collision Visibility (Key 4)" style="color: #888; border-color: rgba(255, 255, 255, 0.15);">COL [4]</button>
+                    <button class="editor-tab" id="toggle-console-btn" title="디버그 콘솔 열기 (5 / F5 / ` 키)" style="color: #c2227d; border-color: rgba(194, 34, 125, 0.35);">CONSOLE [5]</button>
                 </div>
                 
                 <div class="editor-main">
@@ -212,7 +213,14 @@
                 </div>
 
                 <div id="panel-video" class="options-panel hidden">
-                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <label data-i18n="opt.window" style="font-weight: 700;">Window Mode</label>
+                        <select id="window-mode-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
+                            <option value="FULLSCREEN">Fullscreen</option>
+                            <option value="BORDERLESS">Borderless</option>
+                            <option value="WINDOWED">Windowed</option>
+                        </select>
+                    </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <label data-i18n="opt.vsync" style="font-weight: 700;">VSync</label>
                         <select id="vsync-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
@@ -251,7 +259,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <label data-i18n="opt.language" style="font-weight: 700;">Language</label>
                         <select id="language-select" class="tool-btn" style="background: rgba(0,0,0,0.5);">
-                            <option value="ko">﨑懋ｵｭ・ｴ</option>
+                            <option value="ko">한국어</option>
                             <option value="en">English</option>
                         </select>
                     </div>
@@ -326,6 +334,68 @@
                 <div style="display: flex; gap: 0.8rem; margin-top: 0.3rem;">
                     <button class="action-btn" id="bg-apply-btn" style="flex: 1; padding: 0.8rem; font-size: 0.95rem; background: var(--primary-color, #00f2ff); color: #000; font-weight: bold; border-radius: 8px; cursor: pointer;">적용 (Apply)</button>
                     <button class="action-btn" id="bg-cancel-btn" style="flex: 1; padding: 0.8rem; font-size: 0.95rem; background: #444; color: #fff; border-radius: 8px; cursor: pointer;">취소 (Cancel)</button>
+                </div>
+            </div>
+
+            <!-- Tutorial Book Text Settings Overlay -->
+            <div id="tutorialbook-overlay" class="glass hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 1.5rem; border-radius: 20px; flex-direction: column; gap: 0.85rem; min-width: 440px; max-width: 520px; pointer-events: auto; z-index: 1000; box-shadow: 0 10px 35px rgba(0,0,0,0.85); border: 2px solid rgba(0,242,255,0.35); font-family: 'Outfit', sans-serif;">
+                <h2 style="color: #00f2ff; margin: 0; text-align: center; font-size: 1.35rem; letter-spacing: 1px;">📖 튜토리얼 북 (Tutorial Book) 설정</h2>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <label style="font-weight: 700; color: #fff; font-size: 0.85rem;">프리셋 선택 (lang_get_value 키 목록):</label>
+                    <select id="tut-preset-select" style="padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #555; background: rgba(0,0,0,0.8); color: #00f2ff; font-size: 0.9rem; font-family: inherit; cursor: pointer;">
+                        <option value="custom">-- 직접 자유 입력 (Custom Text) --</option>
+                        <option value="tutorial1">tutorial1: 기본 조작 ([D] 웅크리기, [J] 점프)</option>
+                        <option value="tutorial1B">tutorial1B: 너 대체 누구야?</option>
+                        <option value="tutorial2">tutorial2: [Q] 달리기 &amp; 들이받기</option>
+                        <option value="tutorial3">tutorial3: 금고 부수기 (최고 속도)</option>
+                        <option value="tutorial4">tutorial4: 벽타기 &amp; [J] 벽점프</option>
+                        <option value="tutorial5">tutorial5: 비탈길 가속</option>
+                        <option value="tutorial6">tutorial6: 공중 [D] 찍기 공격</option>
+                        <option value="tutorial7">tutorial7: 높은 곳 단단한 블록 파괴</option>
+                        <option value="tutorial8">tutorial8: 숨겨진 블록 파괴</option>
+                        <option value="tutorial9">tutorial9: [G] 잡기 돌진</option>
+                        <option value="tutorial10">tutorial10: [G] 잡기 돌진 가속</option>
+                        <option value="tutorial11">tutorial11: [G] + [J] 롱점프</option>
+                        <option value="tutorial12">tutorial12: [U] 슈퍼점프 충전 &amp; 발사</option>
+                        <option value="tutorial13">tutorial13: 슈퍼점프 캔슬 ([Q] / [G])</option>
+                        <option value="tutorial14">tutorial14: 달리기 중 [D] 슬라이딩</option>
+                        <option value="tutorial15">tutorial15: [G] + [D] 잡기 슬라이딩</option>
+                        <option value="tutorialescape">tutorialescape: 어서 여기서 도망쳐!!!</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <label style="font-weight: 700; color: #aaa; font-size: 0.8rem;">조작 키 아이콘 빠른 삽입 (클릭 시 커서 위치에 입력):</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                        <button type="button" class="tut-key-btn" data-key="[J]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #ffeb3b; border-radius: 6px; cursor: pointer; font-weight: bold;">[J] 점프</button>
+                        <button type="button" class="tut-key-btn" data-key="[Q]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #ff5722; border-radius: 6px; cursor: pointer; font-weight: bold;">[Q] 대시</button>
+                        <button type="button" class="tut-key-btn" data-key="[G]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #4caf50; border-radius: 6px; cursor: pointer; font-weight: bold;">[G] 잡기</button>
+                        <button type="button" class="tut-key-btn" data-key="[D]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #00e1d9; border-radius: 6px; cursor: pointer; font-weight: bold;">[D] 아래</button>
+                        <button type="button" class="tut-key-btn" data-key="[U]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #00e1d9; border-radius: 6px; cursor: pointer; font-weight: bold;">[U] 위</button>
+                        <button type="button" class="tut-key-btn" data-key="[L]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #fff; border-radius: 6px; cursor: pointer;">[L] 좌</button>
+                        <button type="button" class="tut-key-btn" data-key="[R]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #fff; border-radius: 6px; cursor: pointer;">[R] 우</button>
+                        <button type="button" class="tut-key-btn" data-key="[T]" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #e91e63; border-radius: 6px; cursor: pointer;">[T] 도발</button>
+                        <button type="button" class="tut-key-btn" data-key="\n" style="padding: 0.35rem 0.55rem; font-size: 0.8rem; background: #222; border: 1px solid #555; color: #aaa; border-radius: 6px; cursor: pointer;">줄바꿈(\n)</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <label style="font-weight: 700; color: #fff; font-size: 0.85rem;">텍스트 입력 (한글 문장 또는 tutorial 키):</label>
+                    <textarea id="tut-text-input" rows="3" style="width: 100%; box-sizing: border-box; padding: 0.6rem; border-radius: 8px; border: 1px solid #555; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.95rem; font-family: inherit; resize: vertical;" placeholder="예: tutorial1 또는 [J]를 눌러 점프하세요!"></textarea>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.45); padding: 0.7rem; border-radius: 10px; border: 1px dashed rgba(0,242,255,0.4);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                        <span style="font-size: 0.78rem; color: #00f2ff; font-weight: bold;">[게임 내 표시 미리보기]</span>
+                        <span id="tut-resolved-source" style="font-size: 0.72rem; color: #888;"></span>
+                    </div>
+                    <div id="tut-preview-text" style="color: #fff; font-size: 0.9rem; white-space: pre-wrap; line-height: 1.45; min-height: 2.4rem;">미리보기가 여기에 표시됩니다.</div>
+                </div>
+
+                <div style="display: flex; gap: 0.8rem; margin-top: 0.2rem;">
+                    <button class="action-btn" id="tut-apply-btn" style="flex: 1; padding: 0.75rem; font-size: 0.95rem; background: var(--primary-color, #00f2ff); color: #000; font-weight: bold; border-radius: 8px; cursor: pointer;">배치하기 (확인)</button>
+                    <button class="action-btn" id="tut-cancel-btn" style="flex: 1; padding: 0.75rem; font-size: 0.95rem; background: #444; color: #fff; border-radius: 8px; cursor: pointer;">취소</button>
                 </div>
             </div>
         </div>

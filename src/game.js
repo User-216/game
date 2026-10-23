@@ -244,7 +244,8 @@ class Game {
             showHitboxes: false,
             resolutions: ['960 X 540', '1280 X 720', '1920 X 1080'],
             resolutionIndex: savedSettings.resolutionIndex !== undefined ? savedSettings.resolutionIndex : 0,
-            windowMode: savedSettings.windowMode || 'WINDOWED',
+            windowMode: savedSettings.hasExplicitWindowMode ? (savedSettings.windowMode || 'FULLSCREEN') : 'FULLSCREEN',
+            hasExplicitWindowMode: savedSettings.hasExplicitWindowMode || false,
             hideHud: savedSettings.hideHud !== undefined ? savedSettings.hideHud : false,
             timer: savedSettings.timer !== undefined ? savedSettings.timer : false,
             dirSuperjump: savedSettings.dirSuperjump !== undefined ? savedSettings.dirSuperjump : true,
@@ -310,6 +311,7 @@ class Game {
         };
         document.addEventListener('fullscreenchange', applyKeyboardLock);
         document.addEventListener('webkitfullscreenchange', applyKeyboardLock);
+        this._hasAttemptedInitialFullscreen = false;
 
         this.loadingScreenImages = [];
         this.introVideo = document.createElement('video');
@@ -358,6 +360,7 @@ class Game {
         
         this.bgManager = typeof BackgroundManager !== 'undefined' ? new BackgroundManager(this) : null;
         this.roomBackground = 'bg_beaker';
+        this.needsVoidClear = true;
         this.roomMusic = null;
         this.hasExplicitMusic = false;
         this._escape = false;
@@ -433,8 +436,13 @@ class Game {
         this.collisionToggleTimer = 0;
         this.tileFlipX = false;
         this.tileFlipY = false;
+        this.objectFlipX = false;
+        this.objectFlipY = false;
         this.flipToastTimer = 0;
         this.flipToastMsg = '';
+
+        this.initDebugCommands();
+        this.initDebugConsole();
         
         // Load tutorial bubble and border texture
         this.tutorialBorderImage = new Image();
@@ -564,12 +572,51 @@ class Game {
         });
     }
 
+    applyWindowMode() {
+        const isTargetFullscreen = (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS');
+        if (isTargetFullscreen) {
+            if (!document.fullscreenElement) {
+                const req = document.documentElement.requestFullscreen ||
+                            document.documentElement.webkitRequestFullscreen ||
+                            document.documentElement.mozRequestFullScreen ||
+                            document.documentElement.msRequestFullscreen;
+                if (req) {
+                    req.call(document.documentElement).then(async () => {
+                        if (navigator.keyboard && navigator.keyboard.lock) {
+                            try {
+                                await navigator.keyboard.lock(['Escape']);
+                            } catch (e) {}
+                        }
+                        if (this.resize) this.resize();
+                    }).catch(err => {
+                        console.warn("Fullscreen request requires user interaction:", err);
+                    });
+                }
+            }
+        } else if (this.settings.windowMode === 'WINDOWED') {
+            if (document.fullscreenElement) {
+                const exit = document.exitFullscreen ||
+                             document.webkitExitFullscreen ||
+                             document.mozCancelFullScreen ||
+                             document.msExitFullscreen;
+                if (exit) {
+                    exit.call(document).then(() => {
+                        if (this.resize) this.resize();
+                    }).catch(err => {
+                        console.warn("Exit fullscreen error:", err);
+                    });
+                }
+            }
+        }
+    }
+
     resize() {
         this.canvas.width = 960;
         this.canvas.height = 540;
         this.canvas.style.width = '100vw';
         this.canvas.style.height = '100vh';
         this.canvas.style.objectFit = 'contain';
+        this.needsVoidClear = true;
     }
 
     computeLoadingScreenBounds() {
@@ -1148,15 +1195,61 @@ class Game {
             this.mouseClicked = true; 
             this.settings.isFocused = true;
             if (this.audio && this.audio.unlockAudio) this.audio.unlockAudio();
+            if (!this._hasAttemptedInitialFullscreen && (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS')) {
+                this._hasAttemptedInitialFullscreen = true;
+                this.applyWindowMode();
+            }
         });
         window.addEventListener('touchstart', () => { 
             this.mouseClicked = true; 
             this.settings.isFocused = true;
             if (this.audio && this.audio.unlockAudio) this.audio.unlockAudio();
+            if (!this._hasAttemptedInitialFullscreen && (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS')) {
+                this._hasAttemptedInitialFullscreen = true;
+                this.applyWindowMode();
+            }
         }, {passive: true});
         window.addEventListener('keydown', (e) => {
             this.settings.isFocused = true;
             if (this.audio && this.audio.unlockAudio) this.audio.unlockAudio();
+            if (!this._hasAttemptedInitialFullscreen && (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS')) {
+                this._hasAttemptedInitialFullscreen = true;
+                this.applyWindowMode();
+            }
+            if ((e.key === 'Enter' && e.altKey) || e.key === 'F11') {
+                e.preventDefault();
+                this.settings.windowMode = (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS') ? 'WINDOWED' : 'FULLSCREEN';
+                this.settings.hasExplicitWindowMode = true;
+                const windowModeSelect = document.getElementById('window-mode-select');
+                if (windowModeSelect) windowModeSelect.value = this.settings.windowMode;
+                this.saveSettings();
+                this.applyWindowMode();
+                return;
+            }
+
+            // Debug Console Key handling
+            if (this.debugConsole && this.debugConsole.open) {
+                if (e.key === 'F5' || e.key === '`' || e.key === '~' || e.key === 'Escape' || (e.key === '5' && this.debugConsole.input === '')) {
+                    e.preventDefault();
+                    this.toggleDebugConsole();
+                    return;
+                }
+                this.handleDebugConsoleKeyDown(e);
+                e.preventDefault();
+                return;
+            }
+
+            // Open Debug Console with 5 (or F5 / `)
+            const isConsoleTrigger = (e.key === '5' || e.code === 'Digit5' || e.code === 'Numpad5' || e.key === 'F5' || e.key === '`' || e.key === '~');
+            if (isConsoleTrigger && !this.bindingKeyFor) {
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+                    e.preventDefault();
+                    this.toggleDebugConsole();
+                    return;
+                }
+            }
+
             if (this.isTyping) return; // Ignore keys for game if typing
             
             if (e.key === 'Enter' && this.gameState === 'PLAYING') {
@@ -1229,6 +1322,7 @@ class Game {
             }
         });
         window.addEventListener('keyup', (e) => {
+            if (this.debugConsole && this.debugConsole.open) return;
             if (e.key === 'Escape') this.keys['Escape'] = false;
             const key = e.key === ' ' ? 'Space' : e.key;
             this.keys[key] = false;
@@ -1697,6 +1791,7 @@ class Game {
             bgApplyBtn.addEventListener('click', () => {
                 const rawName = bgNameInput ? bgNameInput.value.trim() : "";
                 this.roomBackground = (rawName === "none" || rawName === "") ? null : rawName;
+                this.needsVoidClear = true;
                 this.bgFollowCamera = bgFollowCamChk ? bgFollowCamChk.checked : true;
                 this.bgSecret = bgSecretChk ? bgSecretChk.checked : false;
                 this.bgWave = bgWaveChk ? bgWaveChk.checked : false;
@@ -1726,6 +1821,12 @@ class Game {
                 this.toggleCollisions();
             });
         }
+        const toggleConsoleBtn = document.getElementById('toggle-console-btn');
+        if (toggleConsoleBtn) {
+            toggleConsoleBtn.addEventListener('click', () => {
+                this.toggleDebugConsole();
+            });
+        }
         const editorFlipXBtn = document.getElementById('editor-flip-x-btn');
         if (editorFlipXBtn) {
             editorFlipXBtn.addEventListener('click', () => {
@@ -1737,6 +1838,163 @@ class Game {
             editorFlipYBtn.addEventListener('click', () => {
                 this.flipSelectedTool(true);
             });
+        }
+        this.initTutorialBookOverlay();
+    }
+
+    initTutorialBookOverlay() {
+        const overlay = document.getElementById('tutorialbook-overlay');
+        const presetSelect = document.getElementById('tut-preset-select');
+        const textInput = document.getElementById('tut-text-input');
+        const previewText = document.getElementById('tut-preview-text');
+        const resolvedSource = document.getElementById('tut-resolved-source');
+        const applyBtn = document.getElementById('tut-apply-btn');
+        const cancelBtn = document.getElementById('tut-cancel-btn');
+        const keyBtns = document.querySelectorAll('.tut-key-btn');
+
+        if (!overlay) return;
+
+        const updatePreview = () => {
+            if (!textInput || !previewText) return;
+            const raw = textInput.value;
+            if (!raw.trim()) {
+                previewText.innerText = "(내용이 비어있습니다. 배치 시 tutorial1 기본 문구가 사용됩니다.)";
+                previewText.style.color = '#888';
+                if (resolvedSource) resolvedSource.innerText = "";
+                return;
+            }
+            previewText.style.color = '#fff';
+            
+            let resolved = raw.trim();
+            const match = resolved.match(/^lang_get_value\(\s*["']?([^"'\s\)]+)["']?\s*\)$/i);
+            let key = null;
+            if (match) {
+                key = match[1];
+            } else {
+                key = resolved.replace(/^["']|["']$/g, '');
+            }
+
+            if (typeof window.lang_get_value === 'function') {
+                const val = window.lang_get_value(key);
+                if (val && val !== key) {
+                    resolved = val;
+                    if (resolvedSource) resolvedSource.innerText = `[${key} 키 연결됨]`;
+                } else {
+                    if (resolvedSource) resolvedSource.innerText = `[직접 입력 텍스트]`;
+                }
+            }
+            previewText.innerText = resolved.replace(/\\n/g, '\n');
+        };
+
+        if (presetSelect) {
+            presetSelect.addEventListener('change', () => {
+                const val = presetSelect.value;
+                if (val !== 'custom') {
+                    if (textInput) textInput.value = val;
+                }
+                updatePreview();
+            });
+        }
+
+        if (textInput) {
+            textInput.addEventListener('input', () => {
+                if (presetSelect) {
+                    const rawKey = textInput.value.trim().replace(/^lang_get_value\(\s*["']?([^"'\s\)]+)["']?\s*\)$/i, '$1');
+                    let matched = false;
+                    for (let i = 0; i < presetSelect.options.length; i++) {
+                        if (presetSelect.options[i].value === rawKey) {
+                            presetSelect.value = rawKey;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) presetSelect.value = 'custom';
+                }
+                updatePreview();
+            });
+        }
+
+        keyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!textInput) return;
+                const insertVal = btn.dataset.key;
+                const start = textInput.selectionStart !== undefined ? textInput.selectionStart : textInput.value.length;
+                const end = textInput.selectionEnd !== undefined ? textInput.selectionEnd : textInput.value.length;
+                const before = textInput.value.substring(0, start);
+                const after = textInput.value.substring(end);
+                textInput.value = before + insertVal + after;
+                textInput.selectionStart = textInput.selectionEnd = start + insertVal.length;
+                textInput.focus();
+                if (presetSelect) presetSelect.value = 'custom';
+                updatePreview();
+            });
+        });
+
+        const closeOverlay = () => {
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+            this.isTyping = false;
+            this.pendingTutorialBook = null;
+        };
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', closeOverlay);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !overlay.classList.contains('hidden') && overlay.style.display !== 'none') {
+                closeOverlay();
+            }
+        });
+
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+                if (!this.pendingTutorialBook) {
+                    closeOverlay();
+                    return;
+                }
+                const rawText = textInput ? textInput.value.trim() : "";
+                const finalText = rawText || "tutorial1";
+                const { x, y, w, h } = this.pendingTutorialBook;
+                const entity = new TutorialBook(x, y, w, h, finalText);
+                if (this.objectFlipX) entity.flipX = true;
+                if (this.objectFlipY) entity.flipY = true;
+                this.entities.push(entity);
+                this.saveCurrentRoomToMemory();
+                closeOverlay();
+            });
+        }
+    }
+
+    openTutorialBookModal(x, y, w, h) {
+        const overlay = document.getElementById('tutorialbook-overlay');
+        const presetSelect = document.getElementById('tut-preset-select');
+        const textInput = document.getElementById('tut-text-input');
+        const previewText = document.getElementById('tut-preview-text');
+        const resolvedSource = document.getElementById('tut-resolved-source');
+
+        this.pendingTutorialBook = { x, y, w, h };
+        this.isTyping = true;
+
+        if (presetSelect) presetSelect.value = 'tutorial1';
+        if (textInput) {
+            textInput.value = 'tutorial1';
+        }
+
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
+            if (textInput) {
+                textInput.focus();
+                textInput.select();
+            }
+        }
+
+        if (previewText) {
+            const val = (typeof window.lang_get_value === 'function') ? window.lang_get_value('tutorial1') : 'tutorial1';
+            previewText.innerText = val.replace(/\\n/g, '\n');
+            previewText.style.color = '#fff';
+            if (resolvedSource) resolvedSource.innerText = '[tutorial1 키 연결됨]';
         }
     }
 
@@ -2045,6 +2303,7 @@ class Game {
             document.getElementById('pause-overlay').classList.add('hidden');
         } else if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
             this.gameState = 'PLAYING';
+            this.needsVoidClear = true;
             this.cameraShake = 0;
             if (this.player) this.player.requestScreenShake = 0;
             if (this.audio) {
@@ -2073,6 +2332,7 @@ class Game {
                 dirSuperjump: this.settings.dirSuperjump,
                 dirGroundpound: this.settings.dirGroundpound,
                 windowMode: this.settings.windowMode,
+                hasExplicitWindowMode: this.settings.hasExplicitWindowMode,
                 resolutionIndex: this.settings.resolutionIndex,
                 bindings: this.settings.bindings,
                 bindings_2: this.settings.bindings_2
@@ -2326,21 +2586,27 @@ class Game {
             this.saveSettings();
         });
 
+        const windowModeSelect = document.getElementById('window-mode-select');
+        if (windowModeSelect) {
+            windowModeSelect.value = this.settings.windowMode || 'FULLSCREEN';
+            windowModeSelect.addEventListener('change', (e) => {
+                this.settings.windowMode = e.target.value;
+                this.settings.hasExplicitWindowMode = true;
+                this.saveSettings();
+                this.applyWindowMode();
+            });
+        }
+
         document.getElementById('btn-fullscreen').addEventListener('click', async () => {
             if (!document.fullscreenElement) {
-                try {
-                    await document.documentElement.requestFullscreen();
-                    if (navigator.keyboard && navigator.keyboard.lock) {
-                        await navigator.keyboard.lock(['Escape']);
-                    }
-                } catch (err) {
-                    console.warn("Fullscreen request error:", err);
-                }
+                this.settings.windowMode = 'FULLSCREEN';
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
+                this.settings.windowMode = 'WINDOWED';
             }
+            this.settings.hasExplicitWindowMode = true;
+            if (windowModeSelect) windowModeSelect.value = this.settings.windowMode;
+            this.saveSettings();
+            this.applyWindowMode();
         });
 
         // Control binds
@@ -2393,6 +2659,7 @@ class Game {
             this.player.isNoClip = false;
             if (palette) palette.classList.add('hidden');
         }
+        this.needsVoidClear = true;
     }
 
     isTileType(type) {
@@ -2435,82 +2702,116 @@ class Game {
     flipSelectedTool(isVertical = false) {
         const mx = this.mousePos ? this.mousePos.x : null;
         const my = this.mousePos ? this.mousePos.y : null;
-        const isTile = this.isTileType(this.selectedType);
+        const activeSidebarTab = document.querySelector('.sidebar-tab.active');
+        const isTileCategory = activeSidebarTab ? activeSidebarTab.dataset.target === 'tiles' : false;
+        const isTile = this.isTileType(this.selectedType) || isTileCategory;
         const targetLayer = isTile ? this.getTileLayerFromType(this.selectedType) : null;
 
-        // 1. Check if hovering over an existing placed entity under mouse
-        let hoveredEnt = null;
+        // =========================================================================
+        // 1. TILE MODE: 타일 설정 중일 때는 오직 타일만 반전/회전! (오브젝트 절대 불간섭)
+        // =========================================================================
+        if (isTile) {
+            let hoveredTile = null;
+            if (mx !== null && my !== null && this.isEditorMode) {
+                for (let i = this.entities.length - 1; i >= 0; i--) {
+                    const ent = this.entities[i];
+                    if (mx >= ent.x && mx <= ent.x + ent.width &&
+                        my >= ent.y && my <= ent.y + ent.height) {
+                        if (ent instanceof Tile || ent.type === 'tile') {
+                            if (!targetLayer || (ent.layer || 1) === targetLayer) {
+                                hoveredTile = ent;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (hoveredTile) {
+                if (isVertical) {
+                    hoveredTile.flipY = !hoveredTile.flipY;
+                } else {
+                    hoveredTile.flipX = !hoveredTile.flipX;
+                }
+                this.saveCurrentRoomToMemory();
+                const stateStr = isVertical ? (hoveredTile.flipY ? 'VERT ON [Y]' : 'VERT OFF [Y]') : (hoveredTile.flipX ? 'ON [X / F]' : 'OFF [X / F]');
+                this.showFlipToast(`TILE FLIP: ${stateStr}`);
+                return;
+            }
+
+            // 마우스 밑에 타일이 없거나 빈 공간/오브젝트 위인 경우: 타일 배치 방향 반전
+            if (isVertical) {
+                this.tileFlipY = !this.tileFlipY;
+                this.showFlipToast(this.tileFlipY ? 'TILE VERT-FLIP: ON [Y]' : 'TILE VERT-FLIP: OFF [Y]');
+            } else {
+                this.tileFlipX = !this.tileFlipX;
+                this.showFlipToast(this.tileFlipX ? 'TILE FLIP: ON [X / F]' : 'TILE FLIP: OFF [X / F]');
+            }
+            this.updateTileFlipUI();
+            return;
+        }
+
+        // =========================================================================
+        // 2. OBJECT MODE: 오브젝트 설정 탭일 때만 오브젝트 반전
+        // =========================================================================
+        let hoveredObj = null;
         if (mx !== null && my !== null && this.isEditorMode) {
             for (let i = this.entities.length - 1; i >= 0; i--) {
                 const ent = this.entities[i];
                 if (mx >= ent.x && mx <= ent.x + ent.width &&
                     my >= ent.y && my <= ent.y + ent.height) {
                     const entIsTile = (ent instanceof Tile || ent.type === 'tile');
-                    if (isTile && entIsTile) {
-                        if (!targetLayer || (ent.layer || 1) === targetLayer) {
-                            hoveredEnt = ent;
-                            break;
-                        }
-                    } else if (!isTile && !entIsTile) {
-                        hoveredEnt = ent;
+                    if (!entIsTile) {
+                        hoveredObj = ent;
                         break;
-                    } else if (!hoveredEnt) {
-                        hoveredEnt = ent;
                     }
                 }
             }
         }
 
-        if (hoveredEnt) {
+        if (hoveredObj) {
             let label = 'OBJECT';
-            if (hoveredEnt instanceof Tile || hoveredEnt.type === 'tile') {
-                label = 'TILE';
-                if (isVertical) {
-                    hoveredEnt.flipY = !hoveredEnt.flipY;
-                } else {
-                    hoveredEnt.flipX = !hoveredEnt.flipX;
-                }
-            } else if (hoveredEnt instanceof Slope || hoveredEnt.type === 'slope' || hoveredEnt.type === 'left-up' || hoveredEnt.type === 'right-up') {
+            if (hoveredObj instanceof Slope || hoveredObj.type === 'slope' || hoveredObj.type === 'left-up' || hoveredObj.type === 'right-up') {
                 label = 'SLOPE';
                 if (!isVertical) {
-                    hoveredEnt.type = (hoveredEnt.type === 'left-up' ? 'right-up' : 'left-up');
+                    hoveredObj.type = (hoveredObj.type === 'left-up' ? 'right-up' : 'left-up');
                 } else {
-                    hoveredEnt.flipY = !hoveredEnt.flipY;
+                    hoveredObj.flipY = !hoveredObj.flipY;
                 }
-            } else if (hoveredEnt instanceof Cutoff || hoveredEnt.type === 'obj_cutoff' || hoveredEnt.type === 'obj_cutoffsmall') {
+            } else if (hoveredObj instanceof Cutoff || hoveredObj.type === 'obj_cutoff' || hoveredObj.type === 'obj_cutoffsmall') {
                 label = 'CUTOFF';
                 if (!isVertical) {
-                    if (hoveredEnt.side === 'left') hoveredEnt.side = 'right';
-                    else if (hoveredEnt.side === 'right') hoveredEnt.side = 'left';
-                    else hoveredEnt.flipX = !hoveredEnt.flipX;
+                    if (hoveredObj.side === 'left') hoveredObj.side = 'right';
+                    else if (hoveredObj.side === 'right') hoveredObj.side = 'left';
+                    else hoveredObj.flipX = !hoveredObj.flipX;
                 } else {
-                    if (hoveredEnt.side === 'top') hoveredEnt.side = 'bottom';
-                    else if (hoveredEnt.side === 'bottom') hoveredEnt.side = 'top';
-                    else hoveredEnt.flipY = !hoveredEnt.flipY;
+                    if (hoveredObj.side === 'top') hoveredObj.side = 'bottom';
+                    else if (hoveredObj.side === 'bottom') hoveredObj.side = 'top';
+                    else hoveredObj.flipY = !hoveredObj.flipY;
                 }
-            } else if (hoveredEnt instanceof Slime || hoveredEnt.type === 'obj_slime') {
+            } else if (hoveredObj instanceof Slime || hoveredObj.type === 'obj_slime') {
                 label = 'SLIME';
                 if (!isVertical) {
-                    hoveredEnt.facingDir = (hoveredEnt.facingDir === -1 ? 1 : -1);
-                    hoveredEnt.flipX = (hoveredEnt.facingDir === -1);
+                    hoveredObj.facingDir = (hoveredObj.facingDir === -1 ? 1 : -1);
+                    hoveredObj.flipX = (hoveredObj.facingDir === -1);
                 } else {
-                    hoveredEnt.flipY = !hoveredEnt.flipY;
+                    hoveredObj.flipY = !hoveredObj.flipY;
                 }
             } else {
-                if (hoveredEnt.type) label = hoveredEnt.type.toUpperCase().replace('OBJ_', '');
+                if (hoveredObj.type) label = hoveredObj.type.toUpperCase().replace('OBJ_', '');
                 if (!isVertical) {
-                    hoveredEnt.flipX = !hoveredEnt.flipX;
+                    hoveredObj.flipX = !hoveredObj.flipX;
                 } else {
-                    hoveredEnt.flipY = !hoveredEnt.flipY;
+                    hoveredObj.flipY = !hoveredObj.flipY;
                 }
             }
             this.saveCurrentRoomToMemory();
-            const stateStr = isVertical ? (hoveredEnt.flipY ? 'VERT ON' : 'VERT OFF') : (hoveredEnt.flipX ? 'ON' : 'OFF');
+            const stateStr = isVertical ? (hoveredObj.flipY ? 'VERT ON' : 'VERT OFF') : (hoveredObj.flipX ? 'ON' : 'OFF');
             this.showFlipToast(`${label} FLIP: ${stateStr}`);
             return;
         }
 
-        // 2. No entity hovered: flip tool placement orientation
+        // 마우스 밑에 오브젝트가 없을 때: 경사로 전환 또는 오브젝트 배치 방향 반전
         if (!isVertical) {
             if (this.selectedType === 'slope-left') {
                 this.selectTool('slope-right');
@@ -2523,15 +2824,12 @@ class Game {
             }
         }
 
-        const isObj = !this.isTileType(this.selectedType);
-        const prefix = isObj ? 'OBJECT' : 'TILE';
-
         if (isVertical) {
-            this.tileFlipY = !this.tileFlipY;
-            this.showFlipToast(this.tileFlipY ? `${prefix} VERT-FLIP: ON [Y]` : `${prefix} VERT-FLIP: OFF [Y]`);
+            this.objectFlipY = !this.objectFlipY;
+            this.showFlipToast(this.objectFlipY ? 'OBJECT VERT-FLIP: ON [Y]' : 'OBJECT VERT-FLIP: OFF [Y]');
         } else {
-            this.tileFlipX = !this.tileFlipX;
-            this.showFlipToast(this.tileFlipX ? `${prefix} FLIP: ON [X / F]` : `${prefix} FLIP: OFF [X / F]`);
+            this.objectFlipX = !this.objectFlipX;
+            this.showFlipToast(this.objectFlipX ? 'OBJECT FLIP: ON [X / F]' : 'OBJECT FLIP: OFF [X / F]');
         }
         this.updateTileFlipUI();
     }
@@ -2549,10 +2847,14 @@ class Game {
                 btn.style.fontWeight = 'normal';
             }
         };
+        const activeSidebarTab = document.querySelector('.sidebar-tab.active');
+        const isTileCategory = activeSidebarTab ? activeSidebarTab.dataset.target === 'tiles' : false;
+        const isTile = this.isTileType(this.selectedType) || isTileCategory;
+
         updateBtn(document.getElementById('tile-flip-x-btn'), this.tileFlipX);
         updateBtn(document.getElementById('tile-flip-y-btn'), this.tileFlipY);
-        updateBtn(document.getElementById('editor-flip-x-btn'), this.tileFlipX);
-        updateBtn(document.getElementById('editor-flip-y-btn'), this.tileFlipY);
+        updateBtn(document.getElementById('editor-flip-x-btn'), isTile ? this.tileFlipX : this.objectFlipX);
+        updateBtn(document.getElementById('editor-flip-y-btn'), isTile ? this.tileFlipY : this.objectFlipY);
     }
 
     showFlipToast(msg) {
@@ -2682,6 +2984,33 @@ class Game {
     }
 
     handleMouseDown(e) {
+        if (this.debugConsole && this.debugConsole.open) {
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseCanvasX = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            const mouseCanvasY = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+            
+            const db = this.debugConsole.dropdownBounds;
+            if (db && mouseCanvasX >= db.x && mouseCanvasX <= db.x + db.w &&
+                mouseCanvasY >= db.y && mouseCanvasY <= db.y + db.h) {
+                const itemIdx = Math.floor((mouseCanvasY - db.y - 2) / 18);
+                if (itemIdx >= 0 && itemIdx < db.items.length) {
+                    const selItem = db.items[itemIdx];
+                    const state = this.getConsoleState();
+                    if (state.isCommand) {
+                        this.debugConsole.input = selItem + ' ';
+                    } else {
+                        this.debugConsole.input = state.tokenStartXStr + selItem + ' ';
+                    }
+                    this.debugConsole.cursorPos = this.debugConsole.input.length;
+                    this.debugConsole.selectedSuggestionIndex = 0;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return;
+                }
+            }
+            return;
+        }
+
         if (!this.isEditorMode) return;
         if (e.target.closest('#tileset-palette') || e.target.closest('#editor-toolbar')) return;
 
@@ -2884,11 +3213,9 @@ class Game {
                 else if (doorId === 'E') entity = new TargetDoor_E(x, y, w, h);
                 break;
             case 'tutorialbook':
-                let tutText = prompt("Enter tutorial text (use \\n for newlines, [J] for jump, etc):", "Tutorial Message");
-                if (tutText !== null) {
-                    entity = new TutorialBook(x, y, w, h, tutText);
-                }
-                break;
+                this.openTutorialBookModal(x, y, w, h);
+                this.dragStart = null;
+                return;
             case 'obj_palettedresser':
                 entity = new PaletteDresser(x, y, w, h);
                 break;
@@ -2910,9 +3237,9 @@ class Game {
         }
 
         if (entity) {
-            if (this.tileFlipX) entity.flipX = true;
-            if (this.tileFlipY) entity.flipY = true;
-            if (entity instanceof Slime && this.tileFlipX) {
+            if (this.objectFlipX) entity.flipX = true;
+            if (this.objectFlipY) entity.flipY = true;
+            if (entity instanceof Slime && this.objectFlipX) {
                 entity.facingDir = -1;
                 entity.vx = -Math.abs(entity.vx);
             }
@@ -3305,6 +3632,7 @@ this.entities.push(
                     this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp, this.bgWaveSpeed);
                 }
                 this.updateTileWaveUI();
+                this.needsVoidClear = true;
                 
                 if (this.audio) {
                     this.audio.playMusic(this.roomMusic);
@@ -3584,6 +3912,9 @@ this.entities.push(
             }
             
             if (isAnyKeyPressed || this.mouseClicked || gpJump) {
+                if (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS') {
+                    this.applyWindowMode();
+                }
                 this.gameState = 'LOGO';
                 this.introVideo.currentTime = 0;
                 this.introVideo.muted = false; // We have interaction now! Sound will work.
@@ -3801,7 +4132,7 @@ this.entities.push(
                 // Initialize default custom properties if missing
                 if (this.settings.resolutions === undefined) this.settings.resolutions = ['960 X 540', '1280 X 720', '1920 X 1080'];
                 if (this.settings.resolutionIndex === undefined) this.settings.resolutionIndex = 0;
-                if (this.settings.windowMode === undefined) this.settings.windowMode = 'WINDOWED';
+                if (this.settings.windowMode === undefined) this.settings.windowMode = 'FULLSCREEN';
                 if (this.settings.hideHud === undefined) this.settings.hideHud = false;
                 if (this.settings.shakeIntens === undefined) this.settings.shakeIntens = 100;
                 if (this.settings.timer === undefined) this.settings.timer = false;
@@ -4017,29 +4348,15 @@ this.entities.push(
                         this.optionsMenuIndex = 0;
                     } else if (this.optionsMenuLevel === 'WINDOW MODE') {
                         this.settings.windowMode = currentOptions[this.optionsMenuIndex];
+                        this.settings.hasExplicitWindowMode = true;
                         this.optionsMenuLevel = 'VIDEO';
                         this.optionsMenuIndex = 1;
                         
                         // Apply Window Mode
-                        if (this.settings.windowMode === 'FULLSCREEN' || this.settings.windowMode === 'BORDERLESS') {
-                            if (!document.fullscreenElement) {
-                                document.documentElement.requestFullscreen().then(async () => {
-                                    if (navigator.keyboard && navigator.keyboard.lock) {
-                                        try {
-                                            await navigator.keyboard.lock(['Escape']);
-                                        } catch (e) {}
-                                    }
-                                }).catch(err => {
-                                    console.log("Error attempting to enable fullscreen:", err);
-                                });
-                            }
-                        } else if (this.settings.windowMode === 'WINDOWED') {
-                            if (document.fullscreenElement) {
-                                document.exitFullscreen().catch(err => {
-                                    console.log("Error attempting to exit fullscreen:", err);
-                                });
-                            }
-                        }
+                        this.applyWindowMode();
+                        const windowModeSelect = document.getElementById('window-mode-select');
+                        if (windowModeSelect) windowModeSelect.value = this.settings.windowMode;
+                        this.saveSettings();
                     }
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
@@ -4114,6 +4431,7 @@ this.entities.push(
             if (this.transitionTimer >= this.transitionDuration) {
                 this.transitionAlpha = 0;
                 this.transitionState = 'NONE';
+                this.needsVoidClear = true;
                 this.pendingRoom = null;
                 this.pendingDoor = null;
                 if (this.player) {
@@ -4199,7 +4517,7 @@ this.entities.push(
             return;
         }
 
-        if (this.transitionState !== 'NONE') {
+        if (this.transitionState !== 'NONE' || (this.debugConsole && this.debugConsole.open)) {
             this.keys.actionLeft = false;
             this.keys.actionRight = false;
             this.keys.actionUp = false;
@@ -4502,9 +4820,16 @@ this.entities.push(
         if (touchingBook) {
             let activeText = bookText;
             if (typeof activeText === 'string') {
-                const match = activeText.trim().match(/^lang_get_value\(\s*["']?([^"'\s\)]+)["']?\s*\)$/i);
+                const trimmed = activeText.trim();
+                const match = trimmed.match(/^lang_get_value\(\s*["']?([^"'\s\)]+)["']?\s*\)$/i);
                 if (match && typeof window.lang_get_value === 'function') {
                     activeText = window.lang_get_value(match[1]);
+                } else if (typeof window.lang_get_value === 'function') {
+                    const cleanKey = trimmed.replace(/^["']|["']$/g, '');
+                    const val = window.lang_get_value(cleanKey);
+                    if (val && val !== cleanKey) {
+                        activeText = val;
+                    }
                 }
             }
             if (this.settings.language === 'ko') {
@@ -4536,12 +4861,10 @@ this.entities.push(
             this.currentTutorialBook = null;
             this.tutorialTextProgress = 0;
         }
-
     }
 
     render() {
         this.ctx.imageSmoothingEnabled = this.settings.textureFiltering;
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         if (this.gameState === 'CLICK_TO_START') {
             this.ctx.fillStyle = '#000';
@@ -4621,6 +4944,32 @@ this.entities.push(
                 this.renderLoadingScreen(progress);
             }
             return;
+        }
+
+        const hasBg = !!(this.roomBackground && this.roomBackground !== 'none' && this.roomBackground !== '' && this.roomBackground !== 'black' && this.roomBackground !== 'purple' && !this.roomBackground.startsWith('#'));
+
+        let voidColor = '#000000';
+        if (this.roomBackground === 'purple' || this.roomBackground === '#932890') {
+            voidColor = '#932890';
+        } else if (this.roomBackground && this.roomBackground.startsWith('#')) {
+            voidColor = this.roomBackground;
+        }
+
+        if (hasBg || this.isEditorMode || (this.gameState !== 'PLAYING' && this.gameState !== 'PAUSED' && this.gameState !== 'OPTIONS')) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (!hasBg && this.isEditorMode) {
+                // In editor mode with no background, show solid void color (#000000 default) so editing is clear
+                this.ctx.fillStyle = voidColor;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+        } else {
+            // When no background is set during gameplay: Authentic Pizza Tower / GameMaker "Hall of Mirrors" smear!
+            if (this.needsVoidClear) {
+                this.ctx.fillStyle = voidColor;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.needsVoidClear = false;
+            }
+            // DO NOT clear canvas: previous frame buffer persists, smearing moving sprites & scrolling tiles!
         }
 
         this.ctx.save();
@@ -5775,6 +6124,10 @@ this.entities.push(
                 this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
             }
         }
+
+        if (this.debugConsole && this.debugConsole.open) {
+            this.renderDebugConsole();
+        }
     }
 
     renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, targetLayer = 1) {
@@ -5969,9 +6322,9 @@ this.entities.push(
             }
 
             ctx.save();
-            if (this.tileFlipX || this.tileFlipY) {
-                ctx.translate(snapX + (this.tileFlipX ? pw : 0), snapY + (this.tileFlipY ? ph : 0));
-                ctx.scale(this.tileFlipX ? -1 : 1, this.tileFlipY ? -1 : 1);
+            if (this.objectFlipX || this.objectFlipY) {
+                ctx.translate(snapX + (this.objectFlipX ? pw : 0), snapY + (this.objectFlipY ? ph : 0));
+                ctx.scale(this.objectFlipX ? -1 : 1, this.objectFlipY ? -1 : 1);
             } else {
                 ctx.translate(snapX, snapY);
             }
@@ -6308,6 +6661,659 @@ this.entities.push(
                 ctx.setLineDash([]);
             }
         }
+    }
+
+    initDebugConsole() {
+        this.debugConsole = {
+            open: false,
+            input: '',
+            cursorPos: 0,
+            history: [],
+            historyIndex: -1,
+            logs: [
+                'PIZZA TOWER HTML5 DEBUG CONSOLE',
+                'Type "help" for commands, Tab to complete, Enter to run.'
+            ],
+            selectedSuggestionIndex: 0,
+            dropdownBounds: null
+        };
+    }
+
+    initDebugCommands() {
+        this.debugCommands = {
+            'goto_room': {
+                args: [
+                    {
+                        name: 'room',
+                        getOptions: (game, currentArg) => {
+                            const rooms = game.getAvailableRoomNames();
+                            return rooms.filter(r => r.toLowerCase().startsWith(currentArg.toLowerCase()));
+                        },
+                        hint: 'room'
+                    },
+                    {
+                        name: 'door',
+                        getOptions: (game, currentArg, prevArgs) => {
+                            const targetRoom = prevArgs[0];
+                            const doors = game.getAvailableDoors(targetRoom);
+                            return doors.filter(d => d.toLowerCase().startsWith(currentArg.toLowerCase()));
+                        },
+                        hint: 'door'
+                    }
+                ],
+                execute: (game, args) => {
+                    const room = args[0];
+                    const door = (args[1] || 'A').toUpperCase();
+                    if (!room) return 'Usage: goto_room <room> [door]';
+                    game.loadRoom(room, door).then(() => {
+                        game.logDebugConsole(`Loaded room: ${room} (Door ${door})`);
+                    }).catch(err => {
+                        game.logDebugConsole(`Error loading room: ${err.message}`);
+                    });
+                    return `Teleporting to ${room} (${door})...`;
+                }
+            },
+            'clear': {
+                args: [
+                    {
+                        name: 'all',
+                        getOptions: (game, currentArg) => ['all'].filter(o => o.startsWith(currentArg.toLowerCase())),
+                        hint: 'all'
+                    }
+                ],
+                execute: (game, args) => {
+                    game.debugConsole.logs = [];
+                    return null;
+                }
+            },
+            'noclip': {
+                args: [],
+                execute: (game) => {
+                    if (game.player) {
+                        game.player.isNoClip = !game.player.isNoClip;
+                        return `Noclip: ${game.player.isNoClip ? 'ON' : 'OFF'}`;
+                    }
+                    return 'Player not found';
+                }
+            },
+            'panic': {
+                args: [
+                    {
+                        name: 'seconds',
+                        getOptions: (game, currentArg) => ['120', '180', '240', '60'].filter(s => s.startsWith(currentArg)),
+                        hint: 'seconds'
+                    }
+                ],
+                execute: (game, args) => {
+                    game.escape = !game.escape;
+                    if (game.escape) {
+                        game.roomMusic = 'mu_escape.wav';
+                        if (game.audio) game.audio.playMusic('mu_escape.wav');
+                        if (args[0]) {
+                            const sec = parseInt(args[0], 10);
+                            if (!isNaN(sec)) game.escapeTimer = sec;
+                        }
+                    } else {
+                        game.escapeTimer = 0;
+                    }
+                    return `Pizza Time: ${game.escape ? 'ON' : 'OFF'}`;
+                }
+            },
+            'showcollisions': {
+                args: [
+                    {
+                        name: 'state',
+                        getOptions: (game, currentArg) => ['true', 'false'].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'true/false'
+                    }
+                ],
+                execute: (game, args) => {
+                    if (args[0] !== undefined) {
+                        game.showCollisions = (args[0] === 'true' || args[0] === '1');
+                    } else {
+                        game.showCollisions = !game.showCollisions;
+                    }
+                    game.collisionToggleTimer = 1.5;
+                    return `Show Collisions: ${game.showCollisions ? 'ON' : 'OFF'}`;
+                }
+            },
+            'show_collision': {
+                args: [
+                    {
+                        name: 'state',
+                        getOptions: (game, currentArg) => ['true', 'false'].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'true/false'
+                    }
+                ],
+                execute: (game, args) => game.debugCommands['showcollisions'].execute(game, args)
+            },
+            'godmode': {
+                args: [],
+                execute: (game) => {
+                    if (game.player) {
+                        game.player.godMode = !game.player.godMode;
+                        return `Godmode: ${game.player.godMode ? 'ON' : 'OFF'}`;
+                    }
+                    return 'Player not found';
+                }
+            },
+            'give_score': {
+                args: [
+                    {
+                        name: 'amount',
+                        getOptions: (game, currentArg) => ['100', '500', '1000', '5000', '10000'].filter(s => s.startsWith(currentArg)),
+                        hint: 'amount'
+                    }
+                ],
+                execute: (game, args) => {
+                    const amt = parseInt(args[0], 10);
+                    if (isNaN(amt)) return 'Usage: give_score <amount>';
+                    game.score = (game.score || 0) + amt;
+                    return `Score: ${game.score} (+${amt})`;
+                }
+            },
+            'give_combo': {
+                args: [
+                    {
+                        name: 'amount',
+                        getOptions: (game, currentArg) => ['5', '10', '25', '50', '99'].filter(s => s.startsWith(currentArg)),
+                        hint: 'amount'
+                    }
+                ],
+                execute: (game, args) => {
+                    const amt = parseInt(args[0], 10);
+                    if (isNaN(amt)) return 'Usage: give_combo <amount>';
+                    game.combo = amt;
+                    game.comboTimer = 1;
+                    return `Combo set to ${amt}`;
+                }
+            },
+            'mach': {
+                args: [
+                    {
+                        name: 'level',
+                        getOptions: (game, currentArg) => ['1', '2', '3', '4'].filter(s => s.startsWith(currentArg)),
+                        hint: '1-4'
+                    }
+                ],
+                execute: (game, args) => {
+                    const lvl = parseInt(args[0], 10);
+                    if (!game.player) return 'Player not found';
+                    const dir = game.player.facing || 1;
+                    if (lvl === 1) { game.player.vx = dir * 8; game.player.state = 'mach1'; }
+                    else if (lvl === 2) { game.player.vx = dir * 10; game.player.state = 'mach2'; }
+                    else if (lvl === 3) { game.player.vx = dir * 12; game.player.state = 'mach3'; }
+                    else if (lvl === 4) { game.player.vx = dir * 16; game.player.state = 'mach4'; }
+                    else return 'Mach level must be 1, 2, 3, or 4';
+                    return `Mach set to ${lvl}`;
+                }
+            },
+            'speed': {
+                args: [
+                    {
+                        name: 'value',
+                        getOptions: (game, currentArg) => ['10', '15', '20', '30'].filter(s => s.startsWith(currentArg)),
+                        hint: 'value'
+                    }
+                ],
+                execute: (game, args) => {
+                    const val = parseFloat(args[0]);
+                    if (isNaN(val) || !game.player) return 'Usage: speed <value>';
+                    const dir = game.player.facing || 1;
+                    game.player.vx = dir * val;
+                    return `Player speed set to ${val}`;
+                }
+            },
+            'kill': {
+                args: [],
+                execute: (game) => {
+                    game.respawnPlayer();
+                    return 'Player respawned';
+                }
+            },
+            'shake': {
+                args: [
+                    {
+                        name: 'amount',
+                        getOptions: (game, currentArg) => ['10', '20', '40', '60'].filter(s => s.startsWith(currentArg)),
+                        hint: 'amount'
+                    }
+                ],
+                execute: (game, args) => {
+                    const amt = parseInt(args[0] || '20', 10);
+                    game.cameraShake = amt;
+                    return `Screen shake: ${amt}`;
+                }
+            },
+            'spawn': {
+                args: [
+                    {
+                        name: 'entity',
+                        getOptions: (game, currentArg) => {
+                            const list = ['slime', 'collect', 'bigcollect', 'block', 'metal', 'pillar'];
+                            return list.filter(e => e.startsWith(currentArg.toLowerCase()));
+                        },
+                        hint: 'entity'
+                    }
+                ],
+                execute: (game, args) => {
+                    const type = (args[0] || '').toLowerCase();
+                    if (!type) return 'Usage: spawn <slime|collect|bigcollect|block|metal|pillar>';
+                    if (!game.player) return 'Player not found';
+                    const spawnX = Math.round(game.player.x + (game.player.facing || 1) * 48);
+                    const spawnY = Math.round(game.player.y);
+                    let ent = null;
+                    if (type === 'slime' && typeof Slime !== 'undefined') {
+                        ent = new Slime(spawnX, spawnY);
+                    } else if (type === 'collect' && typeof Collect !== 'undefined') {
+                        ent = new Collect(spawnX, spawnY);
+                    } else if (type === 'bigcollect' && typeof BigCollect !== 'undefined') {
+                        ent = new BigCollect(spawnX, spawnY);
+                    } else if (type === 'block' && typeof Destroyable !== 'undefined') {
+                        ent = new Destroyable(spawnX, spawnY, 32, 32);
+                    } else if (type === 'metal' && typeof Metal !== 'undefined') {
+                        ent = new Metal(spawnX, spawnY, 32, 32);
+                    } else if (type === 'pillar' && typeof Pillar !== 'undefined') {
+                        ent = new Pillar(spawnX, spawnY, 32, 64);
+                    }
+                    if (ent) {
+                        game.entities.push(ent);
+                        return `Spawned ${type} at (${spawnX}, ${spawnY})`;
+                    }
+                    return `Unknown or uncreatable entity: ${type}`;
+                }
+            },
+            'help': {
+                args: [
+                    {
+                        name: 'command',
+                        getOptions: (game, currentArg) => Object.keys(game.debugCommands).filter(c => c.startsWith(currentArg.toLowerCase())),
+                        hint: 'command'
+                    }
+                ],
+                execute: (game, args) => {
+                    if (args[0] && game.debugCommands[args[0]]) {
+                        const cmdObj = game.debugCommands[args[0]];
+                        let hint = args[0];
+                        for (let a of cmdObj.args) {
+                            hint += ` <${a.name}>`;
+                        }
+                        return `Command: ${hint}`;
+                    }
+                    return 'Commands: ' + Object.keys(game.debugCommands).join(', ');
+                }
+            }
+        };
+    }
+
+    toggleDebugConsole() {
+        if (!this.debugConsole) this.initDebugConsole();
+        this.debugConsole.open = !this.debugConsole.open;
+        if (this.debugConsole.open) {
+            this.debugConsole.selectedSuggestionIndex = 0;
+            this.debugConsole.cursorPos = this.debugConsole.input.length;
+            this.keys = {};
+        }
+    }
+
+    logDebugConsole(msg) {
+        if (!this.debugConsole) this.initDebugConsole();
+        if (typeof msg === 'string') {
+            const lines = msg.split('\n');
+            for (let l of lines) {
+                this.debugConsole.logs.push(l);
+            }
+        } else if (msg) {
+            this.debugConsole.logs.push(String(msg));
+        }
+        if (this.debugConsole.logs.length > 50) {
+            this.debugConsole.logs.splice(0, this.debugConsole.logs.length - 50);
+        }
+    }
+
+    getAvailableRoomNames() {
+        const set = new Set(['tutorial_1', 'tutorial_2', 'tutorial_3', 'tutorial_4', 'tutorial_5']);
+        if (this.rooms) {
+            for (let r in this.rooms) set.add(r);
+        }
+        return Array.from(set).sort();
+    }
+
+    getAvailableDoors(roomName) {
+        const doors = new Set(['A', 'B', 'C', 'D', 'E']);
+        if (this.entities) {
+            for (let e of this.entities) {
+                if (e.type && e.type.startsWith('targetDoor_')) {
+                    const id = e.type.replace('targetDoor_', '').toUpperCase();
+                    doors.add(id);
+                } else if (e.doorId) {
+                    doors.add(String(e.doorId).toUpperCase());
+                } else if (e.targetDoorId) {
+                    doors.add(String(e.targetDoorId).toUpperCase());
+                }
+            }
+        }
+        return Array.from(doors).sort();
+    }
+
+    getConsoleState() {
+        if (!this.debugConsole) return { suggestions: [], ghostText: '', tokenStartXStr: '', isCommand: true };
+        const input = this.debugConsole.input;
+        const parts = input.split(' ');
+        const isTrailingSpace = input.endsWith(' ');
+
+        let suggestions = [];
+        let ghostText = '';
+        let tokenStartXStr = '';
+        let currentToken = '';
+        let isCommand = false;
+
+        const cmdName = parts[0].toLowerCase();
+        const cmdDef = this.debugCommands[cmdName];
+
+        if (parts.length === 1 && !isTrailingSpace) {
+            isCommand = true;
+            currentToken = parts[0];
+            const allCmds = Object.keys(this.debugCommands);
+            suggestions = allCmds.filter(c => c.toLowerCase().startsWith(currentToken.toLowerCase()));
+
+            const selIdx = Math.min(this.debugConsole.selectedSuggestionIndex, Math.max(0, suggestions.length - 1));
+            const selCmd = suggestions[selIdx];
+            if (selCmd) {
+                const remainder = selCmd.slice(currentToken.length);
+                let hint = '';
+                const cDef = this.debugCommands[selCmd];
+                if (cDef && cDef.args) {
+                    for (let a of cDef.args) hint += ` ${a.name}`;
+                }
+                ghostText = remainder + hint;
+            }
+            tokenStartXStr = '';
+        } else {
+            isCommand = false;
+            const argIndex = parts.length - 2;
+            currentToken = parts[parts.length - 1];
+            tokenStartXStr = parts.slice(0, parts.length - 1).join(' ') + ' ';
+
+            if (cmdDef && cmdDef.args && cmdDef.args[argIndex]) {
+                const argDef = cmdDef.args[argIndex];
+                const prevArgs = parts.slice(1, parts.length - 1);
+                suggestions = argDef.getOptions(this, currentToken, prevArgs);
+
+                const selIdx = Math.min(this.debugConsole.selectedSuggestionIndex, Math.max(0, suggestions.length - 1));
+                const selOption = suggestions[selIdx];
+                if (selOption) {
+                    const remainder = selOption.slice(currentToken.length);
+                    let nextHints = '';
+                    for (let k = argIndex + 1; k < cmdDef.args.length; k++) {
+                        nextHints += ' ' + cmdDef.args[k].name;
+                    }
+                    ghostText = remainder + nextHints;
+                } else if (argDef.hint) {
+                    ghostText = currentToken ? '' : argDef.hint;
+                }
+            }
+        }
+
+        return {
+            isCommand,
+            currentToken,
+            tokenStartXStr,
+            suggestions,
+            ghostText
+        };
+    }
+
+    executeDebugCommand(cmdStr) {
+        if (!cmdStr || !cmdStr.trim()) return null;
+        const parts = cmdStr.trim().split(/\s+/);
+        const name = parts[0].toLowerCase();
+        const args = parts.slice(1);
+
+        if (!this.debugCommands || !this.debugCommands[name]) {
+            return `Unknown command: ${name}`;
+        }
+
+        try {
+            return this.debugCommands[name].execute(this, args);
+        } catch (err) {
+            console.error('Debug command error:', err);
+            return `Error: ${err.message}`;
+        }
+    }
+
+    handleDebugConsoleKeyDown(e) {
+        if (!this.debugConsole) return;
+        const state = this.getConsoleState();
+        const suggestions = state.suggestions;
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            if (suggestions.length > 0) {
+                const selIdx = Math.min(this.debugConsole.selectedSuggestionIndex, suggestions.length - 1);
+                const selected = suggestions[selIdx];
+                if (state.isCommand) {
+                    this.debugConsole.input = selected + ' ';
+                } else {
+                    this.debugConsole.input = state.tokenStartXStr + selected + ' ';
+                }
+                this.debugConsole.cursorPos = this.debugConsole.input.length;
+                this.debugConsole.selectedSuggestionIndex = 0;
+            }
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            let fullCommand = this.debugConsole.input.trim();
+            if (suggestions.length > 0) {
+                const selIdx = Math.min(this.debugConsole.selectedSuggestionIndex, suggestions.length - 1);
+                const selected = suggestions[selIdx];
+                if (state.isCommand) {
+                    fullCommand = selected;
+                } else {
+                    fullCommand = state.tokenStartXStr + selected;
+                }
+            }
+
+            if (fullCommand) {
+                this.debugConsole.history.push(fullCommand);
+                this.debugConsole.historyIndex = -1;
+                this.logDebugConsole('> ' + fullCommand);
+                const result = this.executeDebugCommand(fullCommand);
+                if (result) {
+                    this.logDebugConsole(result);
+                }
+            }
+            this.debugConsole.input = '';
+            this.debugConsole.cursorPos = 0;
+            this.debugConsole.selectedSuggestionIndex = 0;
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (suggestions.length > 0) {
+                this.debugConsole.selectedSuggestionIndex = (this.debugConsole.selectedSuggestionIndex + 1) % suggestions.length;
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (suggestions.length > 1 && this.debugConsole.selectedSuggestionIndex > 0) {
+                this.debugConsole.selectedSuggestionIndex--;
+            } else if (this.debugConsole.history.length > 0) {
+                this.debugConsole.historyIndex = Math.min(this.debugConsole.history.length - 1, this.debugConsole.historyIndex + 1);
+                this.debugConsole.input = this.debugConsole.history[this.debugConsole.history.length - 1 - this.debugConsole.historyIndex];
+                this.debugConsole.cursorPos = this.debugConsole.input.length;
+                this.debugConsole.selectedSuggestionIndex = 0;
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            this.debugConsole.cursorPos = Math.max(0, this.debugConsole.cursorPos - 1);
+            return;
+        }
+
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            if (this.debugConsole.cursorPos < this.debugConsole.input.length) {
+                this.debugConsole.cursorPos++;
+            } else if (state.ghostText && suggestions.length > 0) {
+                const selIdx = Math.min(this.debugConsole.selectedSuggestionIndex, suggestions.length - 1);
+                const selected = suggestions[selIdx];
+                if (state.isCommand) {
+                    this.debugConsole.input = selected + ' ';
+                } else {
+                    this.debugConsole.input = state.tokenStartXStr + selected + ' ';
+                }
+                this.debugConsole.cursorPos = this.debugConsole.input.length;
+                this.debugConsole.selectedSuggestionIndex = 0;
+            }
+            return;
+        }
+
+        if (e.key === 'Backspace') {
+            e.preventDefault();
+            if (this.debugConsole.cursorPos > 0) {
+                const pos = this.debugConsole.cursorPos;
+                this.debugConsole.input = this.debugConsole.input.slice(0, pos - 1) + this.debugConsole.input.slice(pos);
+                this.debugConsole.cursorPos--;
+                this.debugConsole.selectedSuggestionIndex = 0;
+            }
+            return;
+        }
+
+        if (e.key === 'Delete') {
+            e.preventDefault();
+            if (this.debugConsole.cursorPos < this.debugConsole.input.length) {
+                const pos = this.debugConsole.cursorPos;
+                this.debugConsole.input = this.debugConsole.input.slice(0, pos) + this.debugConsole.input.slice(pos + 1);
+                this.debugConsole.selectedSuggestionIndex = 0;
+            }
+            return;
+        }
+
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            const pos = this.debugConsole.cursorPos;
+            this.debugConsole.input = this.debugConsole.input.slice(0, pos) + e.key + this.debugConsole.input.slice(pos);
+            this.debugConsole.cursorPos++;
+            this.debugConsole.selectedSuggestionIndex = 0;
+            return;
+        }
+    }
+
+    renderDebugConsole() {
+        if (!this.debugConsole || !this.debugConsole.open) return;
+        const boxX = 80;
+        const boxY = 4;
+        const boxW = 800;
+        const boxH = 150;
+        const promptY = boxY + boxH - 16;
+        const dollarX = boxX + 8;
+
+        this.ctx.save();
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // 1. Red banner background
+        this.ctx.fillStyle = 'rgba(120, 0, 0, 0.5)';
+        this.ctx.fillRect(boxX, boxY, boxW, boxH);
+
+        // 2. Previous logs
+        this.ctx.font = '14px Consolas, "Courier New", monospace';
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'alphabetic';
+        const maxLogs = 6;
+        const recentLogs = this.debugConsole.logs.slice(-maxLogs);
+        for (let i = 0; i < recentLogs.length; i++) {
+            const logY = promptY - (recentLogs.length - i) * 18;
+            this.ctx.fillStyle = 'rgba(235, 235, 235, 0.85)';
+            this.ctx.fillText(recentLogs[i], dollarX, logY);
+        }
+
+        // 3. Prompt '$'
+        this.ctx.fillStyle = '#c2227d';
+        this.ctx.fillText('$', dollarX, promptY);
+        const dollarW = this.ctx.measureText('$ ').width;
+
+        // 4. Input text
+        const inputX = dollarX + dollarW;
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillText(this.debugConsole.input, inputX, promptY);
+        const inputW = this.ctx.measureText(this.debugConsole.input).width;
+
+        // 5. Cursor
+        const cursorX = inputX + this.ctx.measureText(this.debugConsole.input.slice(0, this.debugConsole.cursorPos)).width;
+        if (Math.floor(Date.now() / 400) % 2 === 0) {
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.fillRect(cursorX, promptY - 12, 1.5, 14);
+        }
+
+        // 6. Ghost text
+        const state = this.getConsoleState();
+        if (state.ghostText) {
+            this.ctx.fillStyle = '#737373';
+            this.ctx.fillText(state.ghostText, inputX + inputW, promptY);
+        }
+
+        // 7. Dropdown suggestions menu
+        if (state.suggestions && state.suggestions.length > 0) {
+            let tokenOffset = 0;
+            if (!state.isCommand) {
+                tokenOffset = this.ctx.measureText(state.tokenStartXStr).width;
+            }
+            let dropdownX = inputX + tokenOffset;
+            const dropdownY = promptY + 4;
+            let maxItemW = 0;
+            for (let s of state.suggestions) {
+                maxItemW = Math.max(maxItemW, this.ctx.measureText(s).width);
+            }
+            const dropdownW = Math.max(maxItemW + 16, 50);
+            if (dropdownX + dropdownW > boxX + boxW) dropdownX = boxX + boxW - dropdownW;
+
+            const maxVisible = 6;
+            const selIdx = Math.min(this.debugConsole.selectedSuggestionIndex, state.suggestions.length - 1);
+            const startIdx = Math.max(0, Math.min(selIdx - 2, Math.max(0, state.suggestions.length - maxVisible)));
+            const visibleSlice = state.suggestions.slice(startIdx, startIdx + maxVisible);
+            const dropdownH = visibleSlice.length * 18 + 4;
+
+            this.debugConsole.dropdownBounds = {
+                x: dropdownX,
+                y: dropdownY,
+                w: dropdownW,
+                h: dropdownH,
+                startIdx: startIdx,
+                items: visibleSlice
+            };
+
+            this.ctx.fillStyle = 'rgba(14, 9, 9, 0.95)';
+            this.ctx.fillRect(dropdownX, dropdownY, dropdownW, dropdownH);
+            this.ctx.strokeStyle = '#3a2020';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(dropdownX, dropdownY, dropdownW, dropdownH);
+
+            for (let v = 0; v < visibleSlice.length; v++) {
+                const realIdx = startIdx + v;
+                const item = visibleSlice[v];
+                const itemY = dropdownY + 2 + v * 18;
+                if (realIdx === selIdx) {
+                    this.ctx.fillStyle = '#2c0d29';
+                    this.ctx.fillRect(dropdownX + 1, itemY, dropdownW - 2, 18);
+                    this.ctx.fillStyle = '#b53f8f';
+                } else {
+                    this.ctx.fillStyle = '#819595';
+                }
+                this.ctx.fillText(item, dropdownX + 6, itemY + 13);
+            }
+        } else {
+            this.debugConsole.dropdownBounds = null;
+        }
+
+        this.ctx.restore();
     }
 
     loop(currentTime) {

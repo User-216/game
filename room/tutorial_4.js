@@ -4398,6 +4398,8 @@ this.entities.push(
     new Tile3(4640, 160, 32, 32, 128, 128, 'tile_tutorial.png', 32, 32),
     new Tile3(4640, 192, 32, 32, 128, 160, 'tile_tutorial.png', 32, 32),
     new Tile3(4640, 224, 32, 32, 128, 192, 'tile_tutorial.png', 32, 32),
+    new Door(4512, 192, 32, 64, 'B', 'tutorial_5'),
+    new TargetDoor_B(4512, 224, 32, 32),
 );
 
 };
