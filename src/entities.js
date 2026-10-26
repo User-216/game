@@ -1222,6 +1222,8 @@ class LevelGate extends Entity {
     static gateBGImages = [];
     static gateMaskImages = [];
     static titleCardImages = {};
+    static rankBubbleImages = [];
+    static rankFImage = null;
     static imagesLoaded = false;
     static bufferCanvas = null;
     static bufferCtx = null;
@@ -1243,6 +1245,16 @@ class LevelGate extends Entity {
             mImg.src = `이미지/spr_gate/spr_gate_mask_${i}.png`;
             LevelGate.gateMaskImages.push(mImg);
         }
+
+        LevelGate.rankBubbleImages = [];
+        for (let i = 0; i < 6; i++) {
+            const bImg = new Image();
+            bImg.src = `이미지/spr_rankbubble/spr_rankbubble_${i}.png`;
+            LevelGate.rankBubbleImages.push(bImg);
+        }
+
+        LevelGate.rankFImage = new Image();
+        LevelGate.rankFImage.src = `이미지/spr_rankbadge/rank_F.png`;
     }
 
     static getTitleCardImage(numOrPath) {
@@ -1260,17 +1272,24 @@ class LevelGate extends Entity {
     }
 
     constructor(x, y, width = 192, height = 288, targetRoom = 'tutorial_1', targetDoor = 'A', titleCardImage = '0', titleCardText = '', gateIndex = 0, color = 'rgba(192, 57, 43, 0.8)', flipX = false, flipY = false) {
-        super(x, y, width, height, color, flipX, flipY);
+        let gIdx = parseInt(gateIndex, 10);
+        if (isNaN(gIdx) || gIdx < 0 || gIdx > 2) {
+            const num = parseInt(titleCardImage, 10);
+            gIdx = (!isNaN(num) && num >= 0 && num <= 2) ? num : 0;
+        }
+        const natSizes = [
+            { w: 192, h: 288 },
+            { w: 161, h: 267 },
+            { w: 165, h: 254 }
+        ];
+        const nat = natSizes[gIdx] || natSizes[0];
+        const actualW = width || nat.w;
+        const actualH = height || nat.h;
+        super(x, y, actualW, actualH, color, flipX, flipY);
         this.targetRoom = targetRoom || 'tutorial_1';
         this.targetDoor = targetDoor || 'A';
         this.titleCardImage = (titleCardImage !== undefined && titleCardImage !== null) ? String(titleCardImage).trim() : '0';
         this.titleCardText = titleCardText || '';
-        
-        let gIdx = parseInt(gateIndex, 10);
-        if (isNaN(gIdx) || gIdx < 0 || gIdx > 2) {
-            const num = parseInt(this.titleCardImage, 10);
-            gIdx = (!isNaN(num) && num >= 0 && num <= 2) ? num : 0;
-        }
         this.gateIndex = gIdx;
 
         this.type = 'levelgate';
@@ -1333,7 +1352,8 @@ class LevelGate extends Entity {
             }
         }
 
-        const gateIdx = (this.gateIndex >= 0 && this.gateIndex < 3) ? this.gateIndex : 0;
+        const gateIdx = (this.gateIndex >= 0 && this.gateIndex < 3) ? parseInt(this.gateIndex, 10) : 0;
+        const levelTitle = (this.titleCardText || `GATE ${gateIdx + 1}`).toUpperCase();
         const gateImg = LevelGate.gateImages[gateIdx];
         const bgImg = LevelGate.gateBGImages[gateIdx];
         const maskImg = LevelGate.gateMaskImages[gateIdx];
@@ -1368,18 +1388,21 @@ class LevelGate extends Entity {
             const scrollOffset = (this.bgScrollX) % bgW;
             const sliceH = 2;
 
-            for (let sy = 0; sy < gh; sy += sliceH) {
-                if (sy < bgStartY) continue;
-                const srcY = sy - bgStartY;
-                if (srcY >= bgH) break;
+            if (bgW > 0 && bgH > 0 && gw > 0 && gh > 0) {
+                for (let sy = 0; sy < gh; sy += sliceH) {
+                    if (sy < bgStartY) continue;
+                    const srcY = sy - bgStartY;
+                    if (srcY >= bgH) break;
 
-                const curH = Math.min(sliceH, gh - sy);
-                const waveX = Math.sin((sy * this.waveFreq) + this.waveTimer) * this.waveAmp;
+                    const curH = Math.min(sliceH, gh - sy, bgH - srcY);
+                    if (curH <= 0) continue;
+                    const waveX = Math.sin((sy * this.waveFreq) + this.waveTimer) * this.waveAmp;
 
-                for (let tx = -bgW; tx < gw + bgW; tx += bgW) {
-                    const drawSliceX = Math.round(tx + scrollOffset + waveX);
-                    if (drawSliceX + bgW > 0 && drawSliceX < gw) {
-                        bCtx.drawImage(bgImg, 0, srcY, bgW, curH, drawSliceX, sy, bgW, curH);
+                    for (let tx = -bgW; tx < gw + bgW; tx += bgW) {
+                        const drawSliceX = Math.round(tx + scrollOffset + waveX);
+                        if (drawSliceX + bgW > 0 && drawSliceX < gw) {
+                            bCtx.drawImage(bgImg, 0, srcY, bgW, curH, drawSliceX, sy, bgW, curH);
+                        }
                     }
                 }
             }
@@ -1387,7 +1410,7 @@ class LevelGate extends Entity {
             // 1.5. Distance-based White Fade Overlay (fades to white in proportion to player distance)
             if (whiteAlpha > 0) {
                 bCtx.fillStyle = `rgba(255, 255, 255, ${Math.min(1.0, whiteAlpha).toFixed(3)})`;
-                bCtx.fillRect(0, bgStartY, gw, bgH);
+                bCtx.fillRect(0, Math.max(0, bgStartY), gw, bgH);
             }
 
             // 2. Clip strictly to doorway using pre-generated mask image (zero leaks outside!)
@@ -1398,88 +1421,111 @@ class LevelGate extends Entity {
             // 3. Draw Gate Foreground Archway
             bCtx.drawImage(gateImg, 0, 0, gw, gh);
 
-            // 4. Draw Composited Gate onto main canvas (aligned to bottom of entity)
-            const drawW = w;
-            const drawH = h;
+            // 4. Draw Composited Gate onto main canvas (never stretched, 1:1 pixel size, bottom-aligned)
+            const drawW = gw;
+            const drawH = gh;
             const drawX = Math.round(x + (w - drawW) / 2);
             const drawY = Math.round(y + (h - drawH));
 
             ctx.drawImage(bCanvas, drawX, drawY, drawW, drawH);
 
-            // 5. Level Name Banner (cleanly fitted, with badge background and auto font-scaling)
-            const levelTitle = (this.titleCardText || this.targetRoom || 'LEVEL').toUpperCase();
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            const maxTextW = Math.round(drawW * 1.15);
-            let fontSize = 13;
-            ctx.font = `900 ${fontSize}px "Outfit", "Arial Black", sans-serif`;
-            while (fontSize > 8 && ctx.measureText(levelTitle).width > maxTextW) {
-                fontSize--;
-                ctx.font = `900 ${fontSize}px "Outfit", "Arial Black", sans-serif`;
-            }
-
-            // Position neatly above gate, or inside arch if near ceiling
-            const nameY = (drawY < 25) ? (drawY + 45) : (drawY - 14);
-            const tw = ctx.measureText(levelTitle).width;
-
-            // Stylish badge background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(drawX + drawW / 2 - tw / 2 - 6, nameY - fontSize / 2 - 3, tw + 12, fontSize + 6);
-            ctx.strokeStyle = '#d4af37';
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(drawX + drawW / 2 - tw / 2 - 6, nameY - fontSize / 2 - 3, tw + 12, fontSize + 6);
-
-            // Drop shadow & main text
-            ctx.fillStyle = '#000000';
-            ctx.fillText(levelTitle, drawX + drawW / 2 + 1, nameY + 1);
-            ctx.fillStyle = '#fff4cc';
-            ctx.fillText(levelTitle, drawX + drawW / 2, nameY);
-            ctx.restore();
-
-            // 6. Save Rank Badge (if stage was cleared previously)
+            // 5. High Score and Rank Badge (matching Pizza Tower / Sugary Spire Level Gate)
             const game = window.gameInstance;
+            let score = 0;
+            let rank = 'F';
+
             if (game && game.currentSaveSlot && game.getSaveSlotData) {
                 const data = game.getSaveSlotData(game.currentSaveSlot);
                 const stageInfo = data?.stages?.[this.targetRoom];
-                if (stageInfo && stageInfo.cleared && stageInfo.rank) {
-                    const rank = stageInfo.rank.toUpperCase();
-                    const rankOrder = { 'D': 0, 'C': 1, 'B': 2, 'A': 3, 'S': 4, 'P': 5 };
-                    const rankIdx = rankOrder[rank] !== undefined ? rankOrder[rank] : 0;
-                    const badgeX = drawX + drawW / 2 + tw / 2 + 16;
-                    const badgeY = nameY;
-
-                    if (game.rankBubbleImages && game.rankBubbleImages[rankIdx] && game.rankBubbleImages[rankIdx].complete) {
-                        ctx.drawImage(game.rankBubbleImages[rankIdx], badgeX - 14, badgeY - 14, 28, 28);
-                    } else {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(badgeX, badgeY, 12, 0, Math.PI * 2);
-                        ctx.fillStyle = (rank === 'P') ? '#a020f0' : ((rank === 'S') ? '#e67e22' : ((rank === 'A') ? '#e74c3c' : '#3498db'));
-                        ctx.fill();
-                        ctx.lineWidth = 2;
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.stroke();
-
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = 'bold 11px "Outfit", sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(rank, badgeX, badgeY);
-                        ctx.restore();
+                if (stageInfo) {
+                    if (typeof stageInfo.score === 'number') {
+                        score = stageInfo.score;
+                    }
+                    if (stageInfo.cleared && stageInfo.rank) {
+                        rank = stageInfo.rank.toUpperCase();
                     }
                 }
             }
 
+            // 5a. Draw High Score above the gate
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            const scoreStr = String(score);
+            const scoreFontSize = 32;
+            ctx.font = `900 ${scoreFontSize}px "Outfit", "Comic Sans MS", "Arial Black", sans-serif`;
+            const scoreX = drawX + drawW / 2;
+            const scoreY = drawY + 16; // Placed right above the gate cup/arch
+
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+
+            // 3D Drop shadow
+            ctx.lineWidth = 7;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText(scoreStr, scoreX + 2, scoreY + 3);
+            ctx.fillStyle = '#000000';
+            ctx.fillText(scoreStr, scoreX + 2, scoreY + 3);
+
+            // Black outline
+            ctx.lineWidth = 6;
+            ctx.strokeText(scoreStr, scoreX, scoreY);
+
+            // White fill
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(scoreStr, scoreX, scoreY);
+            ctx.restore();
+
+            // 5b. Draw Rank Image in the upper center of the gate
+            const badgeX = drawX + drawW / 2;
+            const badgeY = drawY + (gateIdx === 0 ? 116 : (gateIdx === 1 ? 108 : 104));
+
+            const rankOrder = { 'D': 0, 'C': 1, 'B': 2, 'A': 3, 'S': 4, 'P': 5 };
+            const rankIdx = rankOrder[rank];
+
+            if (rankIdx !== undefined && LevelGate.rankBubbleImages && LevelGate.rankBubbleImages[rankIdx]) {
+                const bImg = LevelGate.rankBubbleImages[rankIdx];
+                if (bImg.complete && bImg.naturalWidth > 0) {
+                    // spr_rankbubble is 76x92 with content centered at (38, 46)
+                    ctx.drawImage(bImg, Math.round(badgeX - 38), Math.round(badgeY - 46), 76, 92);
+                }
+            } else {
+                // For rank 'F' or unplayed stage: use authentic circular F rank badge from user's reference image
+                const fImg = LevelGate.rankFImage;
+                if (fImg && fImg.complete && fImg.naturalWidth > 0) {
+                    const badgeSize = 58;
+                    ctx.drawImage(fImg, Math.round(badgeX - badgeSize / 2), Math.round(badgeY - badgeSize / 2), badgeSize, badgeSize);
+                }
+            }
+
+            // 5c. Level Name (Editor Mode Only)
+            if (game && game.isEditorMode) {
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = 'bold 12px Arial';
+                const nameY = drawY - 26;
+                const tw = ctx.measureText(levelTitle).width;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(drawX + drawW / 2 - tw / 2 - 4, nameY - 8, tw + 8, 16);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(levelTitle, drawX + drawW / 2, nameY);
+                ctx.restore();
+            }
+
         } else {
-            // Clean fallback while images load: draw gate foreground directly
+            // Clean fallback while images load: draw gate foreground directly (1:1 pixel size)
             if (gateImg && gateImg.complete && gateImg.naturalWidth > 0) {
-                const drawW = w;
-                const drawH = h;
+                const gw = gateImg.naturalWidth;
+                const gh = gateImg.naturalHeight;
+                const drawW = gw;
+                const drawH = gh;
                 const drawX = Math.round(x + (w - drawW) / 2);
                 const drawY = Math.round(y + (h - drawH));
                 ctx.drawImage(gateImg, drawX, drawY, drawW, drawH);
+            } else {
+                ctx.fillStyle = '#4a444d';
+                ctx.fillRect(x, y, w, h);
             }
         }
 
@@ -1498,7 +1544,7 @@ class LevelGate extends Entity {
             ctx.textAlign = 'center';
             ctx.shadowColor = 'black';
             ctx.shadowBlur = 4;
-            ctx.fillText(`GATE ${gateIdx} -> ${this.targetRoom} [${this.targetDoor}]`, this.x + this.width / 2, this.y - 16);
+            ctx.fillText(`${levelTitle} -> ${this.targetRoom || 'none'} [${this.targetDoor || 'none'}]`, this.x + this.width / 2, this.y - 16);
             ctx.restore();
         }
 

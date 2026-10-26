@@ -7,19 +7,30 @@ class AudioManager {
         this.files = {
             mach2: new Audio('sound/sfx_mach2.wav'),
             mach3: new Audio('sound/sfx_mach3.wav'),
+            mach4: new Audio('sound/sfx_mach4.wav'),
+            machroll: new Audio('sound/machroll.wav'),
             machslideboost: new Audio('sound/sfx_machslideboost.wav'),
+            dive: new Audio('sound/dive.wav'),
             sfx_break: new Audio('sound/sfx_break.wav'),
+            sfx_freefall: new Audio('sound/sfx_freefall.wav'),
+            sfx_freefallstart: new Audio('sound/sfx_freefallstart.wav'),
             sfx_groundpound: new Audio('sound/sfx_groundpound.wav'),
-            sfx_step: new Audio('sound/sfx_step.wav'),
             sfx_pausestart: new Audio('sound/sfx_pausestart.wav'),
+            sfx_rollgetup: new Audio('sound/sfx_rollgetup.wav'),
+            sfx_step: new Audio('sound/sfx_step.wav'),
             sfx_suplexdash: new Audio('sound/sfx_suplexdash.wav'),
+            sfx_wallsplat: new Audio('sound/sfx_wallsplat.wav'),
             sfx_switch: new Audio('sound/switch1.ogg'),
+            taunt: new Audio('sound/taunt.wav'),
             boss_gate: new Audio('wl4_samples/boss_gate.wav')
         };
         
         // Set loops where appropriate
         this.files.mach2.loop = true;
         this.files.mach3.loop = true;
+        if (this.files.mach4) this.files.mach4.loop = true;
+        if (this.files.machroll) this.files.machroll.loop = true;
+        if (this.files.sfx_freefall) this.files.sfx_freefall.loop = true;
 
         this.musicFiles = {};
         this.currentMusicName = null;
@@ -79,7 +90,28 @@ class AudioManager {
         }
     }
 
-    playMusic(filename) {
+    resetMusic() {
+        this.fadeIntervals.forEach(interval => clearInterval(interval));
+        this.fadeIntervals = [];
+        if (this.currentMusicAudio) {
+            this.currentMusicAudio.pause();
+            this.currentMusicAudio.currentTime = 0;
+            this.currentMusicAudio.isFading = false;
+            this.currentMusicAudio = null;
+            this.currentMusicName = null;
+        }
+        for (const key in this.musicFiles) {
+            const audio = this.musicFiles[key];
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.isFading = false;
+                audio.wasPlaying = false;
+            }
+        }
+    }
+
+    playMusic(filename, forceRestart = false) {
         if (!filename) {
             // Stop current music
             this.fadeIntervals.forEach(interval => clearInterval(interval));
@@ -97,6 +129,7 @@ class AudioManager {
                     if (oldVol <= 0) {
                         oldVol = 0;
                         oldAudio.pause();
+                        oldAudio.currentTime = 0;
                         oldAudio.isFading = false;
                         clearInterval(fadeOut);
                     }
@@ -110,6 +143,9 @@ class AudioManager {
         }
 
         if (this.currentMusicName === filename) {
+            if (forceRestart && this.currentMusicAudio) {
+                this.currentMusicAudio.currentTime = 0;
+            }
             // Same track: if not paused, make sure it's unpaused and volume is active
             if (this.currentMusicAudio && !this.isPausedAll) {
                 const targetVol = this.getMusicVolume();
@@ -139,6 +175,7 @@ class AudioManager {
             this.musicFiles[filename].loop = true;
         }
         newAudio = this.musicFiles[filename];
+        newAudio.currentTime = 0; // Always start newly switched track from beginning!
 
         const oldAudio = this.currentMusicAudio;
         
@@ -150,9 +187,13 @@ class AudioManager {
         this.currentMusicAudio = newAudio;
 
         if (this.isPausedAll) {
-            if (oldAudio) oldAudio.pause();
+            if (oldAudio) {
+                oldAudio.pause();
+                oldAudio.currentTime = 0;
+            }
             if (newAudio) {
                 newAudio.pause();
+                newAudio.currentTime = 0;
                 newAudio.wasPlaying = true;
             }
             return;
@@ -163,8 +204,10 @@ class AudioManager {
         if (isImmediate) {
             if (oldAudio) {
                 oldAudio.pause();
+                oldAudio.currentTime = 0;
             }
             if (newAudio) {
+                newAudio.currentTime = 0;
                 newAudio.volume = masterVol;
                 newAudio.play().catch(e => console.log('Music play blocked (waiting for interaction):', e));
             }
@@ -185,6 +228,7 @@ class AudioManager {
                 if (oldVol <= 0) {
                     oldVol = 0;
                     oldAudio.pause();
+                    oldAudio.currentTime = 0;
                     oldAudio.isFading = false;
                     clearInterval(fadeOutInterval);
                 }
@@ -238,8 +282,15 @@ class AudioManager {
 
     stopFile(name) {
         const audio = this.files[name];
-        if (audio && !audio.paused) {
-            audio.pause();
+        if (audio) {
+            if (name === 'sfx_freefallstart' || name === 'sfx_freefall') {
+                if (this.files.sfx_freefallstart) {
+                    this.files.sfx_freefallstart.onended = null;
+                }
+            }
+            if (!audio.paused) {
+                audio.pause();
+            }
             audio.currentTime = 0; // reset to beginning
         }
     }
@@ -303,6 +354,22 @@ class AudioManager {
     }
 
     play(soundName) {
+        if (this.files) {
+            if (soundName === 'groundpound' && this.files.sfx_freefallstart) {
+                this.stopFile('sfx_freefall');
+                this.playFile('sfx_freefallstart', true);
+                if (this.files.sfx_freefall) {
+                    this.files.sfx_freefallstart.onended = () => {
+                        this.playFile('sfx_freefall');
+                    };
+                }
+                return;
+            }
+            if (this.files[soundName]) {
+                this.playFile(soundName, true);
+                return;
+            }
+        }
         if (!this.ctx) return;
         
         // Settings menu volume -> scaled down so it's not too loud

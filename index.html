@@ -361,16 +361,16 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-                    <label style="font-weight: 700; color: #fff; font-size: 0.85rem;">레벨 이름 (게이트 상단 명판 및 타이틀 카드 텍스트):</label>
-                    <input id="levelgate-name-input" type="text" value="JOHN GUTTER" placeholder="예: JOHN GUTTER, STAGE 1" style="padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #555; background: rgba(0,0,0,0.8); color: #fff; font-size: 0.95rem; font-family: inherit;">
+                    <label style="font-weight: 700; color: #fff; font-size: 0.85rem;">게이트 이름 (게이트 상단 명판 및 타이틀 카드 텍스트):</label>
+                    <input id="levelgate-name-input" type="text" value="GATE 1" placeholder="예: GATE 1, STAGE 1" style="padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #555; background: rgba(0,0,0,0.8); color: #fff; font-size: 0.95rem; font-family: inherit;">
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 0.35rem;">
                     <label style="font-weight: 700; color: #fff; font-size: 0.85rem;">게이트 외형 스타일 (Gate Sprite):</label>
                     <select id="levelgate-style-select" style="padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #555; background: rgba(0,0,0,0.8); color: #00f2ff; font-size: 0.9rem; font-family: inherit; cursor: pointer;">
-                        <option value="0">Gate 0: Entrance (John Gutter 게이트)</option>
-                        <option value="1">Gate 1: Medieval (Pizzascape 게이트)</option>
-                        <option value="2">Gate 2: Ruin (Ancient Cheese 게이트)</option>
+                        <option value="0">Gate 1 (스타일 0 - 입구)</option>
+                        <option value="1">Gate 2 (스타일 1 - 중세)</option>
+                        <option value="2">Gate 3 (스타일 2 - 유적)</option>
                     </select>
                 </div>
 
@@ -407,7 +407,7 @@
                     <img id="levelgate-preview-img" src="이미지/spr_titlecards/spr_titlecards_0.png" style="width: 130px; height: 78px; object-fit: cover; border-radius: 6px; border: 1px solid #666; background: #000;" alt="Title Card Preview" title="타이틀 카드">
                     <div style="display: flex; flex-direction: column; gap: 3px;">
                         <span style="font-size: 0.8rem; color: #ff503c; font-weight: bold;">[게이트 & 타이틀 미리보기]</span>
-                        <span id="levelgate-preview-name" style="font-size: 0.95rem; color: #ffcc00; font-weight: bold;">JOHN GUTTER</span>
+                        <span id="levelgate-preview-name" style="font-size: 0.95rem; color: #ffcc00; font-weight: bold;">GATE 1</span>
                         <span id="levelgate-preview-desc" style="font-size: 0.72rem; color: #aaa;">스프라이트가 인게임 게이트로 렌더링됩니다.</span>
                     </div>
                 </div>
@@ -488,8 +488,9 @@
                 <div id="joystick-knob" style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); position: absolute; pointer-events: none; transition: transform 0.05s linear; transform: translate(0px, 0px);"></div>
             </div>
             <button id="mbtn-jump" class="mbtn" style="position: absolute; bottom: 40px; right: 40px; pointer-events: auto;">Jump</button>
-            <button id="mbtn-run" class="mbtn" style="position: absolute; bottom: 40px; right: 120px; pointer-events: auto;">Run</button>
-            <button id="mbtn-grab" class="mbtn" style="position: absolute; bottom: 120px; right: 80px; pointer-events: auto;">Grab</button>
+            <button id="mbtn-grab" class="mbtn" style="position: absolute; bottom: 40px; right: 120px; pointer-events: auto;">Grab</button>
+            <button id="mbtn-run" class="mbtn" style="position: absolute; bottom: 120px; right: 80px; pointer-events: auto;">Run</button>
+            <button id="mbtn-taunt" class="mbtn" style="position: absolute; bottom: 120px; right: 10px; pointer-events: auto; font-size: 1rem;">Taunt</button>
         </div>
         
     </div>

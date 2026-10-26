@@ -1133,7 +1133,7 @@ class Game {
         const mc = document.getElementById('mobile-controls');
         if (mc) mc.style.display = enable ? 'block' : '';
         
-        const elements = ['joystick-zone', 'mbtn-run', 'mbtn-grab', 'mbtn-jump', 'mbtn-pause'];
+        const elements = ['joystick-zone', 'mbtn-run', 'mbtn-grab', 'mbtn-jump', 'mbtn-taunt', 'mbtn-pause'];
         
         elements.forEach(id => {
             const el = document.getElementById(id);
@@ -1167,6 +1167,7 @@ class Game {
                     try { layout = JSON.parse(localStorage.getItem('mobileLayout') || '{}'); } catch(err) {}
                     layout[id] = { left: el.style.left, top: el.style.top };
                     localStorage.setItem('mobileLayout', JSON.stringify(layout));
+                    localStorage.setItem('mobileLayoutVer', '3');
                 };
                 
                 el.addEventListener('touchstart', el._dragStart, {passive: false});
@@ -1191,12 +1192,17 @@ class Game {
 
     loadMobileLayout() {
         try {
+            const layoutVer = localStorage.getItem('mobileLayoutVer');
+            if (layoutVer !== '3') {
+                localStorage.removeItem('mobileLayout');
+                localStorage.setItem('mobileLayoutVer', '3');
+            }
             const layout = JSON.parse(localStorage.getItem('mobileLayout') || '{}');
             for (let id in layout) {
                 const el = document.getElementById(id);
-                if (el) {
-                    el.style.left = layout[id].left;
-                    el.style.top = layout[id].top;
+                if (el && layout[id]) {
+                    if (layout[id].left !== undefined) el.style.left = layout[id].left;
+                    if (layout[id].top !== undefined) el.style.top = layout[id].top;
                     el.style.bottom = 'auto';
                     el.style.right = 'auto';
                 }
@@ -1364,7 +1370,12 @@ class Game {
             const press = (e) => {
                 e.preventDefault();
                 btn.classList.add('active');
-                this.keys[this.settings.bindings[keyName]] = true;
+                const binding = this.settings.bindings[keyName];
+                if (binding) {
+                    this.keys[binding] = true;
+                    this.keys[binding.toLowerCase()] = true;
+                    this.keys[binding.toUpperCase()] = true;
+                }
                 if (this.gameState === 'TITLE' && keyName === 'jump') {
                     // Start game on title screen with jump button
                     this.keys['z'] = true;
@@ -1373,11 +1384,19 @@ class Game {
             const release = (e) => {
                 e.preventDefault();
                 btn.classList.remove('active');
-                this.keys[this.settings.bindings[keyName]] = false;
+                const binding = this.settings.bindings[keyName];
+                if (binding) {
+                    this.keys[binding] = false;
+                    this.keys[binding.toLowerCase()] = false;
+                    this.keys[binding.toUpperCase()] = false;
+                }
             };
             btn.addEventListener('touchstart', press, { passive: false });
             btn.addEventListener('touchend', release, { passive: false });
             btn.addEventListener('touchcancel', release, { passive: false });
+            btn.addEventListener('mousedown', press);
+            btn.addEventListener('mouseup', release);
+            btn.addEventListener('mouseleave', release);
         };
 
         const joyZone = document.getElementById('joystick-zone');
@@ -1459,8 +1478,9 @@ class Game {
             joyZone.addEventListener('touchcancel', endJoy, { passive: false });
         }
         addTouch('mbtn-jump', 'jump');
-        addTouch('mbtn-run', 'run');
         addTouch('mbtn-grab', 'grab');
+        addTouch('mbtn-run', 'run');
+        addTouch('mbtn-taunt', 'taunt');
 
         const btnPause = document.getElementById('mbtn-pause');
         if (btnPause) {
@@ -1468,6 +1488,10 @@ class Game {
                 e.preventDefault();
                 this.togglePause();
             }, { passive: false });
+            btnPause.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.togglePause();
+            });
         }
 
         // Mouse Events for Editor
@@ -1663,6 +1687,7 @@ class Game {
                             this.entities.push(new Platform(0, 500, 1000, 50));
                         };
                     }
+                    if (this.discoveredRooms) this.discoveredRooms.add(newRoomName);
                     this.loadRoom(newRoomName);
                 }
             });
@@ -1698,6 +1723,7 @@ class Game {
                         // Register and load
                         if (window.roomData && window.roomData[roomName]) {
                             this.rooms[roomName] = window.roomData[roomName];
+                            if (this.discoveredRooms) this.discoveredRooms.add(roomName);
                             this.loadRoom(roomName);
                             // Clear input so we can load same file again if needed
                             loadRoomInput.value = '';
@@ -1931,10 +1957,7 @@ class Game {
                 } else {
                     if (gateImgCustom) gateImgCustom.style.display = 'none';
                     if (gatePreviewImg) gatePreviewImg.src = `이미지/spr_titlecards/spr_titlecards_${val}.png`;
-                    if (gateNameInput && presetNames[val]) {
-                        gateNameInput.value = presetNames[val];
-                        if (gatePreviewName) gatePreviewName.innerText = presetNames[val];
-                    }
+                    // Keep gate name (e.g. GATE 1) separate from Pizza Tower level names
                     if (gateStyleSelect && (val === '0' || val === '1' || val === '2')) {
                         gateStyleSelect.value = val;
                         if (gatePreviewGateImg) gatePreviewGateImg.src = `이미지/spr_gate/spr_gate_${val}.png`;
@@ -1964,15 +1987,29 @@ class Game {
                 if (preset === 'custom' && gateImgCustom) {
                     imgSrc = gateImgCustom.value.trim() || '0';
                 }
-                const titleText = gateNameInput?.value.trim().toUpperCase() || room.toUpperCase();
+                const gateCount = (this.entities ? this.entities.filter(e => e.type === 'levelgate' || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)).length : 0) + 1;
+                const titleText = gateNameInput?.value.trim().toUpperCase() || `GATE ${gateCount}`;
 
                 const gateStyle = gateStyleSelect ? parseInt(gateStyleSelect.value, 10) : 0;
 
                 if (this.pendingLevelGate) {
                     const { x, y, w, h } = this.pendingLevelGate;
-                    const finalW = (w <= this.gridSize) ? 192 : w;
-                    const finalH = (h <= this.gridSize) ? 288 : h;
-                    const gate = new LevelGate(x, y, finalW, finalH, room, door, imgSrc, titleText, gateStyle);
+                    const gateStyle = gateStyleSelect ? parseInt(gateStyleSelect.value, 10) : 0;
+                    const natSizes = [
+                        { w: 192, h: 288 },
+                        { w: 161, h: 267 },
+                        { w: 165, h: 254 }
+                    ];
+                    const nat = natSizes[gateStyle] || natSizes[0];
+                    const finalW = nat.w;
+                    const finalH = nat.h;
+                    const px = (typeof x === 'number' && !isNaN(x)) ? x : 0;
+                    const py = (typeof y === 'number' && !isNaN(y)) ? y : 0;
+                    const pw = (typeof w === 'number' && !isNaN(w) && w > 0) ? w : finalW;
+                    const ph = (typeof h === 'number' && !isNaN(h) && h > 0) ? h : finalH;
+                    const finalX = Math.round(px + (pw - finalW) / 2);
+                    const finalY = Math.round(py + ph - finalH);
+                    const gate = new LevelGate(finalX, finalY, finalW, finalH, room, door, imgSrc, titleText, gateStyle);
                     if (this.objectFlipX) gate.flipX = true;
                     if (this.objectFlipY) gate.flipY = true;
                     this.entities.push(gate);
@@ -2129,6 +2166,18 @@ class Game {
         if (overlay) {
             overlay.classList.remove('hidden');
             overlay.style.display = 'flex';
+            
+            const gateCount = (this.entities ? this.entities.filter(e => e.type === 'levelgate' || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)).length : 0) + 1;
+            const defaultName = `GATE ${gateCount}`;
+            const nameInput = document.getElementById('levelgate-name-input');
+            const previewName = document.getElementById('levelgate-preview-name');
+            if (nameInput) {
+                nameInput.value = defaultName;
+            }
+            if (previewName) {
+                previewName.innerText = defaultName;
+            }
+
             const roomInput = document.getElementById('levelgate-room-input');
             if (roomInput) {
                 roomInput.focus();
@@ -3861,6 +3910,13 @@ this.entities.push(
                     this.audio.playMusic(this.roomMusic);
                 }
                 
+                if (this.player) {
+                    this.player.isCrouching = false;
+                    this.player.isTumbling = false;
+                    this.player.height = 45;
+                    this.player.mask_index = 'spr_player_mask';
+                }
+                
                 let startX = 100;
                 let startY = 300;
                 
@@ -3991,6 +4047,15 @@ this.entities.push(
         this.player.vy = 0;
         this.player.isRunning = false;
         this.player.facingDir = 1;
+        if (this.player.height === 23 || this.player.isCrouching || this.player.isTumbling) {
+            this.player.height = 45;
+            this.player.y -= 22;
+            this.player.isCrouching = false;
+            this.player.isTumbling = false;
+            this.player.mask_index = 'spr_player_mask';
+        }
+        this.clearActionKey('down');
+        this.keys.actionDown = false;
         this.player.targetDoorX = gate.x + gate.width / 2 - this.player.width / 2;
         this.player.sprite_index = 'spr_player_enterlevelgate';
         this.player.image_index = 0;
@@ -4002,17 +4067,22 @@ this.entities.push(
         this.keys.actionUp = false;
 
         if (this.audio) {
-            try {
-                this.audio.playFile('boss_gate', true);
-            } catch (e) {
-                this.audio.playFile('sfx_step', true);
-            }
+            this.audio.playFile('sfx_step', true);
         }
     }
 
     startTitleCard(gate) {
         this.gameState = 'TITLECARD';
         if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+
+        // Stop music during Title Card and reset
+        if (this.audio) {
+            this.audio.resetMusic();
+            if (this.audio.files && this.audio.files.boss_gate) {
+                this.audio.files.boss_gate.pause();
+                this.audio.files.boss_gate.currentTime = 0;
+            }
+        }
 
         let cardImgSrc = null;
         let titleImgSrc = null;
@@ -4041,7 +4111,7 @@ this.entities.push(
             gate: gate,
             targetRoom: gate.targetRoom,
             targetDoor: gate.targetDoor || 'A',
-            titleText: gate.titleCardText || gate.targetRoom || 'LEVEL',
+            titleText: gate.titleCardText || `GATE ${gate.gateIndex + 1}`, 
             timer: 0,
             duration: 180, // ~3 seconds at 60fps
             bgImage: bgImage,
@@ -4147,15 +4217,25 @@ this.entities.push(
             const scale = (w / 960);
             const titleW = tc.titleImage.naturalWidth * scale;
             const titleH = tc.titleImage.naturalHeight * scale;
-            const bounce = Math.sin(Math.min(Math.PI / 2, tc.timer / 15)) * 1.0;
+            
+            // Shake effect without growing / scaling up
+            const shakeMag = tc.timer < 25 ? (5 - (tc.timer / 25) * 2.5) : 2.5;
+            const shakeX = (Math.random() * 2 - 1) * shakeMag * scale;
+            const shakeY = (Math.random() * 2 - 1) * shakeMag * scale;
+
             ctx.save();
-            ctx.translate(w / 2, h / 2);
-            ctx.scale(bounce, bounce);
+            ctx.translate(w / 2 + shakeX, h / 2 + shakeY);
             ctx.drawImage(tc.titleImage, -titleW / 2, -titleH / 2, titleW, titleH);
             ctx.restore();
         } else {
             const levelName = (tc.titleText || 'LEVEL').toUpperCase();
+            const scale = (w / 960);
+            const shakeMag = tc.timer < 25 ? (5 - (tc.timer / 25) * 2.5) : 2.5;
+            const shakeX = (Math.random() * 2 - 1) * shakeMag * scale;
+            const shakeY = (Math.random() * 2 - 1) * shakeMag * scale;
+
             ctx.save();
+            ctx.translate(shakeX, shakeY);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
@@ -4203,6 +4283,7 @@ this.entities.push(
         this.score = 0;
         this.combo = 0;
         this.comboTimer = 0;
+        if (this.audio) this.audio.resetMusic();
         const roomToLoad = this.restart_room || this.currentRoom;
         this.loadRoom(roomToLoad, 'A').then(() => {
             this.gameState = 'PLAYING';
@@ -4212,7 +4293,7 @@ this.entities.push(
 
     exitLevelToHubOrTitle() {
         this.escape = false;
-        if (this.audio) this.audio.playMusic(null);
+        if (this.audio) this.audio.resetMusic();
         this.updateSaveProgress();
 
         if (this.hub_room) {
@@ -4236,7 +4317,7 @@ this.entities.push(
     }
 
     triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
-        if (roomName === 'hub' || roomName === 'hub_room' || roomName === 'exit') {
+        if (roomName === 'hub' || roomName === 'hub_room' || roomName === 'exit' || (this.hub_room && roomName === this.hub_room)) {
             this.exitLevelToHubOrTitle();
             return;
         }
@@ -4797,12 +4878,14 @@ this.entities.push(
                         
                         // Reset Mobile Layout
                         localStorage.removeItem('mobileLayout');
+                        localStorage.setItem('mobileLayoutVer', '3');
                         const defaults = {
                             'mbtn-pause': { top: '20px', right: '20px', bottom: 'auto', left: 'auto' },
                             'joystick-zone': { bottom: '40px', left: '40px', top: 'auto', right: 'auto' },
                             'mbtn-jump': { bottom: '40px', right: '40px', top: 'auto', left: 'auto' },
-                            'mbtn-run': { bottom: '40px', right: '120px', top: 'auto', left: 'auto' },
-                            'mbtn-grab': { bottom: '120px', right: '80px', top: 'auto', left: 'auto' }
+                            'mbtn-grab': { bottom: '40px', right: '120px', top: 'auto', left: 'auto' },
+                            'mbtn-run': { bottom: '120px', right: '80px', top: 'auto', left: 'auto' },
+                            'mbtn-taunt': { bottom: '120px', right: '10px', top: 'auto', left: 'auto' }
                         };
                         for (let id in defaults) {
                             const el = document.getElementById(id);
@@ -4964,6 +5047,10 @@ this.entities.push(
                         this.player.state = 'normal';
                         this.player.sprite_index = 'spr_player_idle';
                         this.player.image_index = 0;
+                        this.player.isCrouching = false;
+                        this.player.isTumbling = false;
+                        this.player.height = 45;
+                        this.player.mask_index = 'spr_player_mask';
                     }
                 }
             }
@@ -5244,7 +5331,8 @@ this.entities.push(
 
         // Update state info UI
         let currentStates = [];
-        if (this.player.state === 'enterdoor') currentStates.push('enterdoor');
+        if (this.player.state === 'bump') currentStates.push('bump');
+        else if (this.player.state === 'enterdoor') currentStates.push('enterdoor');
         else if (this.player.state === 'enterlevelgate') currentStates.push('enterlevelgate');
         else if (this.player.state === 'walkfront') currentStates.push('walkfront');
         else if (this.player.isClimbing) currentStates.push(dict['state.climbing']);
@@ -5291,18 +5379,26 @@ this.entities.push(
                 this.player.state !== 'enterdoor' && 
                 this.player.state !== 'enterlevelgate' && 
                 this.player.state !== 'walkfront' && 
+                this.player.state !== 'bump' &&
                 this.transitionState === 'NONE' &&
                 this.gameState !== 'ONLINE_MENU'
             );
         }
 
-        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
+        if (overlappingDoor && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.player.state !== 'bump' && this.transitionState === 'NONE') {
             this.player.showUpArrow = false;
             this.player.state = 'enterdoor';
             this.player.isEnteringDoor = true;
             this.player.vx = 0;
             this.player.vy = 0;
             this.player.isRunning = false;
+            if (this.player.height === 23 || this.player.isCrouching || this.player.isTumbling) {
+                this.player.height = 45;
+                this.player.y -= 22;
+                this.player.isCrouching = false;
+                this.player.isTumbling = false;
+                this.player.mask_index = 'spr_player_mask';
+            }
             this.player.targetDoorX = overlappingDoor.x + overlappingDoor.width / 2 - this.player.width / 2;
             this.player.sprite_index = 'spr_player_lookdoor';
             this.player.image_index = 0;
@@ -5310,9 +5406,22 @@ this.entities.push(
             this.triggerRoomTransition(overlappingDoor.targetRoom, overlappingDoor.label);
             this.clearActionKey('up'); // Prevent immediate multi-entry
             this.keys.actionUp = false;
+            this.clearActionKey('down');
+            this.keys.actionDown = false;
         }
 
-        if (overlappingGate && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.transitionState === 'NONE') {
+        if (overlappingGate && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.player.state !== 'bump' && this.transitionState === 'NONE') {
+            if (this.player.height === 23 || this.player.isCrouching || this.player.isTumbling) {
+                this.player.height = 45;
+                this.player.y -= 22;
+                this.player.isCrouching = false;
+                this.player.isTumbling = false;
+                this.player.mask_index = 'spr_player_mask';
+            }
+            this.clearActionKey('up');
+            this.keys.actionUp = false;
+            this.clearActionKey('down');
+            this.keys.actionDown = false;
             this.enterLevelGate(overlappingGate);
         }
 
@@ -5645,7 +5754,7 @@ this.entities.push(
                         }
                         
                         // Default size in player.js is -51 offset, 100x100
-                        const isCrouched = (p.sprite === 'spr_player_crouch' || p.sprite === 'spr_player_tumble' || p.sprite === 'spr_player_roll');
+                        const isCrouched = (p.sprite === 'spr_player_crouch' || p.sprite === 'spr_player_crawl' || p.sprite === 'spr_player_tumble' || p.sprite === 'spr_player_roll');
                         const offsetY = isCrouched ? -68.5 : -57.5; // from player.js
                         if (p.sprite === 'spr_player_walkfront') {
                             const maxF = (frames && frames.length > 0) ? frames.length : 15;
@@ -7218,8 +7327,14 @@ this.entities.push(
                     const gImg = (typeof LevelGate !== 'undefined' && LevelGate.gateImages && LevelGate.gateImages[0]) ? LevelGate.gateImages[0] : null;
                     const bgImg = (typeof LevelGate !== 'undefined' && LevelGate.gateBGImages && LevelGate.gateBGImages[0]) ? LevelGate.gateBGImages[0] : null;
                     if (gImg && gImg.complete && bgImg && bgImg.complete) {
-                        ctx.drawImage(bgImg, minX, minY + (h - (bgImg.naturalHeight * (h / 288))), w, bgImg.naturalHeight * (h / 288));
-                        ctx.drawImage(gImg, minX, minY + (h - (gImg.naturalHeight * (h / 288))), w, gImg.naturalHeight * (h / 288));
+                        const gw = gImg.naturalWidth;
+                        const gh = gImg.naturalHeight;
+                        const drawX = Math.round(minX + (w - gw) / 2);
+                        const drawY = Math.round(minY + (h - gh));
+                        const bgW = bgImg.naturalWidth;
+                        const bgH = bgImg.naturalHeight;
+                        ctx.drawImage(bgImg, drawX, drawY + (gh - bgH), bgW, bgH);
+                        ctx.drawImage(gImg, drawX, drawY, gw, gh);
                     } else {
                         ctx.fillStyle = '#4a444d';
                         ctx.fillRect(minX, minY, w, h);
@@ -7258,6 +7373,10 @@ this.entities.push(
     }
 
     initDebugConsole() {
+        if (!this.discoveredRooms) {
+            this.discoveredRooms = new Set(['demo_hub', 'tutorial_1', 'tutorial_2', 'tutorial_3', 'tutorial_4', 'tutorial_5']);
+        }
+        this.refreshAvailableRooms();
         this.debugConsole = {
             open: false,
             input: '',
@@ -7274,39 +7393,46 @@ this.entities.push(
     }
 
     initDebugCommands() {
-        this.debugCommands = {
-            'goto_room': {
-                args: [
-                    {
-                        name: 'room',
-                        getOptions: (game, currentArg) => {
-                            const rooms = game.getAvailableRoomNames();
-                            return rooms.filter(r => r.toLowerCase().startsWith(currentArg.toLowerCase()));
-                        },
-                        hint: 'room'
+        const gotoRoomCommand = {
+            args: [
+                {
+                    name: 'room',
+                    getOptions: (game, currentArg) => {
+                        const rooms = game.getAvailableRoomNames();
+                        const query = (currentArg || '').toLowerCase();
+                        if (!query) return rooms;
+                        const starts = rooms.filter(r => r.toLowerCase().startsWith(query));
+                        const includes = rooms.filter(r => !r.toLowerCase().startsWith(query) && r.toLowerCase().includes(query));
+                        return [...starts, ...includes];
                     },
-                    {
-                        name: 'door',
-                        getOptions: (game, currentArg, prevArgs) => {
-                            const targetRoom = prevArgs[0];
-                            const doors = game.getAvailableDoors(targetRoom);
-                            return doors.filter(d => d.toLowerCase().startsWith(currentArg.toLowerCase()));
-                        },
-                        hint: 'door'
-                    }
-                ],
-                execute: (game, args) => {
-                    const room = args[0];
-                    const door = (args[1] || 'A').toUpperCase();
-                    if (!room) return 'Usage: goto_room <room> [door]';
-                    game.loadRoom(room, door).then(() => {
-                        game.logDebugConsole(`Loaded room: ${room} (Door ${door})`);
-                    }).catch(err => {
-                        game.logDebugConsole(`Error loading room: ${err.message}`);
-                    });
-                    return `Teleporting to ${room} (${door})...`;
+                    hint: 'room'
+                },
+                {
+                    name: 'door',
+                    getOptions: (game, currentArg, prevArgs) => {
+                        const targetRoom = prevArgs[0];
+                        const doors = game.getAvailableDoors(targetRoom);
+                        return doors.filter(d => d.toLowerCase().startsWith(currentArg.toLowerCase()));
+                    },
+                    hint: 'door'
                 }
-            },
+            ],
+            execute: (game, args) => {
+                const room = args[0];
+                const door = (args[1] || 'A').toUpperCase();
+                if (!room) return 'Usage: room_goto <room> [door]';
+                game.loadRoom(room, door).then(() => {
+                    game.logDebugConsole(`Loaded room: ${room} (Door ${door})`);
+                }).catch(err => {
+                    game.logDebugConsole(`Error loading room: ${err.message}`);
+                });
+                return `Teleporting to ${room} (${door})...`;
+            }
+        };
+
+        this.debugCommands = {
+            'goto_room': gotoRoomCommand,
+            'room_goto': gotoRoomCommand,
             'clear': {
                 args: [
                     {
@@ -7564,6 +7690,7 @@ this.entities.push(
             this.debugConsole.selectedSuggestionIndex = 0;
             this.debugConsole.cursorPos = this.debugConsole.input.length;
             this.keys = {};
+            this.refreshAvailableRooms();
         }
     }
 
@@ -7582,11 +7709,68 @@ this.entities.push(
         }
     }
 
+    async refreshAvailableRooms() {
+        if (this._isRefreshingRooms) return;
+        this._isRefreshingRooms = true;
+        if (!this.discoveredRooms) {
+            this.discoveredRooms = new Set(['demo_hub', 'tutorial_1', 'tutorial_2', 'tutorial_3', 'tutorial_4', 'tutorial_5']);
+        }
+
+        try {
+            // 1. Live directory listing scan from room/ folder
+            const res = await fetch(`room/?t=${Date.now()}`);
+            if (res.ok) {
+                const text = await res.text();
+                // Match links like <a href="room_name.js"> or <a href="room/room_name.js">
+                const matches = text.matchAll(/href\s*=\s*["'](?:.*?\/)?([^"'/]+?)\.js(?:[?#][^"']*)?["']/gi);
+                for (const match of matches) {
+                    const roomName = match[1];
+                    if (roomName && roomName !== 'rooms') {
+                        this.discoveredRooms.add(roomName);
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignore directory listing fetch error
+        }
+
+        try {
+            // 2. Fetch room/rooms.json if available
+            const resJson = await fetch(`room/rooms.json?t=${Date.now()}`);
+            if (resJson.ok) {
+                const list = await resJson.json();
+                if (Array.isArray(list)) {
+                    for (const r of list) {
+                        const name = String(r).replace(/\.js$/i, '').trim();
+                        if (name) this.discoveredRooms.add(name);
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignore json fetch error
+        }
+
+        // 3. Include any currently loaded or in-memory rooms
+        if (this.rooms) {
+            for (let r in this.rooms) this.discoveredRooms.add(r);
+        }
+        this._isRefreshingRooms = false;
+    }
+
     getAvailableRoomNames() {
-        const set = new Set(['tutorial_1', 'tutorial_2', 'tutorial_3', 'tutorial_4', 'tutorial_5']);
+        this.refreshAvailableRooms();
+        const set = new Set(this.discoveredRooms ? Array.from(this.discoveredRooms) : ['demo_hub', 'tutorial_1', 'tutorial_2', 'tutorial_3', 'tutorial_4', 'tutorial_5']);
         if (this.rooms) {
             for (let r in this.rooms) set.add(r);
         }
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('saved_room_')) {
+                    set.add(k.replace('saved_room_', ''));
+                }
+            }
+        } catch (e) {}
         return Array.from(set).sort();
     }
 
@@ -7695,6 +7879,7 @@ this.entities.push(
 
     handleDebugConsoleKeyDown(e) {
         if (!this.debugConsole) return;
+        this.refreshAvailableRooms();
         const state = this.getConsoleState();
         const suggestions = state.suggestions;
 

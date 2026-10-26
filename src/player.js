@@ -6,6 +6,7 @@ class Player {
         this.y = y;
         this.width = 26;
         this.height = 45;
+        this.mask_index = 'spr_player_mask';
         this.vx = 0;
         this.vy = 0;
         this.speed = 0.5;
@@ -24,6 +25,7 @@ class Player {
         this.wallSide = 0; // -1 for left, 1 for right
         this.isRunning = false;
         this.isGroundPounding = false;
+        this.freefallLoopStarted = false;
         this.isGroundPoundLand = false;
         this.groundPoundLandTimer = 0;
         this.isClimbing = false;
@@ -113,7 +115,10 @@ class Player {
             spr_player_suplexgrabfallloop: [],
             spr_player_lookdoor: [],
             spr_player_walkfront: [],
-            spr_player_enterlevelgate: []
+            spr_player_enterlevelgate: [],
+            spr_player_crouch: [],
+            spr_player_crawl: [],
+            spr_player_bump: []
         };
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
@@ -218,6 +223,22 @@ class Player {
             this.sprites.spr_player_enterlevelgate.push(img);
         }
 
+        // Load crouch sprite (10 frames)
+        this.sprites.spr_player_crouch = [];
+        for (let i = 1; i <= 10; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_crouch/spr_playerT_crouch${i}.png`;
+            this.sprites.spr_player_crouch.push(img);
+        }
+
+        // Load crawl sprite (7 frames)
+        this.sprites.spr_player_crawl = [];
+        for (let i = 1; i <= 7; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_crawl/spr_playerT_crawl${i}.png`;
+            this.sprites.spr_player_crawl.push(img);
+        }
+
         // Load mach2 sprite (7 frames)
         for (let i = 1; i <= 7; i++) {
             let img = new Image();
@@ -269,6 +290,14 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_taunt/spr_playerT_taunt${i}.png`;
             this.sprites.spr_player_taunt.push(img);
+        }
+
+        // Load bump sprite (11 frames)
+        this.sprites.spr_player_bump = [];
+        for (let i = 1; i <= 11; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_bump/spr_playerT_bump${i}.png`;
+            this.sprites.spr_player_bump.push(img);
         }
 
         this.effectSprites = {
@@ -353,11 +382,11 @@ class Player {
 
         // Check if standing in front of an interactable (door, dresser, computer) for uparrow
         let atInteractable = false;
-        if (entities && this.isGrounded && this.state !== 'enterdoor' && this.state !== 'enterlevelgate' && this.state !== 'walkfront') {
+        if (entities && this.isGrounded && this.state !== 'enterdoor' && this.state !== 'enterlevelgate' && this.state !== 'walkfront' && this.state !== 'bump') {
             for (let i = 0; i < entities.length; i++) {
                 const e = entities[i];
                 if (!e || e.isDestroyed) continue;
-                if (e.type === 'door' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
+                if (e.type === 'door' || e.type === 'levelgate' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
                     const minW = (e.type === 'door') ? 70 : 64;
                     const minH = (e.type === 'door') ? 90 : 64;
                     const drawW = Math.max(e.width, minW);
@@ -386,6 +415,11 @@ class Player {
             this.isClimbing = false;
             this.isGroundPounding = false;
             this.isSuplexGrabbing = false;
+            if (this.height === 23 || this.isCrouching || this.isTumbling) {
+                this.height = 45;
+                this.y -= 22;
+                this.mask_index = 'spr_player_mask';
+            }
             this.isTumbling = false;
             this.isCrouching = false;
             this.machAfters = [];
@@ -427,6 +461,11 @@ class Player {
             this.isClimbing = false;
             this.isGroundPounding = false;
             this.isSuplexGrabbing = false;
+            if (this.height === 23 || this.isCrouching || this.isTumbling) {
+                this.height = 45;
+                this.y -= 22;
+                this.mask_index = 'spr_player_mask';
+            }
             this.isTumbling = false;
             this.isCrouching = false;
             this.machAfters = [];
@@ -471,6 +510,11 @@ class Player {
             this.isClimbing = false;
             this.isGroundPounding = false;
             this.isSuplexGrabbing = false;
+            if (this.height === 23 || this.isCrouching || this.isTumbling) {
+                this.height = 45;
+                this.y -= 22;
+                this.mask_index = 'spr_player_mask';
+            }
             this.isTumbling = false;
             this.isCrouching = false;
             this.machAfters = [];
@@ -488,6 +532,10 @@ class Player {
                     this.sprite_index = 'spr_player_idle';
                     this.image_index = 0;
                     this.image_speed = 0.4;
+                    this.height = 45;
+                    this.mask_index = 'spr_player_mask';
+                    this.isCrouching = false;
+                    this.isTumbling = false;
                 }
             } else {
                 this.state = 'normal';
@@ -514,7 +562,7 @@ class Player {
             } else {
                 return;
             }
-        } else if (keys.actionTaunt && !this.prevKeysTaunt) {
+        } else if (keys.actionTaunt && !this.prevKeysTaunt && this.state !== 'bump') {
             this.isTaunting = true;
             this.tauntTimer = 20;
             
@@ -533,7 +581,7 @@ class Player {
             this.image_index = Math.floor(Math.random() * 8);
             this.image_speed = 0; // 嵓・�溢桷 ・�・・
             
-            if (audio) audio.play('taunt'); 
+            if (audio) audio.playFile('taunt', true); 
             
             this.activeEffects.push({
                 type: 'spr_taunteffect',
@@ -575,6 +623,9 @@ class Player {
         // ・ｬ・ｴ・ｰ ・卓乱・・・ｬ・ｬ・ｰ ・・・ ・菩�・・�・
         if (this.isTumbling) {
             isCurrentlyRunning = true;
+        }
+        if (this.state === 'bump') {
+            isCurrentlyRunning = false;
         }
 
         // (・｡・ｰ ・・・ｬ・ｬ・ｰ ・ｨ・・・罷糖 ・懋ｱｰ)
@@ -720,25 +771,24 @@ class Player {
         if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isClimbingLadder && this.kickWindupTimer <= 0 && (this.kickKnockbackTimer || 0) <= 0) {
             let effLeft = keys.actionLeft;
             let effRight = keys.actionRight;
-            
-            // ・ｬ・ｴ・ｰ(tumble) ・卓乱・・・護垈 ・ｩ嵂･ ・・劍 ・一ｰ (・・ｱ ・�・)
-            if (this.isTumbling) {
+
+            if (this.state === 'bump') {
                 effLeft = false;
                 effRight = false;
-            }
-            
-            // ・ｵ・卓乱・・・�・ｴ・・・ｬ・ｬ・・・卓擽・ｴ ・ｩ嵂･ ・・劍(墲､ ・・�･)・・・ｴ・懦葺・� 嶸・椪 ・ｩ嵂･・・・菩�・・�・ (・､・ｴ・誤ｰ､ ・卓乱・・・溢匣)
-            if (!this.isGrounded && this.isRunning && Math.abs(this.vx) >= 6 && !this.isGroundPounding) {
+            } else if (this.isTumbling) {
+                effLeft = false;
+                effRight = false;
+            } else if (!this.isGrounded && this.isRunning && Math.abs(this.vx) >= 6 && !this.isGroundPounding) {
                 effLeft = this.facingDir === -1;
                 effRight = this.facingDir === 1;
-            }
-            // ・ｬ・ｬ・ｰ ・卓攤・ｰ ・ｩ嵂･墲､・ｼ ・・・・･ｴ・� ・壱共・ｴ ・罷攵・ｴ・・・ｩ嵂･・ｼ・・・尖徐 ・ｬ・ｬ・ｰ (・､・ｴ・誤ｰ､ ・卓乱・・・尖徐 ・・ｧ・・溢ｧ)
-            else if (this.isRunning && !keys.actionLeft && !keys.actionRight && !this.isGroundPounding) {
+            } else if (this.isRunning && !keys.actionLeft && !keys.actionRight && !this.isGroundPounding) {
                 if (this.facingDir === -1) effLeft = true;
                 else if (this.facingDir === 1) effRight = true;
             }
 
-            const activeMaxSpeed = this.isCrouching ? 4 : this.maxSpeed;
+            const crouchMaxSpeed = 4;
+            const activeMaxSpeed = this.isCrouching ? crouchMaxSpeed : this.maxSpeed;
+            const moveAccel = this.isCrouching ? 0.8 : this.speed;
 
             if (effLeft) {
                 if (!this.isTumbling && !this.isSuplexGrabbing && Math.abs(this.vx) < 12) this.facingDir = -1;
@@ -752,10 +802,10 @@ class Player {
                     const canSlowDown = !this.isRunning || this.vx <= 0;
                     if (canSlowDown) {
                         if (this.vx > -activeMaxSpeed) {
-                            this.vx -= this.speed;
+                            this.vx -= moveAccel;
                         } else if (this.isCrouching && this.vx < -activeMaxSpeed) {
                             // If they were moving fast and then crouch, slow them down to activeMaxSpeed
-                            this.vx += this.speed; 
+                            this.vx += moveAccel; 
                         }
                     }
                 }
@@ -771,17 +821,29 @@ class Player {
                     const canSlowDown = !this.isRunning || this.vx >= 0;
                     if (canSlowDown) {
                         if (this.vx < activeMaxSpeed) {
-                            this.vx += this.speed;
+                            this.vx += moveAccel;
                         } else if (this.isCrouching && this.vx > activeMaxSpeed) {
                             // If they were moving fast and then crouch, slow them down to activeMaxSpeed
-                            this.vx -= this.speed;
+                            this.vx -= moveAccel;
                         }
                     }
                 }
             } else {
-                // ・ｩ嵂･墲､・ｼ ・・･ｴ・ ・喜葺・・・・
                 if (this.isTumbling || this.isSuplexGrabbing) {
-                    // ・ｬ・ｴ・ｰ/・｡・ｰ ・護ｧ・・卓乱・・・川・ ・・擽 ・鷺巡 ・・�・・�・
+                    // 구르기/슈플 중에는 속도 유지
+                } else if (this.state === 'bump') {
+                    // bump 동안 방향 고정 및 애니메이션 끝날 때까지 뒤로 가는 속도 4 유지
+                    if (this.bumpFacingDir !== undefined) {
+                        this.facingDir = this.bumpFacingDir;
+                    }
+                    const frames = this.sprites.spr_player_bump;
+                    const animFinished = frames && frames.length > 0 && this.image_index >= frames.length - 1;
+                    if (animFinished) {
+                        this.vx *= 0.88;
+                        if (Math.abs(this.vx) < 0.1) this.vx = 0;
+                    } else {
+                        this.vx = -this.facingDir * 4;
+                    }
                 } else {
                     this.vx = 0;
                 }
@@ -966,6 +1028,12 @@ class Player {
         let wantCrouch = false;
         let wantTumble = false;
 
+        // In midair: cannot cancel crouch or tumble until landing!
+        if (!this.isGrounded) {
+            if (this.isTumbling) wantTumble = true;
+            if (this.isCrouching) wantCrouch = true;
+        }
+
         if (keys.actionDown && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isClimbingLadder && !this.isGroundPounding && !this.isGroundPoundLand) {
             if (this.isSuplexGrabbing) {
                 // ・｡・ｰ ・護ｧ・・・・・椈・ｼ ・・･ｴ・ｴ ・護ｧ・揆 ・ｨ・醐葺・� ・餓亨 ・ｬ・ｴ・ｰ・・・ｰ・・葺・ｰ ・鷺巡・ｼ 12・・・・､孖ｸ
@@ -978,7 +1046,7 @@ class Player {
                 wantTumble = true;
             } else if (this.isGrounded) {
                 // ・ｬ・ｬ・� ・一ｱｰ・・・鷺巡・ ・ｷ・ｰ ・罹劇 ・鷺巡(7)・ｴ・､ ・�・ｼ ・誤ｧ・・ｬ・ｴ・ｰ ・罹徐
-                if (Math.abs(this.vx) > this.maxSpeed) {
+                if (Math.abs(this.vx) > this.maxSpeed || this.isRunning) {
                     wantTumble = true;
                 } else {
                     wantCrouch = true;
@@ -993,7 +1061,7 @@ class Player {
             }
         }
 
-        const isCurrentlySmall = this.isCrouching || this.isTumbling;
+        const isCurrentlySmall = (this.height === 23) || this.isCrouching || this.isTumbling;
         if (isCurrentlySmall && !wantCrouch && !wantTumble) {
             // Check ceiling before uncrouching/untumbling
             const headBox = { x: this.x, y: this.y - 22, width: 26, height: 22 };
@@ -1006,38 +1074,64 @@ class Player {
                 }
             }
             if (hitCeiling) {
-                // Forced to stay small, keep current state
+                // 천장에 막혀 일어설 수 없으므로 기존 소형 히트박스(spr_player_maskc) 상태 유지
                 if (this.isTumbling) wantTumble = true;
                 else wantCrouch = true;
             }
         }
 
         const willBeSmall = wantCrouch || wantTumble;
+        // tumble이나 crouch일 때만 히트박스가 spr_player_maskc로 (높이 23, y += 22)
         if (willBeSmall !== isCurrentlySmall) {
             if (willBeSmall) {
                 this.height = 23;
                 this.y += 22; // shift down
-                // ・�・ ・肥ｲｭ: ・ｵ・卓乱・・・ｬ・ｴ・ｰ(・､・ｴ・・ ・懍梠 ・・・戦売 ・卓擽・罷攵・・﨑ｭ・・・・椈・・嶹・・わ梭・・｡・・們�・
+                this.mask_index = 'spr_player_maskc';
+                // 공중 급강하: 공중에서 텀블(다이브) 진입 시 즉시 강하게 내리꽂히도록 수직 속도 부여
                 if (wantTumble && !this.isGrounded) {
-                    this.vy = 12; // ・､・ｴ・・﨑俾ｰ・・鷺巡・ｼ 10・川・ 12・・・ｴ・・・・・懍寳﨑俾ｲ・・わ梭・・｡・・ｰ・・
+                    this.vy = 12; // 다이브의 급강하 속도: 10에서 12로 소폭 상향하여 확실하게 아래로 꽂힘
                 }
             } else {
                 this.height = 45;
                 this.y -= 22; // shift up
+                this.mask_index = 'spr_player_mask';
             }
+        } else {
+            this.mask_index = willBeSmall ? 'spr_player_maskc' : 'spr_player_mask';
         }
 
+        const isMachForRollGetUp = (this.isRunning || Math.abs(this.vx) >= 12) && Math.abs(this.vx) >= 5;
         if (this.isTumbling && !wantTumble && this.isGrounded) {
-            this.isRollGettingUp = true;
-            this.image_index = 0;
-            this.sprite_index = 'spr_player_rollgetup';
+            if (isMachForRollGetUp) {
+                this.isRollGettingUp = true;
+                this.image_index = 0;
+                this.sprite_index = 'spr_player_rollgetup';
+                if (audio) audio.playFile('sfx_rollgetup', true);
+            } else {
+                this.isRollGettingUp = false;
+            }
         }
-        if (wantTumble || !this.isGrounded) {
+        if (wantTumble || !this.isGrounded || !isMachForRollGetUp) {
             this.isRollGettingUp = false;
         }
 
+        const wasTumblingBefore = this.isTumbling;
+        if (this.state === 'bump') {
+            wantCrouch = false;
+            wantTumble = false;
+        }
         this.isCrouching = wantCrouch;
         this.isTumbling = wantTumble;
+
+        if (!wasTumblingBefore && this.isTumbling) {
+            if (audio) {
+                if (!this.isGrounded) {
+                    audio.playFile('dive', true);
+                } else {
+                    audio.playFile('machroll');
+                }
+            }
+        }
 
         if (this.state === 'enterdoor') {
             // Keep enterdoor state
@@ -1045,6 +1139,8 @@ class Player {
             // Keep enterlevelgate state
         } else if (this.state === 'walkfront') {
             // Keep walkfront state
+        } else if (this.state === 'bump') {
+            // Keep bump state
         } else if (this.isSuplexGrabbing) {
             this.state = 'suplexgrab';
         } else if (this.isTumbling) {
@@ -1065,7 +1161,7 @@ class Player {
             this.grabBufferTimer--;
         }
 
-        if (keys.actionGrab && this.canGrab) {
+        if (keys.actionGrab && this.canGrab && this.state !== 'bump') {
             this.grabBufferTimer = 18; // 18 frames (0.3s) of grab buffer
             this.canGrab = false; // Consume the grab press immediately
         }
@@ -1122,7 +1218,7 @@ class Player {
         }
 
         // Suplex Grab Trigger
-        if (this.grabBufferTimer > 0 && !this.isHoldingEnemy && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling) {
+        if (this.grabBufferTimer > 0 && !this.isHoldingEnemy && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling && this.state !== 'bump') {
             this.isSuplexGrabbing = true;
             this.image_index = 0;
             this.grabBufferTimer = 0; // Consume the buffer
@@ -1160,14 +1256,26 @@ class Player {
         }
 
         // Ground Pound Trigger (・戦売/・ｴ・呟ｳｼ ・溢ｰｬ・・・・・罹ｦｬ嵓・敢, ・ｽ夋・ｰ ・卓乱・・・罹徐 ・一ｰ, ・ｬ・ｴ・ｰ ・卓乱・・・罹徐 ・一ｰ)
-        if (keys.actionDown && this.canGroundPound && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isClimbingLadder && !this.isTumbling && !this.isCrouching) {
+        if (keys.actionDown && this.canGroundPound && !this.isGrounded && !this.isGroundPounding && !this.isGroundPoundLand && !this.isDrifting && !this.isDrifting1 && !this.isClimbing && !this.isClimbingLadder && !this.isTumbling && !this.isCrouching && this.state !== 'bump') {
             this.isGroundPounding = true;
             this.canGroundPound = false; // ・誤ｹ・
             this.vy = -10; // Upward hop
             this.vx = 0;   // ・雅昆・ｴ ・碕ｸｰ ・・・倆初 ・ｴ・・・溢ｶ､
             this.sprite_index = 'spr_player_groundpoundstart';
             this.image_index = 0;
-            if (audio) audio.play('groundpound');
+            if (audio) {
+                this.freefallLoopStarted = false;
+                audio.stopFile('sfx_freefall');
+                audio.playFile('sfx_freefallstart', true);
+                if (audio.files && audio.files.sfx_freefallstart) {
+                    audio.files.sfx_freefallstart.onended = () => {
+                        if (this.isGroundPounding) {
+                            this.freefallLoopStarted = true;
+                            audio.playFile('sfx_freefall');
+                        }
+                    };
+                }
+            }
         }
 
         if (this.wallClimbGraceTimer > 0) {
@@ -1220,7 +1328,7 @@ class Player {
         this.y += this.vy;
 
         // ・ｩ嵂･ ・・魂・ｴ孖ｸ (・罹ｦｬ嵓・敢・・・ｽ夋・ｰ, ・ｬ・ｴ・ｰ ・卓擽 ・・巨 ・誤ｧ・墲､ ・・�･・・・ｰ・ｼ ・ｩ嵂･ ・ｰ・・
-        if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isTumbling && Math.abs(this.vx) < 12) {
+        if (!this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isClimbing && !this.isWallJumping && !this.isTumbling && this.state !== 'bump' && Math.abs(this.vx) < 12) {
             // ・ｵ・卓乱・・・ｬ・ｬ・・・卓攵 ・誤株 ・ｩ嵂･ ・・劍 ・一ｰ
             if (this.isGrounded || !this.isRunning) {
                 if (keys.actionLeft) this.facingDir = -1;
@@ -1374,7 +1482,12 @@ class Player {
                                 this.image_index = 0;
                                 this.groundPoundLandTimer = 8;
                                 this.requestScreenShake = 15; // Set screen shake intensity
-                                if (audio) audio.playFile('sfx_groundpound', true);
+                                this.freefallLoopStarted = false;
+                                if (audio) {
+                                    audio.stopFile('sfx_freefallstart');
+                                    audio.stopFile('sfx_freefall');
+                                    audio.playFile('sfx_groundpound', true);
+                                }
                             }
                         } else {
                             this.isGroundPounding = false; // Reset GP just in case
@@ -1422,25 +1535,85 @@ class Player {
                         entity.destroy(window.gameInstance);
                         if (audio) audio.play('break');
                     } else {
-                        // ・ｬ・ｬ・ｰ ・・・尖株 ・｡・ｰ ・・・ｽ・・・ｿ・們揆 ・・・尖徐・ｼ・・・ｽ夋・ｰ 孖ｸ・ｬ・ｰ
-                        if (!this.isClimbing && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && (this.isRunning || this.isSuplexGrabbing)) {
-                            this.isClimbing = true;
-                            if (this.isSuplexGrabbing) {
-                                this.wallClimbGraceTimer = 10; // ・｡・ｰ・川・ ・們牟・ｨ ・ｽ・ｰ 10嵓・�溢桷 ・�・・
+                        // User request: "달리는 중 공중말고 벽에 붙이칠떄 상태를 bump 로 해줘 sprite index는 spr_player_bump 로 해주고"
+                        // "야 bump 일떄 y를 8 로 정하고 뒤로가는걸 7 로 정해줘"
+                        const isRunningIntoWall = (this.isRunning || this.isTumbling || this.isSuplexGrabbing || (this.sprite_index && this.sprite_index.includes('mach')));
+                        if (this.state !== 'bump' && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && isRunningIntoWall) {
+                            let isGroundedOrOnFloor = this.isGrounded || this.wasGrounded;
+                            if (!isGroundedOrOnFloor) {
+                                for (let j = 0; j < entities.length; j++) {
+                                    const ent = entities[j];
+                                    if (!ent || ent.isDestroyed || ent.isSolid === false) continue;
+                                    if (ent.type === 'door' || ent.type === 'levelgate' || ent.type === 'cutoff' || ent.type === 'tile') continue;
+                                    if (this.x + this.width > ent.x && this.x < ent.x + ent.width) {
+                                        if (this.y + this.height >= ent.y - 4 && this.y + this.height <= ent.y + 16) {
+                                            isGroundedOrOnFloor = true;
+                                            break;
+                                        }
+                                    }
+                                }
                             }
-                            this.isSuplexGrabbing = false; // ・｡・ｰ ・卓擽・壱共・ｴ ・ｽ夋・ｰ・・・・劍
-                            // resolution.amount < 0 ・ｴ・ｴ ・ｽ・ｴ ・､・ｸ・ｽ・・・溢搆 -> climbSide = 1
-                            this.climbSide = resolution.amount < 0 ? 1 : -1;
-                            // 嶸・椪 ・倆初 ・鷺巡・ｼ ・們ｧ・・ｱ・・・鷺巡・・・・劍
-                            this.vy = -Math.min(20, Math.max(12, Math.abs(this.vx)));
-                            if (this.vy > -12) this.vy = -12; // ・懍・ ・一ｸｰ ・ｱ・・・鷺巡 ・ｴ・･ (・�夋・・ｬ﨑ｭ)
+                            const isAirborne = !isGroundedOrOnFloor;
+                            if (isAirborne && !this.isTumbling) {
+                                // 공중에서 벽에 부딪힐 때 (구르기 중이 아닐 때): 기존대로 벽 타기 (Wall Climb)
+                                this.isClimbing = true;
+                                if (this.isSuplexGrabbing) {
+                                    this.wallClimbGraceTimer = 10;
+                                }
+                                this.isSuplexGrabbing = false;
+                                this.climbSide = resolution.amount < 0 ? 1 : -1;
+                                this.vy = -Math.min(20, Math.max(12, Math.abs(this.vx)));
+                                if (this.vy > -12) this.vy = -12;
+                            } else {
+                                // 지상에서 벽에 부딪힐 때 또는 공중 구르기(tumble) 중 벽에 부딪힐 때: bump! y=8 (vy=-8), 뒤로 4 (vx=bumpDir*4)
+                                this.state = 'bump';
+                                this.sprite_index = 'spr_player_bump';
+                                this.image_index = 0;
+                                this.image_speed = 0.5;
+                                this.isRunning = false;
+                                this.wasRunningLastFrame = false;
+                                this.isClimbing = false;
+                                this.isDrifting = false;
+                                this.isDrifting1 = false;
+                                this.isMachSliding = false;
+                                this.isSuplexGrabbing = false;
+                                this.isTumbling = false;
+                                this.isCrouching = false;
+                                if (this.height === 23) {
+                                    this.height = 45;
+                                    this.y -= 22;
+                                    this.mask_index = 'spr_player_mask';
+                                }
+                                this.machAfters = [];
+                                this.ghostAfters = [];
+
+                                const bumpDir = resolution.amount < 0 ? -1 : 1;
+                                this.bumpFacingDir = -bumpDir; // 벽 쪽을 바라봄
+                                this.facingDir = this.bumpFacingDir;
+                                this.vx = bumpDir * 4;     // 뒤로가는걸 4로
+                                this.vy = -8;              // y를 8로 (위로 8 튕김)
+                                this.isGrounded = false;
+                                this.standingOnEntity = null;
+                                this.y -= 2;               // 바닥 충돌 루프에 즉시 잡히지 않도록 2px 띄움
+
+                                if (audio) {
+                                    audio.stopFile('mach2');
+                                    audio.stopFile('mach3');
+                                    audio.stopFile('mach4');
+                                    audio.stopFile('machroll');
+                                    audio.stopFile('dive');
+                                    audio.stopFile('sfx_freefall');
+                                    audio.stopFile('sfx_freefallstart');
+                                    audio.playFile('sfx_wallsplat', true);
+                                }
+                            }
                         }
 
                         this.isWalled = true;
                         this.isWallJumping = false;
-                        this.isClimbingLadder = false; // ・ｽ・戦売 弡・・ｽ・・・ｿ・ｼ・ｴ ・一ｸｰ嶹・
+                        this.isClimbingLadder = false;
                         this.wallSide = resolution.amount < 0 ? 1 : -1;
-                        if (!this.isClimbing) this.vx = 0;
+                        if (!this.isClimbing && this.state !== 'bump') this.vx = 0;
                         this.x += resolution.amount;
                     }
                 }
@@ -1489,13 +1662,9 @@ class Player {
                         this.vx = (entity.type === 'left-up') ? -speed : speed;
                         this.facingDir = (entity.type === 'left-up') ? -1 : 1;
                         this.isGroundPounding = false;
-                        
-                        // ・菩�罹｡・・ｬ・ｴ・ｰ(Tumble) ・・・ ・護桿 ・・ ・廷擽(Hitbox) ・餓亨 ・ｰ・・
-                        if (!this.isTumbling && !this.isCrouching) {
-                            this.height = 23;
-                            this.y += 22;
-                        }
                         this.isTumbling = true;
+                        this.height = 23;
+                        this.mask_index = 'spr_player_maskc';
                     }
                     this.y = slopeY - this.height;
                     this.vy = 0;
@@ -1579,13 +1748,13 @@ class Player {
             this.jumpBufferTimer--;
         }
 
-        if (keys.actionJump && this.canJump && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && !this.isClimbingLadder) {
+        if (keys.actionJump && this.canJump && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && !this.isClimbingLadder && this.state !== 'bump') {
             this.jumpBufferTimer = 18; // 18 frames (0.3s) of jump buffer
             this.canJump = false; // Consume the jump press immediately
         }
 
         if (this.jumpBufferTimer > 0) {
-            if (this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3') {
+            if (this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3' || this.state === 'bump') {
                 this.jumpBufferTimer = 0; // 드리프트 중 점프 금지
             } else if (this.isGrounded && !this.isGroundPoundLand) {
                 if (this.isCrouching) {
@@ -1598,9 +1767,10 @@ class Player {
                 this.standingOnEntity = null;
                 const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || ((this.sprite_index === 'spr_player_rollgetup' || this.isRollGettingUp) && Math.abs(this.vx) >= this.machThreshold);
 
+                const wasCrouching = this.isCrouching;
                 this.isRollGettingUp = false;
                 this.jumpBufferTimer = 0;
-                this.sprite_index = isMach3Jump ? 'spr_player_mach3jump' : 'spr_player_jump';
+                this.sprite_index = wasCrouching ? 'spr_player_crouch' : (isMach3Jump ? 'spr_player_mach3jump' : 'spr_player_jump');
                 this.image_index = 0;
                 if (audio) audio.play('jump');
                 
@@ -1631,9 +1801,10 @@ class Player {
             } else if (this.isTumbling) {
                 // Divebomb: Cancel air tumble into a normal ground pound
                 this.isTumbling = false;
-            this.sprite_index = 'spr_player_idle';
-            this.image_speed = (this.vy !== 0) ? 0.3 : 0;
+                this.sprite_index = 'spr_player_idle';
+                this.image_speed = (this.vy !== 0) ? 0.3 : 0;
                 this.isGroundPounding = true;
+                this.mask_index = 'spr_player_mask';
                 this.height = 45;
                 this.y -= 22; // Restore size
                 
@@ -1642,12 +1813,24 @@ class Player {
                 this.jumpBufferTimer = 0;
                 this.sprite_index = 'spr_player_groundpoundstart';
                 this.image_index = 0;
-                if (audio) audio.play('groundpound');
+                if (audio) {
+                    this.freefallLoopStarted = false;
+                    audio.stopFile('sfx_freefall');
+                    audio.playFile('sfx_freefallstart', true);
+                    if (audio.files && audio.files.sfx_freefallstart) {
+                        audio.files.sfx_freefallstart.onended = () => {
+                            if (this.isGroundPounding) {
+                                this.freefallLoopStarted = true;
+                                audio.playFile('sfx_freefall');
+                            }
+                        };
+                    }
+                }
             }
         }
 
         // Variable Jump Height
-        if (!this.isGrounded && this.vy < 0 && !keys.actionJump && !this.isGroundPounding && !this.isClimbing) {
+        if (!this.isGrounded && this.vy < 0 && !keys.actionJump && !this.isGroundPounding && !this.isClimbing && this.state !== 'bump') {
             this.vy = 0;
         }
 
@@ -1657,7 +1840,10 @@ class Player {
         }
 
         // Determine sprite index
-        if (this.isClimbing) {
+        if (this.state === 'bump') {
+            this.sprite_index = 'spr_player_bump';
+            this.image_speed = 0.5;
+        } else if (this.isClimbing) {
             this.sprite_index = 'spr_player_climbwall';
         } else if (this.isSuplexGrabbing) {
             if (!this.isGrounded) {
@@ -1677,8 +1863,13 @@ class Player {
         } else if (this.isGroundPoundLand) {
             this.sprite_index = 'spr_player_groundpoundland';
         } else if (this.isRollGettingUp && this.isGrounded && !this.isDrifting && !this.isDrifting1) {
-            this.sprite_index = 'spr_player_rollgetup';
-            if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
+            const isMach = (this.isRunning || Math.abs(this.vx) >= 12) && Math.abs(this.vx) >= 5;
+            if (isMach) {
+                this.sprite_index = 'spr_player_rollgetup';
+                if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
+                    this.isRollGettingUp = false;
+                }
+            } else {
                 this.isRollGettingUp = false;
             }
         } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing && !this.isRunning) {
@@ -1694,10 +1885,15 @@ class Player {
                 });
                 if (audio) audio.playFile('sfx_step', true); // ・ｩ・﨑� ・誤巡 ・懍・・ｬ ・ｬ・・
             }
-        }
-        
-        if (this.isTumbling) {
+        } else if (this.isTumbling) {
             this.sprite_index = 'spr_player_roll';
+        } else if (this.isCrouching) {
+            const isCrawling = this.isGrounded && Math.abs(this.vx) > 0.1;
+            const targetSprite = isCrawling ? 'spr_player_crawl' : 'spr_player_crouch';
+            if (this.sprite_index !== targetSprite) {
+                this.sprite_index = targetSprite;
+                this.image_index = 0;
+            }
         } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_machslideboost3') {
             this.sprite_index = 'spr_player_fall';
         } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand && !this.isSuplexGrabbing) {
@@ -1747,21 +1943,20 @@ class Player {
         } else if (this.sprite_index === 'spr_player_land') {
             this.image_speed = 0.45; // ・�・ ・肥ｲｭ: ・ｩ・ ・�・壱ｩ肥擽・・・鷺巡 ・ｬ・ｰ・・
         } else if (this.sprite_index === 'spr_player_roll') {
-            this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06); // ・ｬ・ｴ・ｰ ・�・壱ｩ肥擽・・・鷺巡 (・鷺巡・・・・｡)
-                } else if (this.sprite_index === 'spr_player_rollgetup') {
+            this.image_speed = Math.max(0.4, Math.abs(this.vx) * 0.06);
+        } else if (this.sprite_index === 'spr_player_rollgetup') {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_climbwall') {
             this.image_speed = (this.vy !== 0) ? 0.65 : 0;
-                } else if (this.sprite_index === 'spr_player_groundpoundland') {
+        } else if (this.sprite_index === 'spr_player_groundpoundland') {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_suplexgrab' || this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop') {
             this.image_speed = 0.45;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
-            this.image_speed = 0.55; // 30ms per frame (at 60fps)
+            this.image_speed = 0.55;
         } else if (this.sprite_index === 'spr_player_groundpound') {
-            this.image_speed = 0.55; // 30ms per frame (at 60fps)
+            this.image_speed = 0.55;
         } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3') {
-            // ・�・ ・肥ｲｭ: ・鷺巡・・・ｰ・ｼ ・�・壱ｩ肥擽・・・鷺巡・ ・､・ｴ・・(・�・ｼ・俯｡・・�・壱ｩ肥擽・俯巡 ・�・ｴ・・
             if (this.sprite_index === 'spr_player_mach2') {
                 this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04);
             } else {
@@ -1770,17 +1965,15 @@ class Player {
             
             if (this.isGrounded) {
                 this.runEffectTimer += Math.abs(this.vx);
-                if (this.runEffectTimer >= 150) { // ・晧┳ ・ｼ・ｰ ・尞ｭ ・川・
+                if (this.runEffectTimer >= 150) {
                     this.runEffectTimer = 0;
                     
                     const absSpeed = Math.abs(this.vx);
-                    let effectType = 'spr_dashcloud'; // mach1, mach2
-                    let offset = 0; // mach1, 2・・・菩､卓蕗
+                    let effectType = 'spr_dashcloud';
+                    let offset = 0;
                     if (absSpeed >= 12) {
                         effectType = 'spr_superdashcloud';
                         offset = 40;
-                        
-
                     }
                     
                     this.activeEffects.push({
@@ -1796,16 +1989,20 @@ class Player {
             }
         } else if (this.sprite_index === 'spr_player_machslideboost3') {
             this.image_speed = 0.5;
+        } else if (this.sprite_index === 'spr_player_crouch' || this.sprite_index === 'spr_player_crawl') {
+            this.image_speed = (Math.abs(this.vx) > 0) ? 0.35 : 0.2;
+        } else if (this.sprite_index === 'spr_player_bump' || this.state === 'bump') {
+            this.image_speed = 0.5;
         }
 
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
-        if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
-            this.machEffectIndex += 0.5;
-        }
+            if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+                this.machEffectIndex += 0.5;
+            }
         }
 
-        // ・�・ ・肥ｲｭ: ・戦売 ・�・壱ｩ肥擽・・・ｬ・晧擽 ・・｣誤据・ｴ ・ｨ・ｴ・・・・�・壱ｩ肥擽・們愍・・・尖徐 ・・劍
+        // Animation transition checks
         if (this.sprite_index === 'spr_player_jump' && this.image_index >= this.sprites.spr_player_jump.length) {
             this.sprite_index = 'spr_player_fall';
             this.image_index = 0;
@@ -1818,17 +2015,29 @@ class Player {
             this.sprite_index = 'spr_player_suplexgrabfallloop';
             this.image_index = 0;
         }
-
-        // ・ｩ・ ・�・壱ｩ肥擽・・・ｬ・晧擽 ・・｣誤据・ｴ idle ・�・壱ｩ肥擽・們愍・・・尖徐 ・・劍
         if (this.sprite_index === 'spr_player_land' && this.image_index >= this.sprites.spr_player_land.length) {
             this.sprite_index = 'spr_player_idle';
             this.image_index = 0;
         }
-
-        // ・雅昆・ｴ ・碕ｸｰ ・懍梠 ・�・壱ｩ肥擽・們擽 ・・｣誤据・ｴ ・ｴ・､・碕ｸｰ ・�・壱ｩ肥擽・們愍・・・・劍
         if (this.sprite_index === 'spr_player_groundpoundstart' && this.image_index >= this.sprites.spr_player_groundpoundstart.length) {
             this.sprite_index = 'spr_player_groundpound';
             this.image_index = 0;
+        }
+        if (this.sprite_index === 'spr_player_bump' || this.state === 'bump') {
+            this.sprite_index = 'spr_player_bump';
+            if (this.sprites.spr_player_bump && this.sprites.spr_player_bump.length > 0) {
+                if (this.image_index >= this.sprites.spr_player_bump.length - 1) {
+                    this.state = 'normal';
+                    this.bumpFacingDir = undefined;
+                    this.image_index = 0;
+                    if (this.isGrounded) {
+                        this.sprite_index = 'spr_player_idle';
+                        this.vx = 0;
+                    } else {
+                        this.sprite_index = 'spr_player_fall';
+                    }
+                }
+            }
         }
 
         // Manage Looping Running Sounds
@@ -1837,10 +2046,16 @@ class Player {
             if (this.isClimbing) {
                 audio.playFile('mach2');
                 audio.stopFile('mach3');
+                audio.stopFile('mach4');
             } else if (this.isRunning && !this.isMachSliding && !this.isDrifting && !this.isDrifting1 && !this.isWalled && !this.isSuplexGrabbing && !this.isTumbling) {
-                if (absSpeed >= 12) {
+                if (absSpeed >= 16) {
+                    audio.playFile('mach4');
+                    audio.stopFile('mach3');
+                    audio.stopFile('mach2');
+                } else if (absSpeed >= 12) {
                     audio.playFile('mach3');
                     audio.stopFile('mach2');
+                    audio.stopFile('mach4');
                 } else if (absSpeed >= 8) {
                     if (this.isGrounded) {
                         audio.playFile('mach2');
@@ -1848,18 +2063,41 @@ class Player {
                         audio.stopFile('mach2');
                     }
                     audio.stopFile('mach3');
+                    audio.stopFile('mach4');
                 } else {
                     audio.stopFile('mach2');
                     audio.stopFile('mach3');
+                    audio.stopFile('mach4');
                 }
             } else {
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
+                audio.stopFile('mach4');
             }
             
-            // ・｡・ｰ・ ・・｣誤据・ｴ ・誤ｦｬ・・・喜牟・・
             if (!this.isSuplexGrabbing) {
                 audio.stopFile('sfx_suplexdash');
+            }
+
+            // Mach Roll loop sound
+            if (this.isTumbling && this.isGrounded) {
+                audio.playFile('machroll');
+            } else {
+                audio.stopFile('machroll');
+            }
+
+            // Freefall (groundpound) loop sound
+            if (this.isGroundPounding) {
+                const startAudio = audio.files ? audio.files.sfx_freefallstart : null;
+                const isStartEnded = !startAudio || startAudio.ended || (startAudio.paused && startAudio.currentTime > 0);
+                if (this.freefallLoopStarted || isStartEnded) {
+                    this.freefallLoopStarted = true;
+                    audio.playFile('sfx_freefall');
+                }
+            } else {
+                this.freefallLoopStarted = false;
+                audio.stopFile('sfx_freefall');
+                audio.stopFile('sfx_freefallstart');
             }
         }
 
@@ -1980,6 +2218,16 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
+            } else if (m.sprite_index === 'spr_player_bump') {
+                const frames = this.sprites.spr_player_bump;
+                if (frames && frames.length > 0) {
+                    let frameIndex = Math.floor(m.image_index);
+                    if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                    const frame = frames[frameIndex];
+                    if (frame && frame.complete && frame.naturalWidth > 0) {
+                        imgToDraw = frame;
+                    }
+                }
             } else if (m.sprite_index === 'spr_player_climbwall') {
                 const frames = this.sprites.spr_player_climbwall;
                 if (frames.length > 0) {
@@ -1989,7 +2237,8 @@ class Player {
                     }
                 }
             } else if (this.mask_image && this.mask_image.complete && this.mask_image.naturalWidth > 0) {
-                imgToDraw = this.mask_image;
+                const mask = ((m.isCrouching || m.isTumbling) && this.mask_image_crouch && this.mask_image_crouch.complete && this.mask_image_crouch.naturalWidth > 0) ? this.mask_image_crouch : this.mask_image;
+                imgToDraw = mask;
             }
 
             if (imgToDraw) {
@@ -2405,18 +2654,55 @@ class Player {
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
+        } else if (this.sprite_index === 'spr_player_crouch' || this.sprite_index === 'spr_player_crawl') {
+            const frames = this.sprites[this.sprite_index];
+            if (frames && frames.length > 0) {
+                const frameIndex = Math.floor(this.image_index) % frames.length;
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    if (this.facingDir === -1) {
+                        ctx.scale(-1, 1);
+                    }
+                    const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                }
+            }
+        } else if (this.sprite_index === 'spr_player_bump') {
+            const frames = this.sprites.spr_player_bump;
+            if (frames && frames.length > 0) {
+                let frameIndex = Math.floor(this.image_index);
+                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    if (this.facingDir === -1) {
+                        ctx.scale(-1, 1);
+                    }
+                    const offsetY = -57.5;
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                }
+            }
         } else {
             let pColor = this.color;
             if (this.isGroundPounding) pColor = this.color; // Match cyan aesthetic for GP
             if (this.isDrifting || this.isDrifting1) pColor = '#ffff00'; // Yellow for drifting
             if (this.isMachSliding) pColor = this.machSlideColor;
 
-            if (this.mask_image && this.mask_image.complete && this.mask_image.naturalWidth > 0) {
+            const currentMask = ((this.isCrouching || this.isTumbling) && this.mask_image_crouch && this.mask_image_crouch.complete && this.mask_image_crouch.naturalWidth > 0)
+                ? this.mask_image_crouch
+                : this.mask_image;
+            if (currentMask && currentMask.complete && currentMask.naturalWidth > 0) {
                 const drawX = this.x;
                 const drawY = this.y;
                 ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 if (this.facingDir === -1) ctx.scale(-1, 1);
-                ctx.drawImage(this.mask_image, -51, -57.5, 100, 100);
+                const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
+                ctx.drawImage(currentMask, -51, offsetY, 100, 100);
             } else {
                 ctx.fillStyle = pColor;
                 ctx.fillRect(Math.round(this.x), Math.round(this.y), this.width, this.height);
@@ -2448,7 +2734,8 @@ class Player {
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         let debugState = this.state; // 'normal', 'crouch', 'tumble', 'enterdoor'
-        if (this.state === 'enterdoor') debugState = 'enterdoor';
+        if (this.state === 'bump') debugState = 'bump';
+        else if (this.state === 'enterdoor') debugState = 'enterdoor';
         else if (this.state === 'enterlevelgate') debugState = 'enterlevelgate';
         else if (this.state === 'walkfront') debugState = 'walkfront';
         else if (this.isGroundPounding) debugState = 'groundpound';
