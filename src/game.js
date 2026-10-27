@@ -77,11 +77,19 @@ class Game {
         this._escape = !!val;
         if (this._escape && !prev) {
             // Escape mode activated! Play Breaking News escape theme immediately!
+            if (typeof this.escapeTimer !== 'number' || this.escapeTimer <= 0) {
+                this.escapeTimer = 120; // Default 2:00 escape timer
+            }
+            this.escapeTimeTotal = this.escapeTimer;
             if (this.audio) {
                 this.audio.playMusic('mu_escape.wav');
+                if (typeof this.audio.enableEscapeLoop === 'function') {
+                    this.audio.enableEscapeLoop();
+                }
             }
         } else if (!this._escape && prev) {
             // Escape mode deactivated! Revert to room music
+            this.escapeTimer = 0;
             if (this.audio) {
                 this.audio.playMusic(this.roomMusic || null);
             }
@@ -195,18 +203,23 @@ class Game {
         }
 
         this.bigFontImages = [];
+        this.bigFontRedImages = [];
         this.bigFontLoaded = false;
         let loadedCount = 0;
         for(let i = 0; i < 67; i++) {
             let img = new Image();
             img.src = `font/spr_bigfont/spr_bigfont_${i}.png`;
+            let redImg = new Image();
+            redImg.src = `font/spr_bigfont_red/spr_bigfont_${i}.png`;
             const checkLoad = () => {
                 loadedCount++;
-                if (loadedCount === 67) this.bigFontLoaded = true;
+                if (loadedCount >= 67) this.bigFontLoaded = true;
             };
             img.onload = checkLoad;
             img.onerror = checkLoad;
+            redImg.onerror = () => {};
             this.bigFontImages.push(img);
+            this.bigFontRedImages.push(redImg);
         }
         
         this.controlIcons = {};
@@ -873,6 +886,70 @@ class Game {
         };
         this.pixelTextCache.set(cacheKey, result);
         return result;
+    }
+
+    drawBigFontText(ctx, text, x, y, scale = 1, center = true, useRed = false) {
+        if (!this.bigFontImages) return;
+        text = text.toString().toUpperCase();
+
+        // Exact mapping from character to spr_bigfont_*.png index
+        // Note: spr_bigfont_36.png does not exist in the spritesheet, so numbers 6-0 and : are shifted by 1!
+        const BIGFONT_MAP = {
+            'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7,
+            'I': 8, 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15,
+            'Q': 16, 'R': 17, 'S': 18, 'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23,
+            'Y': 24, 'Z': 25,
+            '!': 26, '¡': 27, '¿': 28, '?': 29, '.': 30,
+            '1': 31, '2': 32, '3': 33, '4': 34, '5': 35,
+            '6': 37, '7': 38, '8': 39, '9': 40, '0': 41,
+            ':': 42, '+': 66
+        };
+
+        const imagePool = (useRed && this.bigFontRedImages && this.bigFontRedImages.length > 0) ? this.bigFontRedImages : this.bigFontImages;
+
+        // Calculate total width with kerning
+        let totalWidth = 0;
+        const charKerning = 8;
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            if (char === ' ') {
+                totalWidth += Math.round(12 * scale);
+            } else {
+                const idx = BIGFONT_MAP[char];
+                if (idx !== undefined && imagePool[idx] && imagePool[idx].complete && imagePool[idx].naturalWidth > 0) {
+                    const img = imagePool[idx];
+                    totalWidth += Math.round((img.naturalWidth - charKerning) * scale);
+                } else {
+                    totalWidth += Math.round((32 - charKerning) * scale);
+                }
+            }
+        }
+        totalWidth += Math.round(charKerning * scale);
+
+        let cursorX = center ? Math.round(x - totalWidth / 2) : Math.round(x);
+        const drawY = Math.round(y);
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            if (char === ' ') {
+                cursorX += Math.round(12 * scale);
+                continue;
+            }
+            const idx = BIGFONT_MAP[char];
+            if (idx !== undefined && imagePool[idx] && imagePool[idx].complete && imagePool[idx].naturalWidth > 0) {
+                const img = imagePool[idx];
+                const drawW = Math.round(img.naturalWidth * scale);
+                const drawH = Math.round(img.naturalHeight * scale);
+                ctx.drawImage(img, cursorX, drawY, drawW, drawH);
+                cursorX += Math.round((img.naturalWidth - charKerning) * scale);
+            } else {
+                cursorX += Math.round((32 - charKerning) * scale);
+            }
+        }
+        ctx.restore();
     }
 
     layoutTutorialText(processedText, maxTextWidth) {
@@ -3413,7 +3490,30 @@ class Game {
                 entity = new Cutoff(x, y, w, h, side, (w >= 64 ? '64x64' : '32x32'));
                 break;
             }
-            case 'pillar': entity = new Pillar(x, y, w, h); break;
+            case 'pillar': {
+                let promptVal = prompt("기둥(Pillar) 탈출 제한 시간을 입력하세요 (초 단위, 예: 120, 90, 또는 1:30) (취소 시 설치 취소):", "120");
+                if (promptVal === null) {
+                    break; // Canceled by user
+                }
+                let escapeSeconds = 120;
+                if (promptVal.trim() !== '') {
+                    const trimmed = promptVal.trim();
+                    if (trimmed.includes(':')) {
+                        const parts = trimmed.split(':');
+                        const m = parseInt(parts[0], 10) || 0;
+                        const s = parseInt(parts[1], 10) || 0;
+                        escapeSeconds = m * 60 + s;
+                    } else {
+                        escapeSeconds = parseInt(trimmed, 10);
+                    }
+                }
+                if (isNaN(escapeSeconds) || escapeSeconds <= 0) {
+                    escapeSeconds = 120;
+                }
+                entity = new Pillar(x, y, w, h, !!this.tileFlipX, !!this.tileFlipY, escapeSeconds);
+                this.showFlipToast(`PILLAR ESCAPE TIME: ${Math.floor(escapeSeconds/60)}:${(escapeSeconds%60).toString().padStart(2, '0')} (${escapeSeconds}s)`);
+                break;
+            }
             case 'tile':
             case 'tile1':
             case 'tile2':
@@ -3640,7 +3740,7 @@ class Game {
             }
             else if (ent instanceof Platform) base = `new Platform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Slope) base = `new Slope(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.type}')`;
-            else if (ent instanceof Pillar) base = `new Pillar(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Pillar) base = `new Pillar(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.flipX || false}, ${ent.flipY || false}, ${ent.escapeTime || 120})`;
             else if ((typeof SecretMetalBlock !== 'undefined' && ent instanceof SecretMetalBlock) || ent.type === 'obj_secretmetalblock') base = `new SecretMetalBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof SecretBigBlock !== 'undefined' && ent instanceof SecretBigBlock) || ent.type === 'obj_secretbigblock') base = `new SecretBigBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof SecretBlock !== 'undefined' && ent instanceof SecretBlock) || ent.type === 'obj_secretblock') base = `new SecretBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -4343,6 +4443,19 @@ this.entities.push(
         }
         if (this.tileWave) {
             this.tileWaveTimer = (this.tileWaveTimer || 0) + 0.018 * (this.tileWaveSpeed || 1.0);
+        }
+
+        // Escape Timer Countdown & FMOD Audio Loop / 50s Jump Update (Paused when not actively playing)
+        if (this.gameState === 'PLAYING' && !this.isEditorMode) {
+            if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer > 0) {
+                this.escapeTimer -= 1 / 60;
+                if (this.escapeTimer <= 0) {
+                    this.escapeTimer = 0;
+                }
+            }
+            if (this.audio && typeof this.audio.update === 'function') {
+                this.audio.update(this);
+            }
         }
 
         if (navigator.getGamepads) {
@@ -6016,10 +6129,18 @@ this.entities.push(
                         const char = text[i];
                         if (char === ' ') totalWidth += 10 * scale;
                         else {
-                            const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
-                            const charCode = charset.indexOf(char);
-                            
-                            if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                            const BIGFONT_MAP = {
+                                'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7,
+                                'I': 8, 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15,
+                                'Q': 16, 'R': 17, 'S': 18, 'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23,
+                                'Y': 24, 'Z': 25,
+                                '!': 26, '¡': 27, '¿': 28, '?': 29, '.': 30,
+                                '1': 31, '2': 32, '3': 33, '4': 34, '5': 35,
+                                '6': 37, '7': 38, '8': 39, '9': 40, '0': 41,
+                                ':': 42, '+': 66
+                            };
+                            const charCode = BIGFONT_MAP[char];
+                            if (charCode !== undefined && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
                             }
                         }
@@ -6033,10 +6154,18 @@ this.entities.push(
                         cursorX += 10 * scale;
                         continue;
                     }
-                    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
-                    const charCode = charset.indexOf(char);
-
-                    if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
+                    const BIGFONT_MAP = {
+                        'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7,
+                        'I': 8, 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15,
+                        'Q': 16, 'R': 17, 'S': 18, 'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23,
+                        'Y': 24, 'Z': 25,
+                        '!': 26, '¡': 27, '¿': 28, '?': 29, '.': 30,
+                        '1': 31, '2': 32, '3': 33, '4': 34, '5': 35,
+                        '6': 37, '7': 38, '8': 39, '9': 40, '0': 41,
+                        ':': 42, '+': 66
+                    };
+                    const charCode = BIGFONT_MAP[char];
+                    if (charCode !== undefined && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete) {
                         const img = this.bigFontImages[charCode];
                         if (img.naturalWidth > 0) {
                             this.ctx.drawImage(img, cursorX, y, img.naturalWidth * scale, img.naturalHeight * scale);
@@ -6125,7 +6254,16 @@ this.entities.push(
                     this.ctx.globalAlpha = 1;
                     return;
                 }
-                const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!¡¿?.1234567890:+";
+                const BIGFONT_MAP = {
+                    'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7,
+                    'I': 8, 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15,
+                    'Q': 16, 'R': 17, 'S': 18, 'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23,
+                    'Y': 24, 'Z': 25,
+                    '!': 26, '¡': 27, '¿': 28, '?': 29, '.': 30,
+                    '1': 31, '2': 32, '3': 33, '4': 34, '5': 35,
+                    '6': 37, '7': 38, '8': 39, '9': 40, '0': 41,
+                    ':': 42, '+': 66
+                };
 
                 if (center) {
                     let totalWidth = 0;
@@ -6133,8 +6271,8 @@ this.entities.push(
                         const char = text[i];
                         if (char === ' ') totalWidth += 10 * scale;
                         else {
-                            const charCode = charset.indexOf(char);
-                            if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete && this.bigFontImages[charCode].naturalWidth > 0) {
+                            const charCode = BIGFONT_MAP[char];
+                            if (charCode !== undefined && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete && this.bigFontImages[charCode].naturalWidth > 0) {
                                 totalWidth += (this.bigFontImages[charCode].naturalWidth - 8) * scale;
                             } else {
                                 const fontSize = Math.round(28 * scale);
@@ -6153,9 +6291,9 @@ this.entities.push(
                         cursorX += 10 * scale;
                         continue;
                     }
-                    const charCode = charset.indexOf(char);
+                    const charCode = BIGFONT_MAP[char];
                     
-                    if (charCode >= 0 && charCode < 67 && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete && this.bigFontImages[charCode].naturalWidth > 0) {
+                    if (charCode !== undefined && this.bigFontImages[charCode] && this.bigFontImages[charCode].complete && this.bigFontImages[charCode].naturalWidth > 0) {
                         const img = this.bigFontImages[charCode];
                         this.ctx.drawImage(img, cursorX, y, img.naturalWidth * scale, img.naturalHeight * scale);
                         cursorX += (img.naturalWidth - 8) * scale;
@@ -6606,6 +6744,33 @@ this.entities.push(
             this.ctx.fillStyle = `hsl(${timerRatio * 120}, 100%, 50%)`;
             this.ctx.fillRect(-barWidth, 15, barWidth * timerRatio, barHeight);
             
+            this.ctx.restore();
+        }
+
+        // Draw Pizza Time Escape Clock
+        if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer > 0 && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
+            this.ctx.save();
+            const min = Math.floor(this.escapeTimer / 60);
+            const sec = Math.floor(this.escapeTimer % 60);
+            const timeStr = `${min}:${sec < 10 ? '0' : ''}${sec}`;
+
+            const cx = Math.round(this.canvas.width / 2);
+            const cy = Math.round(this.canvas.height - 40);
+
+            this.ctx.translate(cx, cy);
+
+            // Clock text rendered with Pizza Tower spr_bigfont (clean and steady, without SAGE demo jitter or red flash)
+            if (this.bigFontLoaded) {
+                // Pixel-perfect 1:1 scale with crisp black outlines
+                this.drawBigFontText(this.ctx, timeStr, 0, -20, 1, true, false);
+            } else {
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.font = 'bold 36px "Courier New", monospace, Arial';
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.fillText(timeStr, 0, 0);
+            }
+
             this.ctx.restore();
         }
 
@@ -7473,7 +7638,14 @@ this.entities.push(
                         if (game.audio) game.audio.playMusic('mu_escape.wav');
                         if (args[0]) {
                             const sec = parseInt(args[0], 10);
-                            if (!isNaN(sec)) game.escapeTimer = sec;
+                            if (!isNaN(sec)) {
+                                game.escapeTimer = sec;
+                                if (game.audio) {
+                                    game.audio.escapeJumpTriggered = false;
+                                    game.audio.escapeLoopEnabled = (sec > 50);
+                                    if (sec <= 50) game.audio.triggerEscape50Jump();
+                                }
+                            }
                         }
                     } else {
                         game.escapeTimer = 0;
@@ -7653,7 +7825,8 @@ this.entities.push(
                     } else if (type === 'metal' && typeof Metal !== 'undefined') {
                         ent = new Metal(spawnX, spawnY, 32, 32);
                     } else if (type === 'pillar' && typeof Pillar !== 'undefined') {
-                        ent = new Pillar(spawnX, spawnY, 32, 64);
+                        const sec = args[1] ? (parseInt(args[1], 10) || 120) : 120;
+                        ent = new Pillar(spawnX, spawnY, 128, 224, false, false, sec);
                     }
                     if (ent) {
                         game.entities.push(ent);

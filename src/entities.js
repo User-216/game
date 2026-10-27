@@ -860,10 +860,11 @@ window.obj_cutoff = Cutoff;
 window.obj_cutoffsmall = Cutoff;
 
 class Pillar extends Destroyable {
-    constructor(x, y, width = 128, height = 224, flipX = false, flipY = false) {
+    constructor(x, y, width = 128, height = 224, flipX = false, flipY = false, escapeTime = 120) {
         super(x, y, width, height, '#b88958', flipX, flipY);
         this.type = 'pillar';
         this.isPillar = true;
+        this.escapeTime = (typeof escapeTime === 'number' && escapeTime > 0) ? escapeTime : 120;
         this.debrisList = [];
         this.image_index = 0;
         this.image_speed = 0.3;
@@ -905,8 +906,18 @@ class Pillar extends Destroyable {
 
         const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
         if (g) {
-            // Activate Escape Sequence!
+            // Activate Escape Sequence with this Pillar's custom escapeTime!
+            const sec = (typeof this.escapeTime === 'number' && this.escapeTime > 0) ? this.escapeTime : 120;
+            g.escapeTimer = sec;
+            g.escapeTimeTotal = sec;
             g.escape = true;
+            if (g.audio) {
+                g.audio.escapeJumpTriggered = false;
+                g.audio.escapeLoopEnabled = (sec > 50);
+                if (sec <= 50 && typeof g.audio.triggerEscape50Jump === 'function') {
+                    g.audio.triggerEscape50Jump();
+                }
+            }
             
             // Screen Shake
             if (g.player) {
@@ -1002,6 +1013,35 @@ class Pillar extends Destroyable {
                 ctx.fillRect(this.x + this.width * 0.45, eyeY + 12, 8, 14);
             }
             ctx.restore();
+
+            // In Editor Mode: Display Escape Time badge above John Pillar!
+            const g = (typeof window !== 'undefined' ? window.gameInstance : null);
+            if (g && g.isEditorMode) {
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const cx = this.x + this.width / 2;
+                const cy = this.y - 14;
+                const sec = this.escapeTime || 120;
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                const timeStr = `⏱️ ${m}:${s < 10 ? '0' : ''}${s} (${sec}s)`;
+
+                ctx.font = 'bold 13px Arial';
+                const textWidth = ctx.measureText(timeStr).width;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                ctx.strokeStyle = sec <= 50 ? '#ff3b30' : '#ffcc00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(cx - textWidth / 2 - 8, cy - 11, textWidth + 16, 22, 6);
+                else ctx.rect(cx - textWidth / 2 - 8, cy - 11, textWidth + 16, 22);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = sec <= 50 ? '#ff4d4d' : '#ffcc00';
+                ctx.fillText(timeStr, cx, cy);
+                ctx.restore();
+            }
         }
 
         // Particles

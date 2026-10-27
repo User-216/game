@@ -128,33 +128,361 @@
             from { box-shadow: 0 0 5px #ffcc00; }
             to { box-shadow: 0 0 15px #ffcc00; }
         }
+
+        /* FMOD Interactive Simulator Styling */
+        .fmod-card {
+            background: linear-gradient(135deg, rgba(30, 20, 50, 0.95), rgba(15, 12, 28, 0.95));
+            border: 2px solid #ffcc00;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 0 30px rgba(255, 204, 0, 0.25);
+        }
+        .fmod-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .fmod-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #ffcc00;
+        }
+        .hud-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 16px;
+            border: 1px solid #444;
+        }
+        .hud-item {
+            text-align: center;
+        }
+        .hud-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .hud-val {
+            font-family: 'Courier New', monospace;
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #00ffcc;
+        }
+        .hud-val.panic {
+            color: #ff3344;
+            animation: panicPulse 0.4s infinite alternate;
+        }
+        @keyframes panicPulse {
+            from { transform: scale(1); text-shadow: 0 0 5px #ff0000; }
+            to { transform: scale(1.08); text-shadow: 0 0 20px #ff0000; }
+        }
+        .fmod-status-box {
+            padding: 10px 14px;
+            border-radius: 6px;
+            background: rgba(88, 86, 214, 0.2);
+            border-left: 4px solid #5856d6;
+            margin-bottom: 16px;
+            font-size: 0.92rem;
+            color: #fff;
+        }
+        .fmod-status-box.looping {
+            background: rgba(0, 200, 255, 0.15);
+            border-left-color: #00ccff;
+            color: #7df9ff;
+        }
+        .fmod-status-box.panic {
+            background: rgba(255, 50, 50, 0.2);
+            border-left-color: #ff3344;
+            color: #ff8888;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .fmod-btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .fmod-btn.primary {
+            background: #ffcc00;
+            color: #000;
+        }
+        .fmod-btn.primary:hover {
+            background: #ffd633;
+            transform: translateY(-2px);
+        }
+        .fmod-btn.loop-btn {
+            background: #0088cc;
+            color: #fff;
+        }
+        .fmod-btn.loop-btn:hover {
+            background: #00aaff;
+            transform: translateY(-2px);
+        }
+        .fmod-btn.loop-seam-btn {
+            background: #00bfa5;
+            color: #000;
+        }
+        .fmod-btn.loop-seam-btn:hover {
+            background: #1de9b6;
+            transform: translateY(-2px);
+        }
+        .fmod-btn.panic-btn {
+            background: #ff3344;
+            color: #fff;
+            animation: pulse 1s infinite alternate;
+        }
+        .fmod-btn.panic-btn:hover {
+            background: #ff5566;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚨 Wario Land 4 탈출 음악 (2:08 극단 감속 & 무음 엔딩)</h1>
-        <p class="subtitle">1:58초 초극단 폭주 ➔ <b>2:08초부터 훨씬 더 느려지는 극적 감속(40 BPM & -12반음)</b> ➔ <b>마지막 3.5초간 완전 무음!</b></p>
+        <h1>🚨 Wario Land 4 탈출 음악 (FMOD 루프 & 50초 점프)</h1>
+        <p class="subtitle">1:10~1:40 무한 루프 ➔ <b>탈출 시간 50초 이하 시 1:37 자동 점프</b> ➔ 폭주 & 감속 & 무음 엔딩</p>
 
-        <!-- 정식 인게임 적용 트랙 -->
-        <div class="track-card">
+        <!-- FMOD 인터랙티브 시뮬레이터 -->
+        <div class="fmod-card">
+            <div class="fmod-header">
+                <span class="fmod-title">🎮 FMOD 탈출 음악 시스템 실시간 시뮬레이터</span>
+                <span class="track-tag" id="mode-tag">FMOD Dynamic Region</span>
+            </div>
+
+            <div class="hud-display">
+                <div class="hud-item">
+                    <div class="hud-label">탈출 남은 시간 (Escape Timer)</div>
+                    <div class="hud-val" id="hud-escape-timer">02:00.0</div>
+                </div>
+                <div class="hud-item">
+                    <div class="hud-label">음악 재생 시간 (Current Audio)</div>
+                    <div class="hud-val" id="hud-music-time" style="color: #ffcc00;">00:00.0</div>
+                </div>
+                <div class="hud-item">
+                    <div class="hud-label">현재 상태 (State)</div>
+                    <div class="hud-val" id="hud-state" style="font-size: 1.1rem; color: #fff;">대기 중</div>
+                </div>
+            </div>
+
+            <div class="fmod-status-box" id="status-box">
+                ℹ️ 아래 버튼을 눌러 처음부터 재생하거나, 루프 구간(1:10~1:40) 및 50초 이하 긴급 점프(1:37)를 직접 테스트해 보세요!
+            </div>
+
+            <audio id="fmod-audio" src="music/mu_escape.wav" preload="auto"></audio>
+
+            <div class="btn-group">
+                <button class="fmod-btn primary" id="btn-start">▶️ 탈출 시작 (120초 & 0:00)</button>
+                <button class="fmod-btn loop-btn" id="btn-loop">🔁 루프 시작 (1:10)</button>
+                <button class="fmod-btn loop-seam-btn" id="btn-seam">🔄 루프 끝나기 5초 전 (1:35)</button>
+                <button class="fmod-btn panic-btn" id="btn-panic">🚨 50초 이하 발동! (1:37 점프)</button>
+            </div>
+        </div>
+
+        <!-- 루프 이음매 12초 전용 미리듣기 카드 -->
+        <div class="track-card" style="border-color: #00bfa5; box-shadow: 0 0 20px rgba(0, 191, 165, 0.3);">
             <div class="track-header">
-                <span class="track-title">🔥 인게임 정식 탈출곡 (mu_escape.wav)</span>
-                <span class="track-tag">Deep Slowdown + 3.5s Dead Silence</span>
+                <span class="track-title" style="color: #00e676;">🎧 루프 순환 이음매 확인용 (1:35 ➔ 1:40 ➔ 1:10)</span>
+                <span class="track-tag" style="background: #00bfa5; color: #000;">12s Loop Seam Clip</span>
             </div>
             <div class="track-desc">
-                요청하신 대로 1:58초(164 BPM) 폭주 후, <b>2분 08초부터 훨씬 더 느리게(40 BPM, -12반음/1옥타브 하강)</b> 늘어지며 음악이 페이드아웃되고, <b>마지막 3.5초 동안 어떠한 소리도 나지 않는 완전한 무음(Silence)</b> 상태로 긴장감 있게 마무리됩니다!
+                루프 끝나기 5초 전(1:35)부터 시작하여 1:40에서 1:10으로 이어지는 <b>순환 이음새 순간</b>을 바로 확인하실 수 있는 12초 전용 추출 음원입니다.
             </div>
-            <audio controls src="music/mu_escape.wav" preload="auto" autoplay></audio>
+            <audio controls src="music/preview_loop_seam.wav" preload="auto"></audio>
         </div>
 
         <div class="timeline-box">
-            <div class="timeline-item"><span class="time-badge normal">0.0s ~ 30.0s</span> <b>80.0 BPM 정규 속도:</b> 스크래치 메인 멜로디(hurry_lead + 비브라토) + 파워코드 기타 + 슬랩 베이스 + 타악기 빌드업</div>
-            <div class="timeline-item"><span class="time-badge ramp">30.0s ~ 45.0s</span> <b>1차 가속 📈:</b> 80 BPM → 113.1 BPM (+6반음)으로 상승!</div>
-            <div class="timeline-item"><span class="time-badge fast">45.0s ~ 1:58s</span> <b>고속 질주 구간 🚀:</b> 113.1 BPM (+6반음) 고정 질주</div>
-            <div class="timeline-item"><span class="time-badge hyper">1:58s ~ 2:08s</span> <b>초극단 하이퍼 폭주 서지! ⚡🔥:</b> 1:58부터 164.0 BPM (2.05배속) & +12.4반음(1옥타브 초월)으로 질주!</div>
-            <div class="timeline-item"><span class="time-badge slowdown">2:08s ~ 2:24s</span> <b>훨씬 더 느리게 감속 & 피치 급락! 📉:</b> 2분 08초부터 <b>40.0 BPM (0.50배속, -12반음 한 옥타브 추락)</b>까지 극단적으로 늘어지며 긴장감 고조 후 자연스럽게 정지!</div>
-            <div class="timeline-item"><span class="time-badge silence">2:24s ~ 2:27.5s (엔딩)</span> <b>완전 무음 구간 🤫:</b> 음악이 멈춘 후 <b>3.5초간 아무 소리도 안 나는 절대 무음(Dead Silence)</b>이 유지되며 트랙 종료!</div>
+            <div class="timeline-item"><span class="time-badge normal">0.0s ~ 1:10.4s</span> <b>시작 구간 (Intro & Ramp):</b> 80 BPM 스크래치 멜로디 빌드업 ➔ 113.1 BPM 가속 질주</div>
+            <div class="timeline-item"><span class="time-badge fast">1:10.4s ~ 1:40.1s</span> <b>FMOD 무한 루프 구간 (Loop Region) 🔁:</b> 탈출 시간이 50초 초과로 여유가 있을 때 <b>1:10과 1:40 사이를 끊김 없이 완벽한 박자로 무한 반복</b>!</div>
+            <div class="timeline-item"><span class="time-badge hyper">1:37.0s ~ 1:58s</span> <b>🚨 50초 이하 긴급 피날레 트리거:</b> 탈출 시간이 50초 이하로 떨어지면 <b>즉시 1:37로 점프</b>하여 루프를 풀고 최종 카운트다운 진입!</div>
+            <div class="timeline-item"><span class="time-badge hyper">1:58s ~ 2:08s</span> <b>초극단 하이퍼 폭주 서지! ⚡🔥:</b> 1:58부터 164.0 BPM (2.05배속) & +12.4반음 치솟음!</div>
+            <div class="timeline-item"><span class="time-badge slowdown">2:08s ~ 2:24s</span> <b>극단 감속 & 피치 급락! 📉:</b> 40.0 BPM (0.50배속, -12반음)까지 축 늘어지며 감속 및 페이드아웃!</div>
+            <div class="timeline-item"><span class="time-badge silence">2:24s ~ 2:27.5s (엔딩)</span> <b>완전 무음 구간 🤫:</b> 타이머 0초와 함께 <b>3.5초간 절대 무음</b> 후 종료!</div>
         </div>
     </div>
+
+    <script>
+        const audio = document.getElementById('fmod-audio');
+        const hudEscape = document.getElementById('hud-escape-timer');
+        const hudMusic = document.getElementById('hud-music-time');
+        const hudState = document.getElementById('hud-state');
+        const statusBox = document.getElementById('status-box');
+        const modeTag = document.getElementById('mode-tag');
+
+        const LOOP_START = 70.38; // 1:10.38
+        const LOOP_END   = 100.08; // 1:40.08
+        const JUMP_TIME  = 97.00;  // 1:37.00 (50s before ending)
+
+        let escapeTimer = 120.0;
+        let isRunning = false;
+        let isLoopEnabled = true;
+        let jumpTriggered = false;
+        let lastTimestamp = 0;
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            const ms = Math.floor((s % 1) * 10);
+            return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}.${ms}`;
+        }
+
+        function updateLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const dt = (timestamp - lastTimestamp) / 1000.0;
+            lastTimestamp = timestamp;
+
+            if (isRunning && !audio.paused) {
+                escapeTimer = Math.max(0, escapeTimer - dt);
+
+                const curAudio = audio.currentTime;
+
+                // 1. If escape timer <= 50s, smoothly crossfade to 1:37
+                if (escapeTimer <= 50.0 && !jumpTriggered) {
+                    triggerSmoothTransition();
+                } else if (isLoopEnabled && !jumpTriggered) {
+                    // 2. Loop between 1:10 and 1:40
+                    if (curAudio >= LOOP_END) {
+                        audio.currentTime = LOOP_START;
+                        statusBox.className = 'fmod-status-box looping';
+                        statusBox.innerHTML = '🔁 <b>FMOD 무한 루프 중!</b> 1:40 도달 ➔ <b>1:10으로 매끄럽게 되감김</b> (탈출 시간 > 50s 유지 중)';
+                    }
+                }
+
+                // Update HUD
+                hudEscape.innerText = formatTime(escapeTimer);
+                hudMusic.innerText = formatTime(curAudio);
+
+                if (curAudio >= 144.0) {
+                    hudState.innerText = '🤫 완전 무음 (Silence)';
+                    hudState.style.color = '#888';
+                } else if (curAudio >= 128.0) {
+                    hudState.innerText = '📉 40 BPM 극단 감속';
+                    hudState.style.color = '#5856d6';
+                } else if (curAudio >= 118.0) {
+                    hudState.innerText = '⚡🔥 164 BPM 하이퍼 폭주';
+                    hudState.style.color = '#ff0055';
+                } else if (isLoopEnabled && curAudio >= LOOP_START && curAudio < LOOP_END) {
+                    hudState.innerText = '🔁 1:10~1:40 루프 구간';
+                    hudState.style.color = '#00ccff';
+                } else {
+                    hudState.innerText = '🚀 인트로 & 질주';
+                    hudState.style.color = '#ffcc00';
+                }
+            }
+
+            requestAnimationFrame(updateLoop);
+        }
+        requestAnimationFrame(updateLoop);
+
+        // Buttons
+        document.getElementById('btn-start').addEventListener('click', () => {
+            escapeTimer = 120.0;
+            isLoopEnabled = true;
+            jumpTriggered = false;
+            hudEscape.classList.remove('panic');
+            audio.currentTime = 0;
+            audio.play();
+            isRunning = true;
+            modeTag.innerText = 'FMOD Loop (1:10~1:40)';
+            modeTag.style.background = '#5856d6';
+            statusBox.className = 'fmod-status-box';
+            statusBox.innerHTML = '▶️ 탈출 시작! 0:00부터 재생되며 1:10에 도달하면 1:40까지 무한 반복 루프가 작동합니다.';
+        });
+
+        document.getElementById('btn-loop').addEventListener('click', () => {
+            escapeTimer = 90.0; // still > 50s
+            isLoopEnabled = true;
+            jumpTriggered = false;
+            hudEscape.classList.remove('panic');
+            audio.currentTime = LOOP_START;
+            audio.play();
+            isRunning = true;
+            modeTag.innerText = 'FMOD Loop Active';
+            modeTag.style.background = '#0088cc';
+            modeTag.style.color = '#fff';
+            statusBox.className = 'fmod-status-box looping';
+            statusBox.innerHTML = '🔁 <b>루프 구간 진입:</b> 1:10으로 점프했습니다. 1:40에 도달하면 다시 1:10으로 되감깁니다.';
+        });
+
+        document.getElementById('btn-seam').addEventListener('click', () => {
+            escapeTimer = 90.0; // keep in loop mode
+            isLoopEnabled = true;
+            jumpTriggered = false;
+            hudEscape.classList.remove('panic');
+            audio.currentTime = LOOP_END - 5.0; // exactly 95.08s (1:35.08)
+            audio.play();
+            isRunning = true;
+            modeTag.innerText = 'Loop Seam Check (1:35)';
+            modeTag.style.background = '#00bfa5';
+            modeTag.style.color = '#000';
+            statusBox.className = 'fmod-status-box looping';
+            statusBox.innerHTML = '🔄 <b>루프 끝나기 5초 전(1:35) 재생 시작!</b> 5초 후 1:40에 도달했을 때 1:10으로 얼마나 자연스럽게 이어지는지 확인해 보세요.';
+        });
+
+        function triggerSmoothTransition() {
+            if (jumpTriggered) return;
+            jumpTriggered = true;
+            isLoopEnabled = false;
+
+            statusBox.className = 'fmod-status-box panic';
+            statusBox.innerHTML = '🚨 <b>점점 바뀌는 부드러운 전환(Equal-Power Crossfade) 시작!</b> 루프 음원과 1:37 파트가 2.5초간 매끄럽게 교차되며 자연스럽게 피날레로 이어집니다.';
+            hudEscape.classList.add('panic');
+            modeTag.innerText = '🚨 50s Gradual Morph';
+            modeTag.style.background = '#ff3344';
+
+            // Create secondary audio element for 1:37 finale
+            const transAudio = new Audio('music/mu_escape.wav');
+            transAudio.currentTime = JUMP_TIME;
+            transAudio.volume = 0;
+            transAudio.play();
+
+            const oldAudio = audio;
+            const steps = 50;
+            const duration = 2500; // 2.5s
+            let step = 0;
+
+            const crossInterval = setInterval(() => {
+                step++;
+                const p = Math.min(1.0, step / steps);
+                const angle = p * (Math.PI / 2);
+                const outGain = Math.cos(angle);
+                const inGain = Math.sin(angle);
+
+                oldAudio.volume = Math.max(0, outGain);
+                transAudio.volume = Math.min(1, inGain);
+
+                if (p >= 1.0) {
+                    clearInterval(crossInterval);
+                    oldAudio.pause();
+                    audio.currentTime = transAudio.currentTime;
+                    audio.volume = 1.0;
+                    transAudio.pause();
+                    statusBox.innerHTML = '🔥 <b>피날레 전환 완료!</b> 1:58 하이퍼 폭주 ➔ 2:08 감속 ➔ 타이머 0초 무음 엔딩으로 직행 중!';
+                }
+            }, duration / steps);
+        }
+
+        document.getElementById('btn-panic').addEventListener('click', () => {
+            escapeTimer = 50.0; // exactly 50s
+            isRunning = true;
+            if (audio.paused) audio.play();
+            triggerSmoothTransition();
+        });
+    </script>
 </body>
 </html>

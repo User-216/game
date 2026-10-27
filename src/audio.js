@@ -38,6 +38,15 @@ class AudioManager {
         this.fadeIntervals = [];
         this.isPausedAll = false;
 
+        // FMOD-style Escape Music Controller
+        // Loop region: 1:10 (70.38s) ~ 1:40 (100.08s) (downbeats of Phrase 14 & 21)
+        // Emergency jump point: 1:37 (97.0s) when escape remaining time <= 50s
+        this.escapeLoopEnabled = false;
+        this.escapeJumpTriggered = false;
+        this.escapeLoopStart = 70.38;
+        this.escapeLoopEnd = 100.08;
+        this.escapeJumpTime = 97.0;
+
         // Auto-unlock audio on user interaction
         this.unlockAudio = () => {
             if (this.settings) {
@@ -90,7 +99,119 @@ class AudioManager {
         }
     }
 
+    enableEscapeLoop() {
+        this.escapeLoopEnabled = true;
+        this.escapeJumpTriggered = false;
+        if (this.currentMusicAudio) {
+            this.currentMusicAudio.loop = false;
+        }
+    }
+
+    triggerEscape50Jump() {
+        if (!this.currentMusicAudio) return;
+        if (this.escapeJumpTriggered) return;
+        this.escapeJumpTriggered = true;
+        this.escapeLoopEnabled = false;
+
+        const oldAudio = this.currentMusicAudio;
+        // If old audio is already paused or at start, simply seek without crossfade
+        if (oldAudio.paused || oldAudio.currentTime < 1.0) {
+            oldAudio.currentTime = this.escapeJumpTime;
+            oldAudio.volume = this.getMusicVolume();
+            return;
+        }
+
+        const filename = this.currentMusicName || 'mu_escape.wav';
+        const cacheBuster = '?t=' + Date.now();
+        const newAudio = new Audio('music/' + filename + cacheBuster);
+        newAudio.loop = false;
+        newAudio.currentTime = this.escapeJumpTime; // 97.0s (1:37.0)
+
+        const masterVol = this.getMusicVolume();
+        newAudio.volume = 0;
+        newAudio.play().catch(e => console.log('Transition audio play blocked:', e));
+
+        this.currentMusicAudio = newAudio;
+        this.musicFiles[filename] = newAudio;
+
+        // Smooth Equal-Power Crossfade over 2500ms (2.5s) so it morphs seamlessly!
+        const fadeDuration = 2500;
+        const steps = 50;
+        const stepTime = fadeDuration / steps;
+        let currentStep = 0;
+
+        oldAudio.isFading = true;
+        newAudio.isFading = true;
+
+        const crossfadeInterval = setInterval(() => {
+            currentStep++;
+            const progress = Math.min(1.0, currentStep / steps);
+            const currentVol = this.getMusicVolume();
+
+            // Equal-power crossfade curves (cos / sin)
+            const angle = progress * (Math.PI / 2);
+            const outGain = Math.cos(angle);
+            const inGain = Math.sin(angle);
+
+            if (oldAudio && !oldAudio.paused) {
+                oldAudio.volume = Math.max(0, Math.min(1, currentVol * outGain));
+            }
+            if (newAudio && !newAudio.paused) {
+                newAudio.volume = Math.max(0, Math.min(1, currentVol * inGain));
+            }
+
+            if (progress >= 1.0) {
+                clearInterval(crossfadeInterval);
+                const idx = this.fadeIntervals.indexOf(crossfadeInterval);
+                if (idx !== -1) this.fadeIntervals.splice(idx, 1);
+
+                if (oldAudio) {
+                    oldAudio.pause();
+                    oldAudio.currentTime = 0;
+                    oldAudio.isFading = false;
+                }
+                if (newAudio) {
+                    newAudio.isFading = false;
+                    newAudio.volume = this.getMusicVolume();
+                }
+                console.log("[FMOD Music] 50s gradual crossfade to 1:37 complete!");
+            }
+        }, stepTime);
+
+        this.fadeIntervals.push(crossfadeInterval);
+    }
+
+    update(game) {
+        if (!this.currentMusicAudio || !this.currentMusicName) return;
+        if (this.isPausedAll || (game && (game.gameState === 'PAUSED' || game.gameState === 'OPTIONS' || game.isEditorMode))) return;
+
+        const isEscapeTrack = this.currentMusicName.toLowerCase().includes('escape') || 
+                              this.currentMusicName.toLowerCase().includes('pizzatime') || 
+                              this.currentMusicName.toLowerCase().includes('breaking');
+
+        if (isEscapeTrack && !this.currentMusicAudio.paused) {
+            const curTime = this.currentMusicAudio.currentTime;
+            const escapeRemaining = (game && typeof game.escapeTimer === 'number') ? game.escapeTimer : null;
+
+            // 1. If escape timer has 50 seconds or less left -> trigger gradual transition to 1:37!
+            if (escapeRemaining !== null && escapeRemaining > 0 && escapeRemaining <= 50) {
+                if (!this.escapeJumpTriggered) {
+                    console.log(`[FMOD Music] Escape timer <= 50s (${escapeRemaining.toFixed(1)}s left)! Starting gradual crossfade to 1:37...`);
+                    this.triggerEscape50Jump();
+                }
+            } else if (this.escapeLoopEnabled && !this.escapeJumpTriggered) {
+                // 2. Normal loop: 1:10 (70.38s) ~ 1:40 (100.08s)
+                if (curTime >= this.escapeLoopEnd) {
+                    this.currentMusicAudio.currentTime = this.escapeLoopStart;
+                    console.log(`[FMOD Music] Looping escape theme: 1:40 -> 1:10 (${this.escapeLoopStart}s).`);
+                }
+            }
+        }
+    }
+
     resetMusic() {
+        this.escapeLoopEnabled = false;
+        this.escapeJumpTriggered = false;
         this.fadeIntervals.forEach(interval => clearInterval(interval));
         this.fadeIntervals = [];
         if (this.currentMusicAudio) {
@@ -180,9 +301,16 @@ class AudioManager {
 
         const oldAudio = this.currentMusicAudio;
         
+        const isEscapeTrack = filename && (filename.toLowerCase().includes('escape') || filename.toLowerCase().includes('breaking') || filename.toLowerCase().includes('pizzatime'));
+        if (isEscapeTrack && newAudio) {
+            newAudio.loop = false; // Disable native loop so FMOD interactive loop handles it!
+            this.escapeLoopEnabled = true;
+            this.escapeJumpTriggered = false;
+        }
+
         // Immediate change if filename contains 'secret', 'escape', or 'breaking'
-        const isImmediate = (filename && (filename.toLowerCase().includes('secret') || filename.toLowerCase().includes('escape') || filename.toLowerCase().includes('breaking'))) || 
-                            (this.currentMusicName && (this.currentMusicName.toLowerCase().includes('secret') || this.currentMusicName.toLowerCase().includes('escape') || this.currentMusicName.toLowerCase().includes('breaking')));
+        const isImmediate = (filename && (filename.toLowerCase().includes('secret') || filename.toLowerCase().includes('escape') || filename.toLowerCase().includes('breaking') || filename.toLowerCase().includes('pizzatime'))) || 
+                            (this.currentMusicName && (this.currentMusicName.toLowerCase().includes('secret') || this.currentMusicName.toLowerCase().includes('escape') || this.currentMusicName.toLowerCase().includes('breaking') || this.currentMusicName.toLowerCase().includes('pizzatime')));
 
         this.currentMusicName = filename;
         this.currentMusicAudio = newAudio;
