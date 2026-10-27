@@ -22,7 +22,7 @@ class AudioManager {
             sfx_wallsplat: new Audio('sound/sfx_wallsplat.wav'),
             sfx_switch: new Audio('sound/switch1.ogg'),
             taunt: new Audio('sound/taunt.wav'),
-            boss_gate: new Audio('wl4_samples/boss_gate.wav')
+            boss_gate: new Audio('sound/boss_gate.wav?v=' + Date.now())
         };
         
         // Set loops where appropriate
@@ -171,7 +171,8 @@ class AudioManager {
 
         let newAudio = null;
         if (!this.musicFiles[filename]) {
-            this.musicFiles[filename] = new Audio('music/' + filename);
+            const cacheBuster = '?t=' + Date.now();
+            this.musicFiles[filename] = new Audio('music/' + filename + cacheBuster);
             this.musicFiles[filename].loop = true;
         }
         newAudio = this.musicFiles[filename];

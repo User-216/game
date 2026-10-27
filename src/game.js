@@ -4067,6 +4067,7 @@ this.entities.push(
         this.keys.actionUp = false;
 
         if (this.audio) {
+            this.audio.playFile('boss_gate', true);
             this.audio.playFile('sfx_step', true);
         }
     }
@@ -4078,10 +4079,6 @@ this.entities.push(
         // Stop music during Title Card and reset
         if (this.audio) {
             this.audio.resetMusic();
-            if (this.audio.files && this.audio.files.boss_gate) {
-                this.audio.files.boss_gate.pause();
-                this.audio.files.boss_gate.currentTime = 0;
-            }
         }
 
         let cardImgSrc = null;
@@ -4161,6 +4158,11 @@ this.entities.push(
             const targetRoom = tc.targetRoom;
             const targetDoor = tc.targetDoor;
             this.titleCard = null;
+
+            if (this.audio && this.audio.files && this.audio.files.boss_gate) {
+                this.audio.files.boss_gate.pause();
+                this.audio.files.boss_gate.currentTime = 0;
+            }
 
             this.loadRoom(targetRoom, targetDoor).then(() => {
                 this.gameState = 'PLAYING';

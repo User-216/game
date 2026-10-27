@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Wario Land 4 탈출 음악 (2:08 극단 감속 & 무음 엔딩)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', 'Segoe UI', sans-serif; }
+        body {
+            background: #121019;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 740px;
+            background: rgba(25, 20, 35, 0.95);
+            border: 2px solid #5856d6;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 10px 40px rgba(88, 86, 214, 0.4);
+        }
+        h1 {
+            color: #ffcc00;
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 0px #000;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #aaa;
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+        }
+        .track-card {
+            background: rgba(88, 86, 214, 0.08);
+            border: 2px solid #5856d6;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 0 25px rgba(88, 86, 214, 0.3);
+        }
+        .track-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .track-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        .track-tag {
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: #5856d6;
+            color: #fff;
+            font-weight: bold;
+        }
+        .track-desc {
+            font-size: 0.9rem;
+            color: #ddd;
+            line-height: 1.5;
+        }
+        audio {
+            width: 100%;
+            height: 42px;
+            margin-top: 6px;
+            border-radius: 6px;
+        }
+        .timeline-box {
+            margin-top: 18px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            font-size: 0.88rem;
+            color: #ffd700;
+            line-height: 1.8;
+            border-left: 4px solid #5856d6;
+        }
+        .timeline-item {
+            margin-bottom: 8px;
+        }
+        .time-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin-right: 6px;
+        }
+        .time-badge.normal {
+            background: #ffcc00;
+            color: #000;
+        }
+        .time-badge.ramp {
+            background: #ff9500;
+            color: #000;
+        }
+        .time-badge.fast {
+            background: #ff3b30;
+            color: #fff;
+        }
+        .time-badge.hyper {
+            background: #ff0055;
+            color: #fff;
+        }
+        .time-badge.slowdown {
+            background: #5856d6;
+            color: #fff;
+        }
+        .time-badge.silence {
+            background: #222;
+            border: 1px solid #777;
+            color: #fff;
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            from { box-shadow: 0 0 5px #ffcc00; }
+            to { box-shadow: 0 0 15px #ffcc00; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 Wario Land 4 탈출 음악 (2:08 극단 감속 & 무음 엔딩)</h1>
+        <p class="subtitle">1:58초 초극단 폭주 ➔ <b>2:08초부터 훨씬 더 느려지는 극적 감속(40 BPM & -12반음)</b> ➔ <b>마지막 3.5초간 완전 무음!</b></p>
+
+        <!-- 정식 인게임 적용 트랙 -->
+        <div class="track-card">
+            <div class="track-header">
+                <span class="track-title">🔥 인게임 정식 탈출곡 (mu_escape.wav)</span>
+                <span class="track-tag">Deep Slowdown + 3.5s Dead Silence</span>
+            </div>
+            <div class="track-desc">
+                요청하신 대로 1:58초(164 BPM) 폭주 후, <b>2분 08초부터 훨씬 더 느리게(40 BPM, -12반음/1옥타브 하강)</b> 늘어지며 음악이 페이드아웃되고, <b>마지막 3.5초 동안 어떠한 소리도 나지 않는 완전한 무음(Silence)</b> 상태로 긴장감 있게 마무리됩니다!
+            </div>
+            <audio controls src="music/mu_escape.wav" preload="auto" autoplay></audio>
+        </div>
+
+        <div class="timeline-box">
+            <div class="timeline-item"><span class="time-badge normal">0.0s ~ 30.0s</span> <b>80.0 BPM 정규 속도:</b> 스크래치 메인 멜로디(hurry_lead + 비브라토) + 파워코드 기타 + 슬랩 베이스 + 타악기 빌드업</div>
+            <div class="timeline-item"><span class="time-badge ramp">30.0s ~ 45.0s</span> <b>1차 가속 📈:</b> 80 BPM → 113.1 BPM (+6반음)으로 상승!</div>
+            <div class="timeline-item"><span class="time-badge fast">45.0s ~ 1:58s</span> <b>고속 질주 구간 🚀:</b> 113.1 BPM (+6반음) 고정 질주</div>
+            <div class="timeline-item"><span class="time-badge hyper">1:58s ~ 2:08s</span> <b>초극단 하이퍼 폭주 서지! ⚡🔥:</b> 1:58부터 164.0 BPM (2.05배속) & +12.4반음(1옥타브 초월)으로 질주!</div>
+            <div class="timeline-item"><span class="time-badge slowdown">2:08s ~ 2:24s</span> <b>훨씬 더 느리게 감속 & 피치 급락! 📉:</b> 2분 08초부터 <b>40.0 BPM (0.50배속, -12반음 한 옥타브 추락)</b>까지 극단적으로 늘어지며 긴장감 고조 후 자연스럽게 정지!</div>
+            <div class="timeline-item"><span class="time-badge silence">2:24s ~ 2:27.5s (엔딩)</span> <b>완전 무음 구간 🤫:</b> 음악이 멈춘 후 <b>3.5초간 아무 소리도 안 나는 절대 무음(Dead Silence)</b>이 유지되며 트랙 종료!</div>
+        </div>
+    </div>
+</body>
+</html>
