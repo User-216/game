@@ -887,6 +887,14 @@ class Pillar extends Destroyable {
             Pillar.debrisImage = new Image();
             Pillar.debrisImage.src = '이미지/spr_pillarjohndebris.png';
         }
+        if (!Pillar.debrisImages) {
+            Pillar.debrisImages = [];
+            for (let i = 0; i < 7; i++) {
+                const dImg = new Image();
+                dImg.src = `이미지/spr_kettle_debris/kettle_debris_${i}.png`;
+                Pillar.debrisImages.push(dImg);
+            }
+        }
     }
 
     update(game) {
@@ -951,30 +959,33 @@ class Pillar extends Destroyable {
             }
         }
 
-        // Generate debris chunks
-        const debrisColors = ['#d2b991', '#a88c69', '#735a41', '#4b3726', '#e6d2af'];
-        for (let i = 0; i < 45; i++) {
+        // Generate Kettle Ken debris particles (steam, boiling water drops, metallic chunks, lemon, teabag)
+        const debrisColors = ['#d0d8e0', '#a0aab5', '#7a8590', '#ffd700', '#8b5a2b', '#ffffff', '#e8f0f8'];
+        for (let i = 0; i < 55; i++) {
             this.particles.push({
                 x: this.x + Math.random() * this.width,
                 y: this.y + Math.random() * this.height,
-                vx: (Math.random() - 0.5) * 16,
-                vy: (Math.random() - 0.7) * 16,
+                vx: (Math.random() - 0.5) * 18,
+                vy: (Math.random() - 0.7) * 20,
                 size: Math.random() * 8 + 4,
                 life: 1.0,
                 decay: Math.random() * 0.02 + 0.01,
                 color: debrisColors[Math.floor(Math.random() * debrisColors.length)]
             });
         }
-        // Flying larger chunks
-        for (let i = 0; i < 8; i++) {
+        // Flying larger kettle chunks (Lid, teabag, lemon, bolts, spout, plates)
+        const debrisCount = (Pillar.debrisImages && Pillar.debrisImages.length > 0) ? Pillar.debrisImages.length : 8;
+        for (let i = 0; i < debrisCount; i++) {
+            const specificImg = (Pillar.debrisImages && Pillar.debrisImages[i % Pillar.debrisImages.length]) || Pillar.debrisImage;
             this.debrisList.push({
                 x: this.x + this.width / 2,
-                y: this.y + this.height / 2,
-                vx: (Math.random() - 0.5) * 14,
-                vy: (Math.random() - 0.8) * 18,
+                y: this.y + this.height * 0.4,
+                vx: (Math.random() - 0.5) * 16,
+                vy: (Math.random() - 0.85) * 20,
                 angle: Math.random() * Math.PI * 2,
-                vrot: (Math.random() - 0.5) * 0.3,
-                size: Math.random() * 16 + 16,
+                vrot: (Math.random() - 0.5) * 0.4,
+                size: Math.random() * 12 + 26,
+                img: specificImg,
                 alpha: 1.0,
                 decay: 0.015
             });
@@ -997,7 +1008,9 @@ class Pillar extends Destroyable {
                 ctx.translate(-cx, -cy);
             }
             if (frameImg && frameImg.complete && frameImg.naturalWidth > 0) {
-                ctx.drawImage(frameImg, this.x, this.y, this.width, this.height);
+                const drawW = frameImg.naturalWidth || this.width;
+                const drawH = frameImg.naturalHeight || this.height;
+                ctx.drawImage(frameImg, this.x, this.y, drawW, drawH);
             } else {
                 // Procedural fallback
                 ctx.fillStyle = this.color;
@@ -1059,12 +1072,11 @@ class Pillar extends Destroyable {
             }
         });
 
-        // Debris chunks
-        const dImg = Pillar.debrisImage;
+        // Debris chunks (Kettle Ken pieces: Lid, Teabag, Lemon, Bolts, Spout)
         this.debrisList.forEach((d, index) => {
             d.x += d.vx;
             d.y += d.vy;
-            d.vy += 0.4;
+            d.vy += 0.45;
             d.angle += d.vrot;
             d.alpha -= d.decay;
             if (d.alpha <= 0) {
@@ -1074,10 +1086,11 @@ class Pillar extends Destroyable {
                 ctx.globalAlpha = Math.max(0, d.alpha);
                 ctx.translate(d.x, d.y);
                 ctx.rotate(d.angle);
+                const dImg = d.img || Pillar.debrisImage;
                 if (dImg && dImg.complete && dImg.naturalWidth > 0) {
                     ctx.drawImage(dImg, -d.size / 2, -d.size / 2, d.size, d.size);
                 } else {
-                    ctx.fillStyle = '#a88c69';
+                    ctx.fillStyle = '#c8d0d8';
                     ctx.fillRect(-d.size / 2, -d.size / 2, d.size, d.size);
                 }
                 ctx.restore();
@@ -1295,6 +1308,15 @@ class LevelGate extends Entity {
 
         LevelGate.rankFImage = new Image();
         LevelGate.rankFImage.src = `이미지/spr_rankbadge/rank_F.png`;
+
+        if (!LevelGate.rankBadgeImages) {
+            LevelGate.rankBadgeImages = {};
+            ['F', 'D', 'C', 'B', 'A', 'S', 'P'].forEach(r => {
+                const img = new Image();
+                img.src = `이미지/spr_rankbadge/rank_${r}.png`;
+                LevelGate.rankBadgeImages[r] = img;
+            });
+        }
     }
 
     static getTitleCardImage(numOrPath) {
@@ -1340,6 +1362,10 @@ class LevelGate extends Entity {
         this.waveSpeed = 0.035;    // Smooth gentle portal wave
         this.waveAmp = 3.5;
         this.waveFreq = 0.045;
+
+        this.gateAnimTimer = 0.0;
+        this.isPlayerNear = false;
+        this.hasBoardDropped = false;
 
         LevelGate.initGateImages();
 
@@ -1469,72 +1495,228 @@ class LevelGate extends Entity {
 
             ctx.drawImage(bCanvas, drawX, drawY, drawW, drawH);
 
-            // 5. High Score and Rank Badge (matching Pizza Tower / Sugary Spire Level Gate)
+            // 5. Authentic Pizza Tower Level Gate Sequence:
+            // 1) Score Plate Drops down first & lands with bounce
+            // 2) Score Digits Drop down one-by-one onto the plate
+            // 3) Rank bubble (spr_rankbubble) pops in last with elastic bounce
             const game = window.gameInstance;
-            let score = 0;
-            let rank = 'F';
 
+            // Proximity check: Is player close to the gate?
+            let isNear = false;
+            if (game && game.player) {
+                if (game.isEditorMode) {
+                    isNear = true;
+                } else {
+                    const px = game.player.x + game.player.width / 2;
+                    const py = game.player.y + game.player.height / 2;
+                    const gx = this.x + this.width / 2;
+                    const gy = this.y + this.height / 2;
+                    isNear = (Math.abs(px - gx) < 160 && Math.abs(py - gy) < 180);
+                }
+            }
+            this.isPlayerNear = isNear;
+
+            // Check stage clear status
+            let isCleared = false;
+            let score = 0;
+            let rank = 'D';
+
+            let stageInfo = null;
+            let saveData = null;
             if (game && game.currentSaveSlot && game.getSaveSlotData) {
-                const data = game.getSaveSlotData(game.currentSaveSlot);
-                const stageInfo = data?.stages?.[this.targetRoom];
+                saveData = game.getSaveSlotData(game.currentSaveSlot);
+                stageInfo = saveData?.stages?.[this.targetRoom];
                 if (stageInfo) {
-                    if (typeof stageInfo.score === 'number') {
-                        score = stageInfo.score;
+                    if (stageInfo.gateDropped) {
+                        delete stageInfo.gateDropped;
+                        if (game.saveSlotData) game.saveSlotData(game.currentSaveSlot, saveData);
                     }
-                    if (stageInfo.cleared && stageInfo.rank) {
-                        rank = stageInfo.rank.toUpperCase();
+                    if (stageInfo.cleared) {
+                        isCleared = true;
+                        if (typeof stageInfo.score === 'number') {
+                            score = stageInfo.score;
+                        }
+                        if (stageInfo.rank) {
+                            rank = stageInfo.rank.toUpperCase();
+                        }
                     }
                 }
             }
 
-            // 5a. Draw High Score above the gate
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            const scoreStr = String(score);
-            const scoreFontSize = 32;
-            ctx.font = `900 ${scoreFontSize}px "Outfit", "Comic Sans MS", "Arial Black", sans-serif`;
-            const scoreX = drawX + drawW / 2;
-            const scoreY = drawY + 16; // Placed right above the gate cup/arch
+            // Only show score board and rank badge if the stage has been cleared (or in editor mode)
+            const showScoreBoard = isCleared || !!(game && game.isEditorMode);
 
-            ctx.lineJoin = 'round';
-            ctx.miterLimit = 2;
-
-            // 3D Drop shadow
-            ctx.lineWidth = 7;
-            ctx.strokeStyle = '#000000';
-            ctx.strokeText(scoreStr, scoreX + 2, scoreY + 3);
-            ctx.fillStyle = '#000000';
-            ctx.fillText(scoreStr, scoreX + 2, scoreY + 3);
-
-            // Black outline
-            ctx.lineWidth = 6;
-            ctx.strokeText(scoreStr, scoreX, scoreY);
-
-            // White fill
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(scoreStr, scoreX, scoreY);
-            ctx.restore();
-
-            // 5b. Draw Rank Image in the upper center of the gate
-            const badgeX = drawX + drawW / 2;
-            const badgeY = drawY + (gateIdx === 0 ? 116 : (gateIdx === 1 ? 108 : 104));
-
-            const rankOrder = { 'D': 0, 'C': 1, 'B': 2, 'A': 3, 'S': 4, 'P': 5 };
-            const rankIdx = rankOrder[rank];
-
-            if (rankIdx !== undefined && LevelGate.rankBubbleImages && LevelGate.rankBubbleImages[rankIdx]) {
-                const bImg = LevelGate.rankBubbleImages[rankIdx];
-                if (bImg.complete && bImg.naturalWidth > 0) {
-                    // spr_rankbubble is 76x92 with content centered at (38, 46)
-                    ctx.drawImage(bImg, Math.round(badgeX - 38), Math.round(badgeY - 46), 76, 92);
-                }
+            // Step timeline management:
+            // Once dropped in the current room, it stays down as long as the player is in this room (never retracts back up).
+            // When moving to another room, room gate instances reset so it drops again upon revisit.
+            if (game && game.isEditorMode) {
+                this.hasBoardDropped = true;
+                this.gateAnimTimer = 120; // Always fully shown in editor mode
+            } else if (!showScoreBoard) {
+                this.hasBoardDropped = false;
+                this.gateAnimTimer = 0;
             } else {
-                // For rank 'F' or unplayed stage: use authentic circular F rank badge from user's reference image
-                const fImg = LevelGate.rankFImage;
-                if (fImg && fImg.complete && fImg.naturalWidth > 0) {
-                    const badgeSize = 58;
-                    ctx.drawImage(fImg, Math.round(badgeX - badgeSize / 2), Math.round(badgeY - badgeSize / 2), badgeSize, badgeSize);
+                if (isNear) {
+                    this.hasBoardDropped = true;
+                }
+
+                if (this.hasBoardDropped) {
+                    // Only advances forward until fully seated (120), never rewinds backwards when player moves away
+                    this.gateAnimTimer = Math.min(120, this.gateAnimTimer + 1);
+                }
+            }
+
+            if (this.gateAnimTimer > 0 && showScoreBoard) {
+                const scoreStr = String(score);
+
+                // --- 1. Score Plate Gravity Fall (Landing first with heavy physical bounce) ---
+                const plateDuration = 16;
+                const plateP = Math.min(1.0, this.gateAnimTimer / plateDuration);
+                const dropDist = 260; // Falls from high ceiling with real gravity acceleration
+
+                let plateFallOffset = -dropDist;
+                if (plateP > 0) {
+                    const landTime = 0.72;
+                    if (plateP < landTime) {
+                        // Free fall under gravity (u^2 curve: starts slow, accelerates heavily downward!)
+                        const u = plateP / landTime;
+                        plateFallOffset = -dropDist * (1.0 - u * u);
+                    } else {
+                        // Elastic rebound bounce upon landing
+                        const u = (plateP - landTime) / (1.0 - landTime);
+                        plateFallOffset = -Math.sin(u * Math.PI) * 14 * Math.exp(-u * 2);
+                    }
+                }
+
+                // Precision arch top alignment for all 3 gate variations
+                const plateOffset = (gateIdx === 0 ? 4 : (gateIdx === 1 ? -18 : -22));
+                const targetPlateY = drawY + plateOffset;
+                const currentPlateY = Math.round(targetPlateY + plateFallOffset);
+                const scoreCenterX = Math.round(drawX + drawW / 2);
+
+                const pizzaImg = game.pizzaScoreImg;
+                if (pizzaImg && pizzaImg.complete && pizzaImg.naturalWidth > 0) {
+                    // 1:1 Pixel Perfect rendering: zero distortion, razor sharp Pizza Tower art!
+                    const pw = pizzaImg.naturalWidth;
+                    const ph = pizzaImg.naturalHeight;
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.globalAlpha = Math.min(1.0, plateP * 2);
+                    // Pizza center origin is (135, 79)
+                    ctx.drawImage(pizzaImg, Math.round(scoreCenterX - 135), Math.round(currentPlateY - 79), pw, ph);
+                    ctx.restore();
+                }
+
+                // --- 2. Score Digits Gravity Fall ONE BY ONE onto the pizza plate (Heavy physics) ---
+                const charAdvance = 36;
+                const totalWidth = (scoreStr.length - 1) * charAdvance + 47;
+                let cursorX = Math.round(scoreCenterX - totalWidth / 2);
+                // Cheese floor level sits at currentPlateY - 1
+                const cheeseFloorY = Math.round(currentPlateY - 1);
+
+                for (let i = 0; i < scoreStr.length; i++) {
+                    const digit = parseInt(scoreStr[i], 10);
+                    const digitStart = 14 + i * 6; // 6 frames gap: distinct staggered drop
+                    const digitDuration = 14;
+                    const dp = Math.min(1.0, Math.max(0.0, (this.gateAnimTimer - digitStart) / digitDuration));
+
+                    if (dp > 0) {
+                        // Real gravity drop physics for each individual digit
+                        const digitDropH = 180;
+                        let digitFallOffset = -digitDropH;
+                        const landTime = 0.72;
+                        if (dp < landTime) {
+                            // Accelerates downward under gravity
+                            const u = dp / landTime;
+                            digitFallOffset = -digitDropH * (1.0 - u * u);
+                        } else {
+                            // Elastic bounce upon impact onto the cheese
+                            const u = (dp - landTime) / (1.0 - landTime);
+                            digitFallOffset = -Math.sin(u * Math.PI) * 10 * Math.exp(-u * 2);
+                        }
+                        const curDigitFloor = Math.round(cheeseFloorY + digitFallOffset);
+
+                        if (!isNaN(digit) && game.fontCollectImages && game.fontCollectImages[digit]) {
+                            const img = game.fontCollectImages[digit];
+                            if (img.complete && img.naturalWidth > 0) {
+                                // 1:1 Pixel Perfect: exactly 47x54 without any sub-pixel distortion or bottom line artifacts!
+                                const srcH = Math.min(54, img.naturalHeight);
+                                const drawX = Math.round(cursorX);
+                                const drawY = Math.round(curDigitFloor - 53);
+
+                                ctx.save();
+                                ctx.imageSmoothingEnabled = false;
+                                ctx.globalAlpha = Math.min(1.0, dp * 2);
+                                ctx.drawImage(img, 0, 0, img.naturalWidth, srcH, drawX, drawY, img.naturalWidth, srcH);
+                                ctx.restore();
+                            }
+                        } else {
+                            // Text fallback
+                            ctx.save();
+                            ctx.globalAlpha = Math.min(1.0, dp * 2);
+                            ctx.font = '900 32px "Outfit", "Comic Sans MS", "Arial Black", sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.lineWidth = 6;
+                            ctx.strokeStyle = '#000000';
+                            ctx.strokeText(scoreStr[i], cursorX + charAdvance / 2, curDigitFloor);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillText(scoreStr[i], cursorX + charAdvance / 2, curDigitFloor);
+                            ctx.restore();
+                        }
+                    }
+                    cursorX += charAdvance;
+                }
+
+                // --- 3. Rank Bubble Pop-in (Appears LAST, smooth leisurely cartoon bounce) ---
+                const rankStart = 14 + scoreStr.length * 6 + 8;
+                const rankDuration = 26; // Slower, rich elastic cartoon pop-in!
+                const rankP = Math.min(1.0, Math.max(0.0, (this.gateAnimTimer - rankStart) / rankDuration));
+
+                if (rankP > 0) {
+                    let rankScale = 0;
+                    if (rankP < 0.45) {
+                        // Leisurely outward swell: 0 -> 1.38
+                        const u = rankP / 0.45;
+                        rankScale = (1 - (1 - u) * (1 - u)) * 1.38;
+                    } else if (rankP < 0.78) {
+                        // Elastic return bounce: 1.38 -> 0.94
+                        const u = (rankP - 0.45) / 0.33;
+                        rankScale = 1.38 - u * 0.44;
+                    } else {
+                        // Smooth settle: 0.94 -> 1.00
+                        const u = (rankP - 0.78) / 0.22;
+                        rankScale = 0.94 + u * 0.06;
+                    }
+
+                    if (rankScale > 0.01) {
+                        const badgeX = drawX + drawW / 2;
+                        const badgeY = drawY + (gateIdx === 0 ? 116 : (gateIdx === 1 ? 108 : 104));
+
+                        ctx.save();
+                        ctx.translate(badgeX, badgeY);
+                        ctx.scale(rankScale, rankScale);
+
+                        // Authentic Pizza Tower Rank Sprites:
+                        // D, C, B, A, S, P -> LevelGate.rankBubbleImages (spr_rankbubble_0 ~ 5)
+                        const rankOrder = { 'D': 0, 'C': 1, 'B': 2, 'A': 3, 'S': 4, 'P': 5 };
+                        const rankIdx = rankOrder[rank];
+                        if (rankIdx !== undefined && LevelGate.rankBubbleImages && LevelGate.rankBubbleImages[rankIdx]) {
+                            const bImg = LevelGate.rankBubbleImages[rankIdx];
+                            if (bImg.complete && bImg.naturalWidth > 0) {
+                                // spr_rankbubble is 76x92 with content centered at (38, 46)
+                                ctx.drawImage(bImg, -38, -46, 76, 92);
+                            }
+                        } else {
+                            // Rank 'F' or unplayed stage: circular F rank badge
+                            const fImg = LevelGate.rankFImage;
+                            if (fImg && fImg.complete && fImg.naturalWidth > 0) {
+                                const badgeSize = 58;
+                                ctx.drawImage(fImg, Math.round(-badgeSize / 2), Math.round(-badgeSize / 2), badgeSize, badgeSize);
+                            }
+                        }
+                        ctx.restore();
+                    }
                 }
             }
 
@@ -1735,6 +1917,7 @@ class Collect extends Entity {
         this.vx = 0;
         this.vy = 0;
         this.speed = 0;
+        this.baseX = x;
         this.baseY = y;
         this.timer = Math.random() * 100;
         this.isSolid = false;
@@ -1744,6 +1927,17 @@ class Collect extends Entity {
     }
 
     update(game) {
+        // In Editor (Design) Mode: do not collect, do not follow player, stay at base position!
+        if (game && game.isEditorMode) {
+            this.state = 'idle';
+            this.vx = 0;
+            this.vy = 0;
+            this.speed = 0;
+            if (typeof this.baseX === 'number') this.x = this.baseX;
+            if (typeof this.baseY === 'number') this.y = this.baseY;
+            return;
+        }
+
         if (this.state === 'idle') {
             this.timer += 0.1;
             this.y = this.baseY + Math.sin(this.timer) * 5;
@@ -1848,6 +2042,8 @@ class Slime extends Entity {
     constructor(x, y, w = 40, h = 40, flipX = false, flipY = false) {
         super(x, y, w, h, 'transparent', flipX, flipY);
         this.type = 'obj_slime';
+        this.spawnX = x;
+        this.spawnY = y;
         this.vx = 2; // Movement speed
         this.vy = 0;
         this.isGrounded = false;
@@ -1875,6 +2071,24 @@ class Slime extends Entity {
     }
 
     update(game) {
+        // If spawned by spawner and currently in editor mode, disappear immediately!
+        if (this.spawnedBySpawner && game && game.isEditorMode) {
+            this.markedForDeletion = true;
+            return;
+        }
+
+        // In Editor (Design) Mode: stay frozen at initial spawn position, never move or take damage
+        if (game && game.isEditorMode) {
+            this.state = 'walk';
+            this.vx = 0;
+            this.vy = 0;
+            this.hitCooldown = 0;
+            this.stunTimer = 0;
+            if (typeof this.spawnX === 'number') this.x = this.spawnX;
+            if (typeof this.spawnY === 'number') this.y = this.spawnY;
+            return;
+        }
+
         if (this.state === 'held') {
             const p = game.player;
             if (p.isHoldingEnemy && p.heldEnemy === this) {
@@ -2363,6 +2577,15 @@ class BaddieSpawner extends Entity {
     }
     
     update(game) {
+        // In Editor (Design) Mode: never spawn any baddie, reset timer and current baddie
+        if (game && game.isEditorMode) {
+            if (this.currentBaddie) {
+                this.currentBaddie = null;
+            }
+            this.spawnTimer = this.spawnInterval;
+            return;
+        }
+
         // If we have spawned a baddie, check if it's dead
         if (this.currentBaddie) {
             if (this.currentBaddie.isDestroyed || this.currentBaddie.markedForDeletion || this.currentBaddie.state === 'dead') {

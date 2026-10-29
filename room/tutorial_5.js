@@ -545,7 +545,6 @@ this.entities.push(
     new Tile(1376, 96, 32, 32, 384, 320, 'tile_tutorial.png', 32, 32),
     new Tile(1376, 128, 32, 32, 384, 352, 'tile_tutorial.png', 32, 32),
     new Tile(1344, 128, 32, 32, 288, 320, 'tile_tutorial.png', 32, 32),
-    new TutorialBook(640, 480, 32, 32, "tutorial15"),
     new Tile(64, 448, 32, 32, 320, 96, 'tile_tutorial.png', 32, 32, true, false),
     new Tile(-32, 352, 32, 32, 64, 128, 'tile_tutorial.png', 32, 32),
     new Tile(-32, 384, 32, 32, 64, 160, 'tile_tutorial.png', 32, 32),
@@ -6521,6 +6520,7 @@ this.entities.push(
     new Tile3(4352, 224, 32, 32, 64, 160, 'tile_tutorial.png', 32, 32, true, false),
     new Tile3(4352, 256, 32, 32, 64, 192, 'tile_tutorial.png', 32, 32, true, false),
     new TargetDoor_A(4160, 1280, 32, 32),
+    new TutorialBook(640, 480, 32, 32, "tutorial14"),
 );
 
 };

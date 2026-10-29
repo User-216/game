@@ -81,6 +81,10 @@ class Game {
                 this.escapeTimer = 120; // Default 2:00 escape timer
             }
             this.escapeTimeTotal = this.escapeTimer;
+            this.timerBarYOffset = 0;
+            this.timerBarExitSpeed = 0;
+            this.timerBarHidden = false;
+        this.cleanLocalStorageRogueEscape();
             if (this.audio) {
                 this.audio.playMusic('mu_escape.wav');
                 if (typeof this.audio.enableEscapeLoop === 'function') {
@@ -90,6 +94,11 @@ class Game {
         } else if (!this._escape && prev) {
             // Escape mode deactivated! Revert to room music
             this.escapeTimer = 0;
+            this.escapeGrayscaleFactor = 0;
+            this.whiteCircle = null;
+            this.timerBarYOffset = 0;
+            this.timerBarExitSpeed = 0;
+            this.timerBarHidden = true;
             if (this.audio) {
                 this.audio.playMusic(this.roomMusic || null);
             }
@@ -222,6 +231,35 @@ class Game {
             this.bigFontRedImages.push(redImg);
         }
         
+        this.timerBarImg = new Image();
+        this.timerBarImg.src = '이미지/spr_timer_bar.png';
+        this.timerBarFillImg = new Image();
+        this.timerBarFillImg.src = '이미지/spr_timer_barfill.png';
+        this.timerBarScrollX = 0;
+        this.timerBarWaveTimer = 0;
+        this.timerBarYOffset = 0;
+        this.timerBarExitSpeed = 0;
+        this.timerBarHidden = false;
+
+        // Pizza Score HUD & Collect Font
+        this.pizzaScoreImg = new Image();
+        this.pizzaScoreImg.src = '이미지/spr_pizzascore.png';
+
+        this.fontCollectImages = [];
+        this.fontCollectLoaded = false;
+        let fontCollectLoadedCount = 0;
+        for (let i = 0; i <= 9; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_font_collect/spr_font_collect_${i}.png`;
+            const check = () => {
+                fontCollectLoadedCount++;
+                if (fontCollectLoadedCount >= 10) this.fontCollectLoaded = true;
+            };
+            img.onload = check;
+            img.onerror = check;
+            this.fontCollectImages.push(img);
+        }
+
         this.controlIcons = {};
         const iconsToLoad = ['up', 'down', 'left', 'right', 'jump', 'grab', 'dash', 'superjump', 'groundpound', 'taunt', 'pause'];
         iconsToLoad.forEach(iconName => {
@@ -432,7 +470,7 @@ class Game {
         } catch(e) {}
 
         // Preload rooms and load initial room during boot loading
-        const roomsToPreload = ['tutorial_1'];
+        const roomsToPreload = ['demo_hub', 'tutorial_1'];
         let preloadedCount = 0;
         roomsToPreload.forEach(rName => {
             const script = document.createElement('script');
@@ -443,7 +481,7 @@ class Game {
                 }
                 preloadedCount++;
                 if (preloadedCount === roomsToPreload.length) {
-                    this.loadRoom('tutorial_1').then(() => {
+                    this.loadRoom('demo_hub').then(() => {
                         this.bootRoomLoaded = true;
                     });
                 }
@@ -451,7 +489,7 @@ class Game {
             script.onerror = () => {
                 preloadedCount++;
                 if (preloadedCount === roomsToPreload.length) {
-                    this.loadRoom('tutorial_1').then(() => {
+                    this.loadRoom('demo_hub').then(() => {
                         this.bootRoomLoaded = true;
                     });
                 }
@@ -886,6 +924,41 @@ class Game {
         };
         this.pixelTextCache.set(cacheKey, result);
         return result;
+    }
+
+    drawCollectFontText(ctx, text, x, floorY, scale = 1, center = true, bounce = false) {
+        if (!this.fontCollectImages || this.fontCollectImages.length < 10) return;
+        text = text.toString();
+
+        // 36px advance gives a clean 2~4px gap between digits (no ugly overlapping, perfectly matching Pizza Tower!)
+        const charAdvance = Math.round(36 * scale);
+        const totalWidth = (text.length - 1) * charAdvance + Math.round(47 * scale);
+        let cursorX = center ? Math.round(x - totalWidth / 2) : Math.round(x);
+        const groundY = Math.round(floorY);
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+
+        // Draw digits standing tall on the pizza cheese (without shadow)
+        cursorX = center ? Math.round(x - totalWidth / 2) : Math.round(x);
+        for (let i = 0; i < text.length; i++) {
+            const digit = parseInt(text[i], 10);
+            const bounceY = bounce ? Math.round(Math.sin((Date.now() / 150) + i * 0.8) * 3) : 0;
+            if (!isNaN(digit) && this.fontCollectImages[digit]) {
+                const img = this.fontCollectImages[digit];
+                if (img.complete && img.naturalWidth > 0) {
+                    const dw = (scale === 1) ? img.naturalWidth : Math.round(img.naturalWidth * scale);
+                    const dh = (scale === 1) ? img.naturalHeight : Math.round(img.naturalHeight * scale);
+                    const drawX = Math.round(cursorX);
+                    // Glyph bottom sits on groundY (approx 53px from top of image)
+                    const drawY = Math.round(groundY - Math.round(53 * scale) + bounceY);
+                    ctx.drawImage(img, drawX, drawY, dw, dh);
+                }
+            }
+            cursorX += charAdvance;
+        }
+
+        ctx.restore();
     }
 
     drawBigFontText(ctx, text, x, y, scale = 1, center = true, useRed = false) {
@@ -2940,6 +3013,28 @@ class Game {
         });
     }
 
+    cleanLocalStorageRogueEscape() {
+        try {
+            if (typeof localStorage === 'undefined') return;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('saved_room_')) {
+                    let savedCode = localStorage.getItem(key);
+                    if (savedCode && (savedCode.includes('this.escape = true;') || savedCode.includes("this.roomMusic = 'mu_escape.wav';"))) {
+                        if (savedCode.includes('Pillar(')) {
+                            savedCode = savedCode.replace(/this\.escape\s*=\s*true;?\r?\n?/g, '');
+                            savedCode = savedCode.replace(/this\.roomMusic\s*=\s*['"]mu_escape\.wav['"];?\r?\n?/g, '');
+                            localStorage.setItem(key, savedCode);
+                            console.log(`[Auto-Clean] Removed rogue escape flags from localStorage: ${key}`);
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('LocalStorage cleanup error:', e);
+        }
+    }
+
     toggleEditorMode() {
         this.isEditorMode = !this.isEditorMode;
         const toolbar = document.getElementById('editor-toolbar');
@@ -2947,6 +3042,41 @@ class Game {
         if (this.isEditorMode) {
             toolbar.classList.remove('hidden');
             this.player.isNoClip = true; // Auto-noclip for building
+
+            if (this.player && this.player.isHoldingEnemy) {
+                this.player.isHoldingEnemy = false;
+                this.player.heldEnemy = null;
+            }
+
+            // 1. Remove all dynamically cloned/spawned baddies & splatters
+            this.entities = this.entities.filter(ent => !ent.spawnedBySpawner && ent.type !== 'obj_splatter');
+
+            // 2. Return original enemies and score collectibles to their initial spawn positions
+            this.entities.forEach(ent => {
+                if (ent instanceof Slime || ent.type === 'obj_slime') {
+                    ent.markedForDeletion = false;
+                    ent.isDestroyed = false;
+                    if (typeof ent.spawnX === 'number') ent.x = ent.spawnX;
+                    if (typeof ent.spawnY === 'number') ent.y = ent.spawnY;
+                    ent.vx = 0;
+                    ent.vy = 0;
+                    ent.state = 'walk';
+                    ent.hitCooldown = 0;
+                    ent.stunTimer = 0;
+                } else if (ent instanceof BaddieSpawner || ent.type === 'obj_baddiespawner') {
+                    ent.currentBaddie = null;
+                    ent.spawnTimer = ent.spawnInterval;
+                } else if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
+                    ent.markedForDeletion = false;
+                    ent.state = 'idle';
+                    ent.vx = 0;
+                    ent.vy = 0;
+                    ent.speed = 0;
+                    if (typeof ent.baseX === 'number') ent.x = ent.baseX;
+                    if (typeof ent.baseY === 'number') ent.y = ent.baseY;
+                }
+            });
+
             if (palette && this.isTileType(this.selectedType)) {
                 palette.classList.remove('hidden');
                 this.updateTileFlipUI();
@@ -2955,6 +3085,13 @@ class Game {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
             if (palette) palette.classList.add('hidden');
+
+            // When exiting editor mode, resume normal enemy movement from their spawn position
+            this.entities.forEach(ent => {
+                if (ent instanceof Slime || ent.type === 'obj_slime') {
+                    ent.vx = 2 * (ent.facingDir || 1);
+                }
+            });
         }
         this.needsVoidClear = true;
     }
@@ -3687,13 +3824,11 @@ class Game {
             code += `this.roomWidth = ${this.roomWidth || 0};\n`;
             code += `this.roomHeight = ${this.roomHeight || 0};\n`;
         }
-        if (this.escape) {
-            code += `this.escape = true;\n`;
-        }
+        // Do NOT export this.escape = true to room data; escape is dynamically triggered by John Pillar!
         if (this.sRankScore) {
             code += `this.sRankScore = ${this.sRankScore};\n`;
         }
-        if (this.hasExplicitMusic && this.roomMusic) {
+        if (this.hasExplicitMusic && this.roomMusic && this.roomMusic !== 'mu_escape.wav') {
             code += `this.roomMusic = '${this.roomMusic}';\n`;
         }
         if (this.roomBackground) {
@@ -3754,10 +3889,23 @@ class Game {
             else if (ent instanceof TutorialBook) base = `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             else if (ent instanceof PaletteDresser) base = `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof OnlineComputer) base = `new OnlineComputer(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Slime) base = `new Slime(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof Slime) {
+                if (ent.spawnedBySpawner) return; // Never save cloned/spawned enemies
+                const sx = ent.spawnX !== undefined ? ent.spawnX : ent.x;
+                const sy = ent.spawnY !== undefined ? ent.spawnY : ent.y;
+                base = `new Slime(${sx}, ${sy}, ${ent.width}, ${ent.height})`;
+            }
             else if (ent instanceof BaddieSpawner) base = `new BaddieSpawner(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof BigCollect) base = `new BigCollect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof Collect) base = `new Collect(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof BigCollect) {
+                const bx = ent.baseX !== undefined ? ent.baseX : ent.x;
+                const by = ent.baseY !== undefined ? ent.baseY : ent.y;
+                base = `new BigCollect(${bx}, ${by}, ${ent.width}, ${ent.height})`;
+            }
+            else if (ent instanceof Collect) {
+                const bx = ent.baseX !== undefined ? ent.baseX : ent.x;
+                const by = ent.baseY !== undefined ? ent.baseY : ent.y;
+                base = `new Collect(${bx}, ${by}, ${ent.width}, ${ent.height})`;
+            }
 
             if (!base) return;
 
@@ -3981,6 +4129,16 @@ this.entities.push(
                 this.sRankScore = 10000;
                 this.rooms[roomName].call(this);
 
+                // If escape sequence is active, any John Pillar in the room must stay destroyed!
+                if (this.escape) {
+                    this.entities.forEach(e => {
+                        if (e instanceof Pillar || e.type === 'pillar') {
+                            e.isDestroyed = true;
+                        }
+                    });
+
+                }
+
                 if (this.escape) {
                     // Escape sequence is active! Force Breaking News escape theme across all rooms!
                     this.roomMusic = 'mu_escape.wav';
@@ -4030,11 +4188,54 @@ this.entities.push(
                 
                 this.player.x = startX;
                 this.player.y = startY;
+
+                // Time's Up White Circle: Spawns at player location in new room and waits 500 frames before chasing!
+                if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer <= 0) {
+                    this.whiteCircle = {
+                        x: this.player.x + this.player.width / 2,
+                        y: this.player.y + this.player.height / 2,
+                        radius: 42,
+                        speed: 4.8,
+                        pulseTimer: 0,
+                        delayFrames: 180 // 3 seconds delay
+                    };
+                }
                 if (!preserveVelocity) {
                     this.player.vx = 0;
                     this.player.vy = 0;
                 }
                 this.player.targetDoorX = null;
+
+                // When moving to another room, if touching an actual Door or LevelGate (NOT TargetDoor), switch to walkfront state!
+                if (!preserveVelocity && this.player && !this.isEditorMode) {
+                    const touchingDoor = this.entities.find(e => {
+                        if (!e || e.isDestroyed) return false;
+                        if (e.type !== 'door' && e.type !== 'levelgate') return false;
+                        const minW = Math.max(e.width, 48);
+                        const minH = Math.max(e.height, 64);
+                        const left = e.x + e.width / 2 - minW / 2;
+                        const right = left + minW;
+                        const bottom = e.y + e.height;
+                        const top = bottom - minH;
+                        return (
+                            this.player.x < right &&
+                            this.player.x + this.player.width > left &&
+                            this.player.y < bottom &&
+                            this.player.y + this.player.height > top
+                        );
+                    });
+
+                    if (touchingDoor) {
+                        this.player.state = 'walkfront';
+                        this.player.isEnteringDoor = false;
+                        this.player.sprite_index = 'spr_player_walkfront';
+                        this.player.image_index = 0;
+                        this.player.image_speed = 0.45;
+                        this.player.targetDoorX = null;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                    }
+                }
                 
                 let targetCamX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
                 let playerBottom = this.player.y + this.player.height;
@@ -4165,11 +4366,6 @@ this.entities.push(
 
         this.clearActionKey('up');
         this.keys.actionUp = false;
-
-        if (this.audio) {
-            this.audio.playFile('boss_gate', true);
-            this.audio.playFile('sfx_step', true);
-        }
     }
 
     startTitleCard(gate) {
@@ -4267,8 +4463,34 @@ this.entities.push(
             this.loadRoom(targetRoom, targetDoor).then(() => {
                 this.gameState = 'PLAYING';
                 if (this.player) {
-                    this.player.state = 'normal';
-                    this.player.sprite_index = 'spr_player_idle';
+                    const touchingDoor = this.entities.find(e => {
+                        if (!e || e.isDestroyed) return false;
+                        if (e.type !== 'door' && e.type !== 'levelgate') return false;
+                        const minW = Math.max(e.width, 48);
+                        const minH = Math.max(e.height, 64);
+                        const left = e.x + e.width / 2 - minW / 2;
+                        const right = left + minW;
+                        const bottom = e.y + e.height;
+                        const top = bottom - minH;
+                        return (
+                            this.player.x < right &&
+                            this.player.x + this.player.width > left &&
+                            this.player.y < bottom &&
+                            this.player.y + this.player.height > top
+                        );
+                    });
+                    if (touchingDoor) {
+                        this.player.state = 'walkfront';
+                        this.player.sprite_index = 'spr_player_walkfront';
+                        this.player.image_index = 0;
+                        this.player.image_speed = 0.45;
+                        this.player.targetDoorX = null;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                    } else {
+                        this.player.state = 'normal';
+                        this.player.sprite_index = 'spr_player_idle';
+                    }
                     this.player.isEnteringDoor = false;
                     this.player.enterLevelGateFinished = false;
                 }
@@ -4385,6 +4607,9 @@ this.entities.push(
         this.score = 0;
         this.combo = 0;
         this.comboTimer = 0;
+        this.whiteCircle = null;
+        this.whiteCircleCaughtBlackTimer = null;
+        this.escapeGrayscaleFactor = 0;
         if (this.audio) this.audio.resetMusic();
         const roomToLoad = this.restart_room || this.currentRoom;
         this.loadRoom(roomToLoad, 'A').then(() => {
@@ -4408,6 +4633,34 @@ this.entities.push(
                     this.player.y = hy;
                     this.player.vx = 0;
                     this.player.vy = 0;
+
+                    // When returning to hub in front of gate, switch to walkfront state!
+                    const touchingDoor = this.entities.find(e => {
+                        if (!e || e.isDestroyed) return false;
+                        if (e.type !== 'door' && e.type !== 'levelgate') return false;
+                        const minW = Math.max(e.width, 48);
+                        const minH = Math.max(e.height, 64);
+                        const left = e.x + e.width / 2 - minW / 2;
+                        const right = left + minW;
+                        const bottom = e.y + e.height;
+                        const top = bottom - minH;
+                        return (
+                            this.player.x < right &&
+                            this.player.x + this.player.width > left &&
+                            this.player.y < bottom &&
+                            this.player.y + this.player.height > top
+                        );
+                    });
+                    if (touchingDoor) {
+                        this.player.state = 'walkfront';
+                        this.player.isEnteringDoor = false;
+                        this.player.sprite_index = 'spr_player_walkfront';
+                        this.player.image_index = 0;
+                        this.player.image_speed = 0.45;
+                        this.player.targetDoorX = null;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                    }
                 }
                 this.gameState = 'PLAYING';
                 if (this.uiOverlay) this.uiOverlay.style.display = 'block';
@@ -4434,6 +4687,21 @@ this.entities.push(
     }
 
     update() {
+        // White Circle Caught Black Screen & Level Restart Countdown
+        if (typeof this.whiteCircleCaughtBlackTimer === 'number' && this.whiteCircleCaughtBlackTimer > 0) {
+            this.whiteCircleCaughtBlackTimer -= 1;
+            if (this.player) {
+                this.player.vx = 0;
+                this.player.vy = 0;
+            }
+            if (this.whiteCircleCaughtBlackTimer <= 0) {
+                this.whiteCircleCaughtBlackTimer = null;
+                this.whiteCircle = null;
+                this.restartCurrentLevel();
+            }
+            return;
+        }
+
         if (this.gameState === 'TITLECARD') {
             this.updateTitleCard();
             return;
@@ -4447,10 +4715,102 @@ this.entities.push(
 
         // Escape Timer Countdown & FMOD Audio Loop / 50s Jump Update (Paused when not actively playing)
         if (this.gameState === 'PLAYING' && !this.isEditorMode) {
-            if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer > 0) {
-                this.escapeTimer -= 1 / 60;
-                if (this.escapeTimer <= 0) {
-                    this.escapeTimer = 0;
+            if (this.escape) {
+                this.timerBarScrollX = (this.timerBarScrollX || 0) + 0.35;
+                this.timerBarWaveTimer = (this.timerBarWaveTimer || 0) + 0.035;
+
+                const totalTime = this.escapeTimeTotal || 120;
+                const remainingTime = Math.max(0, this.escapeTimer || 0);
+                const panic = Math.max(0, Math.min(1.0, 1.0 - (remainingTime / totalTime)));
+                this.escapeWaveTimer = (this.escapeWaveTimer || 0) + 0.012 + panic * 0.016;
+
+                if (typeof this.escapeTimer === 'number' && this.escapeTimer > 0) {
+                    this.escapeTimer -= 1 / 60;
+                    this.escapeGrayscaleFactor = Math.max(0, (this.escapeGrayscaleFactor || 0) - 0.05);
+                    this.whiteCircle = null;
+                    if (this.escapeTimer <= 0) {
+                        this.escapeTimer = 0;
+                        this.timerBarYOffset = 0;
+                        this.timerBarExitSpeed = 1;
+                    }
+                } else if (this.escapeTimer === 0) {
+                    // Time's Up! Transition screen into Black & White (Grayscale)
+                    this.escapeGrayscaleFactor = Math.min(1.0, (this.escapeGrayscaleFactor || 0) + 0.04);
+                    if (!this.timerBarHidden) {
+                        // Slide down off-screen when timer reaches 0:00!
+                        this.timerBarExitSpeed = (this.timerBarExitSpeed || 1) + 0.7;
+                        this.timerBarYOffset = (this.timerBarYOffset || 0) + this.timerBarExitSpeed;
+                        if (this.timerBarYOffset > 250) {
+                            this.timerBarHidden = true;
+                        }
+                    }
+
+                    // Spawn White Circle Chaser at player position when timer ends (waits 3 seconds / 180 frames before chasing!)
+                    if (!this.whiteCircle && this.player) {
+                        this.whiteCircle = {
+                            x: this.player.x + this.player.width / 2,
+                            y: this.player.y + this.player.height / 2,
+                            radius: 42,
+                            speed: 4.8,
+                            pulseTimer: 0,
+                            delayFrames: 180 // 3 seconds delay
+                        };
+                    }
+
+                    // Update White Circle (Dormant during delayFrames, then chases player)
+                    if (this.whiteCircle && this.player) {
+                        this.whiteCircle.pulseTimer = (this.whiteCircle.pulseTimer || 0) + 0.08;
+
+                        if (this.whiteCircle.delayFrames > 0) {
+                            this.whiteCircle.delayFrames--;
+                            // 3-second dormant countdown: stays frozen at spawn position, harmless while player flees!
+                        } else {
+                            // Active pursuit: flies towards player through walls!
+                            const targetX = this.player.x + this.player.width / 2;
+                            const targetY = this.player.y + this.player.height / 2;
+                            const dx = targetX - this.whiteCircle.x;
+                            const dy = targetY - this.whiteCircle.y;
+                            const dist = Math.hypot(dx, dy);
+
+                            this.whiteCircle.speed = Math.min(8.2, (this.whiteCircle.speed || 4.8) + 0.002);
+
+                            if (dist > 0) {
+                                this.whiteCircle.x += (dx / dist) * this.whiteCircle.speed;
+                                this.whiteCircle.y += (dy / dist) * this.whiteCircle.speed;
+                            }
+
+                            // Hitbox collision: Identical to player's hitbox!
+                            const halfW = (this.player.width || 50) / 2;
+                            const halfH = (this.player.height || 45) / 2;
+                            const circleLeft = this.whiteCircle.x - halfW;
+                            const circleRight = this.whiteCircle.x + halfW;
+                            const circleTop = this.whiteCircle.y - halfH;
+                            const circleBottom = this.whiteCircle.y + halfH;
+
+                            const playerLeft = this.player.x;
+                            const playerRight = this.player.x + this.player.width;
+                            const playerTop = this.player.y;
+                            const playerBottom = this.player.y + this.player.height;
+
+                            const isHit = (circleLeft < playerRight &&
+                                           circleRight > playerLeft &&
+                                           circleTop < playerBottom &&
+                                           circleBottom > playerTop);
+
+                            if (isHit && !this.whiteCircleCaughtBlackTimer) {
+                                this.cameraShake = 30;
+                                if (this.audio) {
+                                    if (typeof this.audio.play === 'function') this.audio.play('sfx_wallsplat');
+                                    if (typeof this.audio.playMusic === 'function') this.audio.playMusic(null);
+                                }
+                                this.whiteCircleCaughtBlackTimer = 150; // 2.5 seconds black screen before level restart
+                                if (this.player) {
+                                    this.player.vx = 0;
+                                    this.player.vy = 0;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             if (this.audio && typeof this.audio.update === 'function') {
@@ -5133,15 +5493,39 @@ this.entities.push(
                 this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity).then(() => {
                     this.transitionState = 'FADE_IN';
                     this.transitionTimer = 0;
-                    if (this.player && (this.player.state === 'walkfront' || this.player.state === 'enterdoor' || this.player.state === 'enterlevelgate')) {
-                        this.player.state = 'walkfront';
-                        this.player.isEnteringDoor = false;
-                        this.player.sprite_index = 'spr_player_walkfront';
-                        this.player.image_index = 0;
-                        this.player.image_speed = 0.45;
-                        this.player.targetDoorX = null;
-                        this.player.vx = 0;
-                        this.player.vy = 0;
+                    if (this.player) {
+                        const touchingDoor = this.entities.find(e => {
+                            if (!e || e.isDestroyed) return false;
+                            if (e.type !== 'door' && e.type !== 'levelgate') return false;
+                            const minW = Math.max(e.width, 48);
+                            const minH = Math.max(e.height, 64);
+                            const left = e.x + e.width / 2 - minW / 2;
+                            const right = left + minW;
+                            const bottom = e.y + e.height;
+                            const top = bottom - minH;
+                            return (
+                                this.player.x < right &&
+                                this.player.x + this.player.width > left &&
+                                this.player.y < bottom &&
+                                this.player.y + this.player.height > top
+                            );
+                        });
+
+                        if (touchingDoor) {
+                            this.player.state = 'walkfront';
+                            this.player.isEnteringDoor = false;
+                            this.player.sprite_index = 'spr_player_walkfront';
+                            this.player.image_index = 0;
+                            this.player.image_speed = 0.45;
+                            this.player.targetDoorX = null;
+                            this.player.vx = 0;
+                            this.player.vy = 0;
+                        } else {
+                            this.player.state = 'normal';
+                            this.player.sprite_index = 'spr_player_idle';
+                            this.player.isEnteringDoor = false;
+                            this.player.targetDoorX = null;
+                        }
                     }
                 });
             }
@@ -5745,9 +6129,23 @@ this.entities.push(
         let shakeX = 0;
         let shakeY = 0;
         const shakeMult = (this.settings.screenShake && this.settings.shakeIntens !== undefined) ? (this.settings.shakeIntens / 100) : (this.settings.screenShake ? 1 : 0);
-        if (this.gameState === 'PLAYING' && shakeMult > 0 && this.cameraShake > 0) {
-            shakeX = (Math.random() - 0.5) * this.cameraShake * shakeMult;
-            shakeY = (Math.random() - 0.5) * this.cameraShake * shakeMult;
+
+        // Proximity-based violent screen shake when White Circle draws near
+        let circleRumble = 0;
+        if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer <= 0 && this.whiteCircle && this.player) {
+            const targetX = this.player.x + this.player.width / 2;
+            const targetY = this.player.y + this.player.height / 2;
+            const dist = Math.hypot(this.whiteCircle.x - targetX, this.whiteCircle.y - targetY);
+            const maxShakeDist = 600;
+            if (dist < maxShakeDist) {
+                const proximity = Math.max(0, 1.0 - (dist / maxShakeDist));
+                circleRumble = Math.pow(proximity, 1.3) * 16.0 * (shakeMult > 0 ? shakeMult : 1.0);
+            }
+        }
+        const effectiveShake = Math.max(this.cameraShake * shakeMult, circleRumble);
+        if (this.gameState === 'PLAYING' && effectiveShake > 0) {
+            shakeX = (Math.random() - 0.5) * effectiveShake;
+            shakeY = (Math.random() - 0.5) * effectiveShake;
         }
         
         // Render Background (Parallax layers)
@@ -5906,12 +6304,155 @@ this.entities.push(
             }
         }
 
+        // Render White Circle Chaser during Time's Up
+        if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer <= 0 && this.whiteCircle && !this.isEditorMode) {
+            const cx = Math.round(this.whiteCircle.x);
+            const cy = Math.round(this.whiteCircle.y);
+            const pulse = Math.sin(this.whiteCircle.pulseTimer || 0) * 3;
+            const r = this.whiteCircle.radius + pulse;
+
+            this.ctx.save();
+            // Outer radiant white glow halo
+            const grad = this.ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r * 1.6);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            this.ctx.fillStyle = grad;
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy, r * 1.6, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Main crisp white circle with 3.5px solid black outline
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 3.5;
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Inner eerie hollow core
+            this.ctx.strokeStyle = '#222222';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
+            this.ctx.stroke();
+
+            // During 180 frame (3 seconds) dormant delay: Draw ominous charging ring countdown
+            if (this.whiteCircle.delayFrames > 0) {
+                const chargeProgress = 1.0 - (this.whiteCircle.delayFrames / 180);
+                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.lineWidth = 2.5;
+                this.ctx.beginPath();
+                this.ctx.arc(cx, cy, r * chargeProgress, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+
+            this.ctx.restore();
+        }
+
         // Render Editor Overlays
         if (this.isEditorMode) {
             this.renderEditorGuides();
         }
         
         this.ctx.restore();
+
+        // Escape Panic Post-Processing: Dynamic Screen Wave & Chromatic Aberration (Color Bleed)
+        if (this.escape && !this.isEditorMode && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED' || this.gameState === 'ESCAPE_CUTSCENE')) {
+            const totalTime = this.escapeTimeTotal || 120;
+            const remainingTime = Math.max(0, this.escapeTimer || 0);
+            const panicProgress = Math.max(0, Math.min(1.0, 1.0 - (remainingTime / totalTime)));
+
+            if (panicProgress > 0.02) {
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                if (!this.escapeCanvas || this.escapeCanvas.width !== w || this.escapeCanvas.height !== h) {
+                    this.escapeCanvas = document.createElement('canvas');
+                    this.escapeCanvas.width = w;
+                    this.escapeCanvas.height = h;
+                    this.escapeCtx = this.escapeCanvas.getContext('2d');
+
+                    this.escapeRedCanvas = document.createElement('canvas');
+                    this.escapeRedCanvas.width = w;
+                    this.escapeRedCanvas.height = h;
+                    this.escapeRedCtx = this.escapeRedCanvas.getContext('2d');
+
+                    this.escapeCyanCanvas = document.createElement('canvas');
+                    this.escapeCyanCanvas.width = w;
+                    this.escapeCyanCanvas.height = h;
+                    this.escapeCyanCtx = this.escapeCyanCanvas.getContext('2d');
+                }
+
+                // 1. Snapshot world canvas
+                this.escapeCtx.clearRect(0, 0, w, h);
+                this.escapeCtx.drawImage(this.canvas, 0, 0);
+
+                // 2. Tint chromatic channels (multiply color masks)
+                this.escapeRedCtx.clearRect(0, 0, w, h);
+                this.escapeRedCtx.drawImage(this.escapeCanvas, 0, 0);
+                this.escapeRedCtx.globalCompositeOperation = 'multiply';
+                this.escapeRedCtx.fillStyle = '#ff2050';
+                this.escapeRedCtx.fillRect(0, 0, w, h);
+                this.escapeRedCtx.globalCompositeOperation = 'source-over';
+
+                this.escapeCyanCtx.clearRect(0, 0, w, h);
+                this.escapeCyanCtx.drawImage(this.escapeCanvas, 0, 0);
+                this.escapeCyanCtx.globalCompositeOperation = 'multiply';
+                this.escapeCyanCtx.fillStyle = '#00e5ff';
+                this.escapeCyanCtx.fillRect(0, 0, w, h);
+                this.escapeCyanCtx.globalCompositeOperation = 'source-over';
+
+                // 3. Dynamic intensity based on remaining escape time
+                const panicCurve = Math.pow(panicProgress, 1.25);
+                const waveAmp = panicCurve * 12.0; // Up to 12px wave distortion
+                const waveFreq = 0.014 + panicCurve * 0.008; // Slower, wider wave frequency
+                const bleedDist = Math.round(panicCurve * 7.0); // Up to 7px RGB color separation
+                const bleedAlpha = Math.min(0.40, panicCurve * 0.40) * Math.max(0, 1.0 - (this.escapeGrayscaleFactor || 0));
+                const stripHeight = 4;
+                const pad = Math.ceil(waveAmp + bleedDist + 4);
+                const waveTime = this.escapeWaveTimer || 0;
+
+                // Pass 1: Base waved slices (oversized by pad*2 to eliminate edge gaps)
+                // When in Time's Up (escapeTimer <= 0), bleach screen to white as White Circle approaches,
+                // while preserving all black outlines/lines ('검정색은 그대로')!
+                if (typeof this.escapeTimer === 'number' && this.escapeTimer <= 0) {
+                    let proximity = 0;
+                    if (this.whiteCircle && this.player) {
+                        const targetX = this.player.x + this.player.width / 2;
+                        const targetY = this.player.y + this.player.height / 2;
+                        const dist = Math.hypot(this.whiteCircle.x - targetX, this.whiteCircle.y - targetY);
+                        proximity = Math.max(0, Math.min(1.0, 1.0 - (dist / 700)));
+                    }
+                    const bPct = Math.round(100 + proximity * 350); // 100% -> 450% brightness
+                    const cPct = Math.round(100 + proximity * 400); // 100% -> 500% contrast (keeps black 100% black!)
+                    this.ctx.filter = `grayscale(100%) brightness(${bPct}%) contrast(${cPct}%)`;
+                }
+
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.globalAlpha = 1.0;
+                for (let y = 0; y < h; y += stripHeight) {
+                    const waveX = Math.sin(y * waveFreq + waveTime) * waveAmp;
+                    this.ctx.drawImage(this.escapeCanvas, 0, y, w, stripHeight, waveX - pad, y, w + pad * 2, stripHeight);
+                }
+                this.ctx.filter = 'none';
+
+                // Pass 2: Chromatic color bleed slices (Red shifted left, Cyan shifted right)
+                if (bleedDist >= 1 && bleedAlpha > 0.02) {
+                    this.ctx.globalCompositeOperation = 'screen';
+                    this.ctx.globalAlpha = bleedAlpha;
+                    for (let y = 0; y < h; y += stripHeight) {
+                        const waveX = Math.sin(y * waveFreq + waveTime) * waveAmp;
+                        this.ctx.drawImage(this.escapeRedCanvas, 0, y, w, stripHeight, waveX - bleedDist - pad, y, w + pad * 2, stripHeight);
+                        this.ctx.drawImage(this.escapeCyanCanvas, 0, y, w, stripHeight, waveX + bleedDist - pad, y, w + pad * 2, stripHeight);
+                    }
+                }
+
+                // Restore context state
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.globalAlpha = 1.0;
+            }
+        }
 
         // Collision Toggle Toast Notification
         if (this.collisionToggleTimer > 0) {
@@ -6533,62 +7074,69 @@ this.entities.push(
             }
         }
 
-        // Draw Score (Pizza Tower Style)
+        // Draw Score (Pizza Tower Style with spr_pizzascore & spr_font_collect)
         if (this.score !== undefined) {
             this.ctx.save();
             const scoreX = 130;
             const scoreY = 70;
             const radiusX = 100;
             const radiusY = 30;
-            
-            // Bottom crust (thick 3D edge)
-            this.ctx.fillStyle = '#9b2200'; // dark red/orange bottom
-            this.ctx.beginPath();
-            this.ctx.ellipse(scoreX, scoreY + 12, radiusX + 6, radiusY + 6, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeStyle = '#000000';
-            this.ctx.stroke();
 
-            // Main crust
-            this.ctx.fillStyle = '#e86b24'; // orange crust
-            this.ctx.beginPath();
-            this.ctx.ellipse(scoreX, scoreY, radiusX + 6, radiusY + 6, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.stroke();
-
-            // Inner cheese
-            this.ctx.fillStyle = '#fcd051'; // yellow cheese
-            this.ctx.beginPath();
-            this.ctx.ellipse(scoreX, scoreY, radiusX - 4, radiusY - 4, 0, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.stroke();
-            
-            // Text
-            const scoreStr = this.score.toString();
-            this.ctx.font = 'bold 50px "Impact", "Outfit", sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            
-            for (let i = 0; i < scoreStr.length; i++) {
-                let char = scoreStr[i];
-                let bounceY = Math.sin((Date.now() / 150) + i) * 6;
-                // Calculate position to center the text string
-                let cX = scoreX - (scoreStr.length * 14) + (i * 28) + 14; 
-                
-                // Black outline
-                this.ctx.lineWidth = 8;
+            if (this.pizzaScoreImg && this.pizzaScoreImg.complete && this.pizzaScoreImg.naturalWidth > 0) {
+                // 1. Draw Authentic Pizza Tower spr_pizzascore base (center origin: 135, 79)
+                const drawPX = Math.round(scoreX - 135);
+                const drawPY = Math.round(scoreY - 79);
+                this.ctx.drawImage(this.pizzaScoreImg, drawPX, drawPY);
+            } else {
+                // Procedural fallback
+                this.ctx.fillStyle = '#9b2200';
+                this.ctx.beginPath();
+                this.ctx.ellipse(scoreX, scoreY + 12, radiusX + 6, radiusY + 6, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.lineWidth = 3;
                 this.ctx.strokeStyle = '#000000';
-                this.ctx.lineJoin = 'round';
-                this.ctx.strokeText(char, cX, scoreY - 20 + bounceY);
-                
-                // Shadow / bottom highlight inside text
-                this.ctx.fillStyle = '#783820'; // dark brown shadow
-                this.ctx.fillText(char, cX, scoreY - 17 + bounceY);
-                
-                // Main text color
-                this.ctx.fillStyle = '#db8449'; // light brown/orange
-                this.ctx.fillText(char, cX, scoreY - 20 + bounceY);
+                this.ctx.stroke();
+
+                this.ctx.fillStyle = '#e86b24';
+                this.ctx.beginPath();
+                this.ctx.ellipse(scoreX, scoreY, radiusX + 6, radiusY + 6, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                this.ctx.fillStyle = '#fcd051';
+                this.ctx.beginPath();
+                this.ctx.ellipse(scoreX, scoreY, radiusX - 4, radiusY - 4, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.stroke();
+            }
+
+            // 2. Draw authentic Pizza Tower standing score digits with shadows
+            const scoreStr = this.score.toString();
+            if (this.fontCollectLoaded) {
+                // Standing on the cheese surface line (origin: 135, 79 -> floor is at scoreY - 1)
+                const cheeseFloorY = scoreY - 1;
+                this.drawCollectFontText(this.ctx, scoreStr, scoreX, cheeseFloorY, 1, true, false);
+            } else {
+                // Text fallback
+                this.ctx.font = 'bold 50px "Impact", "Outfit", sans-serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                for (let i = 0; i < scoreStr.length; i++) {
+                    let char = scoreStr[i];
+                    let bounceY = Math.sin((Date.now() / 150) + i) * 6;
+                    let cX = scoreX - (scoreStr.length * 14) + (i * 28) + 14; 
+
+                    this.ctx.lineWidth = 8;
+                    this.ctx.strokeStyle = '#000000';
+                    this.ctx.lineJoin = 'round';
+                    this.ctx.strokeText(char, cX, scoreY - 20 + bounceY);
+
+                    this.ctx.fillStyle = '#783820';
+                    this.ctx.fillText(char, cX, scoreY - 17 + bounceY);
+
+                    this.ctx.fillStyle = '#db8449';
+                    this.ctx.fillText(char, cX, scoreY - 20 + bounceY);
+                }
             }
 
             // Draw Authentic Pizza Tower Rank Bubble HUD
@@ -6747,28 +7295,97 @@ this.entities.push(
             this.ctx.restore();
         }
 
-        // Draw Pizza Time Escape Clock
-        if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer > 0 && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
+        // Draw Pizza Time Escape Clock & Timer Bar
+        if (this.escape && typeof this.escapeTimer === 'number' && !this.timerBarHidden && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
             this.ctx.save();
-            const min = Math.floor(this.escapeTimer / 60);
-            const sec = Math.floor(this.escapeTimer % 60);
+            const remaining = Math.max(0, this.escapeTimer);
+            const min = Math.floor(remaining / 60);
+            const sec = Math.floor(remaining % 60);
             const timeStr = `${min}:${sec < 10 ? '0' : ''}${sec}`;
 
             const cx = Math.round(this.canvas.width / 2);
-            const cy = Math.round(this.canvas.height - 40);
+            const yOffset = this.timerBarYOffset || 0;
+            const cy = Math.round(this.canvas.height - 65 + yOffset);
 
-            this.ctx.translate(cx, cy);
+            const barW = (this.timerBarImg && this.timerBarImg.naturalWidth) || 306;
+            const barH = (this.timerBarImg && this.timerBarImg.naturalHeight) || 38;
+            const barX = Math.round(cx - barW / 2);
+            const barY = Math.round(cy - barH / 2);
 
-            // Clock text rendered with Pizza Tower spr_bigfont (clean and steady, without SAGE demo jitter or red flash)
+            const totalTime = this.escapeTimeTotal || 120;
+            // As time runs out (escapeTimer decreases), fill GROWS towards 100%!
+            const elapsed = Math.max(0, totalTime - remaining);
+            const progress = Math.max(0, Math.min(1, elapsed / totalTime));
+
+            // Max inner fillable width inside the bar frame is 292px (x: 6 to 298)
+            const maxFillW = 292;
+            const revealedWidth = Math.round(maxFillW * progress);
+
+            // Off-screen buffer canvas for timer bar & fill & digits with padding
+            const padY = 20;
+            const bufferH = barH + padY * 2;
+            if (!this.timerBufferCanvas) {
+                this.timerBufferCanvas = document.createElement('canvas');
+                this.timerBufferCtx = this.timerBufferCanvas.getContext('2d');
+            }
+            if (this.timerBufferCanvas.width !== barW || this.timerBufferCanvas.height !== bufferH) {
+                this.timerBufferCanvas.width = barW;
+                this.timerBufferCanvas.height = bufferH;
+                if (this.timerBufferCtx) this.timerBufferCtx.imageSmoothingEnabled = false;
+            }
+            const bCtx = this.timerBufferCtx;
+            bCtx.clearRect(0, 0, barW, bufferH);
+
+            // 1. Draw spr_timer_barfill: scrolling to the right inside the bar frame
+            if (this.timerBarFillImg && this.timerBarFillImg.complete && this.timerBarFillImg.naturalWidth > 0 && revealedWidth > 0) {
+                const fw = this.timerBarFillImg.naturalWidth; // 173
+                const fh = this.timerBarFillImg.naturalHeight; // 30
+                const scrollX = (this.timerBarScrollX || 0);
+
+                bCtx.save();
+                bCtx.beginPath();
+                bCtx.rect(6, padY + 4, revealedWidth, fh);
+                bCtx.clip();
+
+                const shiftX = ((scrollX % fw) + fw) % fw;
+                for (let tx = 6 - fw + shiftX; tx < 6 + maxFillW + fw; tx += fw) {
+                    bCtx.drawImage(this.timerBarFillImg, Math.round(tx), padY + 4);
+                }
+                bCtx.restore();
+            }
+
+            // 2. Draw spr_timer_bar frame on top so borders frame the fill cleanly
+            if (this.timerBarImg && this.timerBarImg.complete && this.timerBarImg.naturalWidth > 0) {
+                bCtx.drawImage(this.timerBarImg, 0, padY);
+            }
+
+            // 3. Draw bigfont timer countdown digits positioned cleanly in the bar center!
+            const textX = Math.round(barW / 2);
+            const textY = padY - 6; // Raised 2px higher to sit right at the sweet spot
             if (this.bigFontLoaded) {
-                // Pixel-perfect 1:1 scale with crisp black outlines
-                this.drawBigFontText(this.ctx, timeStr, 0, -20, 1, true, false);
+                this.drawBigFontText(bCtx, timeStr, textX, textY, 1, true, false);
             } else {
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                this.ctx.font = 'bold 36px "Courier New", monospace, Arial';
-                this.ctx.fillStyle = '#ffffff';
-                this.ctx.fillText(timeStr, 0, 0);
+                bCtx.textAlign = 'center';
+                bCtx.textBaseline = 'middle';
+                bCtx.font = 'bold 24px "Courier New", monospace, Arial';
+                bCtx.fillStyle = '#ffffff';
+                bCtx.fillText(timeStr, textX, padY + Math.round(barH / 2) - 3);
+            }
+
+            // 4. Render entire timer bar (frame + fill + text) with smooth up/down vertical wave!
+            const waveTimer = this.timerBarWaveTimer || 0;
+            const sliceW = 2; // 2px vertical slices for crisp retro wave
+            const waveAmp = 3.5; // Up and down wave amplitude (pixels)
+            const waveFreq = 0.04; // Wave frequency (~2 smooth waves across the 306px bar)
+
+            for (let sx = 0; sx < barW; sx += sliceW) {
+                const curW = Math.min(sliceW, barW - sx);
+                const waveY = Math.sin((sx * waveFreq) + waveTimer) * waveAmp;
+                this.ctx.drawImage(
+                    this.timerBufferCanvas,
+                    sx, 0, curW, bufferH,
+                    barX + sx, Math.round(barY - padY + waveY), curW, bufferH
+                );
             }
 
             this.ctx.restore();
@@ -6956,6 +7573,8 @@ this.entities.push(
             }
         }
 
+
+
         if (this.gameState === 'TITLE') {
             this.renderTitleScreen();
         }
@@ -6971,6 +7590,14 @@ this.entities.push(
             if (img && img.complete && img.naturalWidth !== 0) {
                 this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
             }
+        }
+
+        // White Circle Caught Black Screen Overlay (a few seconds before level restart)
+        if (typeof this.whiteCircleCaughtBlackTimer === 'number' && this.whiteCircleCaughtBlackTimer > 0) {
+            this.ctx.save();
+            this.ctx.fillStyle = '#000000';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.restore();
         }
 
         if (this.debugConsole && this.debugConsole.open) {
@@ -7640,6 +8267,12 @@ this.entities.push(
                             const sec = parseInt(args[0], 10);
                             if (!isNaN(sec)) {
                                 game.escapeTimer = sec;
+                                if (sec > 0) game.whiteCircle = null;
+                                const total = args[1] ? parseInt(args[1], 10) : 120;
+                                game.escapeTimeTotal = Math.max(sec, isNaN(total) ? 120 : total);
+                                game.timerBarYOffset = 0;
+                                game.timerBarExitSpeed = 0;
+                                game.timerBarHidden = false;
                                 if (game.audio) {
                                     game.audio.escapeJumpTriggered = false;
                                     game.audio.escapeLoopEnabled = (sec > 50);
@@ -8442,8 +9075,8 @@ this.entities.push(
     loadSaveSlot(slot) {
         this.currentSaveSlot = slot;
         const data = this.getSaveSlotData(slot);
-        const targetRoom = data.room || 'tutorial_1';
-        const targetDoor = data.door || 'A';
+        const targetRoom = 'demo_hub';
+        const targetDoor = 'A';
         this.score = data.score || 0;
 
         this.loadRoom(targetRoom, targetDoor).then(() => {
