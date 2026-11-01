@@ -2985,10 +2985,27 @@ class RankController extends Entity {
     constructor(x = 0, y = 0) {
         super(x, y, 960, 540);
         this.type = 'rankcontroller';
+        
+        // Phase sequence:
+        // 0: Initial wait before D rank anim starts (1.5 sec / 90 frames)
+        // 1: Playing D rank animation (spr_rankD_0 ~ 7)
+        // 2: Delay after D rank anim finishes before texts appear (1.0 sec / 60 frames)
+        // 3: Line-by-line text slam with screen shake & sound
+        // 4: Complete & waiting for key press to exit
+        this.phase = 0;
+        this.timer = 0;
+        
         this.imageIndex = 0;
         this.imageSpeed = 0.35;
-        this.finished = false;
-        this.waitTimer = 0;
+        this.showRankAnim = false;
+        this.animFinished = false;
+
+        this.revealedLines = 0; // Number of text lines shown so far (0 to 5)
+        this.lineTimer = 0;
+        this.shakeAmount = 0;
+        this.shakeX = 0;
+        this.shakeY = 0;
+
         this.canExit = false;
         this.exiting = false;
 
@@ -3003,53 +3020,143 @@ class RankController extends Entity {
         }
     }
 
+    getStats(game) {
+        const score = (game && game.score !== undefined) ? game.score : 0;
+        const totalSec = (game && game.stageSeconds !== undefined && game.stageSeconds > 0) ? game.stageSeconds : 15.54;
+        
+        const hours = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = Math.floor(totalSec % 60);
+        const ms = Math.floor((totalSec % 1) * 100);
+        
+        const pad = (n) => String(n).padStart(2, '0');
+        const timeStr = `${pad(hours)}:${pad(mins)}:${pad(secs)}:${pad(ms)}`;
+        
+        const damage = (game && game.stageDamage !== undefined) ? game.stageDamage : 0;
+        const highestCombo = (game && game.highestCombo !== undefined) ? game.highestCombo : ((game && game.combo) || 3);
+
+        return [
+            `SCORE: ${score}`,
+            `TIME: ${timeStr}`,
+            `DAMAGE: ${damage}`,
+            `HIGHEST COMBO: ${highestCombo}`,
+            `BUDDY TAXED!!!`
+        ];
+    }
+
     update(player, game) {
         if (game && game.isEditorMode) return;
 
-        // Advance animation
-        if (!this.finished) {
-            this.imageIndex += this.imageSpeed;
-            if (this.imageIndex >= 7) {
-                this.imageIndex = 7;
-                this.finished = true;
-            }
+        // Screen shake decay
+        if (this.shakeAmount > 0.1) {
+            this.shakeX = (Math.random() - 0.5) * 2 * this.shakeAmount;
+            this.shakeY = (Math.random() - 0.5) * 2 * this.shakeAmount;
+            this.shakeAmount *= 0.85;
         } else {
-            this.waitTimer++;
-            if (this.waitTimer > 30) {
-                this.canExit = true;
-            }
+            this.shakeAmount = 0;
+            this.shakeX = 0;
+            this.shakeY = 0;
         }
 
         // Keep player centered and static during rank screen
         if (player) {
+            const screenW = (game && game.canvas) ? game.canvas.width : 960;
+            const screenH = (game && game.canvas) ? game.canvas.height : 540;
+            player.x = Math.round(screenW / 2 - player.width / 2);
+            player.y = Math.round(screenH / 2 - player.height / 2);
             player.vx = 0;
             player.vy = 0;
+            player.isGrounded = true;
+            player.sprite_index = 'spr_player_idle';
             player.visible = true;
         }
 
-        // Allow any action key to return to hub
-        if (this.canExit && !this.exiting && game) {
-            const anyKeyPressed = game.keys.actionJump || game.keys.actionTaunt || 
-                                  game.keys.actionGroundpound || game.keys.actionUp || 
-                                  game.keys.actionDown || game.keys.actionLeft || 
-                                  game.keys.actionRight || game.keys.actionAttack ||
-                                  game.keys[' '] || game.keys['Enter'] || game.keys['z'] || game.keys['x'] || game.keys['c'];
-            if (anyKeyPressed) {
-                this.exiting = true;
-                if (game.audio) {
+        this.timer++;
+
+        // Phase 0: Initial wait before D rank anim starts (1.5s / 90 frames)
+        if (this.phase === 0) {
+            if (this.timer >= 90) {
+                this.phase = 1;
+                this.timer = 0;
+                this.showRankAnim = true;
+                this.imageIndex = 0;
+                if (game && game.audio) {
                     game.audio.playFile('sfx_step', true);
                 }
-                if (player) {
-                    player.state = 'walkfront';
-                    player.visible = true;
+            }
+        }
+        // Phase 1: Playing D rank animation
+        else if (this.phase === 1) {
+            this.imageIndex += this.imageSpeed;
+            if (this.imageIndex >= 7) {
+                this.imageIndex = 7;
+                this.animFinished = true;
+                this.phase = 2;
+                this.timer = 0;
+                this.shakeAmount = 8;
+                if (game && game.audio) {
+                    game.audio.playFile('sfx_step', true);
                 }
-                const hubRoom = game.hub_room || 'demo_hub';
-                game.transitionState = 'FADE_OUT';
-                game.transitionTimer = 0;
-                game.pendingRoom = hubRoom;
-                game.pendingDoor = 'A';
-                game.pendingPreserveVelocity = false;
-                game.isExitingLevelGate = true;
+            }
+        }
+        // Phase 2: Delay after anim before text lines appear (1.0s / 60 frames)
+        else if (this.phase === 2) {
+            if (this.timer >= 60) {
+                this.phase = 3;
+                this.timer = 0;
+                this.revealedLines = 0;
+                this.lineTimer = 0;
+            }
+        }
+        // Phase 3: Text line by line slam with screen shake & sound
+        else if (this.phase === 3) {
+            this.lineTimer++;
+            const totalLines = 5;
+            // Reveal a new line every 24 frames (~0.4s)
+            if (this.lineTimer >= 24 && this.revealedLines < totalLines) {
+                this.lineTimer = 0;
+                this.revealedLines++;
+                // Strong shake for each slammed line
+                this.shakeAmount = (this.revealedLines === totalLines) ? 18 : 12;
+                if (game && game.audio) {
+                    const snd = (this.revealedLines === totalLines) ? 'sfx_break' : 'sfx_step';
+                    game.audio.playFile(snd, true);
+                }
+                if (this.revealedLines >= totalLines) {
+                    this.phase = 4;
+                    this.timer = 0;
+                }
+            }
+        }
+        // Phase 4: Ready to exit on any key
+        else if (this.phase === 4) {
+            if (this.timer > 30) {
+                this.canExit = true;
+            }
+
+            if (this.canExit && !this.exiting && game) {
+                const anyKeyPressed = game.keys.actionJump || game.keys.actionTaunt || 
+                                      game.keys.actionGroundpound || game.keys.actionUp || 
+                                      game.keys.actionDown || game.keys.actionLeft || 
+                                      game.keys.actionRight || game.keys.actionAttack ||
+                                      game.keys[' '] || game.keys['Enter'] || game.keys['z'] || game.keys['x'] || game.keys['c'];
+                if (anyKeyPressed) {
+                    this.exiting = true;
+                    if (game.audio) {
+                        game.audio.playFile('sfx_step', true);
+                    }
+                    if (player) {
+                        player.state = 'walkfront';
+                        player.visible = true;
+                    }
+                    const hubRoom = game.hub_room || 'demo_hub';
+                    game.transitionState = 'FADE_OUT';
+                    game.transitionTimer = 0;
+                    game.pendingRoom = hubRoom;
+                    game.pendingDoor = 'A';
+                    game.pendingPreserveVelocity = false;
+                    game.isExitingLevelGate = true;
+                }
             }
         }
     }
@@ -3073,23 +3180,55 @@ class RankController extends Entity {
             return;
         }
 
-        const idx = Math.min(7, Math.floor(this.imageIndex));
-        const img = (RankController.images && RankController.images[idx]) ? RankController.images[idx] : null;
-
         ctx.save();
         if (game && game.camera) {
             ctx.translate(game.camera.x, game.camera.y);
         }
 
-        // Solid White Background
+        // Apply screen shake offset
+        ctx.translate(this.shakeX, this.shakeY);
+
+        // 1. Solid White Background
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
 
-        if (img && img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, 0, 0, w, h);
+        // 2. D Rank Animation (appears after Phase 0)
+        if (this.showRankAnim) {
+            const idx = Math.min(7, Math.floor(this.imageIndex));
+            const img = (RankController.images && RankController.images[idx]) ? RankController.images[idx] : null;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, 0, 0, w, h);
+            }
         }
 
-        // Blinking prompt when can exit
+        // 3. Sequential Text Lines (SCORE, TIME, DAMAGE, HIGHEST COMBO, BUDDY TAXED!!!)
+        if (this.revealedLines > 0) {
+            const lines = this.getStats(game);
+            const startX = 50;
+            const startY = 85;
+            const lineHeight = 44;
+
+            ctx.font = '900 32px "Custom_SANGJU_Dajungdagam", "Impact", "Outfit", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 7;
+
+            for (let i = 0; i < this.revealedLines && i < lines.length; i++) {
+                const text = lines[i];
+                const lineY = startY + i * lineHeight;
+
+                // Black thick stroke
+                ctx.strokeStyle = '#000000';
+                ctx.strokeText(text, startX, lineY);
+
+                // Pure White fill
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(text, startX, lineY);
+            }
+        }
+
+        // 4. Blinking prompt when can exit
         if (this.canExit) {
             const blink = Math.sin(Date.now() / 200) > 0;
             if (blink) {
@@ -3099,11 +3238,11 @@ class RankController extends Entity {
                 ctx.font = 'bold 22px "Custom_SANGJU_Dajungdagam", "Outfit", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
-                const text = (game && game.settings && game.settings.language === 'ko') 
+                const promptText = (game && game.settings && game.settings.language === 'ko') 
                     ? '아무 키나 눌러 계속하기' 
                     : 'PRESS ANY KEY TO CONTINUE';
-                ctx.strokeText(text, w / 2, h - 30);
-                ctx.fillText(text, w / 2, h - 30);
+                ctx.strokeText(promptText, w / 2, h - 25);
+                ctx.fillText(promptText, w / 2, h - 25);
             }
         }
 

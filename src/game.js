@@ -4461,6 +4461,9 @@ this.entities.push(
 
     startTitleCard(gate) {
         this.gameState = 'TITLECARD';
+        this.stageSeconds = 0;
+        this.stageDamage = 0;
+        this.highestCombo = 0;
         if (this.uiOverlay) this.uiOverlay.style.display = 'none';
 
         // Stop music during Title Card and reset
@@ -4806,6 +4809,11 @@ this.entities.push(
 
         // Escape Timer Countdown & FMOD Audio Loop / 50s Jump Update (Paused when not actively playing)
         if (this.gameState === 'PLAYING' && !this.isEditorMode) {
+            // Track stage play time & highest combo across level
+            if (this.currentRoom !== 'demo_hub' && this.currentRoom !== 'rm_rank') {
+                this.stageSeconds = (this.stageSeconds || 0) + (1 / 60);
+                this.highestCombo = Math.max(this.highestCombo || 0, this.combo || 0);
+            }
             if (this.escape) {
                 this.timerBarScrollX = (this.timerBarScrollX || 0) + 0.35;
                 this.timerBarWaveTimer = (this.timerBarWaveTimer || 0) + 0.035;
