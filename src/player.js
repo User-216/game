@@ -406,8 +406,11 @@ class Player {
         this.showUpArrow = atInteractable;
 
         if (this.state === 'rank') {
-            this.x = 0;
-            this.y = 0;
+            const game = window.gameInstance;
+            const screenW = (game && game.canvas) ? game.canvas.width : 960;
+            const screenH = (game && game.canvas) ? game.canvas.height : 540;
+            this.x = Math.round(screenW / 2 - this.width / 2);
+            this.y = Math.round(screenH / 2 - this.height / 2);
             this.vx = 0;
             this.vy = 0;
             this.isGrounded = true;

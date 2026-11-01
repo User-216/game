@@ -7,8 +7,8 @@ window.roomData['rm_rank'] = function() {
     this.roomBackground = '#ffffff';
     this.bgFollowCamera = false;
     this.entities.push(
-        new Platform(0, 45, 960, 64, '#ffffff'),
-        new TargetDoor_A(0, 0, 32, 32),
+        new Platform(0, 293, 960, 64, '#ffffff'),
+        new TargetDoor_A(464, 248, 32, 32),
         new RankController(0, 0)
     );
 };

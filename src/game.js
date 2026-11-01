@@ -4182,7 +4182,7 @@ this.entities.push(
                     this.player.isTumbling = false;
                     this.player.height = 45;
                     this.player.mask_index = 'spr_player_mask';
-                    this.player.visible = (roomName !== 'rm_rank');
+                    this.player.visible = true;
                 }
                 
                 let startX = 100;
@@ -4202,8 +4202,11 @@ this.entities.push(
                     this.player.isGroundPounding = false;
                     this.player.freefallLoopStarted = false;
                     this.player.sprite_index = 'spr_player_idle';
-                    this.player.x = 0;
-                    this.player.y = 0;
+                    const cX = Math.round(960 / 2 - this.player.width / 2);
+                    const cY = Math.round(540 / 2 - this.player.height / 2);
+                    this.player.x = cX;
+                    this.player.y = cY;
+                    this.player.visible = true;
                     this.player.vx = 0;
                     this.player.vy = 0;
                     this.camera.x = 0;
@@ -4402,8 +4405,10 @@ this.entities.push(
     enterExitGate(gate) {
         this.player.showUpArrow = false;
         this.player.state = 'rank';
-        this.player.x = 0;
-        this.player.y = 0;
+        const cX = Math.round(this.canvas.width / 2 - this.player.width / 2);
+        const cY = Math.round(this.canvas.height / 2 - this.player.height / 2);
+        this.player.x = cX;
+        this.player.y = cY;
         this.player.vx = 0;
         this.player.vy = 0;
         this.player.isGrounded = true;
@@ -6343,7 +6348,7 @@ this.entities.push(
             }
         }
         
-        if (this.currentRoom !== 'rm_rank' && this.player.visible !== false) this.player.render(this.ctx);
+        if (this.player.visible !== false) this.player.render(this.ctx);
         
         // Render other online players
         if (this.otherPlayers && this.player.sprites) {

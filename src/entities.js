@@ -3020,11 +3020,11 @@ class RankController extends Entity {
             }
         }
 
-        // Keep player static and invisible during rank screen
+        // Keep player centered and static during rank screen
         if (player) {
             player.vx = 0;
             player.vy = 0;
-            player.visible = false;
+            player.visible = true;
         }
 
         // Allow any action key to return to hub
