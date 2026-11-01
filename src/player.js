@@ -414,7 +414,12 @@ class Player {
             this.vx = 0;
             this.vy = 0;
             this.isGrounded = true;
-            this.sprite_index = 'spr_player_idle';
+            this.sprite_index = 'spr_player_lookdoor';
+            if (this.sprites.spr_player_lookdoor && this.sprites.spr_player_lookdoor.length > 0) {
+                if (this.image_index >= this.sprites.spr_player_lookdoor.length) {
+                    this.image_index = this.sprites.spr_player_lookdoor.length - 1;
+                }
+            }
             this.isRunning = false;
             this.isDrifting = false;
             this.isDrifting1 = false;

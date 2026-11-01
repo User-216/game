@@ -4201,7 +4201,7 @@ this.entities.push(
                     this.player.isGrounded = true;
                     this.player.isGroundPounding = false;
                     this.player.freefallLoopStarted = false;
-                    this.player.sprite_index = 'spr_player_idle';
+                    this.player.sprite_index = 'spr_player_lookdoor';
                     const cX = Math.round(960 / 2 - this.player.width / 2);
                     const cY = Math.round(540 / 2 - this.player.height / 2);
                     this.player.x = cX;
@@ -4438,6 +4438,10 @@ this.entities.push(
         this.timerBarYOffset = 0;
         this.whiteCircleCaughtBlackTimer = 0;
         if (this.audio) this.audio.resetMusic();
+
+        // 현재 클리어 랭크 계산 및 보관
+        const rankData = this.getRankBubbleData ? this.getRankBubbleData() : { rank: 'D' };
+        this.clearedRank = rankData.rank || 'D';
 
         // 스테이지 클리어 및 랭크/점수 영구 저장!
         this.updateSaveProgress(true);
@@ -5611,7 +5615,7 @@ this.entities.push(
 
                         if (this.currentRoom === 'rm_rank') {
                             this.player.state = 'rank';
-                            this.player.sprite_index = 'spr_player_idle';
+                            this.player.sprite_index = 'spr_player_lookdoor';
                             this.player.isEnteringDoor = false;
                             this.player.targetDoorX = null;
                             this.player.x = Math.round(960 / 2 - this.player.width / 2);
@@ -8468,6 +8472,35 @@ this.entities.push(
                     }
                     return `Pizza Time: ${game.escape ? 'ON' : 'OFF'}`;
                 }
+            },
+            'set_rank': {
+                args: [
+                    {
+                        name: 'rank',
+                        getOptions: (game, currentArg) => ['C', 'D'].filter(s => s.toLowerCase().startsWith(currentArg.toLowerCase())),
+                        hint: 'C/D'
+                    }
+                ],
+                execute: (game, args) => {
+                    const r = (args[0] || 'C').toUpperCase();
+                    game.clearedRank = r;
+                    const rc = game.entities.find(e => e.type === 'rankcontroller');
+                    if (rc) {
+                        rc.rank = r;
+                        rc.imageIndex = 0;
+                    }
+                    return `Cleared Rank set to: ${r}`;
+                }
+            },
+            'rank': {
+                args: [
+                    {
+                        name: 'rank',
+                        getOptions: (game, currentArg) => ['C', 'D'].filter(s => s.toLowerCase().startsWith(currentArg.toLowerCase())),
+                        hint: 'C/D'
+                    }
+                ],
+                execute: (game, args) => game.debugCommands['set_rank'].execute(game, args)
             },
             'srank': {
                 args: [
