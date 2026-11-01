@@ -4441,7 +4441,7 @@ this.entities.push(
 
         // 현재 클리어 랭크 계산 및 보관
         const rankData = this.getRankBubbleData ? this.getRankBubbleData() : { rank: 'D' };
-        this.clearedRank = rankData.rank || 'D';
+        this.clearedRank = this.forceRank || rankData.rank || 'D';
 
         // 스테이지 클리어 및 랭크/점수 영구 저장!
         this.updateSaveProgress(true);
@@ -8477,30 +8477,82 @@ this.entities.push(
                 args: [
                     {
                         name: 'rank',
-                        getOptions: (game, currentArg) => ['C', 'D'].filter(s => s.toLowerCase().startsWith(currentArg.toLowerCase())),
-                        hint: 'C/D'
+                        getOptions: (game, currentArg) => ['C', 'D', 'B', 'A', 'S', 'P'].filter(s => s.toLowerCase().startsWith(currentArg.toLowerCase())),
+                        hint: 'rank (C/D/B/A/S/P)'
                     }
                 ],
                 execute: (game, args) => {
-                    const r = (args[0] || 'C').toUpperCase();
+                    let r = (args[0] || 'C').toUpperCase();
+                    if (r.startsWith('/')) r = r.slice(1).toUpperCase();
+                    game.forceRank = r;
                     game.clearedRank = r;
-                    const rc = game.entities.find(e => e.type === 'rankcontroller');
-                    if (rc) {
-                        rc.rank = r;
-                        rc.imageIndex = 0;
+
+                    if (game.currentRoom === 'rm_rank') {
+                        let rc = game.entities.find(e => e.type === 'rankcontroller');
+                        if (!rc) {
+                            rc = new RankController(0, 0, r);
+                            game.entities.push(rc);
+                        }
+                        rc.restart(r);
+                        return `Rank restarted as ${r}!`;
+                    } else {
+                        game.loadRoom('rm_rank').then(() => {
+                            let rc = game.entities.find(e => e.type === 'rankcontroller');
+                            if (!rc) {
+                                rc = new RankController(0, 0, r);
+                                game.entities.push(rc);
+                            }
+                            rc.restart(r);
+                        }).catch(err => {
+                            console.error('Failed to load rm_rank:', err);
+                        });
+                        return `Rank set to ${r}! Transporting to rm_rank...`;
                     }
-                    return `Cleared Rank set to: ${r}`;
                 }
             },
             'rank': {
                 args: [
                     {
                         name: 'rank',
-                        getOptions: (game, currentArg) => ['C', 'D'].filter(s => s.toLowerCase().startsWith(currentArg.toLowerCase())),
-                        hint: 'C/D'
+                        getOptions: (game, currentArg) => ['C', 'D', 'B', 'A', 'S', 'P'].filter(s => s.toLowerCase().startsWith(currentArg.toLowerCase())),
+                        hint: 'rank (C/D/B/A/S/P)'
                     }
                 ],
                 execute: (game, args) => game.debugCommands['set_rank'].execute(game, args)
+            },
+            'setrank': {
+                args: [
+                    {
+                        name: 'rank',
+                        getOptions: (game, currentArg) => ['C', 'D', 'B', 'A', 'S', 'P'].filter(s => s.toLowerCase().startsWith(currentArg.toLowerCase())),
+                        hint: 'rank (C/D/B/A/S/P)'
+                    }
+                ],
+                execute: (game, args) => game.debugCommands['set_rank'].execute(game, args)
+            },
+            'c': {
+                args: [],
+                execute: (game) => game.debugCommands['set_rank'].execute(game, ['C'])
+            },
+            'd': {
+                args: [],
+                execute: (game) => game.debugCommands['set_rank'].execute(game, ['D'])
+            },
+            'rankc': {
+                args: [],
+                execute: (game) => game.debugCommands['set_rank'].execute(game, ['C'])
+            },
+            'rankd': {
+                args: [],
+                execute: (game) => game.debugCommands['set_rank'].execute(game, ['D'])
+            },
+            'rank_c': {
+                args: [],
+                execute: (game) => game.debugCommands['set_rank'].execute(game, ['C'])
+            },
+            'rank_d': {
+                args: [],
+                execute: (game) => game.debugCommands['set_rank'].execute(game, ['D'])
             },
             'srank': {
                 args: [
@@ -8885,7 +8937,9 @@ this.entities.push(
 
     executeDebugCommand(cmdStr) {
         if (!cmdStr || !cmdStr.trim()) return null;
-        const parts = cmdStr.trim().split(/\s+/);
+        let cleanStr = cmdStr.trim();
+        if (cleanStr.startsWith('/')) cleanStr = cleanStr.slice(1).trim();
+        const parts = cleanStr.split(/\s+/);
         const name = parts[0].toLowerCase();
         const args = parts.slice(1);
 
@@ -9216,6 +9270,15 @@ this.entities.push(
     }
 
     getRankBubbleData() {
+        if (this.forceRank) {
+            const rankOrder = { 'D': 0, 'C': 1, 'B': 2, 'A': 3, 'S': 4, 'P': 5 };
+            const r = this.forceRank.toUpperCase();
+            return {
+                rank: r,
+                rankIndex: rankOrder[r] !== undefined ? rankOrder[r] : 1,
+                fillProgress: 1.0
+            };
+        }
         const target = this.sRankScore || 10000;
         const score = this.score || 0;
         const quarter = Math.round(target / 4);
@@ -9256,6 +9319,7 @@ this.entities.push(
     }
 
     getCurrentRank() {
+        if (this.forceRank) return this.forceRank.toUpperCase();
         return this.getRankBubbleData().rank;
     }
 
@@ -9321,7 +9385,7 @@ this.entities.push(
         if (!data.stages) data.stages = {};
         if (isLevelClear) {
             const stageKey = this.restart_room || this.currentRoom || 'tutorial_1';
-            const currentRank = this.getCurrentRank ? this.getCurrentRank() : 'D';
+            const currentRank = this.forceRank || (this.getCurrentRank ? this.getCurrentRank() : 'D');
             const rankOrder = { 'D': 1, 'C': 2, 'B': 3, 'A': 4, 'S': 5, 'P': 6 };
             const existingRank = (data.stages[stageKey] && data.stages[stageKey].rank) || 'D';
             
@@ -9424,3 +9488,12 @@ this.entities.push(
 }
 
 window.game = new Game();
+
+window.setRank = function(r = 'C') {
+    if (window.gameInstance && window.gameInstance.debugCommands && window.gameInstance.debugCommands['set_rank']) {
+        return window.gameInstance.debugCommands['set_rank'].execute(window.gameInstance, [r]);
+    }
+};
+window.rank = window.setRank;
+window.set_rank = window.setRank;
+

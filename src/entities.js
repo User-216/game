@@ -2986,8 +2986,8 @@ class RankController extends Entity {
         super(x, y, 960, 540);
         this.type = 'rankcontroller';
         this.isSolid = false;
-        this.targetRank = targetRank;
-        this.rank = targetRank || 'D';
+        this.targetRank = targetRank ? targetRank.toUpperCase() : null;
+        this.rank = this.targetRank || 'D';
         this.rankLocked = false;
         
         // Phase sequence:
@@ -3013,40 +3013,80 @@ class RankController extends Entity {
         this.canExit = false;
         this.exiting = false;
 
-        // Load D-rank animation frames from player/spr_rankD (8 frames: spr_rankD_0 ~ 7)
-        if (!RankController.imagesD) {
-            RankController.imagesD = [];
-            for (let i = 0; i <= 7; i++) {
-                const img = new Image();
-                img.src = `player/spr_rankD/spr_rankD_${i}.png`;
-                RankController.imagesD.push(img);
-            }
+        if (!RankController.imagesC || !RankController.imagesD) {
+            RankController.reloadImages();
+        }
+    }
+
+    static reloadImages() {
+        const cacheBust = Date.now();
+        RankController.imagesD = [];
+        for (let i = 0; i <= 7; i++) {
+            const img = new Image();
+            img.src = `player/spr_rankD/spr_rankD_${i}.png?v=${cacheBust}`;
+            RankController.imagesD.push(img);
         }
         RankController.images = RankController.imagesD;
 
-        // Load C-rank animation frames from player/spr_rankC (7 frames: spr_rankC1 ~ 7)
-        if (!RankController.imagesC) {
-            RankController.imagesC = [];
-            for (let i = 1; i <= 7; i++) {
-                const img = new Image();
-                img.src = `player/spr_rankC/spr_rankC${i}.png`;
-                RankController.imagesC.push(img);
-            }
+        RankController.imagesC = [];
+        for (let i = 1; i <= 7; i++) {
+            const img = new Image();
+            img.src = `player/spr_rankC/spr_rankC${i}.png?v=${cacheBust}`;
+            RankController.imagesC.push(img);
+        }
+    }
+
+    restart(targetRank = null) {
+        RankController.reloadImages();
+        if (targetRank) {
+            this.targetRank = targetRank.toUpperCase();
+            this.rank = this.targetRank;
+        } else {
+            this.targetRank = null;
+            this.rank = this.getRank(window.gameInstance);
+        }
+        this.rankLocked = true;
+        this.phase = 0;
+        this.timer = 30; // brief 0.5s pause to see lookdoor, then anim starts
+        this.imageIndex = 0;
+        this.showRankAnim = false;
+        this.animFinished = false;
+        this.revealedLines = 0;
+        this.lineTimer = 0;
+        this.shakeAmount = 0;
+        this.shakeX = 0;
+        this.shakeY = 0;
+        this.canExit = false;
+        this.exiting = false;
+
+        const game = window.gameInstance;
+        if (game && game.player) {
+            game.player.visible = true;
+            game.player.state = 'rank';
+            game.player.sprite_index = 'spr_player_lookdoor';
+            game.player.image_index = 0;
+            const screenW = (game && game.canvas) ? game.canvas.width : 960;
+            const screenH = (game && game.canvas) ? game.canvas.height : 540;
+            game.player.x = Math.round(screenW / 2 - game.player.width / 2);
+            game.player.y = Math.round(screenH / 2 - game.player.height / 2);
+            game.player.vx = 0;
+            game.player.vy = 0;
+            game.player.isGrounded = true;
         }
     }
 
     getRank(game) {
         if (this.targetRank) return this.targetRank;
-        const raw = (game && game.clearedRank) || (game && typeof game.getCurrentRank === 'function' ? game.getCurrentRank() : 'D');
-        // If rank is C, B, A, S, P (and higher rank animations aren't ready yet), show C rank
-        if (raw === 'C' || raw === 'B' || raw === 'A' || raw === 'S' || raw === 'P') {
+        const raw = (game && (game.forceRank || game.clearedRank)) || (game && typeof game.getCurrentRank === 'function' ? game.getCurrentRank() : 'D');
+        const upper = (raw || 'D').toUpperCase();
+        if (upper === 'C' || upper === 'B' || upper === 'A' || upper === 'S' || upper === 'P') {
             return 'C';
         }
         return 'D';
     }
 
     getRankImages() {
-        const r = this.rank || 'D';
+        const r = (this.rank || 'D').toUpperCase();
         if (r === 'C') {
             return RankController.imagesC || [];
         }
@@ -3178,7 +3218,7 @@ class RankController extends Entity {
                 this.canExit = true;
             }
 
-            if (this.canExit && !this.exiting && game) {
+            if (this.canExit && !this.exiting && game && (!game.debugConsole || !game.debugConsole.open)) {
                 const anyKeyPressed = game.keys.actionJump || game.keys.actionTaunt || 
                                       game.keys.actionGroundpound || game.keys.actionUp || 
                                       game.keys.actionDown || game.keys.actionLeft || 

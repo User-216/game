@@ -416,6 +416,7 @@ class Player {
             this.isGrounded = true;
             this.sprite_index = 'spr_player_lookdoor';
             if (this.sprites.spr_player_lookdoor && this.sprites.spr_player_lookdoor.length > 0) {
+                this.image_index += 0.35;
                 if (this.image_index >= this.sprites.spr_player_lookdoor.length) {
                     this.image_index = this.sprites.spr_player_lookdoor.length - 1;
                 }
