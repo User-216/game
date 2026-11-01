@@ -699,6 +699,7 @@ this.entities.push(
     new Tile3(160, 352, 32, 32, 128, 128, 'tile_tutorial.png', 32, 32),
     new Tile3(160, 384, 32, 32, 128, 160, 'tile_tutorial.png', 32, 32),
     new Tile3(160, 416, 32, 32, 128, 192, 'tile_tutorial.png', 32, 32),
+    new ExitGate(128, 192, 160, 256),
 );
 
 };

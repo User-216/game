@@ -405,6 +405,25 @@ class Player {
         }
         this.showUpArrow = atInteractable;
 
+        if (this.state === 'rank') {
+            this.x = 0;
+            this.y = 0;
+            this.vx = 0;
+            this.vy = 0;
+            this.isRunning = false;
+            this.isDrifting = false;
+            this.isDrifting1 = false;
+            this.isMachSliding = false;
+            this.isClimbing = false;
+            this.isGroundPounding = false;
+            this.isSuplexGrabbing = false;
+            this.isTumbling = false;
+            this.isCrouching = false;
+            this.machAfters = [];
+            this.ghostAfters = [];
+            return;
+        }
+
         if (this.state === 'enterdoor') {
             this.vx = 0;
             this.vy = 0;
@@ -1141,6 +1160,8 @@ class Player {
             // Keep walkfront state
         } else if (this.state === 'bump') {
             // Keep bump state
+        } else if (this.state === 'rank') {
+            // Keep rank state
         } else if (this.isSuplexGrabbing) {
             this.state = 'suplexgrab';
         } else if (this.isTumbling) {
@@ -2738,6 +2759,7 @@ class Player {
         else if (this.state === 'enterdoor') debugState = 'enterdoor';
         else if (this.state === 'enterlevelgate') debugState = 'enterlevelgate';
         else if (this.state === 'walkfront') debugState = 'walkfront';
+        else if (this.state === 'rank') debugState = 'rank';
         else if (this.isGroundPounding) debugState = 'groundpound';
         else if (this.isGroundPoundLand) debugState = 'groundpound land';
         else if (this.isClimbing) debugState = 'climbing';

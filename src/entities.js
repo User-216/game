@@ -3039,6 +3039,10 @@ class RankController extends Entity {
                 if (game.audio) {
                     game.audio.playFile('sfx_step', true);
                 }
+                if (player) {
+                    player.state = 'walkfront';
+                    player.visible = true;
+                }
                 const hubRoom = game.hub_room || 'demo_hub';
                 game.transitionState = 'FADE_OUT';
                 game.transitionTimer = 0;
@@ -3077,8 +3081,8 @@ class RankController extends Entity {
             ctx.translate(game.camera.x, game.camera.y);
         }
 
-        // Solid Black Background
-        ctx.fillStyle = '#000000';
+        // Solid White Background
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
 
         if (img && img.complete && img.naturalWidth > 0) {
@@ -3089,8 +3093,8 @@ class RankController extends Entity {
         if (this.canExit) {
             const blink = Math.sin(Date.now() / 200) > 0;
             if (blink) {
-                ctx.fillStyle = '#ffffff';
-                ctx.strokeStyle = '#000000';
+                ctx.fillStyle = '#000000';
+                ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 3;
                 ctx.font = 'bold 22px "Custom_SANGJU_Dajungdagam", "Outfit", sans-serif';
                 ctx.textAlign = 'center';

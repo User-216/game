@@ -4196,8 +4196,21 @@ this.entities.push(
                     }
                 }
                 
-                this.player.x = startX;
-                this.player.y = startY;
+                if (roomName === 'rm_rank') {
+                    this.player.state = 'rank';
+                    this.player.x = 0;
+                    this.player.y = 0;
+                    this.player.vx = 0;
+                    this.player.vy = 0;
+                    this.camera.x = 0;
+                    this.camera.y = 0;
+                } else {
+                    this.player.x = startX;
+                    this.player.y = startY;
+                    if (this.player.state === 'rank') {
+                        this.player.state = 'normal';
+                    }
+                }
 
                 // Time's Up White Circle: Spawns at player location in new room and waits 500 frames before chasing!
                 if (this.escape && typeof this.escapeTimer === 'number' && this.escapeTimer <= 0) {
@@ -4217,7 +4230,7 @@ this.entities.push(
                 this.player.targetDoorX = null;
 
                 // When moving to another room, if touching an actual Door or LevelGate (NOT TargetDoor), switch to walkfront state!
-                if (!preserveVelocity && this.player && !this.isEditorMode) {
+                if (roomName !== 'rm_rank' && !preserveVelocity && this.player && !this.isEditorMode) {
                     const touchingDoor = this.entities.find(e => {
                         if (!e || e.isDestroyed) return false;
                         if (e.type !== 'door' && e.type !== 'levelgate' && e.type !== 'exitgate') return false;
@@ -4380,10 +4393,12 @@ this.entities.push(
 
     enterExitGate(gate) {
         this.player.showUpArrow = false;
-        this.player.state = 'enterdoor';
-        this.player.isEnteringDoor = true;
+        this.player.state = 'rank';
+        this.player.x = 0;
+        this.player.y = 0;
         this.player.vx = 0;
         this.player.vy = 0;
+        this.player.isEnteringDoor = false;
         this.player.isRunning = false;
         if (this.player.height === 23 || this.player.isCrouching || this.player.isTumbling) {
             this.player.height = 45;
@@ -5573,7 +5588,7 @@ this.entities.push(
                             );
                         });
 
-                        if (touchingDoor) {
+                        if (this.currentRoom !== 'rm_rank' && touchingDoor) {
                             this.player.state = 'walkfront';
                             this.player.isEnteringDoor = false;
                             this.player.sprite_index = 'spr_player_walkfront';
