@@ -4202,15 +4202,17 @@ this.entities.push(
                     this.player.isGroundPounding = false;
                     this.player.freefallLoopStarted = false;
                     this.player.sprite_index = 'spr_player_lookdoor';
-                    const cX = Math.round(960 / 2 - this.player.width / 2);
-                    const cY = Math.round(540 / 2 - this.player.height / 2);
-                    this.player.x = cX;
-                    this.player.y = cY;
+                    this.player.image_index = 0;
+                    this.player.image_speed = 0.35;
+                    this.player.x = 465;
+                    this.player.y = 255;
                     this.player.visible = true;
                     this.player.vx = 0;
                     this.player.vy = 0;
                     this.camera.x = 0;
                     this.camera.y = 0;
+                    this.transitionAlpha = 0;
+                    this.transitionState = 'NONE';
                     if (this.audio) {
                         this.audio.stopFile('sfx_freefall');
                         this.audio.stopFile('sfx_freefallstart');
@@ -5616,14 +5618,18 @@ this.entities.push(
                         if (this.currentRoom === 'rm_rank') {
                             this.player.state = 'rank';
                             this.player.sprite_index = 'spr_player_lookdoor';
+                            this.player.image_index = 0;
+                            this.player.image_speed = 0.35;
                             this.player.isEnteringDoor = false;
                             this.player.targetDoorX = null;
-                            this.player.x = Math.round(960 / 2 - this.player.width / 2);
-                            this.player.y = Math.round(540 / 2 - this.player.height / 2);
+                            this.player.x = 465;
+                            this.player.y = 255;
                             this.player.vx = 0;
                             this.player.vy = 0;
                             this.player.isGrounded = true;
                             this.player.visible = true;
+                            this.transitionAlpha = 0;
+                            this.transitionState = 'NONE';
                         } else if (touchingDoor) {
                             this.player.state = 'walkfront';
                             this.player.isEnteringDoor = false;

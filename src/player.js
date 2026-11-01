@@ -407,18 +407,18 @@ class Player {
 
         if (this.state === 'rank') {
             const game = window.gameInstance;
-            const screenW = (game && game.canvas) ? game.canvas.width : 960;
-            const screenH = (game && game.canvas) ? game.canvas.height : 540;
-            this.x = Math.round(screenW / 2 - this.width / 2);
-            this.y = Math.round(screenH / 2 - this.height / 2);
+            this.x = 465;
+            this.y = 255;
             this.vx = 0;
             this.vy = 0;
             this.isGrounded = true;
             this.sprite_index = 'spr_player_lookdoor';
             if (this.sprites.spr_player_lookdoor && this.sprites.spr_player_lookdoor.length > 0) {
-                this.image_index += 0.35;
-                if (this.image_index >= this.sprites.spr_player_lookdoor.length) {
-                    this.image_index = this.sprites.spr_player_lookdoor.length - 1;
+                if (this.image_index < this.sprites.spr_player_lookdoor.length - 1) {
+                    this.image_index += 0.35;
+                    if (this.image_index >= this.sprites.spr_player_lookdoor.length - 1) {
+                        this.image_index = this.sprites.spr_player_lookdoor.length - 1;
+                    }
                 }
             }
             this.isRunning = false;

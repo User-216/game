@@ -2998,6 +2998,7 @@ class RankController extends Entity {
         // 4: Complete & waiting for key press to exit
         this.phase = 0;
         this.timer = 0;
+        this.lookdoorFinished = false;
         
         this.imageIndex = 0;
         this.imageSpeed = 0.35;
@@ -3047,7 +3048,8 @@ class RankController extends Entity {
         }
         this.rankLocked = true;
         this.phase = 0;
-        this.timer = 30; // brief 0.5s pause to see lookdoor, then anim starts
+        this.timer = 0;
+        this.lookdoorFinished = false;
         this.imageIndex = 0;
         this.showRankAnim = false;
         this.animFinished = false;
@@ -3060,15 +3062,17 @@ class RankController extends Entity {
         this.exiting = false;
 
         const game = window.gameInstance;
+        if (game) {
+            game.transitionAlpha = 0;
+            game.transitionState = 'NONE';
+        }
         if (game && game.player) {
             game.player.visible = true;
             game.player.state = 'rank';
             game.player.sprite_index = 'spr_player_lookdoor';
             game.player.image_index = 0;
-            const screenW = (game && game.canvas) ? game.canvas.width : 960;
-            const screenH = (game && game.canvas) ? game.canvas.height : 540;
-            game.player.x = Math.round(screenW / 2 - game.player.width / 2);
-            game.player.y = Math.round(screenH / 2 - game.player.height / 2);
+            game.player.x = 465;
+            game.player.y = 255;
             game.player.vx = 0;
             game.player.vy = 0;
             game.player.isGrounded = true;
@@ -3142,10 +3146,8 @@ class RankController extends Entity {
         // Keep player centered, grounded and in rank state (with lookdoor sprite)
         if (player) {
             player.state = 'rank';
-            const screenW = (game && game.canvas) ? game.canvas.width : 960;
-            const screenH = (game && game.canvas) ? game.canvas.height : 540;
-            player.x = Math.round(screenW / 2 - player.width / 2);
-            player.y = Math.round(screenH / 2 - player.height / 2);
+            player.x = 465;
+            player.y = 255;
             player.vx = 0;
             player.vy = 0;
             player.isGrounded = true;
@@ -3153,17 +3155,25 @@ class RankController extends Entity {
             player.visible = !this.showRankAnim;
         }
 
-        this.timer++;
-
-        // Phase 0: Initial wait before D rank anim starts (1.5s / 90 frames)
+        // Phase 0: Lookdoor animation plays completely from start to end, pauses briefly, then rank slam starts
         if (this.phase === 0) {
-            if (this.timer >= 90) {
-                this.phase = 1;
-                this.timer = 0;
-                this.showRankAnim = true;
-                this.imageIndex = 0;
-                if (game && game.audio) {
-                    game.audio.playFile('sfx_step', true);
+            const maxLookFrames = (player && player.sprites && player.sprites.spr_player_lookdoor && player.sprites.spr_player_lookdoor.length) || 10;
+            if (player && player.image_index >= maxLookFrames - 1) {
+                player.image_index = maxLookFrames - 1;
+                this.lookdoorFinished = true;
+            }
+
+            // Once lookdoor finished playing, count a short suspense pause (30 frames ~ 0.5s), then slam rank!
+            if (this.lookdoorFinished) {
+                this.timer++;
+                if (this.timer >= 30) {
+                    this.phase = 1;
+                    this.timer = 0;
+                    this.showRankAnim = true;
+                    this.imageIndex = 0;
+                    if (game && game.audio) {
+                        game.audio.playFile('sfx_step', true);
+                    }
                 }
             }
         }
