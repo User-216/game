@@ -3204,30 +3204,29 @@ class RankController extends Entity {
             }
         }
 
-        // 3. Sequential Text Lines (SCORE, TIME, DAMAGE, HIGHEST COMBO, BUDDY TAXED!!!)
+        // 3. Sequential Text Lines (SCORE, TIME, DAMAGE, HIGHEST COMBO, BUDDY TAXED!!!) using Pizza Tower bigfont
         if (this.revealedLines > 0) {
             const lines = this.getStats(game);
             const startX = 50;
-            const startY = 85;
-            const lineHeight = 44;
-
-            ctx.font = '900 32px "Custom_SANGJU_Dajungdagam", "Impact", "Outfit", sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.lineJoin = 'round';
-            ctx.lineWidth = 7;
+            const startY = 60;
+            const lineHeight = 40;
 
             for (let i = 0; i < this.revealedLines && i < lines.length; i++) {
                 const text = lines[i];
                 const lineY = startY + i * lineHeight;
 
-                // Black thick stroke
-                ctx.strokeStyle = '#000000';
-                ctx.strokeText(text, startX, lineY);
-
-                // Pure White fill
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText(text, startX, lineY);
+                if (game && typeof game.drawBigFontText === 'function') {
+                    game.drawBigFontText(ctx, text, startX, lineY, 1, false, false);
+                } else {
+                    ctx.font = '900 32px "Impact", "Outfit", sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 7;
+                    ctx.strokeText(text, startX, lineY);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(text, startX, lineY);
+                }
             }
         }
 
@@ -3235,20 +3234,20 @@ class RankController extends Entity {
         if (this.canExit) {
             const blink = Math.sin(Date.now() / 200) > 0;
             if (blink) {
-                ctx.fillStyle = '#000000';
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 3;
-                ctx.font = 'bold 22px "Custom_SANGJU_Dajungdagam", "Outfit", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                const promptText = (game && game.settings && game.settings.language === 'ko') 
-                    ? '아무 키나 눌러 계속하기' 
-                    : 'PRESS ANY KEY TO CONTINUE';
-                ctx.strokeText(promptText, w / 2, h - 25);
-                ctx.fillText(promptText, w / 2, h - 25);
+                if (game && typeof game.drawBigFontText === 'function') {
+                    game.drawBigFontText(ctx, 'PRESS ANY KEY TO CONTINUE', w / 2, h - 45, 0.65, true, false);
+                } else {
+                    ctx.fillStyle = '#000000';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 3;
+                    ctx.font = 'bold 22px "Outfit", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.strokeText('PRESS ANY KEY TO CONTINUE', w / 2, h - 25);
+                    ctx.fillText('PRESS ANY KEY TO CONTINUE', w / 2, h - 25);
+                }
             }
         }
-
         ctx.restore();
     }
 }
