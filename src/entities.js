@@ -2985,6 +2985,7 @@ class RankController extends Entity {
     constructor(x = 0, y = 0) {
         super(x, y, 960, 540);
         this.type = 'rankcontroller';
+        this.isSolid = false;
         
         // Phase sequence:
         // 0: Initial wait before D rank anim starts (1.5 sec / 90 frames)
@@ -3044,7 +3045,9 @@ class RankController extends Entity {
         ];
     }
 
-    update(player, game) {
+    update(game) {
+        if (!game) game = window.gameInstance;
+        const player = game ? game.player : null;
         if (game && game.isEditorMode) return;
 
         // Screen shake decay
@@ -3068,7 +3071,7 @@ class RankController extends Entity {
             player.vy = 0;
             player.isGrounded = true;
             player.sprite_index = 'spr_player_idle';
-            player.visible = true;
+            player.visible = !this.showRankAnim;
         }
 
         this.timer++;

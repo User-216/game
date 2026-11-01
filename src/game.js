@@ -4404,18 +4404,10 @@ this.entities.push(
 
     enterExitGate(gate) {
         this.player.showUpArrow = false;
-        this.player.state = 'rank';
-        const cX = Math.round(this.canvas.width / 2 - this.player.width / 2);
-        const cY = Math.round(this.canvas.height / 2 - this.player.height / 2);
-        this.player.x = cX;
-        this.player.y = cY;
+        this.player.state = 'enterdoor';
+        this.player.isEnteringDoor = true;
         this.player.vx = 0;
         this.player.vy = 0;
-        this.player.isGrounded = true;
-        this.player.isGroundPounding = false;
-        this.player.freefallLoopStarted = false;
-        this.player.sprite_index = 'spr_player_idle';
-        this.player.isEnteringDoor = false;
         this.player.isRunning = false;
         if (this.audio) {
             this.audio.stopFile('sfx_freefall');
@@ -5617,7 +5609,18 @@ this.entities.push(
                             );
                         });
 
-                        if (this.currentRoom !== 'rm_rank' && touchingDoor) {
+                        if (this.currentRoom === 'rm_rank') {
+                            this.player.state = 'rank';
+                            this.player.sprite_index = 'spr_player_idle';
+                            this.player.isEnteringDoor = false;
+                            this.player.targetDoorX = null;
+                            this.player.x = Math.round(960 / 2 - this.player.width / 2);
+                            this.player.y = Math.round(540 / 2 - this.player.height / 2);
+                            this.player.vx = 0;
+                            this.player.vy = 0;
+                            this.player.isGrounded = true;
+                            this.player.visible = true;
+                        } else if (touchingDoor) {
                             this.player.state = 'walkfront';
                             this.player.isEnteringDoor = false;
                             this.player.sprite_index = 'spr_player_walkfront';
@@ -5648,7 +5651,9 @@ this.entities.push(
                 this.pendingDoor = null;
                 if (this.player) {
                     this.player.targetDoorX = null;
-                    if (this.player.state === 'enterdoor' || this.player.state === 'enterlevelgate') {
+                    if (this.currentRoom === 'rm_rank') {
+                        this.player.state = 'rank';
+                    } else if (this.player.state === 'enterdoor' || this.player.state === 'enterlevelgate') {
                         this.player.state = 'normal';
                         this.player.sprite_index = 'spr_player_idle';
                         this.player.image_index = 0;
