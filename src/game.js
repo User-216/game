@@ -4198,12 +4198,20 @@ this.entities.push(
                 
                 if (roomName === 'rm_rank') {
                     this.player.state = 'rank';
+                    this.player.isGrounded = true;
+                    this.player.isGroundPounding = false;
+                    this.player.freefallLoopStarted = false;
+                    this.player.sprite_index = 'spr_player_idle';
                     this.player.x = 0;
                     this.player.y = 0;
                     this.player.vx = 0;
                     this.player.vy = 0;
                     this.camera.x = 0;
                     this.camera.y = 0;
+                    if (this.audio) {
+                        this.audio.stopFile('sfx_freefall');
+                        this.audio.stopFile('sfx_freefallstart');
+                    }
                 } else {
                     this.player.x = startX;
                     this.player.y = startY;
@@ -4398,8 +4406,16 @@ this.entities.push(
         this.player.y = 0;
         this.player.vx = 0;
         this.player.vy = 0;
+        this.player.isGrounded = true;
+        this.player.isGroundPounding = false;
+        this.player.freefallLoopStarted = false;
+        this.player.sprite_index = 'spr_player_idle';
         this.player.isEnteringDoor = false;
         this.player.isRunning = false;
+        if (this.audio) {
+            this.audio.stopFile('sfx_freefall');
+            this.audio.stopFile('sfx_freefallstart');
+        }
         if (this.player.height === 23 || this.player.isCrouching || this.player.isTumbling) {
             this.player.height = 45;
             this.player.y -= 22;
@@ -5907,7 +5923,8 @@ this.entities.push(
 
         // Update state info UI
         let currentStates = [];
-        if (this.player.state === 'bump') currentStates.push('bump');
+        if (this.player.state === 'rank') currentStates.push('rank');
+        else if (this.player.state === 'bump') currentStates.push('bump');
         else if (this.player.state === 'enterdoor') currentStates.push('enterdoor');
         else if (this.player.state === 'enterlevelgate') currentStates.push('enterlevelgate');
         else if (this.player.state === 'walkfront') currentStates.push('walkfront');

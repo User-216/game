@@ -410,12 +410,15 @@ class Player {
             this.y = 0;
             this.vx = 0;
             this.vy = 0;
+            this.isGrounded = true;
+            this.sprite_index = 'spr_player_idle';
             this.isRunning = false;
             this.isDrifting = false;
             this.isDrifting1 = false;
             this.isMachSliding = false;
             this.isClimbing = false;
             this.isGroundPounding = false;
+            this.freefallLoopStarted = false;
             this.isSuplexGrabbing = false;
             this.isTumbling = false;
             this.isCrouching = false;
