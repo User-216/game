@@ -2991,7 +2991,7 @@ class RankController extends Entity {
         this.rankLocked = false;
         
         // Phase sequence:
-        // 0: Initial wait before rank anim starts (1.5 sec / 90 frames)
+        // 0: Initial wait before rank anim starts (5.0 sec / 300 frames)
         // 1: Playing rank animation (spr_rankC or spr_rankD)
         // 2: Delay after rank anim finishes before texts appear (1.0 sec / 60 frames)
         // 3: Line-by-line text slam with screen shake & sound
@@ -3155,25 +3155,24 @@ class RankController extends Entity {
             player.visible = !this.showRankAnim;
         }
 
-        // Phase 0: Lookdoor animation plays completely from start to end, pauses briefly, then rank slam starts
+        // Phase 0: Lookdoor animation plays completely, then rank slam starts after 5 seconds (300 frames)
         if (this.phase === 0) {
+            this.timer++;
+
             const maxLookFrames = (player && player.sprites && player.sprites.spr_player_lookdoor && player.sprites.spr_player_lookdoor.length) || 10;
             if (player && player.image_index >= maxLookFrames - 1) {
                 player.image_index = maxLookFrames - 1;
                 this.lookdoorFinished = true;
             }
 
-            // Once lookdoor finished playing, count a short suspense pause (30 frames ~ 0.5s), then slam rank!
-            if (this.lookdoorFinished) {
-                this.timer++;
-                if (this.timer >= 30) {
-                    this.phase = 1;
-                    this.timer = 0;
-                    this.showRankAnim = true;
-                    this.imageIndex = 0;
-                    if (game && game.audio) {
-                        game.audio.playFile('sfx_step', true);
-                    }
+            // 5초(300 프레임) 뒤 랭크 애니메이션 등장!
+            if (this.timer >= 300 && this.lookdoorFinished) {
+                this.phase = 1;
+                this.timer = 0;
+                this.showRankAnim = true;
+                this.imageIndex = 0;
+                if (game && game.audio) {
+                    game.audio.playFile('sfx_step', true);
                 }
             }
         }
