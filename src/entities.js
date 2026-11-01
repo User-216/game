@@ -3165,8 +3165,8 @@ class RankController extends Entity {
                 this.lookdoorFinished = true;
             }
 
-            // 5초(300 프레임) 뒤 랭크 애니메이션 등장!
-            if (this.timer >= 300 && this.lookdoorFinished) {
+            // 5초(300 프레임) 대기 후 랭크 애니메이션 시작!
+            if (this.timer >= 300) {
                 this.phase = 1;
                 this.timer = 0;
                 this.showRankAnim = true;
@@ -3194,6 +3194,7 @@ class RankController extends Entity {
         }
         // Phase 2: Delay after anim before text lines appear (1.0s / 60 frames)
         else if (this.phase === 2) {
+            this.timer++;
             if (this.timer >= 60) {
                 this.phase = 3;
                 this.timer = 0;
@@ -3223,6 +3224,7 @@ class RankController extends Entity {
         }
         // Phase 4: Ready to exit on any key
         else if (this.phase === 4) {
+            this.timer++;
             if (this.timer > 30) {
                 this.canExit = true;
             }
