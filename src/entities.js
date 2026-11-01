@@ -1268,6 +1268,82 @@ class Door extends Entity {
 }
 Door.initImage();
 
+class ExitGate extends Entity {
+    static imageClosed = null;
+    static imageOpen = null;
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (ExitGate.imagesLoaded) return;
+        ExitGate.imagesLoaded = true;
+        ExitGate.imageClosed = new Image();
+        ExitGate.imageClosed.src = '이미지/spr_exitgate/spr_exitgate_0.png';
+        ExitGate.imageOpen = new Image();
+        ExitGate.imageOpen.src = '이미지/spr_exitgate/spr_exitgate_1.png';
+    }
+
+    constructor(x, y, width = 160, height = 256, color = 'rgba(46, 204, 113, 0.7)', flipX = false, flipY = false) {
+        super(x, y, width, height, color, flipX, flipY);
+        this.type = 'exitgate';
+        this.isSolid = false;
+        ExitGate.initImages();
+    }
+
+    render(ctx) {
+        if (this.isDestroyed) return;
+        ExitGate.initImages();
+
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
+
+        const game = window.gameInstance;
+        // 탈출 중일 때 문 열림(spr_exitgate_1), 평소에는 문 닫힘(spr_exitgate_0)
+        const isOpen = !!(game && game.escape);
+        const img = isOpen ? ExitGate.imageOpen : ExitGate.imageClosed;
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.imageSmoothingEnabled = false;
+            const drawW = img.naturalWidth;
+            const drawH = img.naturalHeight;
+            const drawX = Math.round(this.x + this.width / 2 - drawW / 2);
+            const drawY = Math.round(this.y + this.height - drawH);
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        } else {
+            // Fallback rendering
+            ctx.fillStyle = isOpen ? '#2ecc71' : '#e74c3c';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
+
+        const showDebug = (game && (game.showCollisions || game.isEditorMode));
+        if (showDebug) {
+            ctx.save();
+            ctx.strokeStyle = isOpen ? 'rgba(46, 204, 113, 0.9)' : 'rgba(231, 76, 60, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(isOpen ? 'EXIT GATE (OPEN)' : 'EXIT GATE (CLOSED)', this.x + this.width / 2, this.y - 8);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+}
+ExitGate.initImages();
+
 
 
 class LevelGate extends Entity {

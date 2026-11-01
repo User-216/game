@@ -3591,6 +3591,9 @@ class Game {
                 ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText('LV GATE', 96, 24);
+            } else if (this.selectedType === 'exitgate') {
+                w = 160;
+                h = 256;
             } else if (this.selectedType === 'door') {
                 w = 100;
                 h = 100;
@@ -3694,6 +3697,9 @@ class Game {
                 let tRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
                 let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
                 entity = new Hallway(x, y, w, h, tRoom, tDoor); 
+                break;
+            case 'exitgate':
+                entity = new ExitGate(x, y, 160, 256);
                 break;
             case 'door': 
                 let dRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
@@ -3885,6 +3891,7 @@ class Game {
             else if (ent instanceof Hallway) base = `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
             else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0})`;
+            else if ((typeof ExitGate !== 'undefined' && ent instanceof ExitGate) || ent.type === 'exitgate') base = `new ExitGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof TargetDoorBase) base = `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof TutorialBook) base = `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             else if (ent instanceof PaletteDresser) base = `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -3979,6 +3986,7 @@ this.roomBackground = 'bg_beaker';
 this.bgFollowCamera = true;
 this.entities.push(
     new TargetDoor_A(480, 576, 32, 32),
+    new ExitGate(416, 352, 160, 256),
     new Platform(192, 224, 96, 384, '#00aa9e66'),
     new TutorialBook(896, 576, 32, 32, "Press [J] to Jump!"),
     new Platform(672, 288, 128, 64, '#00aa9e66'),
@@ -4210,7 +4218,7 @@ this.entities.push(
                 if (!preserveVelocity && this.player && !this.isEditorMode) {
                     const touchingDoor = this.entities.find(e => {
                         if (!e || e.isDestroyed) return false;
-                        if (e.type !== 'door' && e.type !== 'levelgate') return false;
+                        if (e.type !== 'door' && e.type !== 'levelgate' && e.type !== 'exitgate') return false;
                         const minW = Math.max(e.width, 48);
                         const minH = Math.max(e.height, 64);
                         const left = e.x + e.width / 2 - minW / 2;
@@ -4366,6 +4374,52 @@ this.entities.push(
 
         this.clearActionKey('up');
         this.keys.actionUp = false;
+    }
+
+    enterExitGate(gate) {
+        this.player.showUpArrow = false;
+        this.player.state = 'enterdoor';
+        this.player.isEnteringDoor = true;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.player.isRunning = false;
+        if (this.player.height === 23 || this.player.isCrouching || this.player.isTumbling) {
+            this.player.height = 45;
+            this.player.y -= 22;
+            this.player.isCrouching = false;
+            this.player.isTumbling = false;
+            this.player.mask_index = 'spr_player_mask';
+        }
+        this.player.targetDoorX = gate.x + gate.width / 2 - this.player.width / 2;
+        this.player.sprite_index = 'spr_player_lookdoor';
+        this.player.image_index = 0;
+        this.player.image_speed = 0.45;
+        this.clearActionKey('up');
+        this.keys.actionUp = false;
+        this.clearActionKey('down');
+        this.keys.actionDown = false;
+
+        // 탈출 기믹 종료 및 상태 클리어
+        this.escape = false;
+        this.escapeTimer = 0;
+        this.escapeGrayscaleFactor = 0;
+        this.whiteCircle = null;
+        this.timerBarHidden = true;
+        this.timerBarYOffset = 0;
+        this.whiteCircleCaughtBlackTimer = 0;
+        if (this.audio) this.audio.resetMusic();
+
+        // 스테이지 클리어 및 랭크/점수 영구 저장!
+        this.updateSaveProgress(true);
+
+        // 허브 방(demo_hub)으로 페이드 아웃 전환
+        const hubRoom = this.hub_room || 'demo_hub';
+        this.transitionState = 'FADE_OUT';
+        this.transitionTimer = 0;
+        this.pendingRoom = hubRoom;
+        this.pendingDoor = 'A';
+        this.pendingPreserveVelocity = false;
+        this.isExitingLevelGate = true;
     }
 
     startTitleCard(gate) {
@@ -4637,7 +4691,7 @@ this.entities.push(
                     // When returning to hub in front of gate, switch to walkfront state!
                     const touchingDoor = this.entities.find(e => {
                         if (!e || e.isDestroyed) return false;
-                        if (e.type !== 'door' && e.type !== 'levelgate') return false;
+                        if (e.type !== 'door' && e.type !== 'levelgate' && e.type !== 'exitgate') return false;
                         const minW = Math.max(e.width, 48);
                         const minH = Math.max(e.height, 64);
                         const left = e.x + e.width / 2 - minW / 2;
@@ -5494,9 +5548,16 @@ this.entities.push(
                     this.transitionState = 'FADE_IN';
                     this.transitionTimer = 0;
                     if (this.player) {
+                        if (this.isExitingLevelGate) {
+                            this.isExitingLevelGate = false;
+                            if (this.hubX !== null && this.hubY !== null && typeof this.hubX === 'number') {
+                                this.player.x = this.hubX;
+                                this.player.y = this.hubY;
+                            }
+                        }
                         const touchingDoor = this.entities.find(e => {
                             if (!e || e.isDestroyed) return false;
-                            if (e.type !== 'door' && e.type !== 'levelgate') return false;
+                            if (e.type !== 'door' && e.type !== 'levelgate' && e.type !== 'exitgate') return false;
                             const minW = Math.max(e.width, 48);
                             const minH = Math.max(e.height, 64);
                             const left = e.x + e.width / 2 - minW / 2;
@@ -5846,18 +5907,21 @@ this.entities.push(
         if (this.player.isDrifting1) currentStates.push(dict['state.drifting']);
         if (Math.abs(this.player.vx) >= this.player.machThreshold) currentStates.push(dict['state.mach']);
 
-        // Door Interaction Check
+        // Door & Gate Interaction Check
         const overlappingInteractable = this.entities.find(e => {
             if (!e || e.isDestroyed) return false;
-            if (e.type === 'door' || e.type === 'levelgate' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
-                const minW = (e.type === 'door' || e.type === 'levelgate') ? 70 : 64;
-                const minH = (e.type === 'door' || e.type === 'levelgate') ? 90 : 64;
+            if (e.type === 'door' || e.type === 'levelgate' || e.type === 'exitgate' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
+                // ExitGate는 탈출 중(this.escape === true)일 때만 열려서 상호작용 가능!
+                if (e.type === 'exitgate' && !this.escape) return false;
+
+                const minW = (e.type === 'door' || e.type === 'levelgate' || e.type === 'exitgate') ? 70 : 64;
+                const minH = (e.type === 'door' || e.type === 'levelgate' || e.type === 'exitgate') ? 90 : 64;
                 const drawW = Math.max(e.width, minW);
                 const drawH = Math.max(e.height, minH);
                 const left = e.x + e.width / 2 - drawW / 2;
                 const right = left + drawW;
                 const bottom = e.y + e.height;
-                const top = bottom - drawH;
+                const top = bottom - minH;
                 return (
                     this.player.x < right &&
                     this.player.x + this.player.width > left &&
@@ -5870,7 +5934,7 @@ this.entities.push(
 
         const overlappingDoor = (overlappingInteractable && overlappingInteractable.type === 'door') ? overlappingInteractable : null;
         const overlappingGate = (overlappingInteractable && overlappingInteractable.type === 'levelgate') ? overlappingInteractable : null;
-
+        const overlappingExitGate = (overlappingInteractable && overlappingInteractable.type === 'exitgate') ? overlappingInteractable : null;
         if (this.player) {
             this.player.showUpArrow = !!(
                 overlappingInteractable && 
@@ -5922,6 +5986,10 @@ this.entities.push(
             this.clearActionKey('down');
             this.keys.actionDown = false;
             this.enterLevelGate(overlappingGate);
+        }
+
+        if (overlappingExitGate && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.player.state !== 'bump' && this.transitionState === 'NONE') {
+            this.enterExitGate(overlappingExitGate);
         }
 
         // Hallway Transition Check
@@ -6357,7 +6425,7 @@ this.entities.push(
         
         this.ctx.restore();
 
-        // Escape Panic Post-Processing: Dynamic Screen Wave & Chromatic Aberration (Color Bleed)
+        // Escape Panic Post-Processing: Dynamic Screen Wave & Chromatic Aberration (3-Channel RGB Split & Glitch)
         if (this.escape && !this.isEditorMode && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED' || this.gameState === 'ESCAPE_CUTSCENE')) {
             const totalTime = this.escapeTimeTotal || 120;
             const remainingTime = Math.max(0, this.escapeTimer || 0);
@@ -6378,42 +6446,55 @@ this.entities.push(
                     this.escapeRedCanvas.height = h;
                     this.escapeRedCtx = this.escapeRedCanvas.getContext('2d');
 
-                    this.escapeCyanCanvas = document.createElement('canvas');
-                    this.escapeCyanCanvas.width = w;
-                    this.escapeCyanCanvas.height = h;
-                    this.escapeCyanCtx = this.escapeCyanCanvas.getContext('2d');
+                    this.escapeGreenCanvas = document.createElement('canvas');
+                    this.escapeGreenCanvas.width = w;
+                    this.escapeGreenCanvas.height = h;
+                    this.escapeGreenCtx = this.escapeGreenCanvas.getContext('2d');
+
+                    this.escapeBlueCanvas = document.createElement('canvas');
+                    this.escapeBlueCanvas.width = w;
+                    this.escapeBlueCanvas.height = h;
+                    this.escapeBlueCtx = this.escapeBlueCanvas.getContext('2d');
                 }
 
                 // 1. Snapshot world canvas
                 this.escapeCtx.clearRect(0, 0, w, h);
                 this.escapeCtx.drawImage(this.canvas, 0, 0);
 
-                // 2. Tint chromatic channels (multiply color masks)
+                // 2. Separate into isolated R, G, B color channels
+                // Red Channel (#ff0000)
                 this.escapeRedCtx.clearRect(0, 0, w, h);
                 this.escapeRedCtx.drawImage(this.escapeCanvas, 0, 0);
                 this.escapeRedCtx.globalCompositeOperation = 'multiply';
-                this.escapeRedCtx.fillStyle = '#ff2050';
+                this.escapeRedCtx.fillStyle = '#ff0000';
                 this.escapeRedCtx.fillRect(0, 0, w, h);
                 this.escapeRedCtx.globalCompositeOperation = 'source-over';
 
-                this.escapeCyanCtx.clearRect(0, 0, w, h);
-                this.escapeCyanCtx.drawImage(this.escapeCanvas, 0, 0);
-                this.escapeCyanCtx.globalCompositeOperation = 'multiply';
-                this.escapeCyanCtx.fillStyle = '#00e5ff';
-                this.escapeCyanCtx.fillRect(0, 0, w, h);
-                this.escapeCyanCtx.globalCompositeOperation = 'source-over';
+                // Green Channel (#00ff00)
+                this.escapeGreenCtx.clearRect(0, 0, w, h);
+                this.escapeGreenCtx.drawImage(this.escapeCanvas, 0, 0);
+                this.escapeGreenCtx.globalCompositeOperation = 'multiply';
+                this.escapeGreenCtx.fillStyle = '#00ff00';
+                this.escapeGreenCtx.fillRect(0, 0, w, h);
+                this.escapeGreenCtx.globalCompositeOperation = 'source-over';
+
+                // Blue Channel (#0000ff)
+                this.escapeBlueCtx.clearRect(0, 0, w, h);
+                this.escapeBlueCtx.drawImage(this.escapeCanvas, 0, 0);
+                this.escapeBlueCtx.globalCompositeOperation = 'multiply';
+                this.escapeBlueCtx.fillStyle = '#0000ff';
+                this.escapeBlueCtx.fillRect(0, 0, w, h);
+                this.escapeBlueCtx.globalCompositeOperation = 'source-over';
 
                 // 3. Dynamic intensity based on remaining escape time
-                const panicCurve = Math.pow(panicProgress, 1.25);
-                const waveAmp = panicCurve * 12.0; // Up to 12px wave distortion
-                const waveFreq = 0.014 + panicCurve * 0.008; // Slower, wider wave frequency
-                const bleedDist = Math.round(panicCurve * 7.0); // Up to 7px RGB color separation
-                const bleedAlpha = Math.min(0.40, panicCurve * 0.40) * Math.max(0, 1.0 - (this.escapeGrayscaleFactor || 0));
-                const stripHeight = 4;
-                const pad = Math.ceil(waveAmp + bleedDist + 4);
+                const panicCurve = Math.pow(panicProgress, 1.15);
+                const waveAmp = panicCurve * 15.0; // Up to 15px wave distortion
+                const waveFreq = 0.015 + panicCurve * 0.006;
+                const bleedDist = Math.round(panicCurve * 12.0); // Up to 12px RGB color separation (exact match for 0:31)
+                const bleedY = Math.round(panicCurve * 1.5); // Subtle vertical chromatic aberration (1-2px)
+                const stripHeight = 3;
                 const waveTime = this.escapeWaveTimer || 0;
 
-                // Pass 1: Base waved slices (oversized by pad*2 to eliminate edge gaps)
                 // When in Time's Up (escapeTimer <= 0), bleach screen to white as White Circle approaches,
                 // while preserving all black outlines/lines ('검정색은 그대로')!
                 if (typeof this.escapeTimer === 'number' && this.escapeTimer <= 0) {
@@ -6426,25 +6507,53 @@ this.entities.push(
                     }
                     const bPct = Math.round(100 + proximity * 350); // 100% -> 450% brightness
                     const cPct = Math.round(100 + proximity * 400); // 100% -> 500% contrast (keeps black 100% black!)
-                    this.ctx.filter = `grayscale(100%) brightness(${bPct}%) contrast(${cPct}%)`;
-                }
-
-                this.ctx.globalCompositeOperation = 'source-over';
-                this.ctx.globalAlpha = 1.0;
-                for (let y = 0; y < h; y += stripHeight) {
-                    const waveX = Math.sin(y * waveFreq + waveTime) * waveAmp;
-                    this.ctx.drawImage(this.escapeCanvas, 0, y, w, stripHeight, waveX - pad, y, w + pad * 2, stripHeight);
-                }
-                this.ctx.filter = 'none';
-
-                // Pass 2: Chromatic color bleed slices (Red shifted left, Cyan shifted right)
-                if (bleedDist >= 1 && bleedAlpha > 0.02) {
-                    this.ctx.globalCompositeOperation = 'screen';
-                    this.ctx.globalAlpha = bleedAlpha;
+                    this.ctx.filter = 'grayscale(100%) brightness(' + bPct + '%) contrast(' + cPct + '%)';
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.ctx.globalAlpha = 1.0;
                     for (let y = 0; y < h; y += stripHeight) {
+                        const curH = Math.min(stripHeight, h - y);
                         const waveX = Math.sin(y * waveFreq + waveTime) * waveAmp;
-                        this.ctx.drawImage(this.escapeRedCanvas, 0, y, w, stripHeight, waveX - bleedDist - pad, y, w + pad * 2, stripHeight);
-                        this.ctx.drawImage(this.escapeCyanCanvas, 0, y, w, stripHeight, waveX + bleedDist - pad, y, w + pad * 2, stripHeight);
+                        this.ctx.drawImage(this.escapeCanvas, 0, y, w, curH, waveX, y, w, curH);
+                    }
+                    this.ctx.filter = 'none';
+                } else {
+                    // Escape Time Running: Authentic 3-Channel RGB Split Chromatic Aberration & Scan Slices
+                    this.ctx.fillStyle = '#000000';
+                    this.ctx.fillRect(0, 0, w, h);
+                    this.ctx.globalCompositeOperation = 'lighter';
+                    this.ctx.globalAlpha = 1.0;
+
+                    for (let y = 0; y < h; y += stripHeight) {
+                        const curH = Math.min(stripHeight, h - y);
+                        const w1 = Math.sin(y * waveFreq + waveTime) * waveAmp;
+                        const w2 = Math.sin(y * waveFreq * 2.3 - waveTime * 1.4) * (waveAmp * 0.3);
+
+                        // Scanline glitch jitter on occasional strips
+                        let jitter = 0;
+                        const sliceIdx = Math.floor(y / stripHeight);
+                        if ((sliceIdx * 7 + Math.floor(waveTime * 8)) % 29 === 0) {
+                            jitter = (Math.sin(sliceIdx * 12.7 + waveTime * 5) > 0 ? 1 : -1) * (panicCurve * 3.0);
+                        }
+                        const waveX = w1 + w2 + jitter;
+
+                        // Red Channel: shifted left & slightly up
+                        this.ctx.drawImage(this.escapeRedCanvas, 0, y, w, curH, waveX - bleedDist, y - bleedY, w, curH);
+                        // Green Channel: center
+                        this.ctx.drawImage(this.escapeGreenCanvas, 0, y, w, curH, waveX, y, w, curH);
+                        // Blue Channel: shifted right & slightly down
+                        this.ctx.drawImage(this.escapeBlueCanvas, 0, y, w, curH, waveX + bleedDist, y + bleedY, w, curH);
+                    }
+
+                    // Soft Horizontal Scanning Glow Bands (Pizza Tower heatwave aesthetic)
+                    if (panicCurve > 0.1) {
+                        const band1Y = ((waveTime * 45) % (h + 100)) - 50;
+                        const band2Y = ((waveTime * 28 + h * 0.5) % (h + 100)) - 50;
+                        const glowAlpha = 0.08 * panicCurve;
+                        
+                        this.ctx.fillStyle = 'rgba(120, 225, 255, ' + glowAlpha + ')';
+                        this.ctx.fillRect(0, band1Y - 18, w, 36);
+                        this.ctx.fillStyle = 'rgba(200, 240, 255, ' + (glowAlpha * 0.8) + ')';
+                        this.ctx.fillRect(0, band2Y - 25, w, 50);
                     }
                 }
 
@@ -7882,6 +7991,14 @@ this.entities.push(
                     ctx.fillStyle = '#b88958';
                     ctx.fillRect(0, 0, 128, 224);
                 }
+            } else if (this.selectedType === 'exitgate') {
+                const img = (typeof ExitGate !== 'undefined' && ExitGate.imageClosed) ? ExitGate.imageClosed : null;
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, 0, 0, 160, 256);
+                } else {
+                    ctx.fillStyle = 'rgba(46, 204, 113, 0.6)';
+                    ctx.fillRect(0, 0, 160, 256);
+                }
             } else if (this.selectedType === 'door') {
                 const img = Door.image;
                 if (img && img.complete && img.naturalWidth > 0) {
@@ -8141,6 +8258,21 @@ this.entities.push(
                     ctx.textAlign = 'center';
                     ctx.fillText('LV GATE', minX + w / 2, minY + 24);
                     ctx.restore();
+                } else if (this.selectedType === 'exitgate') {
+                    const img = (typeof ExitGate !== 'undefined' && ExitGate.imageClosed) ? ExitGate.imageClosed : null;
+                    ctx.globalAlpha = 0.6;
+                    ctx.save();
+                    if (this.tileFlipX || this.tileFlipY) {
+                        ctx.translate(minX + (this.tileFlipX ? w : 0), minY + (this.tileFlipY ? h : 0));
+                        ctx.scale(this.tileFlipX ? -1 : 1, this.tileFlipY ? -1 : 1);
+                        if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, w, h);
+                        else { ctx.fillStyle = 'rgba(46, 204, 113, 0.6)'; ctx.fillRect(0, 0, w, h); }
+                    } else {
+                        if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, minX, minY, w, h);
+                        else { ctx.fillStyle = 'rgba(46, 204, 113, 0.6)'; ctx.fillRect(minX, minY, w, h); }
+                    }
+                    ctx.restore();
+                    ctx.globalAlpha = 1.0;
                 } else if (this.selectedType === 'door') {
                     const img = Door.image;
                     ctx.globalAlpha = 0.6;
@@ -9092,7 +9224,7 @@ this.entities.push(
         });
     }
 
-    updateSaveProgress() {
+    updateSaveProgress(isLevelClear = false) {
         if (!this.currentSaveSlot) return;
         const slotKey = 'pizza_save_' + this.currentSaveSlot;
         let data = this.getSaveSlotData(this.currentSaveSlot);
@@ -9103,16 +9235,17 @@ this.entities.push(
         }
 
         if (!data.stages) data.stages = {};
-        if (this.currentRoom) {
+        if (isLevelClear) {
+            const stageKey = this.restart_room || this.currentRoom || 'tutorial_1';
             const currentRank = this.getCurrentRank ? this.getCurrentRank() : 'D';
             const rankOrder = { 'D': 1, 'C': 2, 'B': 3, 'A': 4, 'S': 5, 'P': 6 };
-            const existingRank = (data.stages[this.currentRoom] && data.stages[this.currentRoom].rank) || 'D';
+            const existingRank = (data.stages[stageKey] && data.stages[stageKey].rank) || 'D';
             
-            if (!data.stages[this.currentRoom] || rankOrder[currentRank] >= rankOrder[existingRank]) {
-                data.stages[this.currentRoom] = {
+            if (!data.stages[stageKey] || rankOrder[currentRank] >= rankOrder[existingRank]) {
+                data.stages[stageKey] = {
                     cleared: true,
                     rank: currentRank,
-                    score: Math.max((data.stages[this.currentRoom]?.score || 0), this.score || 0),
+                    score: Math.max((data.stages[stageKey]?.score || 0), this.score || 0),
                     sRankScore: this.sRankScore || 10000
                 };
             }

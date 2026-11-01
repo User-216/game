@@ -10,6 +10,7 @@ this.bgWave = true;
 this.tileWave = true;
 this.entities.push(
     new TargetDoor_A(480, 576, 32, 32),
+    new ExitGate(416, 352, 160, 256),
     new Platform(192, 224, 96, 384, '#00aa9e66'),
     new Platform(1056, 544, 352, 64, '#00aa9e66'),
     new Platform(192, 608, 1216, 96, '#00aa9e66'),
