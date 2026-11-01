@@ -2979,3 +2979,130 @@ class OnlineComputer {
     }
 }
 
+
+
+class RankController extends Entity {
+    constructor(x = 0, y = 0) {
+        super(x, y, 960, 540);
+        this.type = 'rankcontroller';
+        this.imageIndex = 0;
+        this.imageSpeed = 0.35;
+        this.finished = false;
+        this.waitTimer = 0;
+        this.canExit = false;
+        this.exiting = false;
+
+        // Load D-rank animation frames from player/spr_rankD
+        if (!RankController.images) {
+            RankController.images = [];
+            for (let i = 0; i <= 7; i++) {
+                const img = new Image();
+                img.src = `player/spr_rankD/spr_rankD_${i}.png`;
+                RankController.images.push(img);
+            }
+        }
+    }
+
+    update(player, game) {
+        if (game && game.isEditorMode) return;
+
+        // Advance animation
+        if (!this.finished) {
+            this.imageIndex += this.imageSpeed;
+            if (this.imageIndex >= 7) {
+                this.imageIndex = 7;
+                this.finished = true;
+            }
+        } else {
+            this.waitTimer++;
+            if (this.waitTimer > 30) {
+                this.canExit = true;
+            }
+        }
+
+        // Keep player static and invisible during rank screen
+        if (player) {
+            player.vx = 0;
+            player.vy = 0;
+            player.visible = false;
+        }
+
+        // Allow any action key to return to hub
+        if (this.canExit && !this.exiting && game) {
+            const anyKeyPressed = game.keys.actionJump || game.keys.actionTaunt || 
+                                  game.keys.actionGroundpound || game.keys.actionUp || 
+                                  game.keys.actionDown || game.keys.actionLeft || 
+                                  game.keys.actionRight || game.keys.actionAttack ||
+                                  game.keys[' '] || game.keys['Enter'] || game.keys['z'] || game.keys['x'] || game.keys['c'];
+            if (anyKeyPressed) {
+                this.exiting = true;
+                if (game.audio) {
+                    game.audio.playFile('sfx_step', true);
+                }
+                const hubRoom = game.hub_room || 'demo_hub';
+                game.transitionState = 'FADE_OUT';
+                game.transitionTimer = 0;
+                game.pendingRoom = hubRoom;
+                game.pendingDoor = 'A';
+                game.pendingPreserveVelocity = false;
+                game.isExitingLevelGate = true;
+            }
+        }
+    }
+
+    render(ctx) {
+        const game = window.gameInstance;
+        const w = (game && game.canvas) ? game.canvas.width : 960;
+        const h = (game && game.canvas) ? game.canvas.height : 540;
+
+        if (game && game.isEditorMode) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
+            ctx.fillRect(this.x, this.y, 64, 64);
+            ctx.strokeStyle = '#ff4444';
+            ctx.strokeRect(this.x, this.y, 64, 64);
+            ctx.font = 'bold 12px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('RANK', this.x + 32, this.y + 36);
+            ctx.restore();
+            return;
+        }
+
+        const idx = Math.min(7, Math.floor(this.imageIndex));
+        const img = (RankController.images && RankController.images[idx]) ? RankController.images[idx] : null;
+
+        ctx.save();
+        if (game && game.camera) {
+            ctx.translate(game.camera.x, game.camera.y);
+        }
+
+        // Solid Black Background
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, w, h);
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, 0, 0, w, h);
+        }
+
+        // Blinking prompt when can exit
+        if (this.canExit) {
+            const blink = Math.sin(Date.now() / 200) > 0;
+            if (blink) {
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 22px "Custom_SANGJU_Dajungdagam", "Outfit", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                const text = (game && game.settings && game.settings.language === 'ko') 
+                    ? '아무 키나 눌러 계속하기' 
+                    : 'PRESS ANY KEY TO CONTINUE';
+                ctx.strokeText(text, w / 2, h - 30);
+                ctx.fillText(text, w / 2, h - 30);
+            }
+        }
+
+        ctx.restore();
+    }
+}

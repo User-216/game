@@ -470,7 +470,7 @@ class Game {
         } catch(e) {}
 
         // Preload rooms and load initial room during boot loading
-        const roomsToPreload = ['demo_hub', 'tutorial_1'];
+        const roomsToPreload = ['demo_hub', 'tutorial_1', 'rm_rank'];
         let preloadedCount = 0;
         roomsToPreload.forEach(rName => {
             const script = document.createElement('script');
@@ -3892,6 +3892,7 @@ class Game {
             else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0})`;
             else if ((typeof ExitGate !== 'undefined' && ent instanceof ExitGate) || ent.type === 'exitgate') base = `new ExitGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if ((typeof RankController !== 'undefined' && ent instanceof RankController) || ent.type === 'rankcontroller') base = `new RankController(${ent.x}, ${ent.y})`;
             else if (ent instanceof TargetDoorBase) base = `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof TutorialBook) base = `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             else if (ent instanceof PaletteDresser) base = `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -4181,6 +4182,7 @@ this.entities.push(
                     this.player.isTumbling = false;
                     this.player.height = 45;
                     this.player.mask_index = 'spr_player_mask';
+                    this.player.visible = (roomName !== 'rm_rank');
                 }
                 
                 let startX = 100;
@@ -4412,14 +4414,13 @@ this.entities.push(
         // 스테이지 클리어 및 랭크/점수 영구 저장!
         this.updateSaveProgress(true);
 
-        // 허브 방(demo_hub)으로 페이드 아웃 전환
-        const hubRoom = this.hub_room || 'demo_hub';
+        // rm_rank 방으로 페이드 아웃 전환 (랭크 결과 화면)
         this.transitionState = 'FADE_OUT';
         this.transitionTimer = 0;
-        this.pendingRoom = hubRoom;
+        this.pendingRoom = 'rm_rank';
         this.pendingDoor = 'A';
         this.pendingPreserveVelocity = false;
-        this.isExitingLevelGate = true;
+        this.isExitingLevelGate = false;
     }
 
     startTitleCard(gate) {
@@ -6310,7 +6311,7 @@ this.entities.push(
             }
         }
         
-        this.player.render(this.ctx);
+        if (this.currentRoom !== 'rm_rank' && this.player.visible !== false) this.player.render(this.ctx);
         
         // Render other online players
         if (this.otherPlayers && this.player.sprites) {
@@ -7184,7 +7185,7 @@ this.entities.push(
         }
 
         // Draw Score (Pizza Tower Style with spr_pizzascore & spr_font_collect)
-        if (this.score !== undefined) {
+        if (this.score !== undefined && this.currentRoom !== 'rm_rank') {
             this.ctx.save();
             const scoreX = 130;
             const scoreY = 70;
@@ -7371,7 +7372,7 @@ this.entities.push(
         }
 
         // Draw combo
-        if (this.combo > 0) {
+        if (this.combo > 0 && this.currentRoom !== 'rm_rank') {
             this.ctx.save();
             this.ctx.textAlign = 'right';
             
