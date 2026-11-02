@@ -2158,8 +2158,8 @@ class Collect extends Entity {
         if (Collect.imagesLoaded) return;
         Collect.sprites = { 1: [], 2: [], 3: [], 4: [], 5: [] };
 
-        // 과일 수집품(Collect) 프레임 수: 1(사과)=8, 2(오렌지)=13, 3(포도)=16
-        const KNOWN_COUNTS = { 1: 8, 2: 13, 3: 16 };
+        // 과일 수집품(Collect) 프레임 수: 1(사과)=8, 2(오렌지)=13, 3(포도)=16, 4(수박)=4, 5(파인애플)=5
+        const KNOWN_COUNTS = { 1: 8, 2: 13, 3: 16, 4: 4, 5: 5 };
 
         for (let c = 1; c <= 5; c++) {
             Collect.sprites[c] = [];
@@ -2210,7 +2210,8 @@ class Collect extends Entity {
 
         // collect1~5 중 랜덤 생성 (파라미터 전달 시 해당 타입 사용)
         this.collectType = collectType || (Math.floor(Math.random() * 5) + 1);
-        const maxF = (this.collectType === 3) ? 16 : ((this.collectType === 2) ? 13 : 8);
+        const frameMap = { 1: 8, 2: 13, 3: 16, 4: 4, 5: 5 };
+        const maxF = frameMap[this.collectType] || 8;
         this.image_index = Math.random() * maxF;
         this.image_speed = 0.35;
         Collect.initImages();
@@ -2311,12 +2312,8 @@ class Collect extends Entity {
             ? Collect.sprites[typeKey]
             : null;
 
-        // If this type is not loaded yet (e.g. 4, 5), fall back to type 1, 2, or 3
         if (!frames || frames.length === 0) {
-            const fb = ((typeKey - 1) % 3) + 1;
-            frames = (Collect.sprites && Collect.sprites[fb] && Collect.sprites[fb].length > 0)
-                ? Collect.sprites[fb]
-                : (Collect.sprites && Collect.sprites[1]);
+            frames = (Collect.sprites && Collect.sprites[1]);
         }
 
         const numFrames = (frames && frames.length > 0) ? frames.length : 8;
