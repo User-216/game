@@ -3312,7 +3312,7 @@ class RankController extends Entity {
         this.canExit = false;
         this.exiting = false;
 
-        if (!RankController.imagesC || !RankController.imagesD) {
+        if (!RankController.imagesC || !RankController.imagesD || !RankController.imagesB || !RankController.imagesA) {
             RankController.reloadImages();
         }
     }
@@ -3324,7 +3324,7 @@ class RankController extends Entity {
         }
 
         RankController.imagesD = [];
-        for (let i = 0; i <= 7; i++) {
+        for (let i = 0; i <= 15; i++) {
             const img = new Image();
             img.src = `player/spr_rankD/spr_rankD_${i}.png?v=${cacheBust}`;
             RankController.imagesD.push(img);
@@ -3332,18 +3332,44 @@ class RankController extends Entity {
         RankController.images = RankController.imagesD;
 
         RankController.imagesC = [];
-        for (let i = 1; i <= 7; i++) {
+        for (let i = 1; i <= 16; i++) {
             const img = new Image();
             img.src = `player/spr_rankC/spr_rankC${i}.png?v=${cacheBust}`;
             RankController.imagesC.push(img);
         }
 
         RankController.imagesB = [];
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 1; i <= 16; i++) {
             const img = new Image();
             img.src = `player/spr_rankB/spr_rankB${i}.png?v=${cacheBust}`;
             RankController.imagesB.push(img);
         }
+
+        RankController.imagesA = [];
+        for (let i = 1; i <= 16; i++) {
+            const img = new Image();
+            img.src = `player/spr_rankA/spr_rankA${i}.png?v=${cacheBust}`;
+            RankController.imagesA.push(img);
+        }
+
+        RankController.imagesS = [];
+        for (let i = 1; i <= 16; i++) {
+            const img = new Image();
+            img.src = `player/spr_rankS/spr_rankS${i}.png?v=${cacheBust}`;
+            RankController.imagesS.push(img);
+        }
+
+        RankController.imagesP = [];
+        for (let i = 1; i <= 16; i++) {
+            const img = new Image();
+            img.src = `player/spr_rankP/spr_rankP${i}.png?v=${cacheBust}`;
+            RankController.imagesP.push(img);
+        }
+    }
+
+    static getValidImages(arr) {
+        if (!arr) return [];
+        return arr.filter(img => img && img.complete && img.naturalWidth > 0);
     }
 
     static recolorRankFrame(img) {
@@ -3459,21 +3485,41 @@ class RankController extends Entity {
         if (this.targetRank) return this.targetRank;
         const raw = (game && (game.forceRank || game.clearedRank)) || (game && typeof game.getCurrentRank === 'function' ? game.getCurrentRank() : 'D');
         const upper = (raw || 'D').toUpperCase();
-        if (upper === 'B') return 'B';
-        if (upper === 'C' || upper === 'A' || upper === 'S' || upper === 'P') {
-            return 'C';
+        if (upper === 'P' && RankController.getValidImages(RankController.imagesP).length > 0) return 'P';
+        if (upper === 'S' && RankController.getValidImages(RankController.imagesS).length > 0) return 'S';
+        if (upper === 'A' && RankController.getValidImages(RankController.imagesA).length > 0) return 'A';
+        if (upper === 'B' && RankController.getValidImages(RankController.imagesB).length > 0) return 'B';
+        if (upper === 'C' && RankController.getValidImages(RankController.imagesC).length > 0) return 'C';
+        if (upper === 'B' || upper === 'A' || upper === 'S' || upper === 'P') {
+            if (RankController.getValidImages(RankController.imagesC).length > 0) return 'C';
         }
         return 'D';
     }
 
     getRankImages() {
         const r = (this.rank || 'D').toUpperCase();
+        if (r === 'P') {
+            const valid = RankController.getValidImages(RankController.imagesP);
+            if (valid.length > 0) return valid;
+        }
+        if (r === 'S') {
+            const valid = RankController.getValidImages(RankController.imagesS);
+            if (valid.length > 0) return valid;
+        }
+        if (r === 'A') {
+            const valid = RankController.getValidImages(RankController.imagesA);
+            if (valid.length > 0) return valid;
+        }
         if (r === 'B') {
-            return RankController.imagesB || [];
+            const valid = RankController.getValidImages(RankController.imagesB);
+            if (valid.length > 0) return valid;
         }
         if (r === 'C') {
-            return RankController.imagesC || [];
+            const valid = RankController.getValidImages(RankController.imagesC);
+            if (valid.length > 0) return valid;
         }
+        const validD = RankController.getValidImages(RankController.imagesD);
+        if (validD.length > 0) return validD;
         return RankController.imagesD || RankController.images || [];
     }
 
