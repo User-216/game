@@ -4248,7 +4248,7 @@ this.entities.push(
                         this.player.x = Math.max(0, Math.min(maxRoomW - this.player.width, spawnX));
                         
                         if (vInfo.dir === 'up') {
-                            this.player.y = target.y - this.player.height - 8;
+                            this.player.y = target.y - this.player.height - 16;
                             this.player.vy = Math.min(vInfo.vy || -12, -12);
                             this.player.isGrounded = false;
                             this.player.isClimbing = false;
@@ -4256,7 +4256,7 @@ this.entities.push(
                                 this.player.sprite_index = 'spr_player_jump';
                             }
                         } else {
-                            this.player.y = target.y + target.height + 8;
+                            this.player.y = target.y + target.height + 16;
                             this.player.vy = Math.max(vInfo.vy || 10, 10);
                             this.player.isGrounded = false;
                             if (vInfo.isGroundPounding) {
@@ -4266,7 +4266,7 @@ this.entities.push(
                                 this.player.sprite_index = 'spr_player_fall';
                             }
                         }
-                        this.player.insideHallway = true;
+                        this.spawnedHallway = target;
                     } else {
                         this.player.x = startX;
                         this.player.y = startY;
@@ -4276,6 +4276,14 @@ this.entities.push(
                     this.player.y = startY;
                     if (this.player.state === 'rank') {
                         this.player.state = 'normal';
+                    }
+                    const spawnedH = this.entities.find(e => 
+                        (e.type === 'hallway' || e.type === 'hallwayvertical') &&
+                        startX >= e.x && startX <= e.x + e.width &&
+                        startY >= e.y && startY <= e.y + e.height
+                    );
+                    if (spawnedH) {
+                        this.spawnedHallway = spawnedH;
                     }
                 }
 
@@ -4817,6 +4825,84 @@ this.entities.push(
         }
     }
 
+    onRoomTransitionLoaded() {
+        if (!this.player) return;
+        if (this.isExitingLevelGate) {
+            this.isExitingLevelGate = false;
+            if (this.hubX !== null && this.hubY !== null && typeof this.hubX === 'number') {
+                this.player.x = this.hubX;
+                this.player.y = this.hubY;
+            }
+        }
+        const touchingDoor = !this.pendingPreserveVelocity && this.entities.find(e => {
+            if (!e || e.isDestroyed) return false;
+            if (e.type !== 'door' && e.type !== 'levelgate' && e.type !== 'exitgate') return false;
+            const minW = Math.max(e.width, 48);
+            const minH = Math.max(e.height, 64);
+            const left = e.x + e.width / 2 - minW / 2;
+            const right = left + minW;
+            const bottom = e.y + e.height;
+            const top = bottom - minH;
+            return (
+                this.player.x < right &&
+                this.player.x + this.player.width > left &&
+                this.player.y < bottom &&
+                this.player.y + this.player.height > top
+            );
+        });
+
+        if (this.currentRoom === 'rm_rank') {
+            this.player.state = 'rank';
+            this.player.sprite_index = 'spr_player_lookdoor';
+            this.player.image_index = 0;
+            this.player.image_speed = 0.35;
+            this.player.isEnteringDoor = false;
+            this.player.targetDoorX = null;
+            this.player.x = 465;
+            this.player.y = 255;
+            this.player.vx = 0;
+            this.player.vy = 0;
+            this.player.isGrounded = true;
+            this.player.visible = true;
+            this.transitionAlpha = 0;
+            this.transitionState = 'NONE';
+        } else if (touchingDoor) {
+            this.player.state = 'walkfront';
+            this.player.isEnteringDoor = false;
+            this.player.sprite_index = 'spr_player_walkfront';
+            this.player.image_index = 0;
+            this.player.image_speed = 0.45;
+            this.player.targetDoorX = null;
+            this.player.vx = 0;
+            this.player.vy = 0;
+        } else if (this.pendingPreserveVelocity) {
+            this.player.isEnteringDoor = false;
+            this.player.targetDoorX = null;
+            if (this.pendingVerticalHallway) {
+                const vInfo = this.pendingVerticalHallway;
+                if (vInfo.dir === 'up') {
+                    this.player.isGrounded = false;
+                    if (!this.player.isRunning && this.player.sprite_index !== 'spr_player_mach3' && this.player.sprite_index !== 'spr_player_mach3jump') {
+                        this.player.sprite_index = 'spr_player_jump';
+                    }
+                } else {
+                    this.player.isGrounded = false;
+                    if (vInfo.isGroundPounding) {
+                        this.player.isGroundPounding = true;
+                        this.player.sprite_index = 'spr_player_groundpound';
+                    } else {
+                        this.player.sprite_index = 'spr_player_fall';
+                    }
+                }
+            }
+        } else {
+            this.player.state = 'normal';
+            this.player.sprite_index = 'spr_player_idle';
+            this.player.isEnteringDoor = false;
+            this.player.targetDoorX = null;
+        }
+    }
+
     triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
         if (roomName === 'hub' || roomName === 'hub_room' || roomName === 'exit' || (this.hub_room && roomName === this.hub_room)) {
             this.exitLevelToHubOrTitle();
@@ -4825,11 +4911,25 @@ this.entities.push(
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         this.lastTargetDoorId = targetDoorId;
         if (this.transitionState !== 'NONE') return;
-        this.transitionState = 'FADE_OUT';
-        this.transitionTimer = 0;
+
         this.pendingRoom = roomName;
         this.pendingDoor = targetDoorId;
         this.pendingPreserveVelocity = preserveVelocity;
+
+        if (preserveVelocity) {
+            // Hallway & Vertical Hallway: Instant transition without falling delay!
+            this.transitionState = 'LOADING_ROOM';
+            this.transitionAlpha = 1;
+            this.loadRoom(this.pendingRoom, this.pendingDoor, true).then(() => {
+                this.transitionState = 'FADE_IN';
+                this.transitionTimer = 0;
+                this.onRoomTransitionLoaded();
+            });
+            return;
+        }
+
+        this.transitionState = 'FADE_OUT';
+        this.transitionTimer = 0;
     }
 
     update() {
@@ -5644,82 +5744,7 @@ this.entities.push(
                 this.loadRoom(this.pendingRoom, this.pendingDoor, this.pendingPreserveVelocity).then(() => {
                     this.transitionState = 'FADE_IN';
                     this.transitionTimer = 0;
-                    if (this.player) {
-                        if (this.isExitingLevelGate) {
-                            this.isExitingLevelGate = false;
-                            if (this.hubX !== null && this.hubY !== null && typeof this.hubX === 'number') {
-                                this.player.x = this.hubX;
-                                this.player.y = this.hubY;
-                            }
-                        }
-                        const touchingDoor = !this.pendingPreserveVelocity && this.entities.find(e => {
-                            if (!e || e.isDestroyed) return false;
-                            if (e.type !== 'door' && e.type !== 'levelgate' && e.type !== 'exitgate') return false;
-                            const minW = Math.max(e.width, 48);
-                            const minH = Math.max(e.height, 64);
-                            const left = e.x + e.width / 2 - minW / 2;
-                            const right = left + minW;
-                            const bottom = e.y + e.height;
-                            const top = bottom - minH;
-                            return (
-                                this.player.x < right &&
-                                this.player.x + this.player.width > left &&
-                                this.player.y < bottom &&
-                                this.player.y + this.player.height > top
-                            );
-                        });
-
-                        if (this.currentRoom === 'rm_rank') {
-                            this.player.state = 'rank';
-                            this.player.sprite_index = 'spr_player_lookdoor';
-                            this.player.image_index = 0;
-                            this.player.image_speed = 0.35;
-                            this.player.isEnteringDoor = false;
-                            this.player.targetDoorX = null;
-                            this.player.x = 465;
-                            this.player.y = 255;
-                            this.player.vx = 0;
-                            this.player.vy = 0;
-                            this.player.isGrounded = true;
-                            this.player.visible = true;
-                            this.transitionAlpha = 0;
-                            this.transitionState = 'NONE';
-                        } else if (touchingDoor) {
-                            this.player.state = 'walkfront';
-                            this.player.isEnteringDoor = false;
-                            this.player.sprite_index = 'spr_player_walkfront';
-                            this.player.image_index = 0;
-                            this.player.image_speed = 0.45;
-                            this.player.targetDoorX = null;
-                            this.player.vx = 0;
-                            this.player.vy = 0;
-                        } else if (this.pendingPreserveVelocity) {
-                            this.player.isEnteringDoor = false;
-                            this.player.targetDoorX = null;
-                            if (this.pendingVerticalHallway) {
-                                const vInfo = this.pendingVerticalHallway;
-                                if (vInfo.dir === 'up') {
-                                    this.player.isGrounded = false;
-                                    if (!this.player.isRunning && this.player.sprite_index !== 'spr_player_mach3' && this.player.sprite_index !== 'spr_player_mach3jump') {
-                                        this.player.sprite_index = 'spr_player_jump';
-                                    }
-                                } else {
-                                    this.player.isGrounded = false;
-                                    if (vInfo.isGroundPounding) {
-                                        this.player.isGroundPounding = true;
-                                        this.player.sprite_index = 'spr_player_groundpound';
-                                    } else {
-                                        this.player.sprite_index = 'spr_player_fall';
-                                    }
-                                }
-                            }
-                        } else {
-                            this.player.state = 'normal';
-                            this.player.sprite_index = 'spr_player_idle';
-                            this.player.isEnteringDoor = false;
-                            this.player.targetDoorX = null;
-                        }
-                    }
+                    this.onRoomTransitionLoaded();
                 });
             }
         } else if (this.transitionState === 'LOADING_ROOM') {
@@ -5819,7 +5844,7 @@ this.entities.push(
             return;
         }
 
-        if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS' || this.gameState === 'ONLINE_MENU') {
+        if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS' || this.gameState === 'ONLINE_MENU' || this.transitionState === 'LOADING_ROOM') {
             return;
         }
 
@@ -5917,7 +5942,7 @@ this.entities.push(
             roomBottomLimit = Math.max(lowestEntityY, this.canvas.height);
         }
         const boundsBottom = roomBottomLimit + 200;
-        if (!this.isEditorMode && this.player.y > boundsBottom && !this.isPlayingTransition) {
+        if (!this.isEditorMode && this.player.y > boundsBottom && !this.isPlayingTransition && this.transitionState === 'NONE') {
             this.isPlayingTransition = true;
             this.transitionFrameIndex = 0;
             this.transitionTimer = 0;
@@ -6128,8 +6153,8 @@ this.entities.push(
             this.enterExitGate(overlappingExitGate);
         }
 
-        // Hallway Transition Check
-        if (!this.player.isNoClip) {
+        // Hallway Transition Check (No cooldown lockout - instant teleport without falling penalty)
+        if (!this.player.isNoClip && this.transitionState === 'NONE') {
             const overlappingHallway = this.entities.find(e => 
                 (e.type === 'hallway' || e.type === 'hallwayvertical') && e.targetRoom && e.targetDoor && e.targetRoom !== 'null' && e.targetDoor !== 'null' &&
                 this.player.x < e.x + e.width &&
@@ -6139,8 +6164,7 @@ this.entities.push(
             );
             
             if (overlappingHallway) {
-                if (!this.player.insideHallway) {
-                    this.player.insideHallway = true;
+                if (this.spawnedHallway !== overlappingHallway) {
                     if (overlappingHallway.type === 'hallwayvertical') {
                         let dir = overlappingHallway.verticalDir;
                         if (!dir || dir === 'auto') {
@@ -6161,7 +6185,7 @@ this.entities.push(
                     this.triggerRoomTransition(overlappingHallway.targetRoom, overlappingHallway.targetDoor, true);
                 }
             } else {
-                this.player.insideHallway = false; // Left hallway, can transition again instantly
+                this.spawnedHallway = null; // Clear spawned hallway as soon as player is not overlapping it
             }
         }
 
