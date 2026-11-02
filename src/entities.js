@@ -2158,7 +2158,7 @@ class Collect extends Entity {
         if (Collect.imagesLoaded) return;
         Collect.sprites = { 1: [], 2: [], 3: [], 4: [], 5: [] };
 
-        // Known frame counts: spr_collect1 has 8 frames, spr_collect2 has 13 frames
+        // 과일 수집품(Collect) 프레임 수: 1(사과)=8, 2(오렌지)=13, 3(포도)=16
         const KNOWN_COUNTS = { 1: 8, 2: 13, 3: 16 };
 
         for (let c = 1; c <= 5; c++) {
