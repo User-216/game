@@ -498,6 +498,7 @@ class Game {
         });
         
         this.isEditorMode = false;
+        this.collectedItems = [];
         this.selectedType = 'platform';
         this.selectedTileX = 0;
         this.selectedTileY = 0;
@@ -3048,6 +3049,24 @@ class Game {
                 this.player.heldEnemy = null;
             }
 
+            // Restore any collected items from fallback list back into entities
+            if (this.collectedItems && this.collectedItems.length > 0) {
+                for (const item of this.collectedItems) {
+                    item.isCollected = false;
+                    item.markedForDeletion = false;
+                    item.state = 'idle';
+                    item.vx = 0;
+                    item.vy = 0;
+                    item.speed = 0;
+                    if (typeof item.baseX === 'number') item.x = item.baseX;
+                    if (typeof item.baseY === 'number') item.y = item.baseY;
+                    if (!this.entities.includes(item)) {
+                        this.entities.push(item);
+                    }
+                }
+                this.collectedItems = [];
+            }
+
             // 1. Remove all dynamically cloned/spawned baddies & splatters
             this.entities = this.entities.filter(ent => !ent.spawnedBySpawner && ent.type !== 'obj_splatter');
 
@@ -3067,6 +3086,7 @@ class Game {
                     ent.currentBaddie = null;
                     ent.spawnTimer = ent.spawnInterval;
                 } else if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
+                    ent.isCollected = false;
                     ent.markedForDeletion = false;
                     ent.state = 'idle';
                     ent.vx = 0;
@@ -3086,10 +3106,19 @@ class Game {
             this.player.isNoClip = false;
             if (palette) palette.classList.add('hidden');
 
-            // When exiting editor mode, resume normal enemy movement from their spawn position
+            // When exiting editor mode, resume normal enemy movement from their spawn position and reset collectibles for test play
             this.entities.forEach(ent => {
                 if (ent instanceof Slime || ent.type === 'obj_slime') {
                     ent.vx = 2 * (ent.facingDir || 1);
+                } else if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
+                    ent.isCollected = false;
+                    ent.markedForDeletion = false;
+                    ent.state = 'idle';
+                    ent.vx = 0;
+                    ent.vy = 0;
+                    ent.speed = 0;
+                    if (typeof ent.baseX === 'number') ent.x = ent.baseX;
+                    if (typeof ent.baseY === 'number') ent.y = ent.baseY;
                 }
             });
         }
@@ -4144,6 +4173,7 @@ this.entities.push(
                 console.log(`Loading Room: ${roomName}`);
                 const previousMusic = (this.audio && this.audio.currentMusicName) ? this.audio.currentMusicName : (this.roomMusic || null);
                 this.entities = [];
+                this.collectedItems = [];
                 this.roomWidth = 0;
                 this.roomHeight = 0;
                 this.roomMusic = undefined;
@@ -6012,6 +6042,12 @@ this.entities.push(
                 ent.update(this);
             }
             if (ent.markedForDeletion) {
+                if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
+                    if (!this.collectedItems) this.collectedItems = [];
+                    if (!this.collectedItems.includes(ent)) {
+                        this.collectedItems.push(ent);
+                    }
+                }
                 this.entities.splice(i, 1);
             }
         }

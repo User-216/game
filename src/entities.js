@@ -2207,6 +2207,7 @@ class Collect extends Entity {
         this.isPlatform = false;
         this.points = 10;
         this.fontSize = 14;
+        this.isCollected = false;
 
         // collect1~5 중 랜덤 생성 (파라미터 전달 시 해당 타입 사용)
         this.collectType = collectType || (Math.floor(Math.random() * 5) + 1);
@@ -2218,8 +2219,10 @@ class Collect extends Entity {
     }
 
     update(game) {
-        // In Editor (Design) Mode: do not collect, do not follow player, stay at base position!
+        // In Editor (Design) Mode: restore all collected items, stay at base position!
         if (game && game.isEditorMode) {
+            this.isCollected = false;
+            this.markedForDeletion = false;
             this.state = 'idle';
             this.vx = 0;
             this.vy = 0;
@@ -2227,6 +2230,11 @@ class Collect extends Entity {
             if (typeof this.baseX === 'number') this.x = this.baseX;
             if (typeof this.baseY === 'number') this.y = this.baseY;
             this.image_index = (this.image_index + this.image_speed) % 1000;
+            return;
+        }
+
+        // In Play Mode: if already collected and flown to scoreboard, stay hidden and inert
+        if (this.isCollected) {
             return;
         }
 
@@ -2297,7 +2305,14 @@ class Collect extends Entity {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist < 20) {
-                this.markedForDeletion = true;
+                this.isCollected = true;
+                this.state = 'collected_done';
+                this.markedForDeletion = false;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 0;
+                if (typeof this.baseX === 'number') this.x = this.baseX;
+                if (typeof this.baseY === 'number') this.y = this.baseY;
             } else {
                 this.x += (dx / dist) * 20;
                 this.y += (dy / dist) * 20;
@@ -2307,6 +2322,8 @@ class Collect extends Entity {
 
     render(ctx) {
         if (this.markedForDeletion) return;
+        const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
+        if (this.isCollected && !isEditor) return;
         const typeKey = this.collectType || 1;
         let frames = (Collect.sprites && Collect.sprites[typeKey] && Collect.sprites[typeKey].length > 0)
             ? Collect.sprites[typeKey]
@@ -2367,6 +2384,8 @@ class BigCollect extends Collect {
 
     render(ctx) {
         if (this.markedForDeletion) return;
+        const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
+        if (this.isCollected && !isEditor) return;
         ctx.fillStyle = '#f1c40f';
         ctx.beginPath();
         ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2 - 4, 0, Math.PI * 2);
