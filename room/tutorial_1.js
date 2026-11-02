@@ -2,6 +2,7 @@ window.roomData = window.roomData || {};
 window.roomData['tutorial_1'] = function() {
 this.roomWidth = 2000;
 this.roomHeight = 1000;
+this.sRankScore = 10000;
 this.roomMusic = 'mu_tutorial_chill.wav';
 this.roomBackground = 'bg_tutorial';
 this.bgFollowCamera = true;
@@ -2216,6 +2217,8 @@ this.entities.push(
     new Tile3(1760, 448, 32, 32, 64, 128, 'tile_tutorial.png', 32, 32, true, false),
     new Tile3(1760, 480, 32, 32, 64, 160, 'tile_tutorial.png', 32, 32, true, false),
     new Tile3(1760, 512, 32, 32, 64, 192, 'tile_tutorial.png', 32, 32, true, false),
+    new HallwayVertical(448, 160, 96, 64, 'tutorial_6', 'C', 'up'),
+    new TargetDoor_C(480, 224, 32, 32),
 );
 
 };
