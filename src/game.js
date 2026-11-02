@@ -4086,6 +4086,7 @@ this.entities.push(
     }
 
     async loadRoom(roomName, targetDoorId = 'A', preserveVelocity = false) {
+        if (roomName === 'rank') roomName = 'rm_rank';
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         this.lastTargetDoorId = targetDoorId;
         
@@ -4500,14 +4501,13 @@ this.entities.push(
 
     enterExitGate(gate) {
         this.player.showUpArrow = false;
-        this.player.state = 'enterdoor';
-        this.player.isEnteringDoor = true;
         this.player.vx = 0;
         this.player.vy = 0;
         this.player.isRunning = false;
         if (this.audio) {
             this.audio.stopFile('sfx_freefall');
             this.audio.stopFile('sfx_freefallstart');
+            this.audio.resetMusic();
         }
         if (this.player.height === 23 || this.player.isCrouching || this.player.isTumbling) {
             this.player.height = 45;
@@ -4516,10 +4516,6 @@ this.entities.push(
             this.player.isTumbling = false;
             this.player.mask_index = 'spr_player_mask';
         }
-        this.player.targetDoorX = gate.x + gate.width / 2 - this.player.width / 2;
-        this.player.sprite_index = 'spr_player_lookdoor';
-        this.player.image_index = 0;
-        this.player.image_speed = 0.45;
         this.clearActionKey('up');
         this.keys.actionUp = false;
         this.clearActionKey('down');
@@ -4533,7 +4529,6 @@ this.entities.push(
         this.timerBarHidden = true;
         this.timerBarYOffset = 0;
         this.whiteCircleCaughtBlackTimer = 0;
-        if (this.audio) this.audio.resetMusic();
 
         // 현재 클리어 랭크 계산 및 보관
         const rankData = this.getRankBubbleData ? this.getRankBubbleData() : { rank: 'D' };
@@ -4542,13 +4537,17 @@ this.entities.push(
         // 스테이지 클리어 및 랭크/점수 영구 저장!
         this.updateSaveProgress(true);
 
-        // rm_rank 방으로 페이드 아웃 전환 (랭크 결과 화면)
-        this.transitionState = 'FADE_OUT';
+        // UP 키 누르자 마자 딜레이/페이드 대기 없이 바로 rm_rank 방으로 이동!
+        this.transitionState = 'NONE';
+        this.transitionAlpha = 0;
         this.transitionTimer = 0;
-        this.pendingRoom = 'rm_rank';
-        this.pendingDoor = 'A';
-        this.pendingPreserveVelocity = false;
+        this.pendingRoom = null;
+        this.pendingDoor = null;
         this.isExitingLevelGate = false;
+
+        this.loadRoom('rm_rank', 'A').then(() => {
+            this.onRoomTransitionLoaded();
+        });
     }
 
     startTitleCard(gate) {
@@ -6175,10 +6174,10 @@ this.entities.push(
                 const minH = (e.type === 'door' || e.type === 'levelgate' || e.type === 'exitgate') ? 90 : 64;
                 const drawW = Math.max(e.width, minW);
                 const drawH = Math.max(e.height, minH);
-                const left = e.x + e.width / 2 - drawW / 2;
-                const right = left + drawW;
+                const left = (e.type === 'exitgate') ? e.x : (e.x + e.width / 2 - drawW / 2);
+                const right = (e.type === 'exitgate') ? (e.x + e.width) : (left + drawW);
                 const bottom = e.y + e.height;
-                const top = bottom - minH;
+                const top = (e.type === 'exitgate') ? e.y : (bottom - minH);
                 return (
                     this.player.x < right &&
                     this.player.x + this.player.width > left &&
@@ -6245,7 +6244,10 @@ this.entities.push(
             this.enterLevelGate(overlappingGate);
         }
 
-        if (overlappingExitGate && this.keys.actionUp && this.player.isGrounded && this.player.state !== 'enterdoor' && this.player.state !== 'enterlevelgate' && this.player.state !== 'walkfront' && this.player.state !== 'bump' && this.transitionState === 'NONE') {
+        // ExitGate: UP 키 누르자 마자 딜레이 없이 즉시 rm_rank 방으로 이동!
+        if (overlappingExitGate && (this.keys.actionUp || this.isActionPressed('up')) && this.player.state !== 'rank') {
+            this.clearActionKey('up');
+            this.keys.actionUp = false;
             this.enterExitGate(overlappingExitGate);
         }
 
