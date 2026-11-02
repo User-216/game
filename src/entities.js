@@ -2159,7 +2159,7 @@ class Collect extends Entity {
         Collect.sprites = { 1: [], 2: [], 3: [], 4: [], 5: [] };
 
         // Known frame counts: spr_collect1 has 8 frames, spr_collect2 has 13 frames
-        const KNOWN_COUNTS = { 1: 8, 2: 13 };
+        const KNOWN_COUNTS = { 1: 8, 2: 13, 3: 16 };
 
         for (let c = 1; c <= 5; c++) {
             Collect.sprites[c] = [];
@@ -2210,7 +2210,7 @@ class Collect extends Entity {
 
         // collect1~5 중 랜덤 생성 (파라미터 전달 시 해당 타입 사용)
         this.collectType = collectType || (Math.floor(Math.random() * 5) + 1);
-        const maxF = (this.collectType === 2) ? 13 : 8;
+        const maxF = (this.collectType === 3) ? 16 : ((this.collectType === 2) ? 13 : 8);
         this.image_index = Math.random() * maxF;
         this.image_speed = 0.35;
         Collect.initImages();
@@ -2311,9 +2311,9 @@ class Collect extends Entity {
             ? Collect.sprites[typeKey]
             : null;
 
-        // If this type is not loaded yet (e.g. 3, 4, 5), fall back to type 1 or 2
+        // If this type is not loaded yet (e.g. 4, 5), fall back to type 1, 2, or 3
         if (!frames || frames.length === 0) {
-            const fb = (typeKey % 2 === 0) ? 2 : 1;
+            const fb = ((typeKey - 1) % 3) + 1;
             frames = (Collect.sprites && Collect.sprites[fb] && Collect.sprites[fb].length > 0)
                 ? Collect.sprites[fb]
                 : (Collect.sprites && Collect.sprites[1]);
