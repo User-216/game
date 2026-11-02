@@ -3319,6 +3319,10 @@ class RankController extends Entity {
 
     static reloadImages() {
         const cacheBust = Date.now();
+        if (RankController.recolorCache) {
+            RankController.recolorCache.clear();
+        }
+
         RankController.imagesD = [];
         for (let i = 0; i <= 7; i++) {
             const img = new Image();
@@ -3332,6 +3336,79 @@ class RankController extends Entity {
             const img = new Image();
             img.src = `player/spr_rankC/spr_rankC${i}.png?v=${cacheBust}`;
             RankController.imagesC.push(img);
+        }
+
+        RankController.imagesB = [];
+        for (let i = 1; i <= 4; i++) {
+            const img = new Image();
+            img.src = `player/spr_rankB/spr_rankB${i}.png?v=${cacheBust}`;
+            RankController.imagesB.push(img);
+        }
+    }
+
+    static recolorRankFrame(img) {
+        if (!img || !img.complete || img.naturalWidth <= 0) return img;
+        if (!RankController.recolorCache) {
+            RankController.recolorCache = new Map();
+        }
+        if (RankController.recolorCache.has(img.src)) {
+            return RankController.recolorCache.get(img.src);
+        }
+
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+
+            // 결과 화면 색상 팔레트:
+            // 검정색 아닌 건 보라색: rgb(152, 80, 248) -> #9850f8
+            // 검정색인 건 진한 보라색: rgb(25, 12, 45) -> #190c2d
+            const PURPLE_R = 152;
+            const PURPLE_G = 80;
+            const PURPLE_B = 248;
+
+            const DARK_R = 25;
+            const DARK_G = 12;
+            const DARK_B = 45;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const a = data[i + 3];
+                if (a < 15) continue;
+
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                // 휘도 계산 (0 ~ 255)
+                const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                if (lum <= 25) {
+                    data[i] = DARK_R;
+                    data[i + 1] = DARK_G;
+                    data[i + 2] = DARK_B;
+                } else if (lum >= 75) {
+                    data[i] = PURPLE_R;
+                    data[i + 1] = PURPLE_G;
+                    data[i + 2] = PURPLE_B;
+                } else {
+                    const t = (lum - 25) / (75 - 25);
+                    data[i] = Math.round(DARK_R + (PURPLE_R - DARK_R) * t);
+                    data[i + 1] = Math.round(DARK_G + (PURPLE_G - DARK_G) * t);
+                    data[i + 2] = Math.round(DARK_B + (PURPLE_B - DARK_B) * t);
+                }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            RankController.recolorCache.set(img.src, canvas);
+            return canvas;
+        } catch (e) {
+            console.warn('Rank frame recolor error:', e);
+            return img;
         }
     }
 
@@ -3363,6 +3440,7 @@ class RankController extends Entity {
         if (game) {
             game.transitionAlpha = 0;
             game.transitionState = 'NONE';
+            game.roomBackground = '#ffffff';
         }
         if (game && game.player) {
             game.player.visible = true;
@@ -3381,7 +3459,8 @@ class RankController extends Entity {
         if (this.targetRank) return this.targetRank;
         const raw = (game && (game.forceRank || game.clearedRank)) || (game && typeof game.getCurrentRank === 'function' ? game.getCurrentRank() : 'D');
         const upper = (raw || 'D').toUpperCase();
-        if (upper === 'C' || upper === 'B' || upper === 'A' || upper === 'S' || upper === 'P') {
+        if (upper === 'B') return 'B';
+        if (upper === 'C' || upper === 'A' || upper === 'S' || upper === 'P') {
             return 'C';
         }
         return 'D';
@@ -3389,6 +3468,9 @@ class RankController extends Entity {
 
     getRankImages() {
         const r = (this.rank || 'D').toUpperCase();
+        if (r === 'B') {
+            return RankController.imagesB || [];
+        }
         if (r === 'C') {
             return RankController.imagesC || [];
         }
@@ -3463,12 +3545,14 @@ class RankController extends Entity {
                 this.lookdoorFinished = true;
             }
 
-            // 5초(300 프레임) 대기 후 랭크 애니메이션 시작!
-            if (this.timer >= 300) {
+            const skip = game && game.keys && (game.keys.actionJump || game.keys.actionAttack || game.keys[' '] || game.keys['Enter'] || game.keys['z'] || game.keys['x']);
+            // 5초(300 프레임) 대기 또는 키 입력 시 랭크 결과 애니메이션 시작!
+            if (this.timer >= 300 || (this.timer > 30 && skip)) {
                 this.phase = 1;
                 this.timer = 0;
                 this.showRankAnim = true;
                 this.imageIndex = 0;
+                if (game) game.roomBackground = '#9850f8';
                 if (game && game.audio) {
                     game.audio.playFile('sfx_step', true);
                 }
@@ -3581,18 +3665,24 @@ class RankController extends Entity {
         // Apply screen shake offset
         ctx.translate(this.shakeX, this.shakeY);
 
-        // 1. Solid White Background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, w, h);
+        // 1. Background (결과 나올 때: 검정색 아닌 건 보라색 #9850f8)
+        if (this.showRankAnim) {
+            ctx.fillStyle = '#9850f8';
+            ctx.fillRect(0, 0, w, h);
+        } else {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+        }
 
-        // 2. Rank Animation (spr_rankC or spr_rankD, appears after Phase 0)
+        // 2. Rank Animation (검정색 아닌 건 보라색, 검정색인 건 진한 보라색)
         if (this.showRankAnim) {
             const rankImgs = this.getRankImages();
             if (rankImgs && rankImgs.length > 0) {
                 const idx = Math.min(rankImgs.length - 1, Math.floor(this.imageIndex));
                 const img = rankImgs[idx];
                 if (img && img.complete && img.naturalWidth > 0) {
-                    ctx.drawImage(img, 0, 0, w, h);
+                    const recolored = RankController.recolorRankFrame(img);
+                    ctx.drawImage(recolored, 0, 0, w, h);
                 }
             }
         }
