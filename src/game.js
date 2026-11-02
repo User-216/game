@@ -2388,7 +2388,7 @@ class Game {
         if (e.isSecret && e.isDestroyed) return false;
         if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
-        if (e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
+        if (e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e.type === 'escapeblock_closed' || e.type === 'escapeblock_open' || (typeof EscapeBlockClosed !== 'undefined' && e instanceof EscapeBlockClosed) || (typeof EscapeBlockOpen !== 'undefined' && e instanceof EscapeBlockOpen) || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
         const type = e.type;
         if (type === 'platform' || e instanceof Platform) return true;
         if (type === 'oneway' || e instanceof OneWayPlatform) return true;
@@ -3711,6 +3711,12 @@ class Game {
                 entity = new HallwayVertical(x, y, vW, vH, vRoom, vDoor, vDir); 
                 break;
             }
+            case 'escapeblock_closed':
+                entity = new EscapeBlockClosed(x, y, w, h);
+                break;
+            case 'escapeblock_open':
+                entity = new EscapeBlockOpen(x, y, w, h);
+                break;
             case 'exitgate':
                 entity = new ExitGate(x, y, 160, 256);
                 break;
@@ -3903,6 +3909,8 @@ class Game {
             else if (ent instanceof Destroyable) base = `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Hallway) base = `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
             else if ((typeof HallwayVertical !== 'undefined' && ent instanceof HallwayVertical) || ent.type === 'hallwayvertical') base = `new HallwayVertical(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'}, '${ent.verticalDir || 'up'}')`;
+            else if ((typeof EscapeBlockClosed !== 'undefined' && ent instanceof EscapeBlockClosed) || ent.type === 'escapeblock_closed') base = `new EscapeBlockClosed(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if ((typeof EscapeBlockOpen !== 'undefined' && ent instanceof EscapeBlockOpen) || ent.type === 'escapeblock_open') base = `new EscapeBlockOpen(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0})`;
             else if ((typeof ExitGate !== 'undefined' && ent instanceof ExitGate) || ent.type === 'exitgate') base = `new ExitGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;

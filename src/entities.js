@@ -376,7 +376,7 @@ class SecretBlock extends Destroyable {
                         return (layer === 1) && !(typeof Tile2 !== 'undefined' && ent instanceof Tile2) && !(typeof Tile3 !== 'undefined' && ent instanceof Tile3);
                     }
                     if (ent instanceof Platform || ent instanceof Metal || ent instanceof Destroyable || ent instanceof Slope ||
-                        ent.type === 'platform' || ent.type === 'metal' || ent.type === 'destroyable' || ent.type === 'solid' || ent.type === 'slope' || ent.type === 'slope-left' || ent.type === 'slope-right') {
+                        ent.type === 'platform' || ent.type === 'metal' || ent.type === 'destroyable' || ent.type === 'solid' || ent.type === 'slope' || ent.type === 'slope-left' || ent.type === 'slope-right' || ((ent instanceof EscapeBlockBase || ent.type === 'escapeblock_closed' || ent.type === 'escapeblock_open') && ent.isSolid)) {
                         return true;
                     }
                 }
@@ -1101,6 +1101,126 @@ class Pillar extends Destroyable {
     }
 }
 Pillar.initImages();
+
+
+class EscapeBlockBase extends Entity {
+    static closedFrames = [];
+    static openFrames = [];
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (EscapeBlockBase.imagesLoaded) return;
+        EscapeBlockBase.closedFrames = [];
+        EscapeBlockBase.openFrames = [];
+        for (let i = 0; i < 3; i++) {
+            const imgC = new Image();
+            imgC.src = `이미지/spr_escapeblock_closed/spr_escapeblock_closed_${i}.png`;
+            imgC.onerror = () => { imgC.src = `이미지/spr_escapeblock_closed/spr_spaceblock_closed_${i}.png`; };
+            EscapeBlockBase.closedFrames.push(imgC);
+
+            const imgO = new Image();
+            imgO.src = `이미지/spr_escapeblock_open/spr_escapeblock_open_${i}.png`;
+            imgO.onerror = () => { imgO.src = `이미지/spr_escapeblock_open/spr_spaceblock_open_${i}.png`; };
+            EscapeBlockBase.openFrames.push(imgO);
+        }
+        EscapeBlockBase.imagesLoaded = true;
+    }
+
+    constructor(x, y, width = 32, height = 32, mode = 'closed') {
+        super(x, y, width, height, 'transparent');
+        this.mode = mode; // 'closed' or 'open'
+        this.type = (mode === 'closed') ? 'escapeblock_closed' : 'escapeblock_open';
+        this.image_index = 0;
+        this.image_speed = 0.25;
+        this._overrideSolid = undefined;
+        EscapeBlockBase.initImages();
+    }
+
+    get isSolid() {
+        if (this._overrideSolid !== undefined) return this._overrideSolid;
+        const game = window.gameInstance;
+        const isEscape = !!(game && game.escape);
+        // Mode 'closed': closed (solid) normally, opens (passable) during escape
+        // Mode 'open': open (passable) normally, closes (solid) during escape
+        return (this.mode === 'closed') ? !isEscape : isEscape;
+    }
+
+    set isSolid(val) {
+        this._overrideSolid = val;
+    }
+
+    update(game) {
+        this.image_index = (this.image_index + this.image_speed) % 3;
+    }
+
+    render(ctx) {
+        if (this.isDestroyed) return;
+        const game = window.gameInstance;
+        const solidNow = this.isSolid; // true = closed (solid), false = open (passable)
+        const frameIdx = Math.floor(this.image_index) % 3;
+        const frames = solidNow ? EscapeBlockBase.closedFrames : EscapeBlockBase.openFrames;
+        const img = (frames && frames.length > frameIdx) ? frames[frameIdx] : null;
+
+        ctx.save();
+        if (!solidNow) {
+            // Open state: draw semi-transparent so player clearly sees it can be passed through
+            ctx.globalAlpha = 0.55;
+        }
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            for (let bx = this.x; bx < this.x + this.width; bx += 32) {
+                for (let by = this.y; by < this.y + this.height; by += 32) {
+                    const bw = Math.min(32, this.x + this.width - bx);
+                    const bh = Math.min(32, this.y + this.height - by);
+                    ctx.drawImage(img, 0, 0, bw, bh, bx, by, bw, bh);
+                }
+            }
+        } else {
+            // Fallback while loading
+            ctx.fillStyle = solidNow ? '#7030a0' : 'rgba(112, 48, 160, 0.3)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+
+        if (game && game.isEditorMode) {
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = (this.mode === 'closed') ? '#ff4444' : '#00ffff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px monospace';
+            ctx.shadowColor = '#000000';
+            ctx.shadowBlur = 3;
+            const label = (this.mode === 'closed') ? 'ESC-C' : 'ESC-O';
+            ctx.fillText(label, this.x + 2, this.y + 11);
+        }
+
+        ctx.restore();
+    }
+}
+
+class EscapeBlockClosed extends EscapeBlockBase {
+    constructor(x, y, width = 32, height = 32) {
+        super(x, y, width, height, 'closed');
+        this.type = 'escapeblock_closed';
+    }
+}
+
+class EscapeBlockOpen extends EscapeBlockBase {
+    constructor(x, y, width = 32, height = 32) {
+        super(x, y, width, height, 'open');
+        this.type = 'escapeblock_open';
+    }
+}
+
+EscapeBlockBase.initImages();
+
+if (typeof window !== 'undefined') {
+    window.EscapeBlockBase = EscapeBlockBase;
+    window.EscapeBlockClosed = EscapeBlockClosed;
+    window.EscapeBlockOpen = EscapeBlockOpen;
+    window.escapeblock_closed = EscapeBlockClosed;
+    window.escapeblock_open = EscapeBlockOpen;
+}
 
 
 class Tile extends Platform {
