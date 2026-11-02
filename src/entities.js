@@ -1170,6 +1170,7 @@ class Hallway extends Entity {
         this.type = 'hallway';
         this.targetRoom = targetRoom;
         this.targetDoor = targetDoor;
+        this.doorId = targetDoor;
         
         this.image = new Image();
         this.image.src = '이미지/spr_hallway.png';
@@ -1189,6 +1190,50 @@ class Hallway extends Entity {
             ctx.fillRect(this.x, this.y, this.width, this.height);
         }
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.Hallway = Hallway;
+}
+
+class HallwayVertical extends Entity {
+    constructor(x, y, width = 64, height = 32, targetRoom = null, targetDoor = null, verticalDir = 'up') {
+        super(x, y, width, height, 'transparent');
+        this.type = 'hallwayvertical';
+        this.targetRoom = targetRoom;
+        this.targetDoor = targetDoor;
+        this.doorId = targetDoor;
+        this.verticalDir = verticalDir || 'up'; // 'up' or 'down'
+
+        this.image = new Image();
+        this.image.src = '이미지/spr_hallwayvertical.png';
+        this.imageLoaded = false;
+
+        this.image.onload = () => {
+            this.imageLoaded = true;
+        };
+    }
+
+    render(ctx) {
+        if (this.imageLoaded) {
+            if (this.verticalDir === 'down') {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.scale(1, -1);
+                ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.restore();
+            } else {
+                ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+            }
+        } else {
+            // Fallback while loading
+            ctx.fillStyle = 'rgba(20, 25, 40, 0.8)';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+}
+if (typeof window !== 'undefined') {
+    window.HallwayVertical = HallwayVertical;
 }
 class Door extends Entity {
     static image = null;
@@ -2220,7 +2265,7 @@ class Slime extends Entity {
                 let checkY = floorY + step;
                 let foundFloor = false;
                 for (let ent of game.entities) {
-                    if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                    if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
                     if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
                         if (checkY >= ent.y && checkY <= ent.y + ent.height) {
                             floorY = ent.y;
@@ -2351,7 +2396,7 @@ class Slime extends Entity {
         
         // AABB with solid platforms
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -2417,7 +2462,7 @@ class Slime extends Entity {
         this.isGrounded = false;
         
         for (let ent of game.entities) {
-            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             // Handle oneway
             if (ent.type === 'oneway' && this.vy < 0) continue;
             
@@ -2471,7 +2516,7 @@ class Slime extends Entity {
             let probeX = (this.vx > 0) ? this.x + this.width + 5 : this.x - 5;
             let probeY = this.y + this.height + 5;
             for (let ent of game.entities) {
-                if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile') continue;
+                if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile') continue;
                 
                 if (probeX >= ent.x && probeX <= ent.x + ent.width &&
                     probeY >= ent.y && probeY <= ent.y + ent.height) {
@@ -2524,7 +2569,7 @@ class Slime extends Entity {
                     let checkY = floorY + step;
                     let foundFloor = false;
                     for (let ent of game.entities) {
-                        if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                        if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
                         if (splatterX >= ent.x && splatterX <= ent.x + ent.width) {
                             if (checkY >= ent.y && checkY <= ent.y + ent.height) {
                                 floorY = ent.y;

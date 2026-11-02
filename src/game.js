@@ -2388,7 +2388,7 @@ class Game {
         if (e.isSecret && e.isDestroyed) return false;
         if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
-        if (e.type === 'door' || e.type === 'levelgate' || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
+        if (e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
         const type = e.type;
         if (type === 'platform' || e instanceof Platform) return true;
         if (type === 'oneway' || e instanceof OneWayPlatform) return true;
@@ -3698,6 +3698,19 @@ class Game {
                 let tDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
                 entity = new Hallway(x, y, w, h, tRoom, tDoor); 
                 break;
+            case 'hallwayvertical': {
+                let vRoom = prompt("Target Room (e.g., A, B, C) (Cancel for none):", "A");
+                if (vRoom === null) break;
+                let vDoor = prompt("Target Door (A, B, C, D, E) (Cancel for none):", "A");
+                if (vDoor === null) break;
+                let vDir = prompt("Direction (up / down) (위로=up, 아래로=down):", "up");
+                if (vDir) vDir = vDir.toLowerCase().trim();
+                if (vDir !== 'down') vDir = 'up';
+                let vW = (w < 40 && h < 40) ? 64 : w;
+                let vH = (w < 40 && h < 40) ? 32 : h;
+                entity = new HallwayVertical(x, y, vW, vH, vRoom, vDoor, vDir); 
+                break;
+            }
             case 'exitgate':
                 entity = new ExitGate(x, y, 160, 256);
                 break;
@@ -3889,6 +3902,7 @@ class Game {
             else if (ent instanceof Metal) base = `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Destroyable) base = `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Hallway) base = `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
+            else if ((typeof HallwayVertical !== 'undefined' && ent instanceof HallwayVertical) || ent.type === 'hallwayvertical') base = `new HallwayVertical(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'}, '${ent.verticalDir || 'up'}')`;
             else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
             else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0})`;
             else if ((typeof ExitGate !== 'undefined' && ent instanceof ExitGate) || ent.type === 'exitgate') base = `new ExitGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -4216,6 +4230,46 @@ this.entities.push(
                     if (this.audio) {
                         this.audio.stopFile('sfx_freefall');
                         this.audio.stopFile('sfx_freefallstart');
+                    }
+                } else if (this.pendingVerticalHallway) {
+                    const vInfo = this.pendingVerticalHallway;
+                    let target = this.entities.find(e => 
+                        (e.type === 'hallwayvertical' || e.type === 'hallway') && 
+                        (e.targetDoor === targetDoorId || e.doorId === targetDoorId)
+                    );
+                    if (!target && targetDoorId && targetDoorId !== 'null') {
+                        target = this.entities.find(e => e.type === `targetDoor_${targetDoorId}`);
+                    }
+                    
+                    if (target) {
+                        const relX = typeof vInfo.relX === 'number' ? vInfo.relX : 0.5;
+                        const spawnX = target.x + relX * target.width - this.player.width / 2;
+                        const maxRoomW = (this.roomWidth > 0 ? this.roomWidth : 2000);
+                        this.player.x = Math.max(0, Math.min(maxRoomW - this.player.width, spawnX));
+                        
+                        if (vInfo.dir === 'up') {
+                            this.player.y = target.y - this.player.height - 8;
+                            this.player.vy = Math.min(vInfo.vy || -12, -12);
+                            this.player.isGrounded = false;
+                            this.player.isClimbing = false;
+                            if (!this.player.isRunning && this.player.sprite_index !== 'spr_player_mach3' && this.player.sprite_index !== 'spr_player_mach3jump') {
+                                this.player.sprite_index = 'spr_player_jump';
+                            }
+                        } else {
+                            this.player.y = target.y + target.height + 8;
+                            this.player.vy = Math.max(vInfo.vy || 10, 10);
+                            this.player.isGrounded = false;
+                            if (vInfo.isGroundPounding) {
+                                this.player.isGroundPounding = true;
+                                this.player.sprite_index = 'spr_player_groundpound';
+                            } else {
+                                this.player.sprite_index = 'spr_player_fall';
+                            }
+                        }
+                        this.player.insideHallway = true;
+                    } else {
+                        this.player.x = startX;
+                        this.player.y = startY;
                     }
                 } else {
                     this.player.x = startX;
@@ -5598,7 +5652,7 @@ this.entities.push(
                                 this.player.y = this.hubY;
                             }
                         }
-                        const touchingDoor = this.entities.find(e => {
+                        const touchingDoor = !this.pendingPreserveVelocity && this.entities.find(e => {
                             if (!e || e.isDestroyed) return false;
                             if (e.type !== 'door' && e.type !== 'levelgate' && e.type !== 'exitgate') return false;
                             const minW = Math.max(e.width, 48);
@@ -5639,6 +5693,26 @@ this.entities.push(
                             this.player.targetDoorX = null;
                             this.player.vx = 0;
                             this.player.vy = 0;
+                        } else if (this.pendingPreserveVelocity) {
+                            this.player.isEnteringDoor = false;
+                            this.player.targetDoorX = null;
+                            if (this.pendingVerticalHallway) {
+                                const vInfo = this.pendingVerticalHallway;
+                                if (vInfo.dir === 'up') {
+                                    this.player.isGrounded = false;
+                                    if (!this.player.isRunning && this.player.sprite_index !== 'spr_player_mach3' && this.player.sprite_index !== 'spr_player_mach3jump') {
+                                        this.player.sprite_index = 'spr_player_jump';
+                                    }
+                                } else {
+                                    this.player.isGrounded = false;
+                                    if (vInfo.isGroundPounding) {
+                                        this.player.isGroundPounding = true;
+                                        this.player.sprite_index = 'spr_player_groundpound';
+                                    } else {
+                                        this.player.sprite_index = 'spr_player_fall';
+                                    }
+                                }
+                            }
                         } else {
                             this.player.state = 'normal';
                             this.player.sprite_index = 'spr_player_idle';
@@ -5659,6 +5733,7 @@ this.entities.push(
                 this.needsVoidClear = true;
                 this.pendingRoom = null;
                 this.pendingDoor = null;
+                this.pendingVerticalHallway = null;
                 if (this.player) {
                     this.player.targetDoorX = null;
                     if (this.currentRoom === 'rm_rank') {
@@ -6056,7 +6131,7 @@ this.entities.push(
         // Hallway Transition Check
         if (!this.player.isNoClip) {
             const overlappingHallway = this.entities.find(e => 
-                e.type === 'hallway' && e.targetRoom && e.targetDoor && e.targetRoom !== 'null' && e.targetDoor !== 'null' &&
+                (e.type === 'hallway' || e.type === 'hallwayvertical') && e.targetRoom && e.targetDoor && e.targetRoom !== 'null' && e.targetDoor !== 'null' &&
                 this.player.x < e.x + e.width &&
                 this.player.x + this.player.width > e.x &&
                 this.player.y < e.y + e.height &&
@@ -6065,6 +6140,24 @@ this.entities.push(
             
             if (overlappingHallway) {
                 if (!this.player.insideHallway) {
+                    this.player.insideHallway = true;
+                    if (overlappingHallway.type === 'hallwayvertical') {
+                        let dir = overlappingHallway.verticalDir;
+                        if (!dir || dir === 'auto') {
+                            dir = (this.player.vy < 0 || overlappingHallway.y < 200) ? 'up' : 'down';
+                        }
+                        this.pendingVerticalHallway = {
+                            dir: dir,
+                            relX: Math.max(0, Math.min(1, (this.player.x + this.player.width / 2 - overlappingHallway.x) / Math.max(1, overlappingHallway.width))),
+                            vy: this.player.vy,
+                            vx: this.player.vx,
+                            isGroundPounding: this.player.isGroundPounding,
+                            isRunning: this.player.isRunning,
+                            facingDir: this.player.facingDir
+                        };
+                    } else {
+                        this.pendingVerticalHallway = null;
+                    }
                     this.triggerRoomTransition(overlappingHallway.targetRoom, overlappingHallway.targetDoor, true);
                 }
             } else {
@@ -6295,11 +6388,23 @@ this.entities.push(
         // 1. Backgrounds (Hallways)
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
-            if (e.type === 'hallway') {
+            if (e.type === 'hallway' || e.type === 'hallwayvertical') {
                 // Frustum culling: check if entity is in view
                 if (e.x + e.width > viewLeft && e.x < viewRight && 
                     e.y + e.height > viewTop && e.y < viewBottom) {
                     e.render(this.ctx);
+                    if (this.isEditorMode) {
+                        this.ctx.save();
+                        this.ctx.fillStyle = '#ffffff';
+                        this.ctx.font = 'bold 11px monospace';
+                        this.ctx.shadowColor = '#000000';
+                        this.ctx.shadowBlur = 4;
+                        const label = e.type === 'hallwayvertical' 
+                            ? `V-HALL [${e.verticalDir || 'up'}] -> ${e.targetRoom || '?'}:${e.targetDoor || '?'}`
+                            : `HALL -> ${e.targetRoom || '?'}:${e.targetDoor || '?'}`;
+                        this.ctx.fillText(label, e.x + 4, e.y + 14);
+                        this.ctx.restore();
+                    }
                 }
             }
         }
@@ -6352,7 +6457,7 @@ this.entities.push(
         // 2.5. Objects & Platforms (Platforms, slopes, enemies, doors, etc.)
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
-            if (e.type !== 'hallway' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
+            if (e.type !== 'hallway' && e.type !== 'hallwayvertical' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
                 if (this.tileWave && (e.type === 'door' || e instanceof Door || e.type === 'obj_cutoff' || e.type === 'obj_cutoffsmall' || e.type === 'cutoff' || e.isCutoff || (typeof Cutoff !== 'undefined' && e instanceof Cutoff))) continue;
                 if (!this.showCollisions && this.isCollisionEntity(e)) continue;
                 let eLeft = e.x;
