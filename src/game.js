@@ -8334,9 +8334,14 @@ this.entities.push(
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText('COMP', 32, 32);
             } else if (this.selectedType === 'obj_collect') {
-                ctx.fillStyle = '#f1c40f';
-                ctx.beginPath(); ctx.arc(16, 16, 12, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('10', 16, 16);
+                const img = (typeof Collect !== 'undefined' && Collect.sprites && Collect.sprites[1] && Collect.sprites[1][0] && Collect.sprites[1][0].complete && Collect.sprites[1][0].naturalWidth > 0) ? Collect.sprites[1][0] : null;
+                if (img) {
+                    ctx.drawImage(img, 16 - 50, 16 - 50, 100, 100);
+                } else {
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.beginPath(); ctx.arc(16, 16, 12, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('10', 16, 16);
+                }
             } else if (this.selectedType === 'obj_bigcollect') {
                 ctx.fillStyle = '#e67e22';
                 ctx.beginPath(); ctx.arc(32, 32, 24, 0, Math.PI * 2); ctx.fill();

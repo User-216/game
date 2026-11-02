@@ -2151,7 +2151,30 @@ class TutorialBook extends Entity {
 
 
 class Collect extends Entity {
-    constructor(x, y, w = 32, h = 32, flipX = false, flipY = false) {
+    static sprites = {};
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (Collect.imagesLoaded) return;
+        Collect.sprites = {};
+        for (let c = 1; c <= 5; c++) {
+            Collect.sprites[c] = [];
+            for (let i = 0; i < 8; i++) {
+                const img = new Image();
+                img.src = `이미지/spr_collect${c}/spr_collect${c}_${i}.png`;
+                if (c !== 1) {
+                    img.onerror = () => {
+                        img.onerror = null;
+                        img.src = `이미지/spr_collect1/spr_collect1_${i}.png`;
+                    };
+                }
+                Collect.sprites[c].push(img);
+            }
+        }
+        Collect.imagesLoaded = true;
+    }
+
+    constructor(x, y, w = 32, h = 32, flipX = false, flipY = false, collectType = null) {
         super(x, y, w, h, 'transparent', flipX, flipY);
         this.type = 'obj_collect';
         this.state = 'idle'; // idle, following, collected
@@ -2165,6 +2188,12 @@ class Collect extends Entity {
         this.isPlatform = false;
         this.points = 10;
         this.fontSize = 14;
+
+        // collect1~5 중 랜덤 생성 (파라미터 전달 시 해당 타입 사용)
+        this.collectType = collectType || (Math.floor(Math.random() * 5) + 1);
+        this.image_index = Math.random() * 8;
+        this.image_speed = 0.35;
+        Collect.initImages();
     }
 
     update(game) {
@@ -2176,8 +2205,11 @@ class Collect extends Entity {
             this.speed = 0;
             if (typeof this.baseX === 'number') this.x = this.baseX;
             if (typeof this.baseY === 'number') this.y = this.baseY;
+            this.image_index = (this.image_index + this.image_speed) % 8;
             return;
         }
+
+        this.image_index = (this.image_index + this.image_speed) % 8;
 
         if (this.state === 'idle') {
             this.timer += 0.1;
@@ -2253,6 +2285,57 @@ class Collect extends Entity {
     }
 
     render(ctx) {
+        if (this.markedForDeletion) return;
+        const typeKey = this.collectType || 1;
+        const frames = (Collect.sprites && Collect.sprites[typeKey] && Collect.sprites[typeKey].length > 0)
+            ? Collect.sprites[typeKey]
+            : (Collect.sprites && Collect.sprites[1]);
+        const frameIdx = Math.floor(this.image_index) % ((frames && frames.length) || 8);
+        let img = (frames && frames[frameIdx] && frames[frameIdx].complete && frames[frameIdx].naturalWidth > 0)
+            ? frames[frameIdx]
+            : null;
+
+        // Fallback to collect1 frame if this type's frame is not ready
+        if (!img && Collect.sprites && Collect.sprites[1] && Collect.sprites[1][frameIdx] && Collect.sprites[1][frameIdx].complete && Collect.sprites[1][frameIdx].naturalWidth > 0) {
+            img = Collect.sprites[1][frameIdx];
+        }
+
+        if (img) {
+            ctx.save();
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            // spr_collect frames are 100x100 with bounding box (~32x32) centered at (50, 50)
+            ctx.drawImage(img, cx - 50, cy - 50, 100, 100);
+            ctx.restore();
+        } else {
+            // Fallback while loading
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2 - 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#f39c12';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold ' + this.fontSize + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.points.toString(), this.x + this.width / 2, this.y + this.height / 2);
+        }
+    }
+}
+
+class BigCollect extends Collect {
+    constructor(x, y, w = 64, h = 64, flipX = false, flipY = false) {
+        super(x, y, w, h, flipX, flipY);
+        this.type = 'obj_bigcollect';
+        this.points = 100;
+        this.fontSize = 24;
+    }
+
+    render(ctx) {
+        if (this.markedForDeletion) return;
         ctx.fillStyle = '#f1c40f';
         ctx.beginPath();
         ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2 - 4, 0, Math.PI * 2);
@@ -2269,13 +2352,13 @@ class Collect extends Entity {
     }
 }
 
-class BigCollect extends Collect {
-    constructor(x, y, w = 64, h = 64, flipX = false, flipY = false) {
-        super(x, y, w, h, flipX, flipY);
-        this.type = 'obj_bigcollect';
-        this.points = 100;
-        this.fontSize = 24;
-    }
+Collect.initImages();
+
+if (typeof window !== 'undefined') {
+    window.Collect = Collect;
+    window.BigCollect = BigCollect;
+    window.obj_collect = Collect;
+    window.obj_bigcollect = BigCollect;
 }
 
 

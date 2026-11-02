@@ -2338,7 +2338,6 @@ this.entities.push(
     new Tile3(1408, 672, 32, 32, 96, 128, 'tile_tutorial.png', 32, 32),
     new Tile3(1408, 704, 32, 32, 96, 160, 'tile_tutorial.png', 32, 32),
     new Tile3(1408, 736, 32, 32, 96, 192, 'tile_tutorial.png', 32, 32),
-    new HallwayVertical(384, 992, 128, 64, 'tutorial_1', 'C', 'down'),
     new TargetDoor_C(416, 896, 32, 32),
     new Platform(480, 736, 32, 320, '#00aa9e66'),
     new Tile(480, 736, 32, 32, 32, 96, 'tile_tutorial.png', 32, 32),
@@ -2351,6 +2350,16 @@ this.entities.push(
     new Tile(480, 960, 32, 32, 32, 128, 'tile_tutorial.png', 32, 32),
     new Tile(480, 992, 32, 32, 32, 160, 'tile_tutorial.png', 32, 32),
     new Tile(480, 1024, 32, 32, 32, 192, 'tile_tutorial.png', 32, 32),
+    new HallwayVertical(384, 992, 96, 64, 'tutorial_1', 'C', 'down'),
+    new EscapeBlockClosed(384, 736, 96, 64),
+    new EscapeBlockOpen(1056, 192, 96, 448),
+    new EscapeBlockClosed(1440, 672, 96, 64),
+    new EscapeBlockClosed(1696, 768, 96, 64),
+    new EscapeBlockClosed(2016, 640, 96, 192),
+    new EscapeBlockOpen(2016, 448, 96, 192),
+    new EscapeBlockOpen(288, 192, 64, 544),
+    new TutorialBook(480, 704, 32, 32, "tutorial18"),
+    new TutorialBook(2304, 800, 32, 32, "tutorial19"),
 );
 
 };
