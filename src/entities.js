@@ -2156,19 +2156,38 @@ class Collect extends Entity {
 
     static initImages() {
         if (Collect.imagesLoaded) return;
-        Collect.sprites = {};
+        Collect.sprites = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+
+        // Known frame counts: spr_collect1 has 8 frames, spr_collect2 has 13 frames
+        const KNOWN_COUNTS = { 1: 8, 2: 13 };
+
         for (let c = 1; c <= 5; c++) {
             Collect.sprites[c] = [];
-            for (let i = 0; i < 8; i++) {
-                const img = new Image();
-                img.src = `이미지/spr_collect${c}/spr_collect${c}_${i}.png`;
-                if (c !== 1) {
-                    img.onerror = () => {
-                        img.onerror = null;
-                        img.src = `이미지/spr_collect1/spr_collect1_${i}.png`;
-                    };
+            const count = KNOWN_COUNTS[c] || 0;
+            if (count > 0) {
+                for (let i = 0; i < count; i++) {
+                    const img = new Image();
+                    img.src = `이미지/spr_collect${c}/spr_collect${c}_${i}.png`;
+                    Collect.sprites[c].push(img);
                 }
-                Collect.sprites[c].push(img);
+            } else {
+                // For types 3, 4, 5: probe spr_collect${c}_0.png
+                // Once the user adds the folder, it will automatically load all frames!
+                const firstImg = new Image();
+                firstImg.onload = () => {
+                    Collect.sprites[c] = [firstImg];
+                    const loadNext = (idx) => {
+                        if (idx >= 32) return;
+                        const nextImg = new Image();
+                        nextImg.onload = () => {
+                            Collect.sprites[c].push(nextImg);
+                            loadNext(idx + 1);
+                        };
+                        nextImg.src = `이미지/spr_collect${c}/spr_collect${c}_${idx}.png`;
+                    };
+                    loadNext(1);
+                };
+                firstImg.src = `이미지/spr_collect${c}/spr_collect${c}_0.png`;
             }
         }
         Collect.imagesLoaded = true;
@@ -2191,7 +2210,8 @@ class Collect extends Entity {
 
         // collect1~5 중 랜덤 생성 (파라미터 전달 시 해당 타입 사용)
         this.collectType = collectType || (Math.floor(Math.random() * 5) + 1);
-        this.image_index = Math.random() * 8;
+        const maxF = (this.collectType === 2) ? 13 : 8;
+        this.image_index = Math.random() * maxF;
         this.image_speed = 0.35;
         Collect.initImages();
     }
@@ -2205,11 +2225,11 @@ class Collect extends Entity {
             this.speed = 0;
             if (typeof this.baseX === 'number') this.x = this.baseX;
             if (typeof this.baseY === 'number') this.y = this.baseY;
-            this.image_index = (this.image_index + this.image_speed) % 8;
+            this.image_index = (this.image_index + this.image_speed) % 1000;
             return;
         }
 
-        this.image_index = (this.image_index + this.image_speed) % 8;
+        this.image_index = (this.image_index + this.image_speed) % 1000;
 
         if (this.state === 'idle') {
             this.timer += 0.1;
@@ -2287,17 +2307,31 @@ class Collect extends Entity {
     render(ctx) {
         if (this.markedForDeletion) return;
         const typeKey = this.collectType || 1;
-        const frames = (Collect.sprites && Collect.sprites[typeKey] && Collect.sprites[typeKey].length > 0)
+        let frames = (Collect.sprites && Collect.sprites[typeKey] && Collect.sprites[typeKey].length > 0)
             ? Collect.sprites[typeKey]
-            : (Collect.sprites && Collect.sprites[1]);
-        const frameIdx = Math.floor(this.image_index) % ((frames && frames.length) || 8);
+            : null;
+
+        // If this type is not loaded yet (e.g. 3, 4, 5), fall back to type 1 or 2
+        if (!frames || frames.length === 0) {
+            const fb = (typeKey % 2 === 0) ? 2 : 1;
+            frames = (Collect.sprites && Collect.sprites[fb] && Collect.sprites[fb].length > 0)
+                ? Collect.sprites[fb]
+                : (Collect.sprites && Collect.sprites[1]);
+        }
+
+        const numFrames = (frames && frames.length > 0) ? frames.length : 8;
+        const frameIdx = Math.floor(this.image_index) % numFrames;
         let img = (frames && frames[frameIdx] && frames[frameIdx].complete && frames[frameIdx].naturalWidth > 0)
             ? frames[frameIdx]
             : null;
 
-        // Fallback to collect1 frame if this type's frame is not ready
-        if (!img && Collect.sprites && Collect.sprites[1] && Collect.sprites[1][frameIdx] && Collect.sprites[1][frameIdx].complete && Collect.sprites[1][frameIdx].naturalWidth > 0) {
-            img = Collect.sprites[1][frameIdx];
+        // Fallback to collect1 or collect2 frame if this specific frame is not ready
+        if (!img && Collect.sprites) {
+            const fbFrames = (Collect.sprites[1] && Collect.sprites[1].length > 0) ? Collect.sprites[1] : (Collect.sprites[2] || []);
+            const fbIdx = Math.floor(this.image_index) % (fbFrames.length || 1);
+            if (fbFrames[fbIdx] && fbFrames[fbIdx].complete && fbFrames[fbIdx].naturalWidth > 0) {
+                img = fbFrames[fbIdx];
+            }
         }
 
         if (img) {
