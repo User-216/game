@@ -4192,10 +4192,12 @@ this.entities.push(
                 }
                 
                 if (this.player) {
-                    this.player.isCrouching = false;
-                    this.player.isTumbling = false;
-                    this.player.height = 45;
-                    this.player.mask_index = 'spr_player_mask';
+                    if (!preserveVelocity) {
+                        this.player.isCrouching = false;
+                        this.player.isTumbling = false;
+                        this.player.height = 45;
+                        this.player.mask_index = 'spr_player_mask';
+                    }
                     this.player.visible = true;
                 }
                 
@@ -4301,6 +4303,28 @@ this.entities.push(
                 if (!preserveVelocity) {
                     this.player.vx = 0;
                     this.player.vy = 0;
+                } else if (this.preservedHallwayState) {
+                    // Restore exact entering velocities and states so player doesn't slow down!
+                    const ph = this.preservedHallwayState;
+                    this.player.vx = ph.vx;
+                    if (!this.pendingVerticalHallway) {
+                        this.player.vy = ph.vy;
+                    }
+                    this.player.facingDir = ph.facingDir;
+                    this.player.isRunning = ph.isRunning;
+                    this.player.wasRunningLastFrame = ph.wasRunningLastFrame;
+                    this.player.state = ph.state;
+                    this.player.sprite_index = ph.sprite_index;
+                    this.player.image_index = ph.image_index;
+                    this.player.image_speed = ph.image_speed;
+                    this.player.isTumbling = ph.isTumbling;
+                    this.player.isCrouching = ph.isCrouching;
+                    this.player.isGroundPounding = ph.isGroundPounding;
+                    this.player.isClimbing = ph.isClimbing;
+                    this.player.isDrifting = ph.isDrifting;
+                    this.player.isMachSliding = ph.isMachSliding;
+                    if (ph.height) this.player.height = ph.height;
+                    if (ph.mask_index) this.player.mask_index = ph.mask_index;
                 }
                 this.player.targetDoorX = null;
 
@@ -4878,19 +4902,47 @@ this.entities.push(
         } else if (this.pendingPreserveVelocity) {
             this.player.isEnteringDoor = false;
             this.player.targetDoorX = null;
+            if (this.preservedHallwayState) {
+                const ph = this.preservedHallwayState;
+                this.player.vx = ph.vx;
+                if (!this.pendingVerticalHallway) {
+                    this.player.vy = ph.vy;
+                }
+                this.player.facingDir = ph.facingDir;
+                this.player.isRunning = ph.isRunning;
+                this.player.wasRunningLastFrame = ph.wasRunningLastFrame;
+                this.player.state = ph.state;
+                this.player.sprite_index = ph.sprite_index;
+                this.player.image_index = ph.image_index;
+                this.player.image_speed = ph.image_speed;
+                this.player.isTumbling = ph.isTumbling;
+                this.player.isCrouching = ph.isCrouching;
+                this.player.isGroundPounding = ph.isGroundPounding;
+                this.player.isClimbing = ph.isClimbing;
+                this.player.isDrifting = ph.isDrifting;
+                this.player.isMachSliding = ph.isMachSliding;
+                if (ph.height) this.player.height = ph.height;
+                if (ph.mask_index) this.player.mask_index = ph.mask_index;
+            }
             if (this.pendingVerticalHallway) {
                 const vInfo = this.pendingVerticalHallway;
+                const ph = this.preservedHallwayState;
                 if (vInfo.dir === 'up') {
                     this.player.isGrounded = false;
+                    const vy = (ph && typeof ph.vy === 'number') ? ph.vy : (vInfo.vy || -12);
+                    this.player.vy = Math.min(vy, -12);
+                    if (ph) this.player.vx = ph.vx;
                     if (!this.player.isRunning && this.player.sprite_index !== 'spr_player_mach3' && this.player.sprite_index !== 'spr_player_mach3jump') {
                         this.player.sprite_index = 'spr_player_jump';
                     }
                 } else {
                     this.player.isGrounded = false;
-                    if (vInfo.isGroundPounding) {
-                        this.player.isGroundPounding = true;
+                    const vy = (ph && typeof ph.vy === 'number') ? ph.vy : (vInfo.vy || 10);
+                    this.player.vy = Math.max(vy, 10);
+                    if (ph) this.player.vx = ph.vx;
+                    if (this.player.isGroundPounding) {
                         this.player.sprite_index = 'spr_player_groundpound';
-                    } else {
+                    } else if (this.player.sprite_index !== 'spr_player_mach3' && this.player.sprite_index !== 'spr_player_mach3jump') {
                         this.player.sprite_index = 'spr_player_fall';
                     }
                 }
@@ -4916,7 +4968,32 @@ this.entities.push(
         this.pendingDoor = targetDoorId;
         this.pendingPreserveVelocity = preserveVelocity;
 
-        if (preserveVelocity) {
+        if (preserveVelocity && this.player) {
+            // Snapshot full motion and animation state so nothing decreases across rooms
+            this.preservedHallwayState = {
+                vx: this.player.vx,
+                vy: this.player.vy,
+                state: this.player.state,
+                sprite_index: this.player.sprite_index,
+                image_index: this.player.image_index,
+                image_speed: this.player.image_speed,
+                facingDir: this.player.facingDir,
+                isRunning: this.player.isRunning,
+                wasRunningLastFrame: this.player.wasRunningLastFrame,
+                isTumbling: this.player.isTumbling,
+                isCrouching: this.player.isCrouching,
+                isGroundPounding: this.player.isGroundPounding,
+                isGroundPoundLand: this.player.isGroundPoundLand,
+                isClimbing: this.player.isClimbing,
+                isDrifting: this.player.isDrifting,
+                isMachSliding: this.player.isMachSliding,
+                machThreshold: this.player.machThreshold,
+                canGroundPound: this.player.canGroundPound,
+                climbSide: this.player.climbSide,
+                height: this.player.height,
+                mask_index: this.player.mask_index
+            };
+
             // Hallway & Vertical Hallway: Instant transition without falling delay!
             this.transitionState = 'LOADING_ROOM';
             this.transitionAlpha = 1;
@@ -5759,6 +5836,8 @@ this.entities.push(
                 this.pendingRoom = null;
                 this.pendingDoor = null;
                 this.pendingVerticalHallway = null;
+                this.pendingPreserveVelocity = false;
+                this.preservedHallwayState = null;
                 if (this.player) {
                     this.player.targetDoorX = null;
                     if (this.currentRoom === 'rm_rank') {
@@ -5848,7 +5927,7 @@ this.entities.push(
             return;
         }
 
-        if (this.transitionState !== 'NONE' || (this.debugConsole && this.debugConsole.open)) {
+        if ((this.transitionState !== 'NONE' && !this.pendingPreserveVelocity) || (this.debugConsole && this.debugConsole.open)) {
             this.keys.actionLeft = false;
             this.keys.actionRight = false;
             this.keys.actionUp = false;
@@ -5864,6 +5943,15 @@ this.entities.push(
             this.keys.actionRun = this.isActionPressed('run');
             this.keys.actionGrab = this.isActionPressed('grab');
             this.keys.actionTaunt = this.isActionPressed('taunt');
+
+            // If entering through a hallway, keep running active so mach speed never drops to 0
+            if (this.pendingPreserveVelocity && this.preservedHallwayState && this.preservedHallwayState.isRunning) {
+                this.keys.actionRun = true;
+                if (!this.keys.actionLeft && !this.keys.actionRight) {
+                    if (this.preservedHallwayState.facingDir === -1) this.keys.actionLeft = true;
+                    else if (this.preservedHallwayState.facingDir === 1) this.keys.actionRight = true;
+                }
+            }
         }
 
         this.player.update(this.keys, this.entities, this.audio);
