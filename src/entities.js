@@ -3410,6 +3410,9 @@ class RankController extends Entity {
         this.canExit = false;
         this.exiting = false;
 
+        if (RankController.recolorCache) {
+            RankController.recolorCache.clear();
+        }
         if (!RankController.imagesC || !RankController.imagesD || !RankController.imagesB || !RankController.imagesA) {
             RankController.reloadImages();
         }
@@ -3491,14 +3494,14 @@ class RankController extends Entity {
 
             // 결과 화면 색상 팔레트:
             // 검정색 아닌 건 보라색: rgb(152, 80, 248) -> #9850f8
-            // 검정색인 건 진한 보라색: rgb(25, 12, 45) -> #190c2d
+            // 검정색인 건 진한 보라색: rgb(80, 0, 184) -> #5000b8
             const PURPLE_R = 152;
             const PURPLE_G = 80;
             const PURPLE_B = 248;
 
-            const DARK_R = 25;
-            const DARK_G = 12;
-            const DARK_B = 45;
+            const DARK_R = 80;
+            const DARK_G = 0;
+            const DARK_B = 184;
 
             for (let i = 0; i < data.length; i += 4) {
                 const a = data[i + 3];
@@ -3511,7 +3514,7 @@ class RankController extends Entity {
                 // 휘도 계산 (0 ~ 255)
                 const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
-                if (lum <= 25) {
+                if (lum <= 35) {
                     data[i] = DARK_R;
                     data[i + 1] = DARK_G;
                     data[i + 2] = DARK_B;
@@ -3520,7 +3523,7 @@ class RankController extends Entity {
                     data[i + 1] = PURPLE_G;
                     data[i + 2] = PURPLE_B;
                 } else {
-                    const t = (lum - 25) / (75 - 25);
+                    const t = (lum - 35) / (75 - 35);
                     data[i] = Math.round(DARK_R + (PURPLE_R - DARK_R) * t);
                     data[i + 1] = Math.round(DARK_G + (PURPLE_G - DARK_G) * t);
                     data[i + 2] = Math.round(DARK_B + (PURPLE_B - DARK_B) * t);
@@ -3531,8 +3534,21 @@ class RankController extends Entity {
             RankController.recolorCache.set(img.src, canvas);
             return canvas;
         } catch (e) {
-            console.warn('Rank frame recolor error:', e);
-            return img;
+            console.warn('Rank frame recolor error (using fallback):', e);
+            try {
+                const fbCanvas = document.createElement('canvas');
+                fbCanvas.width = img.naturalWidth;
+                fbCanvas.height = img.naturalHeight;
+                const fbCtx = fbCanvas.getContext('2d');
+                fbCtx.drawImage(img, 0, 0);
+                fbCtx.globalCompositeOperation = 'source-in';
+                fbCtx.fillStyle = '#5000b8';
+                fbCtx.fillRect(0, 0, fbCanvas.width, fbCanvas.height);
+                RankController.recolorCache.set(img.src, fbCanvas);
+                return fbCanvas;
+            } catch (e2) {
+                return img;
+            }
         }
     }
 
