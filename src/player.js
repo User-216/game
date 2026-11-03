@@ -1234,6 +1234,8 @@ class Player {
                 this.heldEnemy.state = 'kicked';
                 this.heldEnemy.vx = 25 * this.facingDir;
                 this.heldEnemy.vy = 0;
+                this.heldEnemy.squashTimer = 18;
+                this.heldEnemy.maxSquashTimer = 18;
                 this.requestScreenShake = 10; // Screen shake on kick!
                 
                 this.heldEnemy = null;

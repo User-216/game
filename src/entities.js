@@ -2960,6 +2960,8 @@ class Slime extends Entity {
                 this.facingDir = Math.sign(this.vx);
             } else {
                 this.vx *= -1; // Bounce off wall while stunned
+                this.squashTimer = 18;
+                this.maxSquashTimer = 18;
             }
             this.x += this.vx; // step out of wall
         }
@@ -3142,11 +3144,11 @@ class Slime extends Entity {
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
             } else if (isStomp) {
-                // 밟힘(Stomp): 수평 넉백 없이 바닥에서 찌부(squash)되었다가 점차 원래 형태로 복원
+                // 밟힘(Stomp): 수평 넉백 없이 바닥에서 찌부(squash)되었다가 바로 통통 튀며 복원
                 this.state = 'stunned';
-                this.stunTimer = 60;
-                this.squashTimer = 60;
-                this.maxSquashTimer = 60;
+                this.stunTimer = 22; // 밟힌 후 바로 복원
+                this.squashTimer = 18;
+                this.maxSquashTimer = 18;
                 this.vx = 0;
                 this.vy = 0;
                 
@@ -3156,10 +3158,11 @@ class Slime extends Entity {
                 this.hitCooldown = 15;
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
             } else if (isMach1or2) {
-                // 마하 대시 몸통 박치기: 수평 넉백 + 기절 (뒤집히지 않음)
+                // 마하 대시 몸통 박치기: 튕겨나갈 때도 밟힌 것처럼 찌부되었다가 바로 복원
                 this.state = 'stunned';
-                this.stunTimer = 100;
-                this.squashTimer = 0;
+                this.stunTimer = 35; // 튕겨나간 후 바로 복원
+                this.squashTimer = 18;
+                this.maxSquashTimer = 18;
                 this.vy = -4;
                 const knockDir = p.facingDir || 1;
                 this.vx = 12 * knockDir;
@@ -3179,9 +3182,9 @@ class Slime extends Entity {
         let drawY = this.y;
         
         if (this.sprites.length > 0) {
-            // 찌부(스쿼시) 상태일 때는 납작한 프레임(8프레임, index 7) 표시
+            // 찌부(스쿼시) 초기에는 납작한 프레임(8프레임, index 7), 복원되면서 원래 프레임 표시
             let frameIndex = Math.floor(this.image_index) % this.sprites.length;
-            if (this.squashTimer > 0) {
+            if (this.squashTimer > this.maxSquashTimer * 0.5) {
                 frameIndex = 7;
             }
             const img = this.sprites[frameIndex];
@@ -3201,31 +3204,27 @@ class Slime extends Entity {
                     ctx.scale(scaleX, -scaleY);
                     ctx.drawImage(img, -51, -57.5, 100, 100);
                 } else {
-                    // 평상시 / 기절 / 밟힘 찌부 상태: 기절 시 뒤집히지 않으며, 바닥(발바닥) 앵커 기준으로 스케일
+                    // 평상시 / 기절 / 밟힘 및 튕겨나감 찌부 상태:
+                    // 공중/튕겨나갈 때는 중심 앵커, 바닥에 있을 때는 발바닥 앵커 사용
+                    const isAir = !this.isGrounded || this.state === 'kicked';
                     const cx = Math.round(drawX + this.width / 2);
-                    const cy = Math.round(drawY + this.height / 2 + 22.5);
+                    const cy = isAir ? Math.round(drawY + this.height / 2) : Math.round(drawY + this.height / 2 + 22.5);
+                    const drawOffsetY = isAir ? -57.5 : -80;
                     ctx.translate(cx, cy);
 
                     let squashX = 1.0;
                     let squashY = 1.0;
                     if (this.squashTimer > 0 && this.maxSquashTimer > 0) {
-                        const t = 1.0 - (this.squashTimer / this.maxSquashTimer); // 0 (밟힌 직후) -> 1 (복원 완료)
-                        if (t < 0.4) {
-                            // 밟힌 직후 바닥에 납작하게 찌부된 상태 유지
-                            const localT = t / 0.4;
-                            squashY = 0.35 + 0.10 * localT;
-                            squashX = 1.55 - 0.10 * localT;
-                        } else {
-                            // 젤리 탄성 복원: 탱글하게 튀어오르며 원래 상태로 자연스럽게 복귀
-                            const localT = (t - 0.4) / 0.6;
-                            const spring = Math.sin(localT * Math.PI * 2.5) * Math.exp(-localT * 3.5) * 0.45;
-                            squashY = 0.45 + (1.0 - 0.45) * localT + spring;
-                            squashX = 1.0 + (1.0 - squashY) * 0.6;
-                        }
+                        const p = 1.0 - (this.squashTimer / this.maxSquashTimer); // 0 (충격 직후) -> 1 (복원 완료)
+                        // 바로 복원: 찌부(sy=0.35, sx=1.46)된 직후 지체 없이 바로 통통 튀며 탄성 복원
+                        const sy = 1.0 - 0.65 * Math.cos(p * Math.PI * 1.8) * Math.exp(-p * 3.0);
+                        const sx = 1.0 + (1.0 - sy) * 0.7;
+                        squashY = sy;
+                        squashX = sx;
                     }
 
                     ctx.scale(scaleX * squashX, scaleY * squashY);
-                    ctx.drawImage(img, -51, -80, 100, 100);
+                    ctx.drawImage(img, -51, drawOffsetY, 100, 100);
                 }
                 
                 ctx.restore();
