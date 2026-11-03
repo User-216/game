@@ -316,6 +316,8 @@ class SecretBlock extends Destroyable {
 
     destroy(game = window.gameInstance) {
         if (this.isDestroyed) return;
+        const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
+        if (g && g.isEditorMode) return;
         this.isDestroyed = true;
 
         const particleColors = ['#df7208', '#7f2800', '#ffaa44', '#b85400', '#ffd700'];
@@ -338,7 +340,12 @@ class SecretBlock extends Destroyable {
 
     spawnCutoffs(game = window.gameInstance) {
         const g = game || window.gameInstance;
-        if (!g || !g.entities) return;
+        if (!g || !g.entities || g.isEditorMode) return;
+
+        const addCutoff = (cutoff) => {
+            cutoff.spawnedBySecret = true;
+            g.entities.push(cutoff);
+        };
 
         // 1. Activate any pre-placed obj_cutoff instances touching this block
         for (let i = 0; i < g.entities.length; i++) {
@@ -416,14 +423,14 @@ class SecretBlock extends Destroyable {
                     const topSolid1 = shouldSpawnCutoff(cx + 48, cy - 16);
                     if (topSolid0 && topSolid1) {
                         if (!hasCutoffAt(cx, cy, 'top')) {
-                            g.entities.push(new Cutoff(cx, cy, 64, 64, 'top', '64x64'));
+                            addCutoff(new Cutoff(cx, cy, 64, 64, 'top', '64x64'));
                         }
                     } else {
                         if (topSolid0 && !hasCutoffAt(cx, cy, 'top')) {
-                            g.entities.push(new Cutoff(cx, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
                         }
                         if (topSolid1 && !hasCutoffAt(cx + 32, cy, 'top')) {
-                            g.entities.push(new Cutoff(cx + 32, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx + 32, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
                         }
                     }
 
@@ -432,14 +439,14 @@ class SecretBlock extends Destroyable {
                     const botSolid1 = shouldSpawnCutoff(cx + 48, cy + 64 + 16);
                     if (botSolid0 && botSolid1) {
                         if (!hasCutoffAt(cx, cy + 64, 'bottom')) {
-                            g.entities.push(new Cutoff(cx, cy + 64, 64, 64, 'bottom', '64x64'));
+                            addCutoff(new Cutoff(cx, cy + 64, 64, 64, 'bottom', '64x64'));
                         }
                     } else {
                         if (botSolid0 && !hasCutoffAt(cx, cy + 64, 'bottom')) {
-                            g.entities.push(new Cutoff(cx, cy + 64, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx, cy + 64, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
                         }
                         if (botSolid1 && !hasCutoffAt(cx + 32, cy + 64, 'bottom')) {
-                            g.entities.push(new Cutoff(cx + 32, cy + 64, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx + 32, cy + 64, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
                         }
                     }
 
@@ -448,14 +455,14 @@ class SecretBlock extends Destroyable {
                     const leftSolid1 = shouldSpawnCutoff(cx - 16, cy + 48);
                     if (leftSolid0 && leftSolid1) {
                         if (!hasCutoffAt(cx, cy, 'left')) {
-                            g.entities.push(new Cutoff(cx, cy, 64, 64, 'left', '64x64'));
+                            addCutoff(new Cutoff(cx, cy, 64, 64, 'left', '64x64'));
                         }
                     } else {
                         if (leftSolid0 && !hasCutoffAt(cx, cy, 'left')) {
-                            g.entities.push(new Cutoff(cx, cy, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx, cy, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
                         }
                         if (leftSolid1 && !hasCutoffAt(cx, cy + 32, 'left')) {
-                            g.entities.push(new Cutoff(cx, cy + 32, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx, cy + 32, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
                         }
                     }
 
@@ -464,14 +471,14 @@ class SecretBlock extends Destroyable {
                     const rightSolid1 = shouldSpawnCutoff(cx + 64 + 16, cy + 48);
                     if (rightSolid0 && rightSolid1) {
                         if (!hasCutoffAt(cx + 64, cy, 'right')) {
-                            g.entities.push(new Cutoff(cx + 64, cy, 64, 64, 'right', '64x64'));
+                            addCutoff(new Cutoff(cx + 64, cy, 64, 64, 'right', '64x64'));
                         }
                     } else {
                         if (rightSolid0 && !hasCutoffAt(cx + 64, cy, 'right')) {
-                            g.entities.push(new Cutoff(cx + 64, cy, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx + 64, cy, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
                         }
                         if (rightSolid1 && !hasCutoffAt(cx + 64, cy + 32, 'right')) {
-                            g.entities.push(new Cutoff(cx + 64, cy + 32, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
+                            addCutoff(new Cutoff(cx + 64, cy + 32, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
                         }
                     }
                 }
@@ -485,19 +492,19 @@ class SecretBlock extends Destroyable {
 
                     // TOP:
                     if (shouldSpawnCutoff(cx + 16, cy - 16) && !hasCutoffAt(cx, cy, 'top')) {
-                        g.entities.push(new Cutoff(cx, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
+                        addCutoff(new Cutoff(cx, cy, 32, 64, 'top', '32x32', Math.floor(Math.random() * 6)));
                     }
                     // BOTTOM:
                     if (shouldSpawnCutoff(cx + 16, cy + 32 + 16) && !hasCutoffAt(cx, cy + 32, 'bottom')) {
-                        g.entities.push(new Cutoff(cx, cy + 32, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
+                        addCutoff(new Cutoff(cx, cy + 32, 32, 64, 'bottom', '32x32', Math.floor(Math.random() * 6)));
                     }
                     // LEFT:
                     if (shouldSpawnCutoff(cx - 16, cy + 16) && !hasCutoffAt(cx, cy, 'left')) {
-                        g.entities.push(new Cutoff(cx, cy, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
+                        addCutoff(new Cutoff(cx, cy, 64, 32, 'left', '32x32', Math.floor(Math.random() * 6)));
                     }
                     // RIGHT:
                     if (shouldSpawnCutoff(cx + 32 + 16, cy + 16) && !hasCutoffAt(cx + 32, cy, 'right')) {
-                        g.entities.push(new Cutoff(cx + 32, cy, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
+                        addCutoff(new Cutoff(cx + 32, cy, 64, 32, 'right', '32x32', Math.floor(Math.random() * 6)));
                     }
                 }
             }
@@ -640,8 +647,9 @@ class SecretMetalBlock extends Metal {
 
     destroy(game = window.gameInstance) {
         if (this.isDestroyed) return;
-        this.isDestroyed = true;
         const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
+        if (g && g.isEditorMode) return;
+        this.isDestroyed = true;
         if (g) {
             if (g.player) g.player.requestScreenShake = 20;
             if (g.cameraShake !== undefined) g.cameraShake = Math.max(g.cameraShake || 0, 20);
@@ -823,6 +831,9 @@ class Cutoff extends Entity {
     }
 
     render(ctx) {
+        // 디자인(에디터) 모드일 때는 cutoff가 완전히 사라지도록(표시 안 됨) 즉시 반환
+        const g = window.gameInstance;
+        if (g && g.isEditorMode) return;
         if (!this.visible) return;
 
         let canvasObj = null;
@@ -849,16 +860,6 @@ class Cutoff extends Entity {
             } else {
                 ctx.drawImage(c, Math.round(this.x - 32), Math.round(this.y));
             }
-            ctx.restore();
-        }
-
-        const isCollisionVisible = !!(window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
-        if (isCollisionVisible && window.gameInstance && window.gameInstance.isEditorMode) {
-            ctx.save();
-            ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([2, 2]);
-            ctx.strokeRect(this.x, this.y, this.width, this.height);
             ctx.restore();
         }
     }

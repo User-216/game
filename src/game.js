@@ -3374,7 +3374,16 @@ class Game {
             }
 
             // 1. Remove all dynamically cloned/spawned baddies & splatters
-            this.entities = this.entities.filter(ent => !ent.spawnedBySpawner && ent.type !== 'obj_splatter');
+            // 1. Remove all dynamically cloned/spawned baddies, splatters, and cutoffs
+            this.entities = this.entities.filter(ent => 
+                !ent.spawnedBySpawner && 
+                ent.type !== 'obj_splatter' &&
+                !ent.isCutoff &&
+                ent.type !== 'obj_cutoff' &&
+                ent.type !== 'obj_cutoffsmall' &&
+                ent.type !== 'cutoff' &&
+                !(typeof Cutoff !== 'undefined' && ent instanceof Cutoff)
+            );
 
             // 2. Return original enemies, destroyed blocks, and score collectibles to their initial spawn positions
             this.entities.forEach(ent => {
@@ -4285,7 +4294,10 @@ class Game {
             else if ((typeof SecretMetalBlock !== 'undefined' && ent instanceof SecretMetalBlock) || ent.type === 'obj_secretmetalblock') base = `new SecretMetalBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof SecretBigBlock !== 'undefined' && ent instanceof SecretBigBlock) || ent.type === 'obj_secretbigblock') base = `new SecretBigBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof SecretBlock !== 'undefined' && ent instanceof SecretBlock) || ent.type === 'obj_secretblock') base = `new SecretBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if ((typeof Cutoff !== 'undefined' && ent instanceof Cutoff) || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall') base = `new Cutoff(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.side || 'top'}', '${ent.spriteType || '32x32'}', ${ent.imageIndex || 0})`;
+            else if ((typeof Cutoff !== 'undefined' && ent instanceof Cutoff) || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall') {
+                if (ent.spawnedBySecret || this.isEditorMode) return;
+                base = `new Cutoff(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.side || 'top'}', '${ent.spriteType || '32x32'}', ${ent.imageIndex || 0})`;
+            }
             else if (ent instanceof Metal) base = `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Destroyable) base = `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Hallway) base = `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
