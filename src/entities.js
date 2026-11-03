@@ -2661,6 +2661,8 @@ class Slime extends Entity {
         this.sprites = [];
         this.image_index = 0;
         this.image_speed = 0.35;
+        this.squashTimer = 0;
+        this.maxSquashTimer = 0;
         for (let i = 1; i <= 9; i++) {
             let img = new Image();
             img.src = `spr_slimewalk/spr_slimewalk${i}.png`;
@@ -2682,6 +2684,7 @@ class Slime extends Entity {
             this.vy = 0;
             this.hitCooldown = 0;
             this.stunTimer = 0;
+            this.squashTimer = 0;
             if (typeof this.spawnX === 'number') this.x = this.spawnX;
             if (typeof this.spawnY === 'number') this.y = this.spawnY;
             return;
@@ -2699,6 +2702,7 @@ class Slime extends Entity {
             }
         }
         if (this.hitCooldown > 0) this.hitCooldown--;
+        if (this.squashTimer > 0) this.squashTimer--;
         this.wasGrounded = this.isGrounded;
         if (this.state === 'walk') {
             const oldIndex = this.image_index;
@@ -2810,6 +2814,7 @@ class Slime extends Entity {
             if (!isOffScreen) {
                 this.state = 'walk';
                 this.stunTimer = 0;
+                this.squashTimer = 0;
                 this.vy = -5;
                 this.vx = (this.moveSpeed || 1) * this.facingDir;
             }
@@ -2886,6 +2891,7 @@ class Slime extends Entity {
                 this.stunTimer--;
                 if (this.stunTimer <= 0 && this.isGrounded) {
                     this.state = 'walk';
+                    this.squashTimer = 0;
                     this.vx = (this.moveSpeed || 1) * this.facingDir;
                 }
             }
@@ -3135,23 +3141,31 @@ class Slime extends Entity {
                 this.hitCooldown = 15;
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
                 
-            } else if (isMach1or2 || isStomp) {
-                // Stun / knockback
+            } else if (isStomp) {
+                // 밟힘(Stomp): 수평 넉백 없이 바닥에서 찌부(squash)되었다가 점차 원래 형태로 복원
                 this.state = 'stunned';
-                this.stunTimer = 100;
-                this.vy = -4;
-                // Determine knockback direction based on player facing direction
-                const knockDir = p.facingDir || 1;
-                this.vx = 12 * knockDir;
+                this.stunTimer = 60;
+                this.squashTimer = 60;
+                this.maxSquashTimer = 60;
+                this.vx = 0;
+                this.vy = 0;
                 
-                if (isStomp) {
-                    p.vy = -10;
-                    p.sprite_index = 'spr_player_jump';
-                }
+                p.vy = -10;
+                p.sprite_index = 'spr_player_jump';
                 
                 this.hitCooldown = 15;
                 if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
+            } else if (isMach1or2) {
+                // 마하 대시 몸통 박치기: 수평 넉백 + 기절 (뒤집히지 않음)
+                this.state = 'stunned';
+                this.stunTimer = 100;
+                this.squashTimer = 0;
+                this.vy = -4;
+                const knockDir = p.facingDir || 1;
+                this.vx = 12 * knockDir;
                 
+                this.hitCooldown = 15;
+                if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
             }
         }
         
@@ -3159,38 +3173,64 @@ class Slime extends Entity {
     }
 
     render(ctx) {
-        
         const isScared = this.state === 'scared';
         
         let drawX = this.x;
         let drawY = this.y;
         
         if (this.sprites.length > 0) {
-            const frameIndex = Math.floor(this.image_index) % this.sprites.length;
+            // 찌부(스쿼시) 상태일 때는 납작한 프레임(8프레임, index 7) 표시
+            let frameIndex = Math.floor(this.image_index) % this.sprites.length;
+            if (this.squashTimer > 0) {
+                frameIndex = 7;
+            }
             const img = this.sprites[frameIndex];
             
             if (img && img.complete && img.naturalWidth > 0) {
                 ctx.save();
-                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 
                 let scaleX = (this.facingDir === -1) ? -1 : 1;
                 let scaleY = 1;
-                if (this.state === 'stunned' || this.state === 'dead') {
-                    scaleY = -1;
-                }
                 if (this.flipY) {
                     scaleY *= -1;
                 }
-                ctx.scale(scaleX, scaleY);
-                
-                const offsetY = -57.5;
-                ctx.drawImage(img, -51, offsetY, 100, 100);
+
+                if (this.state === 'dead') {
+                    // 사망 상태일 때만 위로 튕기며 상하 반전
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    ctx.scale(scaleX, -scaleY);
+                    ctx.drawImage(img, -51, -57.5, 100, 100);
+                } else {
+                    // 평상시 / 기절 / 밟힘 찌부 상태: 기절 시 뒤집히지 않으며, 바닥(발바닥) 앵커 기준으로 스케일
+                    const cx = Math.round(drawX + this.width / 2);
+                    const cy = Math.round(drawY + this.height / 2 + 22.5);
+                    ctx.translate(cx, cy);
+
+                    let squashX = 1.0;
+                    let squashY = 1.0;
+                    if (this.squashTimer > 0 && this.maxSquashTimer > 0) {
+                        const t = 1.0 - (this.squashTimer / this.maxSquashTimer); // 0 (밟힌 직후) -> 1 (복원 완료)
+                        if (t < 0.4) {
+                            // 밟힌 직후 바닥에 납작하게 찌부된 상태 유지
+                            const localT = t / 0.4;
+                            squashY = 0.35 + 0.10 * localT;
+                            squashX = 1.55 - 0.10 * localT;
+                        } else {
+                            // 젤리 탄성 복원: 탱글하게 튀어오르며 원래 상태로 자연스럽게 복귀
+                            const localT = (t - 0.4) / 0.6;
+                            const spring = Math.sin(localT * Math.PI * 2.5) * Math.exp(-localT * 3.5) * 0.45;
+                            squashY = 0.45 + (1.0 - 0.45) * localT + spring;
+                            squashX = 1.0 + (1.0 - squashY) * 0.6;
+                        }
+                    }
+
+                    ctx.scale(scaleX * squashX, scaleY * squashY);
+                    ctx.drawImage(img, -51, -80, 100, 100);
+                }
                 
                 ctx.restore();
             }
         }
-        
-
     }
 }
 
