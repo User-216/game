@@ -720,7 +720,7 @@ this.entities.push(
     new BigCollect(672, 192, 64, 64),
     new BigCollect(672, 224, 64, 64),
     new BigCollect(608, 224, 64, 64),
-    new LevelGate(1072, 181, 161, 267, "test_1", "A", "1", "GATE 2", 1),
+    new LevelGate(1072, 181, 161, 267, "test_1", "A", "1", "CIDER SEWER", 1),
 );
 
 };

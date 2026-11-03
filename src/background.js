@@ -32,6 +32,13 @@ class BackgroundManager {
                 layerCount: 3,
                 speeds: [0.05, 0.15, 0.25]
             },
+            'bg_cidersewer': {
+                name: 'bg_cidersewer',
+                displayName: '사이다 수어 배경 (bg_cidersewer)',
+                folder: 'backgrounds/bg_cidersewer',
+                layerCount: 3,
+                speeds: [0.05, 0.15, 0.25]
+            },
             'bg_tutorial': {
                 name: 'bg_tutorial',
                 displayName: '튜토리얼 배경 (bg_tutorial)',
@@ -44,6 +51,7 @@ class BackgroundManager {
 
         // 기본 배경 미리 로드
         this.loadBackground('bg_beaker');
+        this.loadBackground('bg_cidersewer');
         this.loadBackground('bg_tutorial');
     }
 

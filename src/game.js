@@ -1968,6 +1968,7 @@ class Game {
         const tileWaveChk = document.getElementById('tile-wave-chk');
         const tileWaveSpeedInput = document.getElementById('tile-wave-speed-input');
         const tileWaveAmpInput = document.getElementById('tile-wave-amp-input');
+        const bgQuickCiderSewer = document.getElementById('bg-quick-cidersewer');
         const bgQuickBeaker = document.getElementById('bg-quick-beaker');
         const bgQuickTutorial = document.getElementById('bg-quick-tutorial');
         const bgQuickNone = document.getElementById('bg-quick-none');
@@ -1993,6 +1994,9 @@ class Game {
             });
         }
 
+        if (bgQuickCiderSewer && bgNameInput) {
+            bgQuickCiderSewer.addEventListener('click', () => { bgNameInput.value = 'bg_cidersewer'; });
+        }
         if (bgQuickBeaker && bgNameInput) {
             bgQuickBeaker.addEventListener('click', () => { bgNameInput.value = 'bg_beaker'; });
         }
