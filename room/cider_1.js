@@ -1,4 +1,4 @@
-﻿window.roomData = window.roomData || {};
+window.roomData = window.roomData || {};
 window.roomData['cider_1'] = function() {
 this.roomWidth = 9100;
 this.roomHeight = 1200;
@@ -153,17 +153,23 @@ this.entities.push(
     new Slope(6208, 928, 96, 64, 'left-up'),
     new Collect(7392, 640, 32, 32),
     new Collect(7328, 640, 32, 32),
-    Object.assign(new Slime(1184, 864, 32, 32), { flipX: true, facingDir: -1 }),
     new Collect(4416, 1056, 32, 32),
     new Collect(4480, 1056, 32, 32),
     new Collect(4448, 1056, 32, 32),
-    Object.assign(new Slime(3360, 800, 32, 32), { flipX: true }),
+    new Platform(-320, 896, 320, 96, '#00aa9e66'),
+    new Platform(-320, 704, 320, 96, '#00aa9e66'),
+    Object.assign(new Hallway(-320, 800, 64, 96, 'cider_lap', 'B'), { flipX: true }),
+    new TargetDoor_B(0, 864, 32, 32),
+    Object.assign(new Slime(1184, 864, 32, 32), { flipX: true, facingDir: -1 }),
+    Object.assign(new Slime(3360, 800, 32, 32), { flipX: true, facingDir: -1 }),
     Object.assign(new Slime(4832, 1024, 32, 32), { flipX: true }),
     Object.assign(new Slime(5504, 960, 32, 32), { flipX: true }),
     new Slime(5984, 928, 32, 32),
     Object.assign(new Slime(7712, 672, 32, 32), { flipX: true }),
     new Slime(7552, 1088, 32, 32),
     Object.assign(new Slime(8224, 1088, 32, 32), { flipX: true }),
+    new Hallway(9280, 864, 64, 256, 'cider_2', 'C'),
+    new TargetDoor_C(9088, 1088, 32, 32),
 );
 
 };
