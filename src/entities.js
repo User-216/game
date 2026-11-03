@@ -2544,6 +2544,7 @@ class SlimeDebris extends Entity {
 
         this.vx = vx;
         this.vy = vy;
+        this.initialVy = vy < 0 ? vy : -2.5; // 방출 초기 수직 속도 (납작 스쿼시 계산 기준)
         this.gravity = 0.32;
         this.image_index = 0;
         this.image_speed = 1 / 8; // 8프레임 애니메이션 (1프레임당 8틱 유지)
@@ -2594,7 +2595,29 @@ class SlimeDebris extends Entity {
         if (img && img.complete && img.naturalWidth > 0) {
             ctx.save();
             ctx.globalAlpha = Math.max(0, Math.min(1, this.alpha));
-            ctx.drawImage(img, Math.round(this.x), Math.round(this.y), this.width, this.height);
+
+            // 스쿼시 & 스트레치: 나올 때 납작했다가, 떨어지는 속도에 따라 세로로 늘어남
+            let sx = 1.0;
+            let sy = 1.0;
+
+            if (this.vy < 0 && this.initialVy < 0) {
+                // 방출 상승 구간: 나올 때 납작(가로 넓고 세로 낮음)했다가 정점에 도달하며 둥근 형태로 복원
+                const riseRatio = Math.max(0, Math.min(1, this.vy / this.initialVy));
+                sx = 1.0 + (0.50 * riseRatio); // 나올 때 최대 1.5배 넓적
+                sy = 1.0 - (0.45 * riseRatio); // 나올 때 0.55배 납작
+            } else if (this.vy >= 0) {
+                // 낙하 구간: 떨어지는 속도(vy)에 비례하여 세로로 길쭉하게 늘어남
+                const fallRatio = Math.min(1.3, this.vy / 10);
+                sy = 1.0 + (fallRatio * 0.70); // 낙하 속도 빠를수록 최대 1.9배까지 세로로 늘어남
+                sx = Math.max(0.55, 1.0 - (fallRatio * 0.35)); // 부피 보존: 가로는 홀쭉해짐
+            }
+
+            const cx = Math.round(this.x + this.width / 2);
+            const cy = Math.round(this.y + this.height / 2);
+
+            ctx.translate(cx, cy);
+            ctx.scale(sx, sy);
+            ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
             ctx.restore();
         }
     }
