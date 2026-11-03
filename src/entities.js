@@ -233,9 +233,14 @@ class Metal extends Destroyable {
         }
     }
 
-    destroy() {
+    destroy(game = (typeof window !== 'undefined' ? window.gameInstance : null)) {
         if (this.isDestroyed) return;
         this.isDestroyed = true;
+        const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
+        if (g) {
+            if (g.player) g.player.requestScreenShake = 20;
+            if (g.cameraShake !== undefined) g.cameraShake = Math.max(g.cameraShake || 0, 20);
+        }
         const metalColors = ['#c2dedc', '#65998f', '#888888', '#e0f4f2'];
         for (let i = 0; i < 24; i++) {
             this.particles.push({
@@ -636,6 +641,11 @@ class SecretMetalBlock extends Metal {
     destroy(game = window.gameInstance) {
         if (this.isDestroyed) return;
         this.isDestroyed = true;
+        const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
+        if (g) {
+            if (g.player) g.player.requestScreenShake = 20;
+            if (g.cameraShake !== undefined) g.cameraShake = Math.max(g.cameraShake || 0, 20);
+        }
 
         const metalColors = ['#c2dedc', '#65998f', '#888888', '#e0f4f2', '#00ffff'];
         for (let i = 0; i < 24; i++) {

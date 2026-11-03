@@ -1486,6 +1486,8 @@ class Player {
                             return; // Skip collision resolution to plow through
                         } else if (this.isGroundPounding && isMetalTarget && this.vy >= 20) {
                             entity.destroy(window.gameInstance);
+                            this.requestScreenShake = 20;
+                            if (window.gameInstance) window.gameInstance.cameraShake = Math.max(window.gameInstance.cameraShake || 0, 20);
                             if (audio) audio.play('break');
                             return; // Skip collision resolution to plow through
                         }
@@ -1566,6 +1568,8 @@ class Player {
                         if (audio) audio.play('break');
                     } else if ((entity.type === 'metal' || entity.type === 'obj_secretmetalblock' || entity.type === 'secretmetalblock' || entity instanceof Metal || (typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)) && Math.abs(this.vx) >= 11.5) {
                         entity.destroy(window.gameInstance);
+                        this.requestScreenShake = 20;
+                        if (window.gameInstance) window.gameInstance.cameraShake = Math.max(window.gameInstance.cameraShake || 0, 20);
                         if (audio) audio.play('break');
                     } else {
                         // User request: "달리는 중 공중말고 벽에 붙이칠떄 상태를 bump 로 해줘 sprite index는 spr_player_bump 로 해주고"
