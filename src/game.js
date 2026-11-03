@@ -4364,6 +4364,12 @@ class Game {
         
         let finalCode = `window.roomData = window.roomData || {};\nwindow.roomData['${roomName}'] = function() {\n${code}\n};`;
         
+        // 1. 클립보드에 코드 자동 복사 (브라우저 .js 다운로드 보안 차단 대비)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(finalCode).catch(() => {});
+        }
+
+        // 2. 파일 다운로드 트리거
         const blob = new Blob([finalCode], {type: 'text/javascript'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -4372,7 +4378,7 @@ class Game {
         a.click();
         URL.revokeObjectURL(url);
         
-        alert(`다운로드된 ${roomName}.js 파일을 프로젝트의 'room' 폴더에 덮어써주시면 영구 보존됩니다.`);
+        alert(`[${roomName}] 방 코드가 클립보드에 복사되었으며 ${roomName}.js 다운로드를 시도했습니다.\n\n보안 정책으로 브라우저에서 .js 다운로드가 차단되더라도 이미 클립보드에 코드가 복사되어 있으니, 채팅창에 붙여넣기(Ctrl+V)하여 말씀해 주시면 제가 바로 room/${roomName}.js 파일로 저장해 드립니다!`);
     }
 
     initRooms() {
