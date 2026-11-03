@@ -2538,6 +2538,7 @@ class SlimeDebris extends Entity {
         this.type = 'obj_debris';
         this.isSolid = false;
         this.isPlatform = false;
+        this.renderBehind = true; // 슬라임/몬스터 뒤쪽 레이어에 렌더링
         
         SlimeDebris.initImages();
 
@@ -2675,16 +2676,19 @@ class Slime extends Entity {
                 this.image_index = 0;
             }
 
-            // Drop slimedebris while walking (8프레임 주기)
+            // Drop slimedebris while walking (8프레임 주기, 슬라임 뒤쪽에서 방출)
             if (this.isGrounded && game && game.entities) {
                 this.debrisTimer = (this.debrisTimer || 0) + 1;
                 if (this.debrisTimer >= 8) {
                     this.debrisTimer = 0;
-                    const dropX = this.x + this.width / 2 + (Math.random() - 0.5) * 4;
-                    const dropY = this.y + this.height - 8;
+                    // 슬라임 이동 방향의 뒤쪽(등/엉덩이) 위치 계산
+                    const rearX = (this.facingDir === 1)
+                        ? (this.x - 2 + Math.random() * 4) // 오른쪽으로 갈 때 -> 왼쪽 뒤
+                        : (this.x + this.width + 2 - Math.random() * 4); // 왼쪽으로 갈 때 -> 오른쪽 뒤
+                    const dropY = this.y + this.height - 8 + (Math.random() - 0.5) * 4;
                     const dropVx = -this.facingDir * (1.2 + Math.random() * 1.4) + (Math.random() - 0.5) * 0.8;
                     const dropVy = -2.8 - Math.random() * 1.6;
-                    game.entities.push(new SlimeDebris(dropX, dropY, dropVx, dropVy));
+                    game.entities.push(new SlimeDebris(rearX, dropY, dropVx, dropVy));
                 }
             }
         } else {

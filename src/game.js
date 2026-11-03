@@ -7021,6 +7021,17 @@ this.entities.push(
             }
         }
 
+        // 2.4. Behind-Entity Debris (Slime droplets behind slime/enemies)
+        for (let i = 0; i < this.entities.length; i++) {
+            const e = this.entities[i];
+            if (e.type === 'obj_debris' && e.renderBehind) {
+                if (e.x + e.width > viewLeft && e.x < viewRight && 
+                    e.y + e.height > viewTop && e.y < viewBottom) {
+                    e.render(this.ctx);
+                }
+            }
+        }
+
         // 2.5. Objects & Platforms (Platforms, slopes, enemies, doors, etc.)
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
@@ -7097,7 +7108,7 @@ this.entities.push(
         // 3. Particles/Effects (Debris in front of player)
         for (let i = 0; i < this.entities.length; i++) {
             const e = this.entities[i];
-            if (e.type === 'obj_debris') {
+            if (e.type === 'obj_debris' && !e.renderBehind) {
                 if (e.x + e.width > viewLeft && e.x < viewRight && 
                     e.y + e.height > viewTop && e.y < viewBottom) {
                     e.render(this.ctx);
