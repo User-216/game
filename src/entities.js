@@ -2544,10 +2544,10 @@ class SlimeDebris extends Entity {
         this.vx = vx;
         this.vy = vy;
         this.gravity = 0.32;
-        this.image_index = Math.random() * 3;
-        this.image_speed = 0.22; // 연속 애니메이션 재생 속도
+        this.image_index = 0;
+        this.image_speed = 1 / 8; // 8프레임 애니메이션 (1프레임당 8틱 유지)
         this.lifetime = 0;
-        this.maxLifetime = 45; // 페이드아웃 총 수명
+        this.maxLifetime = 48; // 총 48프레임 수명 (24틱 1사이클 * 2회 회전)
         this.alpha = 1.0;
     }
 
@@ -2675,14 +2675,11 @@ class Slime extends Entity {
                 this.image_index = 0;
             }
 
-            // Drop slimedebris while walking (5프레임에 2번 방울 생성)
+            // Drop slimedebris while walking (8프레임 주기)
             if (this.isGrounded && game && game.entities) {
                 this.debrisTimer = (this.debrisTimer || 0) + 1;
-                if (this.debrisTimer >= 5) {
+                if (this.debrisTimer >= 8) {
                     this.debrisTimer = 0;
-                }
-                // 5프레임 주기 중 2번 (0번째, 2번째 프레임) 생성
-                if (this.debrisTimer === 0 || this.debrisTimer === 2) {
                     const dropX = this.x + this.width / 2 + (Math.random() - 0.5) * 4;
                     const dropY = this.y + this.height - 8;
                     const dropVx = -this.facingDir * (1.2 + Math.random() * 1.4) + (Math.random() - 0.5) * 0.8;
