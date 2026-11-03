@@ -1,5 +1,5 @@
-window.roomData = window.roomData || {};
-window.roomData['test_1'] = function() {
+﻿window.roomData = window.roomData || {};
+window.roomData['cider_1'] = function() {
 this.roomWidth = 9100;
 this.roomHeight = 1200;
 this.sRankScore = 10000;

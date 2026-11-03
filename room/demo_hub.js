@@ -720,8 +720,8 @@ this.entities.push(
     new BigCollect(672, 192, 64, 64),
     new BigCollect(672, 224, 64, 64),
     new BigCollect(608, 224, 64, 64),
-    new LevelGate(1072, 181, 161, 267, "test_1", "A", "1", "CIDER SEWER", 1, "rgba(192, 57, 43, 0.8)", false, false, 10000),
     Object.assign(new Slime(1376, 384, 32, 32), { flipX: true, facingDir: -1 }),
+    new LevelGate(1056, 160, 192, 288, "cider_1", "A", "0", "GATE 2", 0, "rgba(192, 57, 43, 0.8)", false, false, 10000),
 );
 
 };
