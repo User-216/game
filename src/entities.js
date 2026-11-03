@@ -2543,12 +2543,17 @@ class SlimeDebris extends Entity {
 
         this.vx = vx;
         this.vy = vy;
-        this.gravity = 0.45;
+        this.gravity = 0.32;
         this.image_index = Math.random() * 3;
-        this.image_speed = 0.25; // 연속 애니메이션 재생 속도
+        this.image_speed = 0.22; // 연속 애니메이션 재생 속도
+        this.lifetime = 0;
+        this.maxLifetime = 45; // 페이드아웃 총 수명
+        this.alpha = 1.0;
     }
 
     update(game) {
+        this.lifetime++;
+
         // 연속 애니메이션 재생 (무한 루프)
         if (SlimeDebris.images && SlimeDebris.images.length > 0) {
             this.image_index = (this.image_index + this.image_speed) % SlimeDebris.images.length;
@@ -2558,16 +2563,20 @@ class SlimeDebris extends Entity {
         this.x += this.vx;
         this.y += this.vy;
         this.vy += this.gravity;
-        if (this.vy > 18) this.vy = 18;
+        if (this.vy > 14) this.vy = 14;
 
-        // 화면 밖으로 완전히 벗어나면 삭제
+        // 시간에 따라 점점 투명해지게 페이드아웃
+        this.alpha = Math.max(0, 1 - (this.lifetime / this.maxLifetime));
+
+        // 화면 밖으로 완전히 벗어나거나 완전히 투명해지면 삭제
         const camX = (game && game.camera) ? game.camera.x : 0;
         const camY = (game && game.camera) ? game.camera.y : 0;
         const viewW = (game && game.canvas) ? game.canvas.width : 960;
         const viewH = (game && game.canvas) ? game.canvas.height : 540;
         const margin = 120;
 
-        if (this.y > camY + viewH + margin ||
+        if (this.alpha <= 0 ||
+            this.y > camY + viewH + margin ||
             this.y < camY - margin * 3 ||
             this.x < camX - margin ||
             this.x > camX + viewW + margin) {
@@ -2582,7 +2591,10 @@ class SlimeDebris extends Entity {
         const frameIdx = Math.floor(this.image_index) % imgs.length;
         const img = imgs[frameIdx];
         if (img && img.complete && img.naturalWidth > 0) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, this.alpha));
             ctx.drawImage(img, Math.round(this.x), Math.round(this.y), this.width, this.height);
+            ctx.restore();
         }
     }
 }
@@ -2666,13 +2678,13 @@ class Slime extends Entity {
             // Drop slimedebris while walking
             if (this.isGrounded && game && game.entities) {
                 this.debrisTimer = (this.debrisTimer || 0) + 1;
-                if (this.debrisTimer >= 14) {
+                if (this.debrisTimer >= 16) {
                     this.debrisTimer = 0;
                     const dropX = this.x + this.width / 2;
-                    const dropY = this.y + this.height - 10;
-                    // 좀 더 강하게 튕겨 나가도록 넉넉한 포물선 속도 부여
-                    const dropVx = -this.facingDir * (3.5 + Math.random() * 4) + (Math.random() - 0.5) * 2;
-                    const dropVy = -6.5 - Math.random() * 4.5;
+                    const dropY = this.y + this.height - 8;
+                    // 적당하고 경쾌한 포물선 방출 속도
+                    const dropVx = -this.facingDir * (1.2 + Math.random() * 1.4) + (Math.random() - 0.5) * 0.8;
+                    const dropVy = -2.8 - Math.random() * 1.6;
                     game.entities.push(new SlimeDebris(dropX, dropY, dropVx, dropVy));
                 }
             }
@@ -2852,7 +2864,8 @@ class Slime extends Entity {
                 this.y < ent.y + ent.height &&
                 this.y + this.height > ent.y) {
                 
-                if (this.y + this.height > ent.y + 10 && this.y < ent.y + ent.height - 10) {
+                // 실제 수직 벽(벽 윗면이 발보다 14px 이상 높음)인 경우에만 벽 충돌로 판정 (슬로프에서 바닥으로 착지할 때 바닥을 벽으로 오인 방지)
+                if (ent.y < this.y + this.height - 14 && this.y < ent.y + ent.height - 10) {
                     hitWall = true;
                     hitWallEnt = ent;
                 }
@@ -2959,18 +2972,29 @@ class Slime extends Entity {
             }
         }
         
-        // Ledge detection
+        // Ledge detection (슬로프 하강 및 바닥 연결부 인식 지원)
         if (this.isGrounded && this.state === 'walk') {
             let hasFloorAhead = false;
             let probeX = (this.vx > 0) ? this.x + this.width + 5 : this.x - 5;
-            let probeY = this.y + this.height + 5;
+            const feetY = this.y + this.height;
+
             for (let ent of game.entities) {
                 if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile') continue;
                 
-                if (probeX >= ent.x && probeX <= ent.x + ent.width &&
-                    probeY >= ent.y && probeY <= ent.y + ent.height) {
-                    hasFloorAhead = true;
-                    break;
+                if (probeX >= ent.x && probeX <= ent.x + ent.width) {
+                    if (ent.type === 'left-up' || ent.type === 'right-up') {
+                        const sY = Physics.getSlopeHeight({ x: probeX - 16, width: 32 }, ent);
+                        if (sY !== null && Math.abs(sY - feetY) <= 40) {
+                            hasFloorAhead = true;
+                            break;
+                        }
+                    } else {
+                        // 일반 플랫폼 바닥 (슬로프에서 평지 바닥으로 내려올 때 최대 35px 낙차 허용)
+                        if (ent.y <= feetY + 35 && ent.y + ent.height >= feetY - 10) {
+                            hasFloorAhead = true;
+                            break;
+                        }
+                    }
                 }
             }
             if (!hasFloorAhead) {
