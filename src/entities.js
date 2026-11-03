@@ -3427,7 +3427,14 @@ class RankController extends Entity {
         RankController.imagesD = [];
         for (let i = 0; i <= 15; i++) {
             const img = new Image();
-            img.src = `player/spr_rankD/spr_rankD_${i}.png?v=${cacheBust}`;
+            img.src = `player/spr_rankD_purple/spr_rankD_${i}.png?v=${cacheBust}`;
+            let fellBack = false;
+            img.onerror = () => {
+                if (!fellBack && img.src.includes('_purple')) {
+                    fellBack = true;
+                    img.src = `player/spr_rankD/spr_rankD_${i}.png?v=${cacheBust}`;
+                }
+            };
             RankController.imagesD.push(img);
         }
         RankController.images = RankController.imagesD;
@@ -3435,21 +3442,42 @@ class RankController extends Entity {
         RankController.imagesC = [];
         for (let i = 1; i <= 16; i++) {
             const img = new Image();
-            img.src = `player/spr_rankC/spr_rankC${i}.png?v=${cacheBust}`;
+            img.src = `player/spr_rankC_purple/spr_rankC${i}.png?v=${cacheBust}`;
+            let fellBack = false;
+            img.onerror = () => {
+                if (!fellBack && img.src.includes('_purple')) {
+                    fellBack = true;
+                    img.src = `player/spr_rankC/spr_rankC${i}.png?v=${cacheBust}`;
+                }
+            };
             RankController.imagesC.push(img);
         }
 
         RankController.imagesB = [];
         for (let i = 1; i <= 16; i++) {
             const img = new Image();
-            img.src = `player/spr_rankB/spr_rankB${i}.png?v=${cacheBust}`;
+            img.src = `player/spr_rankB_purple/spr_rankB${i}.png?v=${cacheBust}`;
+            let fellBack = false;
+            img.onerror = () => {
+                if (!fellBack && img.src.includes('_purple')) {
+                    fellBack = true;
+                    img.src = `player/spr_rankB/spr_rankB${i}.png?v=${cacheBust}`;
+                }
+            };
             RankController.imagesB.push(img);
         }
 
         RankController.imagesA = [];
         for (let i = 1; i <= 16; i++) {
             const img = new Image();
-            img.src = `player/spr_rankA/spr_rankA${i}.png?v=${cacheBust}`;
+            img.src = `player/spr_rankA_purple/spr_rankA${i}.png?v=${cacheBust}`;
+            let fellBack = false;
+            img.onerror = () => {
+                if (!fellBack && img.src.includes('_purple')) {
+                    fellBack = true;
+                    img.src = `player/spr_rankA/spr_rankA${i}.png?v=${cacheBust}`;
+                }
+            };
             RankController.imagesA.push(img);
         }
 
@@ -3475,6 +3503,9 @@ class RankController extends Entity {
 
     static recolorRankFrame(img) {
         if (!img || !img.complete || img.naturalWidth <= 0) return img;
+        if (img.src && img.src.includes('_purple')) {
+            return img;
+        }
         if (!RankController.recolorCache) {
             RankController.recolorCache = new Map();
         }
