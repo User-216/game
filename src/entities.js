@@ -2375,34 +2375,120 @@ class Collect extends Entity {
 }
 
 class BigCollect extends Collect {
-    constructor(x, y, w = 64, h = 64, flipX = false, flipY = false) {
-        super(x, y, w, h, flipX, flipY);
+    static sprites = {};
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (BigCollect.imagesLoaded) return;
+        BigCollect.sprites = { 1: [], 2: [], 3: [] };
+
+        // 큰 과일 수집품(BigCollect) 프레임 수: 1=8, 2=13, 3=17
+        const KNOWN_COUNTS = { 1: 8, 2: 13, 3: 17 };
+
+        for (let c = 1; c <= 3; c++) {
+            BigCollect.sprites[c] = [];
+            const count = KNOWN_COUNTS[c] || 0;
+            if (count > 0) {
+                for (let i = 0; i < count; i++) {
+                    const img = new Image();
+                    img.src = `이미지/spr_bigcollect${c}/spr_bigcollect${c}_${i}.png`;
+                    BigCollect.sprites[c].push(img);
+                }
+            } else {
+                // 향후 추가될 BigCollect 4, 5 동적 탐색
+                const firstImg = new Image();
+                firstImg.onload = () => {
+                    BigCollect.sprites[c] = [firstImg];
+                    const loadNext = (idx) => {
+                        if (idx >= 32) return;
+                        const nextImg = new Image();
+                        nextImg.onload = () => {
+                            BigCollect.sprites[c].push(nextImg);
+                            loadNext(idx + 1);
+                        };
+                        nextImg.src = `이미지/spr_bigcollect${c}/spr_bigcollect${c}_${idx}.png`;
+                    };
+                    loadNext(1);
+                };
+                firstImg.src = `이미지/spr_bigcollect${c}/spr_bigcollect${c}_0.png`;
+            }
+        }
+
+        BigCollect.imagesLoaded = true;
+    }
+
+    constructor(x, y, w = 64, h = 64, flipX = false, flipY = false, collectType = null) {
+        // BigCollect: 1, 2, 3 중 랜덤 생성 (파라미터 전달 시 해당 타입 사용)
+        const chosenType = collectType || (Math.floor(Math.random() * 3) + 1);
+        super(x, y, w, h, flipX, flipY, chosenType);
         this.type = 'obj_bigcollect';
         this.points = 100;
         this.fontSize = 24;
+
+        this.collectType = chosenType;
+        const frameMap = { 1: 8, 2: 13, 3: 17 };
+        const maxF = frameMap[this.collectType] || 8;
+        this.image_index = Math.random() * maxF;
+        this.image_speed = 0.35;
+        BigCollect.initImages();
     }
 
     render(ctx) {
         if (this.markedForDeletion) return;
         const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
         if (this.isCollected && !isEditor) return;
-        ctx.fillStyle = '#f1c40f';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2 - 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#f39c12';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold ' + this.fontSize + 'px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.points.toString(), this.x + this.width / 2, this.y + this.height / 2);
+
+        const typeKey = this.collectType || 1;
+        let frames = (BigCollect.sprites && BigCollect.sprites[typeKey] && BigCollect.sprites[typeKey].length > 0)
+            ? BigCollect.sprites[typeKey]
+            : null;
+
+        if (!frames || frames.length === 0) {
+            frames = (BigCollect.sprites && BigCollect.sprites[1]);
+        }
+
+        const numFrames = (frames && frames.length > 0) ? frames.length : 8;
+        const frameIdx = Math.floor(this.image_index) % numFrames;
+        let img = (frames && frames[frameIdx] && frames[frameIdx].complete && frames[frameIdx].naturalWidth > 0)
+            ? frames[frameIdx]
+            : null;
+
+        if (!img && BigCollect.sprites) {
+            const fbFrames = (BigCollect.sprites[1] && BigCollect.sprites[1].length > 0) ? BigCollect.sprites[1] : (BigCollect.sprites[2] || []);
+            const fbIdx = Math.floor(this.image_index) % (fbFrames.length || 1);
+            if (fbFrames[fbIdx] && fbFrames[fbIdx].complete && fbFrames[fbIdx].naturalWidth > 0) {
+                img = fbFrames[fbIdx];
+            }
+        }
+
+        if (img) {
+            ctx.save();
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            // spr_bigcollect 프레임은 100x100 크기이며 중심이 (50, 50)에 위치
+            ctx.drawImage(img, cx - 50, cy - 50, 100, 100);
+            ctx.restore();
+        } else {
+            // 로딩 중 대체 원형 렌더링
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2 - 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#f39c12';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold ' + this.fontSize + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.points.toString(), this.x + this.width / 2, this.y + this.height / 2);
+        }
     }
 }
 
 Collect.initImages();
+BigCollect.initImages();
 
 if (typeof window !== 'undefined') {
     window.Collect = Collect;

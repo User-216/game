@@ -8381,9 +8381,14 @@ this.entities.push(
                     ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('10', 16, 16);
                 }
             } else if (this.selectedType === 'obj_bigcollect') {
-                ctx.fillStyle = '#e67e22';
-                ctx.beginPath(); ctx.arc(32, 32, 24, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('100', 32, 32);
+                const img = typeof BigCollect !== 'undefined' && BigCollect.sprites && BigCollect.sprites[1] && BigCollect.sprites[1][0];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, 32 - 50, 32 - 50, 100, 100);
+                } else {
+                    ctx.fillStyle = '#e67e22';
+                    ctx.beginPath(); ctx.arc(32, 32, 24, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('100', 32, 32);
+                }
             } else if (this.selectedType === 'oneway') {
                 ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
                 ctx.fillRect(0, 0, pw, ph);

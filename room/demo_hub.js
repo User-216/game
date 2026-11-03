@@ -20,8 +20,6 @@ this.entities.push(
     new PaletteDresser(448, 384, 64, 64),
     new OnlineComputer(608, 384, 64, 64),
     new LevelGate(768, 160, 192, 288, "tutorial_1", "A", "0", "GATE 1", 0),
-    new LevelGate(1072, 181, 161, 267, "tutorial_1", "A", "0", "GATE 2", 1),
-    new LevelGate(1358, 194, 165, 254, "tutorial_1", "A", "0", "GATE 3", 2),
     new Tile(96, 448, 32, 32, 64, 96, 'tile_tutorial.png', 32, 32),
     new Tile(96, 480, 32, 32, 64, 128, 'tile_tutorial.png', 32, 32),
     new Tile(96, 512, 32, 32, 64, 160, 'tile_tutorial.png', 32, 32),
@@ -722,6 +720,7 @@ this.entities.push(
     new BigCollect(672, 192, 64, 64),
     new BigCollect(672, 224, 64, 64),
     new BigCollect(608, 224, 64, 64),
+    new LevelGate(1072, 181, 161, 267, "test_1", "A", "1", "GATE 2", 1),
 );
 
 };
