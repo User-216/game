@@ -500,6 +500,8 @@ class Game {
         
         this.isEditorMode = false;
         this.collectedItems = [];
+        this.killedEnemies = [];
+        this.destroyedBlocks = [];
         this.selectedType = 'platform';
         this.selectedTileX = 0;
         this.selectedTileY = 0;
@@ -3088,10 +3090,44 @@ class Game {
                 this.collectedItems = [];
             }
 
+            // Restore any killed enemies back into entities
+            if (this.killedEnemies && this.killedEnemies.length > 0) {
+                for (const enemy of this.killedEnemies) {
+                    enemy.markedForDeletion = false;
+                    enemy.isDestroyed = false;
+                    enemy.state = 'walk';
+                    enemy.vx = 0;
+                    enemy.vy = 0;
+                    enemy.hitCooldown = 0;
+                    enemy.stunTimer = 0;
+                    if (typeof enemy.spawnX === 'number') enemy.x = enemy.spawnX;
+                    if (typeof enemy.spawnY === 'number') enemy.y = enemy.spawnY;
+                    if (!this.entities.includes(enemy)) {
+                        this.entities.push(enemy);
+                    }
+                }
+                this.killedEnemies = [];
+            }
+
+            // Restore any destroyed blocks/tiles back into entities
+            if (this.destroyedBlocks && this.destroyedBlocks.length > 0) {
+                for (const block of this.destroyedBlocks) {
+                    block.isDestroyed = false;
+                    block.markedForDeletion = false;
+                    block.particles = [];
+                    if (block.maxHealth) block.health = block.maxHealth;
+                    else block.health = 1;
+                    if (!this.entities.includes(block)) {
+                        this.entities.push(block);
+                    }
+                }
+                this.destroyedBlocks = [];
+            }
+
             // 1. Remove all dynamically cloned/spawned baddies & splatters
             this.entities = this.entities.filter(ent => !ent.spawnedBySpawner && ent.type !== 'obj_splatter');
 
-            // 2. Return original enemies and score collectibles to their initial spawn positions
+            // 2. Return original enemies, destroyed blocks, and score collectibles to their initial spawn positions
             this.entities.forEach(ent => {
                 if (ent instanceof Slime || ent.type === 'obj_slime') {
                     ent.markedForDeletion = false;
@@ -3115,6 +3151,12 @@ class Game {
                     ent.speed = 0;
                     if (typeof ent.baseX === 'number') ent.x = ent.baseX;
                     if (typeof ent.baseY === 'number') ent.y = ent.baseY;
+                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.type === 'tile') {
+                    ent.isDestroyed = false;
+                    ent.markedForDeletion = false;
+                    ent.particles = [];
+                    if (ent.maxHealth) ent.health = ent.maxHealth;
+                    else ent.health = 1;
                 }
             });
 
@@ -3127,9 +3169,16 @@ class Game {
             this.player.isNoClip = false;
             if (palette) palette.classList.add('hidden');
 
-            // When exiting editor mode, resume normal enemy movement from their spawn position and reset collectibles for test play
+            // When exiting editor mode, resume normal enemy movement from their spawn position and reset collectibles and blocks for test play
             this.entities.forEach(ent => {
                 if (ent instanceof Slime || ent.type === 'obj_slime') {
+                    ent.markedForDeletion = false;
+                    ent.isDestroyed = false;
+                    if (typeof ent.spawnX === 'number') ent.x = ent.spawnX;
+                    if (typeof ent.spawnY === 'number') ent.y = ent.spawnY;
+                    ent.state = 'walk';
+                    ent.hitCooldown = 0;
+                    ent.stunTimer = 0;
                     ent.vx = 2 * (ent.facingDir || 1);
                 } else if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
                     ent.isCollected = false;
@@ -3140,6 +3189,12 @@ class Game {
                     ent.speed = 0;
                     if (typeof ent.baseX === 'number') ent.x = ent.baseX;
                     if (typeof ent.baseY === 'number') ent.y = ent.baseY;
+                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.type === 'tile') {
+                    ent.isDestroyed = false;
+                    ent.markedForDeletion = false;
+                    ent.particles = [];
+                    if (ent.maxHealth) ent.health = ent.maxHealth;
+                    else ent.health = 1;
                 }
             });
         }
@@ -4195,6 +4250,8 @@ this.entities.push(
                 const previousMusic = (this.audio && this.audio.currentMusicName) ? this.audio.currentMusicName : (this.roomMusic || null);
                 this.entities = [];
                 this.collectedItems = [];
+                this.killedEnemies = [];
+                this.destroyedBlocks = [];
                 this.roomWidth = 0;
                 this.roomHeight = 0;
                 this.roomMusic = undefined;
@@ -6072,6 +6129,16 @@ this.entities.push(
                     if (!this.collectedItems) this.collectedItems = [];
                     if (!this.collectedItems.includes(ent)) {
                         this.collectedItems.push(ent);
+                    }
+                } else if (!ent.spawnedBySpawner && (ent instanceof Slime || ent.type === 'obj_slime')) {
+                    if (!this.killedEnemies) this.killedEnemies = [];
+                    if (!this.killedEnemies.includes(ent)) {
+                        this.killedEnemies.push(ent);
+                    }
+                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.type === 'tile') {
+                    if (!this.destroyedBlocks) this.destroyedBlocks = [];
+                    if (!this.destroyedBlocks.includes(ent)) {
+                        this.destroyedBlocks.push(ent);
                     }
                 }
                 this.entities.splice(i, 1);
