@@ -7,6 +7,15 @@ class BackgroundManager {
         this.followCameraRear = true; // 맨 뒤 배경 카메라 고정 여부
         this.speedMultiplier = 1.0;
 
+        // 세로(상하) 이동 및 자동 스크롤 설정
+        this.moveY = false;          // 상하(세로) 카메라 추종 이동 활성화
+        this.speedMultiplierY = 1.0; // 세로 스크롤 속도 배율
+        this.autoSpeedX = 0.0;       // 가로 자동 스크롤 속도
+        this.autoSpeedY = 0.0;       // 세로 자동 스크롤 속도
+        this.autoTimerX = 0.0;
+        this.autoTimerY = 0.0;
+        this.tileY = true;           // 세로 무한 반복 타일링
+
         // 피자타워 시크릿 배경 움직임 & 웨이브 효과
         this.secretMovement = false; // 대각선 연속 자동 스크롤
         this.waveEnabled = false;    // 웨이브(물결) 왜곡 효과
@@ -55,7 +64,7 @@ class BackgroundManager {
         this.loadBackground('bg_tutorial');
     }
 
-    setBackground(bgName, followCameraRear = true, speedMultiplier = 1.0, secretMovement = false, waveEnabled = false, waveAmp = 8, waveSpeed = 1.0) {
+    setBackground(bgName, followCameraRear = true, speedMultiplier = 1.0, secretMovement = false, waveEnabled = false, waveAmp = 8, waveSpeed = 1.0, moveY = false, speedMultiplierY = 1.0, autoSpeedY = 0.0, autoSpeedX = 0.0, tileY = true) {
         this.currentBgName = (bgName && bgName !== 'none') ? bgName.trim() : null;
         this.followCameraRear = followCameraRear !== false;
         this.speedMultiplier = (typeof speedMultiplier === 'number' && !isNaN(speedMultiplier)) ? speedMultiplier : 1.0;
@@ -67,6 +76,12 @@ class BackgroundManager {
         if (typeof waveSpeed === 'number' && !isNaN(waveSpeed)) {
             this.waveSpeed = waveSpeed;
         }
+
+        this.moveY = !!moveY;
+        this.speedMultiplierY = (typeof speedMultiplierY === 'number' && !isNaN(speedMultiplierY)) ? speedMultiplierY : 1.0;
+        this.autoSpeedY = (typeof autoSpeedY === 'number' && !isNaN(autoSpeedY)) ? autoSpeedY : 0.0;
+        this.autoSpeedX = (typeof autoSpeedX === 'number' && !isNaN(autoSpeedX)) ? autoSpeedX : 0.0;
+        this.tileY = tileY !== false;
 
         if (!this.currentBgName) {
             this.layers = [];
@@ -107,7 +122,8 @@ class BackgroundManager {
             layers.push({
                 number: 1,
                 image: img,
-                speedX: info.speeds ? info.speeds[0] : 0.15
+                speedX: info.speeds ? info.speeds[0] : 0.15,
+                speedY: info.speeds ? info.speeds[0] : 0.15
             });
             this.cache[name] = layers;
             this.layers = layers;
@@ -128,7 +144,8 @@ class BackgroundManager {
             layers.push({
                 number: num,
                 image: img,
-                speedX: defaultSpeed
+                speedX: defaultSpeed,
+                speedY: defaultSpeed
             });
         }
 
@@ -146,7 +163,8 @@ class BackgroundManager {
                     layers.push({
                         number: 1,
                         image: singleImg,
-                        speedX: 0.15
+                        speedX: 0.15,
+                        speedY: 0.15
                     });
                     this.cache[name] = layers;
                     this.layers = layers;
@@ -161,7 +179,8 @@ class BackgroundManager {
                         layers.push({
                             number: num,
                             image: img,
-                            speedX: 0.05 + (num - 1) * 0.1
+                            speedX: 0.05 + (num - 1) * 0.1,
+                            speedY: 0.05 + (num - 1) * 0.1
                         });
                         layers.sort((a, b) => a.number - b.number);
                     }
@@ -178,6 +197,12 @@ class BackgroundManager {
         if (this.secretMovement) {
             this.secretTimerX += this.secretSpeedX * this.speedMultiplier * dt;
             this.secretTimerY += this.secretSpeedY * this.speedMultiplier * dt;
+        }
+        if (this.autoSpeedX) {
+            this.autoTimerX = (this.autoTimerX || 0) + this.autoSpeedX * dt;
+        }
+        if (this.autoSpeedY) {
+            this.autoTimerY = (this.autoTimerY || 0) + this.autoSpeedY * dt;
         }
         if (this.waveEnabled) {
             this.waveTimer += 0.018 * this.waveSpeed * dt;
@@ -213,16 +238,16 @@ class BackgroundManager {
             const imgH = img.naturalHeight;
             const isRearmost = (i === 0);
 
+            const speedX = (layer.speedX !== undefined ? layer.speedX : 0.15) * this.speedMultiplier;
+            const speedY = (layer.speedY !== undefined ? layer.speedY : (layer.speedX !== undefined ? layer.speedX : 0.15)) * (this.speedMultiplierY !== undefined ? this.speedMultiplierY : 1.0);
+
             if (this.secretMovement) {
                 // 피자타워 시크릿 배경 모드: 가로 & 세로 무한 2D 타일링 + 대각선 연속 자동 스크롤
-                const speed = layer.speedX * this.speedMultiplier;
-                
-                // 맨 뒤 레이어가 카메라 고정 설정이면 카메라 이동 대신 순수 자동 이동만 적용
                 const camX = (isRearmost && this.followCameraRear) ? 0 : camera.x;
-                const camY = (isRearmost && this.followCameraRear) ? 0 : camera.y;
+                const camY = (isRearmost && this.followCameraRear && !this.moveY) ? 0 : camera.y;
 
-                const scrollX = -(camX * speed) + this.secretTimerX + shakeX + pad;
-                const scrollY = -(camY * speed) + this.secretTimerY + shakeY;
+                const scrollX = -(camX * speedX) + this.secretTimerX + (this.autoTimerX || 0) + shakeX + pad;
+                const scrollY = -(camY * speedY) + this.secretTimerY + (this.autoTimerY || 0) + shakeY;
 
                 let startX = scrollX % imgW;
                 if (startX > 0) startX -= imgW;
@@ -237,25 +262,60 @@ class BackgroundManager {
                 }
             } else {
                 // 일반 패럴랙스 배경 모드
+                let scrollX, scrollY;
+
                 if (isRearmost && this.followCameraRear) {
                     if (imgW >= canvasW) {
-                        const startX = Math.round((canvasW - imgW) / 2 + shakeX + pad);
-                        targetCtx.drawImage(img, startX, Math.round(shakeY), imgW, imgH);
+                        scrollX = (canvasW - imgW) / 2 + (this.autoTimerX || 0) + shakeX + pad;
                     } else {
-                        let startX = Math.round(shakeX + pad) % imgW;
-                        if (startX > 0) startX -= imgW;
-                        for (let x = startX; x < targetW; x += imgW) {
-                            targetCtx.drawImage(img, x, Math.round(shakeY), imgW, imgH);
-                        }
+                        scrollX = (this.autoTimerX || 0) + shakeX + pad;
                     }
                 } else {
-                    const speed = layer.speedX * this.speedMultiplier;
-                    const scrollX = -(camera.x * speed) + shakeX + pad;
-                    let startX = scrollX % imgW;
-                    if (startX > 0) startX -= imgW;
+                    scrollX = -(camera.x * speedX) + (this.autoTimerX || 0) + shakeX + pad;
+                }
 
+                if (this.moveY) {
+                    const camY = camera.y;
+                    scrollY = -(camY * speedY) + (this.autoTimerY || 0) + shakeY;
+                } else {
+                    scrollY = (this.autoTimerY || 0) + shakeY;
+                }
+
+                let startX = scrollX % imgW;
+                if (startX > 0) startX -= imgW;
+
+                // 세로 이동 또는 타일링이 활성화된 경우 세로 반복 타일링
+                const shouldTileY = this.tileY || this.moveY || (this.autoTimerY && this.autoTimerY !== 0);
+
+                let startY = 0;
+                if (shouldTileY) {
+                    startY = scrollY % imgH;
+                    if (startY > 0) startY -= imgH;
+                } else {
+                    startY = Math.round(scrollY);
+                }
+
+                // 가로 중앙 고정 1장 여부
+                const singleX = (isRearmost && this.followCameraRear && imgW >= canvasW);
+
+                if (singleX) {
+                    const fixedX = Math.round(scrollX);
+                    if (shouldTileY) {
+                        for (let y = startY; y < targetH; y += imgH) {
+                            targetCtx.drawImage(img, fixedX, Math.round(y), imgW, imgH);
+                        }
+                    } else {
+                        targetCtx.drawImage(img, fixedX, Math.round(scrollY), imgW, imgH);
+                    }
+                } else {
                     for (let x = startX; x < targetW; x += imgW) {
-                        targetCtx.drawImage(img, Math.round(x), Math.round(shakeY), imgW, imgH);
+                        if (shouldTileY) {
+                            for (let y = startY; y < targetH; y += imgH) {
+                                targetCtx.drawImage(img, Math.round(x), Math.round(y), imgW, imgH);
+                            }
+                        } else {
+                            targetCtx.drawImage(img, Math.round(x), Math.round(scrollY), imgW, imgH);
+                        }
                     }
                 }
             }

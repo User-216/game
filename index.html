@@ -304,6 +304,16 @@
                         <span>맨 뒤 배경 카메라 고정 (화면 추종 원경)</span>
                     </label>
 
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; color: #aaffaa; font-size: 0.9rem; font-weight: 600;">
+                        <input type="checkbox" id="bg-move-y-chk" style="width: 18px; height: 18px; accent-color: #aaffaa; cursor: pointer;">
+                        <span>↕️ 배경 상하(세로) 카메라 추종 (Vertical Parallax)</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; color: #fff; font-size: 0.85rem;">
+                        <input type="checkbox" id="bg-tile-y-chk" checked style="width: 18px; height: 18px; accent-color: #00f2ff; cursor: pointer;">
+                        <span>🔁 배경 세로 반복 타일링 (Vertical Tiling)</span>
+                    </label>
+
                     <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; color: #ffeb3b; font-size: 0.9rem; font-weight: 600;">
                         <input type="checkbox" id="bg-secret-chk" style="width: 18px; height: 18px; accent-color: #ffeb3b; cursor: pointer;">
                         <span>🍕 피자타워 시크릿 움직임 (대각선 자동 스크롤)</span>
@@ -321,8 +331,23 @@
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label style="font-weight: 700; color: #fff; font-size: 0.9rem;">스크롤 속도 배율:</label>
+                    <label style="font-weight: 700; color: #fff; font-size: 0.9rem;">↔️ 가로 스크롤 속도 (Speed X):</label>
                     <input type="number" id="bg-speed-input" step="0.1" min="0" max="10" value="1.0" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; color: #aaffaa; font-size: 0.9rem;">↕️ 세로 스크롤 속도 (Speed Y):</label>
+                    <input type="number" id="bg-speed-y-input" step="0.1" min="0" max="10" value="1.0" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; color: #ffe066; font-size: 0.9rem;">↕️ 세로 자동 흐름 (+아래 / -위):</label>
+                    <input type="number" id="bg-auto-speed-y-input" step="0.1" min="-10" max="10" value="0.0" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; color: #ffe066; font-size: 0.9rem;">↔️ 가로 자동 흐름 (+우 / -좌):</label>
+                    <input type="number" id="bg-auto-speed-x-input" step="0.1" min="-10" max="10" value="0.0" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center;">

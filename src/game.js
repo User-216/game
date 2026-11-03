@@ -445,6 +445,11 @@ class Game {
         this._escape = false;
         this.bgFollowCamera = true;
         this.bgSpeed = 1.0;
+        this.bgMoveY = false;
+        this.bgSpeedY = 1.0;
+        this.bgAutoSpeedY = 0.0;
+        this.bgAutoSpeedX = 0.0;
+        this.bgTileY = true;
         this.bgSecret = false;
         this.bgWave = false;
         this.bgWaveAmp = 8;
@@ -1974,6 +1979,11 @@ class Game {
         const tileWaveChk = document.getElementById('tile-wave-chk');
         const tileWaveSpeedInput = document.getElementById('tile-wave-speed-input');
         const tileWaveAmpInput = document.getElementById('tile-wave-amp-input');
+        const bgMoveYChk = document.getElementById('bg-move-y-chk');
+        const bgTileYChk = document.getElementById('bg-tile-y-chk');
+        const bgSpeedYInput = document.getElementById('bg-speed-y-input');
+        const bgAutoSpeedYInput = document.getElementById('bg-auto-speed-y-input');
+        const bgAutoSpeedXInput = document.getElementById('bg-auto-speed-x-input');
         const bgQuickCiderSewer = document.getElementById('bg-quick-cidersewer');
         const bgQuickBeaker = document.getElementById('bg-quick-beaker');
         const bgQuickTutorial = document.getElementById('bg-quick-tutorial');
@@ -2118,6 +2128,11 @@ class Game {
                     if (tileWaveChk) tileWaveChk.checked = !!this.tileWave;
                     if (tileWaveSpeedInput) tileWaveSpeedInput.value = this.tileWaveSpeed !== undefined ? this.tileWaveSpeed : 1.0;
                     if (tileWaveAmpInput) tileWaveAmpInput.value = this.tileWaveAmp !== undefined ? this.tileWaveAmp : 3.5;
+                    if (bgMoveYChk) bgMoveYChk.checked = !!this.bgMoveY;
+                    if (bgTileYChk) bgTileYChk.checked = this.bgTileY !== false;
+                    if (bgSpeedYInput) bgSpeedYInput.value = this.bgSpeedY !== undefined ? this.bgSpeedY : 1.0;
+                    if (bgAutoSpeedYInput) bgAutoSpeedYInput.value = this.bgAutoSpeedY !== undefined ? this.bgAutoSpeedY : 0.0;
+                    if (bgAutoSpeedXInput) bgAutoSpeedXInput.value = this.bgAutoSpeedX !== undefined ? this.bgAutoSpeedX : 0.0;
 
                     backupFilterColor = this.screenFilterColor;
                     backupFilterAlpha = this.screenFilterAlpha;
@@ -2193,6 +2208,15 @@ class Game {
                 const tileWaveAmpVal = tileWaveAmpInput ? parseFloat(tileWaveAmpInput.value) : 3.5;
                 this.tileWaveAmp = (!isNaN(tileWaveAmpVal) && tileWaveAmpVal >= 0) ? tileWaveAmpVal : 3.5;
 
+                this.bgMoveY = bgMoveYChk ? bgMoveYChk.checked : false;
+                this.bgTileY = bgTileYChk ? bgTileYChk.checked : true;
+                const spdY = bgSpeedYInput ? parseFloat(bgSpeedYInput.value) : 1.0;
+                this.bgSpeedY = (!isNaN(spdY) && spdY >= 0) ? spdY : 1.0;
+                const autoY = bgAutoSpeedYInput ? parseFloat(bgAutoSpeedYInput.value) : 0.0;
+                this.bgAutoSpeedY = !isNaN(autoY) ? autoY : 0.0;
+                const autoX = bgAutoSpeedXInput ? parseFloat(bgAutoSpeedXInput.value) : 0.0;
+                this.bgAutoSpeedX = !isNaN(autoX) ? autoX : 0.0;
+
                 // Commit the new screen filter backup
                 backupFilterColor = this.screenFilterColor;
                 backupFilterAlpha = this.screenFilterAlpha;
@@ -2200,7 +2224,20 @@ class Game {
                 backupFilterVignette = this.screenFilterVignette;
 
                 if (this.bgManager) {
-                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8, this.bgWaveSpeed);
+                    this.bgManager.setBackground(
+                        this.roomBackground,
+                        this.bgFollowCamera,
+                        this.bgSpeed,
+                        this.bgSecret,
+                        this.bgWave,
+                        this.bgWaveAmp || 8,
+                        this.bgWaveSpeed,
+                        this.bgMoveY,
+                        this.bgSpeedY,
+                        this.bgAutoSpeedY,
+                        this.bgAutoSpeedX,
+                        this.bgTileY
+                    );
                 }
                 this.updateTileWaveUI();
                 bgOverlay.classList.add('hidden');
@@ -4133,6 +4170,21 @@ class Game {
             if (this.bgSpeed !== undefined && this.bgSpeed !== 1.0) {
                 code += `this.bgSpeed = ${this.bgSpeed};\n`;
             }
+            if (this.bgMoveY) {
+                code += `this.bgMoveY = true;\n`;
+                if (this.bgSpeedY !== undefined && this.bgSpeedY !== 1.0) {
+                    code += `this.bgSpeedY = ${this.bgSpeedY};\n`;
+                }
+            }
+            if (this.bgAutoSpeedY !== undefined && this.bgAutoSpeedY !== 0.0) {
+                code += `this.bgAutoSpeedY = ${this.bgAutoSpeedY};\n`;
+            }
+            if (this.bgAutoSpeedX !== undefined && this.bgAutoSpeedX !== 0.0) {
+                code += `this.bgAutoSpeedX = ${this.bgAutoSpeedX};\n`;
+            }
+            if (this.bgTileY === false) {
+                code += `this.bgTileY = false;\n`;
+            }
             if (this.bgSecret) {
                 code += `this.bgSecret = true;\n`;
             }
@@ -4384,6 +4436,11 @@ this.entities.push(
             const currentBg = this.roomBackground;
             const currentBgFollow = this.bgFollowCamera;
             const currentBgSpeed = this.bgSpeed;
+            const currentBgMoveY = this.bgMoveY;
+            const currentBgSpeedY = this.bgSpeedY;
+            const currentBgAutoSpeedY = this.bgAutoSpeedY;
+            const currentBgAutoSpeedX = this.bgAutoSpeedX;
+            const currentBgTileY = this.bgTileY;
             const currentBgSecret = this.bgSecret;
             const currentBgWave = this.bgWave;
             const currentBgWaveAmp = this.bgWaveAmp;
@@ -4409,6 +4466,11 @@ this.entities.push(
                 this.roomBackground = currentBg;
                 this.bgFollowCamera = currentBgFollow;
                 this.bgSpeed = currentBgSpeed;
+                this.bgMoveY = currentBgMoveY;
+                this.bgSpeedY = currentBgSpeedY;
+                this.bgAutoSpeedY = currentBgAutoSpeedY;
+                this.bgAutoSpeedX = currentBgAutoSpeedX;
+                this.bgTileY = currentBgTileY;
                 this.bgSecret = currentBgSecret;
                 this.bgWave = currentBgWave;
                 this.bgWaveAmp = currentBgWaveAmp;
@@ -4445,6 +4507,11 @@ this.entities.push(
                 this.roomBackground = 'bg_beaker';
                 this.bgFollowCamera = true;
                 this.bgSpeed = 1.0;
+                this.bgMoveY = false;
+                this.bgSpeedY = 1.0;
+                this.bgAutoSpeedY = 0.0;
+                this.bgAutoSpeedX = 0.0;
+                this.bgTileY = true;
                 this.bgSecret = false;
                 this.bgWave = false;
                 this.bgWaveAmp = 8;
@@ -4489,7 +4556,20 @@ this.entities.push(
                 }
 
                 if (this.bgManager) {
-                    this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp, this.bgWaveSpeed);
+                    this.bgManager.setBackground(
+                        this.roomBackground,
+                        this.bgFollowCamera,
+                        this.bgSpeed,
+                        this.bgSecret,
+                        this.bgWave,
+                        this.bgWaveAmp,
+                        this.bgWaveSpeed,
+                        this.bgMoveY,
+                        this.bgSpeedY,
+                        this.bgAutoSpeedY,
+                        this.bgAutoSpeedX,
+                        this.bgTileY
+                    );
                 }
                 this.updateTileWaveUI();
                 this.needsVoidClear = true;
