@@ -1574,7 +1574,7 @@ class LevelGate extends Entity {
         return LevelGate.titleCardImages[src];
     }
 
-    constructor(x, y, width = 192, height = 288, targetRoom = 'tutorial_1', targetDoor = 'A', titleCardImage = '0', titleCardText = '', gateIndex = 0, color = 'rgba(192, 57, 43, 0.8)', flipX = false, flipY = false) {
+    constructor(x, y, width = 192, height = 288, targetRoom = 'tutorial_1', targetDoor = 'A', titleCardImage = '0', titleCardText = '', gateIndex = 0, color = 'rgba(192, 57, 43, 0.8)', flipX = false, flipY = false, sRankScore = 10000) {
         let gIdx = parseInt(gateIndex, 10);
         if (isNaN(gIdx) || gIdx < 0 || gIdx > 2) {
             const num = parseInt(titleCardImage, 10);
@@ -1588,12 +1588,22 @@ class LevelGate extends Entity {
         const nat = natSizes[gIdx] || natSizes[0];
         const actualW = width || nat.w;
         const actualH = height || nat.h;
-        super(x, y, actualW, actualH, color, flipX, flipY);
+        let finalColor = color;
+        let finalSRank = 10000;
+        if (typeof color === 'number') {
+            finalSRank = color;
+            finalColor = 'rgba(192, 57, 43, 0.8)';
+        } else if (sRankScore !== undefined && sRankScore !== null) {
+            const parsed = parseInt(sRankScore, 10);
+            if (!isNaN(parsed) && parsed > 0) finalSRank = parsed;
+        }
+        super(x, y, actualW, actualH, finalColor, flipX, flipY);
         this.targetRoom = targetRoom || 'tutorial_1';
         this.targetDoor = targetDoor || 'A';
         this.titleCardImage = (titleCardImage !== undefined && titleCardImage !== null) ? String(titleCardImage).trim() : '0';
         this.titleCardText = titleCardText || '';
         this.gateIndex = gIdx;
+        this.sRankScore = finalSRank;
 
         this.type = 'levelgate';
         this.isSolid = false;
@@ -1961,18 +1971,20 @@ class LevelGate extends Entity {
                 }
             }
 
-            // 5c. Level Name (Editor Mode Only)
+            // 5c. Level Name & S-Rank Target (Editor Mode Only)
             if (game && game.isEditorMode) {
                 ctx.save();
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.font = 'bold 12px Arial';
                 const nameY = drawY - 26;
-                const tw = ctx.measureText(levelTitle).width;
+                const sVal = this.sRankScore || 10000;
+                const gateLabel = `${levelTitle} [S: ${sVal.toLocaleString()}]`;
+                const tw = ctx.measureText(gateLabel).width;
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                 ctx.fillRect(drawX + drawW / 2 - tw / 2 - 4, nameY - 8, tw + 8, 16);
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText(levelTitle, drawX + drawW / 2, nameY);
+                ctx.fillStyle = '#ffcc00';
+                ctx.fillText(gateLabel, drawX + drawW / 2, nameY);
                 ctx.restore();
             }
 

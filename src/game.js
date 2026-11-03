@@ -369,6 +369,7 @@ class Game {
         this.currentSaveSlot = 1;
         this.deleteToastTimer = 0;
         this.sRankScore = 10000;
+        this.stageSRankScore = null;
 
         // Load Rank Bubble Sprites (spr_rankbubble & spr_rankbubble_fill)
         this.rankBubbleImages = [];
@@ -1943,6 +1944,7 @@ class Game {
                     const parsed = parseInt(input.trim(), 10);
                     if (!isNaN(parsed) && parsed > 0) {
                         this.sRankScore = parsed;
+                        this.stageSRankScore = parsed;
                         this.saveCurrentRoomToMemory();
                         this.showFlipToast(`S RANK SCORE: ${this.sRankScore}`);
                     } else {
@@ -2129,6 +2131,15 @@ class Game {
             });
         }
 
+        const gateSRankInput = document.getElementById('levelgate-srank-input');
+        const gatePreviewSRank = document.getElementById('levelgate-preview-srank');
+        if (gateSRankInput && gatePreviewSRank) {
+            gateSRankInput.addEventListener('input', () => {
+                const val = parseInt(gateSRankInput.value, 10) || 10000;
+                gatePreviewSRank.innerText = `S-RANK: ${val.toLocaleString()} PTS`;
+            });
+        }
+
         if (gateConfirmBtn) {
             gateConfirmBtn.addEventListener('click', () => {
                 const room = document.getElementById('levelgate-room-input')?.value.trim() || 'tutorial_1';
@@ -2160,7 +2171,8 @@ class Game {
                     const ph = (typeof h === 'number' && !isNaN(h) && h > 0) ? h : finalH;
                     const finalX = Math.round(px + (pw - finalW) / 2);
                     const finalY = Math.round(py + ph - finalH);
-                    const gate = new LevelGate(finalX, finalY, finalW, finalH, room, door, imgSrc, titleText, gateStyle);
+                    const sRankVal = gateSRankInput ? (parseInt(gateSRankInput.value, 10) || 10000) : 10000;
+                    const gate = new LevelGate(finalX, finalY, finalW, finalH, room, door, imgSrc, titleText, gateStyle, 'rgba(192, 57, 43, 0.8)', this.objectFlipX || false, this.objectFlipY || false, sRankVal);
                     if (this.objectFlipX) gate.flipX = true;
                     if (this.objectFlipY) gate.flipY = true;
                     this.entities.push(gate);
@@ -2327,6 +2339,15 @@ class Game {
             }
             if (previewName) {
                 previewName.innerText = defaultName;
+            }
+
+            const sRankInput = document.getElementById('levelgate-srank-input');
+            const previewSRank = document.getElementById('levelgate-preview-srank');
+            if (sRankInput) {
+                sRankInput.value = 10000;
+            }
+            if (previewSRank) {
+                previewSRank.innerText = 'S-RANK: 10,000 PTS';
             }
 
             const roomInput = document.getElementById('levelgate-room-input');
@@ -3941,7 +3962,7 @@ class Game {
             else if ((typeof EscapeBlockClosed !== 'undefined' && ent instanceof EscapeBlockClosed) || ent.type === 'escapeblock_closed') base = `new EscapeBlockClosed(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof EscapeBlockOpen !== 'undefined' && ent instanceof EscapeBlockOpen) || ent.type === 'escapeblock_open') base = `new EscapeBlockOpen(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
-            else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0})`;
+            else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0}, ${JSON.stringify(ent.color || 'rgba(192, 57, 43, 0.8)')}, ${Boolean(ent.flipX)}, ${Boolean(ent.flipY)}, ${ent.sRankScore || 10000})`;
             else if ((typeof ExitGate !== 'undefined' && ent instanceof ExitGate) || ent.type === 'exitgate') base = `new ExitGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof RankController !== 'undefined' && ent instanceof RankController) || ent.type === 'rankcontroller') base = `new RankController(${ent.x}, ${ent.y})`;
             else if (ent instanceof TargetDoorBase) base = `new TargetDoor_${ent.doorId}(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
@@ -4188,7 +4209,7 @@ this.entities.push(
                 this.tileWave = false;
                 this.tileWaveAmp = 3.5;
                 this.tileWaveSpeed = 1.0;
-                this.sRankScore = 10000;
+                this.sRankScore = this.stageSRankScore || 10000;
                 this.rooms[roomName].call(this);
 
                 // If escape sequence is active, any John Pillar in the room must stay destroyed!
@@ -4501,6 +4522,9 @@ this.entities.push(
         this.hubY = this.player.y;
         this.hub_room = this.currentRoom;
         this.restart_room = gate.targetRoom;
+        const gateScore = (gate && gate.sRankScore) ? gate.sRankScore : 10000;
+        this.stageSRankScore = gateScore;
+        this.sRankScore = gateScore;
 
         this.player.showUpArrow = false;
         this.player.state = 'enterlevelgate';
@@ -4837,6 +4861,8 @@ this.entities.push(
         this.escape = false;
         if (this.audio) this.audio.resetMusic();
         this.updateSaveProgress();
+        this.stageSRankScore = null;
+        this.sRankScore = 10000;
 
         if (this.hub_room) {
             const destRoom = this.hub_room;
@@ -8846,6 +8872,7 @@ this.entities.push(
                     const val = parseInt(args[0], 10);
                     if (isNaN(val) || val <= 0) return 'Usage: srank <positive number>';
                     game.sRankScore = val;
+                    game.stageSRankScore = val;
                     game.saveCurrentRoomToMemory();
                     return `S Rank Score for ${game.currentRoom} set to: ${game.sRankScore}`;
                 }
