@@ -518,7 +518,7 @@ class Game {
         this.selectedTileY = 0;
         this.selectedTileW = 32;
         this.selectedTileH = 32;
-        this.currentTilesetName = 'tile_tutorial.png';
+        this.currentTilesetName = 'tile_city.png';
         this.initTilesetPalette();
         this.gridSize = 32;
         this.dragStart = null;
@@ -1677,6 +1677,32 @@ class Game {
     initTilesetPalette() {
         const img = document.getElementById('tileset-image');
         if (!img) return;
+
+        const updateTilesetSize = () => {
+            if (img.naturalWidth > 0) {
+                if (img.naturalWidth <= 512) {
+                    img.style.width = (img.naturalWidth * 2) + 'px';
+                } else {
+                    img.style.width = '2400px';
+                }
+            }
+        };
+
+        const tilesetSelect = document.getElementById('tileset-select');
+        if (tilesetSelect) {
+            tilesetSelect.value = this.currentTilesetName;
+            tilesetSelect.addEventListener('change', () => {
+                const val = tilesetSelect.value;
+                if (val) {
+                    this.currentTilesetName = val;
+                    img.src = `Tileset/${val}`;
+                    this.selectedTileX = 0;
+                    this.selectedTileY = 0;
+                    this.selectedTileW = 32;
+                    this.selectedTileH = 32;
+                }
+            });
+        }
         
         const changeBtn = document.getElementById('change-tileset-btn');
         if (changeBtn) {
@@ -1685,6 +1711,22 @@ class Game {
                 if (tName) {
                     this.currentTilesetName = tName;
                     img.src = `Tileset/${tName}`;
+                    if (tilesetSelect) {
+                        let opt = Array.from(tilesetSelect.options).find(o => o.value === tName);
+                        if (opt) {
+                            tilesetSelect.value = tName;
+                        } else {
+                            const newOpt = document.createElement('option');
+                            newOpt.value = tName;
+                            newOpt.textContent = tName;
+                            tilesetSelect.appendChild(newOpt);
+                            tilesetSelect.value = tName;
+                        }
+                    }
+                    this.selectedTileX = 0;
+                    this.selectedTileY = 0;
+                    this.selectedTileW = 32;
+                    this.selectedTileH = 32;
                 }
             });
         }
@@ -1708,6 +1750,7 @@ class Game {
         let startY = 0;
 
         const updateCursor = () => {
+            updateTilesetSize();
             const cursor = document.getElementById('tileset-cursor');
             if (cursor && img.naturalWidth > 0 && img.naturalHeight > 0) {
                 cursor.style.left = (this.selectedTileX / img.naturalWidth * 100) + '%';
@@ -1718,6 +1761,9 @@ class Game {
         };
 
         img.onload = updateCursor;
+        if (img.complete && img.naturalWidth > 0) {
+            updateCursor();
+        }
         
         img.addEventListener('mousedown', (e) => {
             isDraggingPalette = true;
