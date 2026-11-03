@@ -2677,25 +2677,26 @@ class Slime extends Entity {
                 this.image_index = 0;
             }
 
-            // 슬라임 걸어가는 애니메이션 이미지가 8프레임(spr_slimewalk8.png, index 7)일 때 뒤쪽에 방울 2개 방출
+            // 슬라임 걸어가는 애니메이션 이미지가 8프레임(spr_slimewalk8.png, index 7)일 때 방울 2개 방출 (한 쪽은 뒤쪽, 한 쪽은 머리)
             const reachedFrame8 = (oldIndex < 7 && this.image_index >= 7) || 
                                   (Math.floor(oldIndex) !== 7 && Math.floor(this.image_index) === 7);
 
             if (this.isGrounded && reachedFrame8 && game && game.entities) {
-                // 슬라임 이동 방향의 뒤쪽(등/엉덩이) 위치 계산
+                // 1) 뒤쪽(등/엉덩이) 방울: 슬라임 뒤쪽 아래에서 살짝 튀어나감
                 const rearX = (this.facingDir === 1)
                     ? (this.x - 2 + Math.random() * 4) // 오른쪽으로 갈 때 -> 왼쪽 뒤
                     : (this.x + this.width + 2 - Math.random() * 4); // 왼쪽으로 갈 때 -> 오른쪽 뒤
-                const dropY = this.y + this.height - 8 + (Math.random() - 0.5) * 4;
+                const rearY = this.y + this.height - 8 + (Math.random() - 0.5) * 4;
+                const rearVx = -this.facingDir * (1.2 + Math.random() * 0.5) + (Math.random() - 0.5) * 0.4;
+                const rearVy = -2.2 - Math.random() * 0.8;
+                game.entities.push(new SlimeDebris(rearX, rearY, rearVx, rearVy));
 
-                // 방울 2개가 적당한 세기로 약간 다른 궤적으로 튀어나감
-                for (let i = 0; i < 2; i++) {
-                    const spread = (i === 0 ? 1.0 : 1.8) + (Math.random() * 0.4);
-                    const dropVx = -this.facingDir * spread + (Math.random() - 0.5) * 0.4;
-                    const dropVy = -2.2 - (i * 0.8) - Math.random() * 0.8;
-                    const dropX = rearX + (Math.random() - 0.5) * 4;
-                    game.entities.push(new SlimeDebris(dropX, dropY, dropVx, dropVy));
-                }
+                // 2) 한 쪽은 머리(정수리) 방울: 슬라임 머리 위쪽에서 뿅 튀어오름
+                const headX = this.x + this.width / 2 + (Math.random() - 0.5) * 6;
+                const headY = this.y + 16 + (Math.random() - 0.5) * 4;
+                const headVx = -this.facingDir * (0.4 + Math.random() * 0.4) + (Math.random() - 0.5) * 0.6;
+                const headVy = -3.2 - Math.random() * 0.8;
+                game.entities.push(new SlimeDebris(headX, headY, headVx, headVy));
             }
         } else {
             this.image_index = 0;
