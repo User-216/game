@@ -3399,6 +3399,8 @@ class RankController extends Entity {
         this.imageIndex = 0;
         this.imageSpeed = 0.35;
         this.showRankAnim = false;
+        this.isPurple = false;
+        this.purpleFlash = 0;
         this.animFinished = false;
 
         this.revealedLines = 0; // Number of text lines shown so far (0 to 5)
@@ -3424,62 +3426,54 @@ class RankController extends Entity {
             RankController.recolorCache.clear();
         }
 
-        RankController.imagesD = [];
+        RankController.imagesD_normal = [];
+        RankController.imagesD_purple = [];
         for (let i = 0; i <= 15; i++) {
-            const img = new Image();
-            img.src = `player/spr_rankD_purple/spr_rankD_${i}.png?v=${cacheBust}`;
-            let fellBack = false;
-            img.onerror = () => {
-                if (!fellBack && img.src.includes('_purple')) {
-                    fellBack = true;
-                    img.src = `player/spr_rankD/spr_rankD_${i}.png?v=${cacheBust}`;
-                }
-            };
-            RankController.imagesD.push(img);
+            const nImg = new Image();
+            nImg.src = `player/spr_rankD/spr_rankD_${i}.png?v=${cacheBust}`;
+            RankController.imagesD_normal.push(nImg);
+            const pImg = new Image();
+            pImg.src = `player/spr_rankD_purple/spr_rankD_${i}.png?v=${cacheBust}`;
+            RankController.imagesD_purple.push(pImg);
         }
+        RankController.imagesD = RankController.imagesD_purple;
         RankController.images = RankController.imagesD;
 
-        RankController.imagesC = [];
+        RankController.imagesC_normal = [];
+        RankController.imagesC_purple = [];
         for (let i = 1; i <= 16; i++) {
-            const img = new Image();
-            img.src = `player/spr_rankC_purple/spr_rankC${i}.png?v=${cacheBust}`;
-            let fellBack = false;
-            img.onerror = () => {
-                if (!fellBack && img.src.includes('_purple')) {
-                    fellBack = true;
-                    img.src = `player/spr_rankC/spr_rankC${i}.png?v=${cacheBust}`;
-                }
-            };
-            RankController.imagesC.push(img);
+            const nImg = new Image();
+            nImg.src = `player/spr_rankC/spr_rankC${i}.png?v=${cacheBust}`;
+            RankController.imagesC_normal.push(nImg);
+            const pImg = new Image();
+            pImg.src = `player/spr_rankC_purple/spr_rankC${i}.png?v=${cacheBust}`;
+            RankController.imagesC_purple.push(pImg);
         }
+        RankController.imagesC = RankController.imagesC_purple;
 
-        RankController.imagesB = [];
+        RankController.imagesB_normal = [];
+        RankController.imagesB_purple = [];
         for (let i = 1; i <= 16; i++) {
-            const img = new Image();
-            img.src = `player/spr_rankB_purple/spr_rankB${i}.png?v=${cacheBust}`;
-            let fellBack = false;
-            img.onerror = () => {
-                if (!fellBack && img.src.includes('_purple')) {
-                    fellBack = true;
-                    img.src = `player/spr_rankB/spr_rankB${i}.png?v=${cacheBust}`;
-                }
-            };
-            RankController.imagesB.push(img);
+            const nImg = new Image();
+            nImg.src = `player/spr_rankB/spr_rankB${i}.png?v=${cacheBust}`;
+            RankController.imagesB_normal.push(nImg);
+            const pImg = new Image();
+            pImg.src = `player/spr_rankB_purple/spr_rankB${i}.png?v=${cacheBust}`;
+            RankController.imagesB_purple.push(pImg);
         }
+        RankController.imagesB = RankController.imagesB_purple;
 
-        RankController.imagesA = [];
+        RankController.imagesA_normal = [];
+        RankController.imagesA_purple = [];
         for (let i = 1; i <= 16; i++) {
-            const img = new Image();
-            img.src = `player/spr_rankA_purple/spr_rankA${i}.png?v=${cacheBust}`;
-            let fellBack = false;
-            img.onerror = () => {
-                if (!fellBack && img.src.includes('_purple')) {
-                    fellBack = true;
-                    img.src = `player/spr_rankA/spr_rankA${i}.png?v=${cacheBust}`;
-                }
-            };
-            RankController.imagesA.push(img);
+            const nImg = new Image();
+            nImg.src = `player/spr_rankA/spr_rankA${i}.png?v=${cacheBust}`;
+            RankController.imagesA_normal.push(nImg);
+            const pImg = new Image();
+            pImg.src = `player/spr_rankA_purple/spr_rankA${i}.png?v=${cacheBust}`;
+            RankController.imagesA_purple.push(pImg);
         }
+        RankController.imagesA = RankController.imagesA_purple;
 
         RankController.imagesS = [];
         for (let i = 1; i <= 16; i++) {
@@ -3641,31 +3635,33 @@ class RankController extends Entity {
         return 'D';
     }
 
-    getRankImages() {
+    getRankImages(usePurple = false) {
         const r = (this.rank || 'D').toUpperCase();
-        if (r === 'P') {
-            const valid = RankController.getValidImages(RankController.imagesP);
+        if (r === 'P' || r === 'S') {
+            const pPool = (r === "P") ? RankController.imagesP : RankController.imagesS;
+            const valid = RankController.getValidImages(pPool);
             if (valid.length > 0) return valid;
         }
-        if (r === 'S') {
-            const valid = RankController.getValidImages(RankController.imagesS);
-            if (valid.length > 0) return valid;
-        }
+        let targetPool = null;
+        let fallbackPool = null;
         if (r === 'A') {
-            const valid = RankController.getValidImages(RankController.imagesA);
-            if (valid.length > 0) return valid;
+            targetPool = usePurple ? RankController.imagesA_purple : RankController.imagesA_normal;
+            fallbackPool = usePurple ? RankController.imagesA_normal : RankController.imagesA_purple;
+        } else if (r === 'B') {
+            targetPool = usePurple ? RankController.imagesB_purple : RankController.imagesB_normal;
+            fallbackPool = usePurple ? RankController.imagesB_normal : RankController.imagesB_purple;
+        } else if (r === 'C') {
+            targetPool = usePurple ? RankController.imagesC_purple : RankController.imagesC_normal;
+            fallbackPool = usePurple ? RankController.imagesC_normal : RankController.imagesC_purple;
+        } else {
+            targetPool = usePurple ? RankController.imagesD_purple : RankController.imagesD_normal;
+            fallbackPool = usePurple ? RankController.imagesD_normal : RankController.imagesD_purple;
         }
-        if (r === 'B') {
-            const valid = RankController.getValidImages(RankController.imagesB);
-            if (valid.length > 0) return valid;
-        }
-        if (r === 'C') {
-            const valid = RankController.getValidImages(RankController.imagesC);
-            if (valid.length > 0) return valid;
-        }
-        const validD = RankController.getValidImages(RankController.imagesD);
-        if (validD.length > 0) return validD;
-        return RankController.imagesD || RankController.images || [];
+        const validTarget = RankController.getValidImages(targetPool);
+        if (validTarget.length > 0) return validTarget;
+        const validFallback = RankController.getValidImages(fallbackPool);
+        if (validFallback.length > 0) return validFallback;
+        return RankController.getValidImages(RankController.imagesD_purple) || [];
     }
 
     getStats(game) {
@@ -3737,42 +3733,53 @@ class RankController extends Entity {
             }
 
             const skip = game && game.keys && (game.keys.actionJump || game.keys.actionAttack || game.keys[' '] || game.keys['Enter'] || game.keys['z'] || game.keys['x']);
-            // 5초(300 프레임) 대기 또는 키 입력 시 랭크 결과 애니메이션 시작!
+            // 5초(300 프레임) 대기 또는 키 입력 시 풀컬러 랭크 애니메이션 시작!
             if (this.timer >= 300 || (this.timer > 30 && skip)) {
                 this.phase = 1;
                 this.timer = 0;
                 this.showRankAnim = true;
+                this.isPurple = false; // 처음에는 흰색 배경에 원래 풀컬러 스프라이트!
                 this.imageIndex = 0;
-                if (game) game.roomBackground = '#9850f8';
+                if (game) game.roomBackground = '#ffffff';
                 if (game && game.audio) {
                     game.audio.playFile('sfx_step', true);
                 }
             }
         }
-        // Phase 1: Playing rank animation (spr_rankC or spr_rankD)
+        // Phase 1: 원래 풀컬러로 랭크 애니메이션 재생
         else if (this.phase === 1) {
-            const rankImgs = this.getRankImages();
+            const skip = game && game.keys && (game.keys.actionJump || game.keys.actionAttack || game.keys[' '] || game.keys['Enter'] || game.keys['z'] || game.keys['x']);
+            const rankImgs = this.getRankImages(false);
             const maxIdx = rankImgs ? Math.max(0, rankImgs.length - 1) : 0;
             this.imageIndex += this.imageSpeed;
-            if (this.imageIndex >= maxIdx) {
+            if (this.imageIndex >= maxIdx || (skip && this.imageIndex > 1)) {
                 this.imageIndex = maxIdx;
                 this.animFinished = true;
                 this.phase = 2;
                 this.timer = 0;
-                this.shakeAmount = 8;
+                this.shakeAmount = 6;
                 if (game && game.audio) {
                     game.audio.playFile('sfx_step', true);
                 }
             }
         }
-        // Phase 2: Delay after anim before text lines appear (1.0s / 60 frames)
+        // Phase 2: 마지막 포즈 유지 후, 몇 초 뒤 쿙! 보라색으로 변환 & 점수 슬램 준비!
         else if (this.phase === 2) {
             this.timer++;
-            if (this.timer >= 60) {
+            const skip = game && game.keys && (game.keys.actionJump || game.keys.actionAttack || game.keys[' '] || game.keys['Enter'] || game.keys['z'] || game.keys['x']);
+            // 몇 초 뒤(90프레임 ~ 1.5초 또는 스킵 키) 보라색 극적 전환!
+            if (this.timer >= 90 || (this.timer > 15 && skip)) {
                 this.phase = 3;
                 this.timer = 0;
+                this.isPurple = true; // 화면과 랭크 스프라이트가 보라색으로 변환!
+                this.purpleFlash = 8; // 번쩍이는 플래시 효과
+                this.shakeAmount = 14;
                 this.revealedLines = 0;
                 this.lineTimer = 0;
+                if (game) game.roomBackground = '#9850f8';
+                if (game && game.audio) {
+                    game.audio.playFile('sfx_step', true);
+                }
             }
         }
         // Phase 3: Text line by line slam with screen shake & sound
@@ -3856,8 +3863,8 @@ class RankController extends Entity {
         // Apply screen shake offset
         ctx.translate(this.shakeX, this.shakeY);
 
-        // 1. Background (결과 나올 때: 검정색 아닌 건 보라색 #9850f8)
-        if (this.showRankAnim) {
+        // 1. Background (보라색 전환 전에는 흰색 #ffffff, 몇 초 뒤 보라색 #9850f8)
+        if (this.isPurple) {
             ctx.fillStyle = '#9850f8';
             ctx.fillRect(0, 0, w, h);
         } else {
@@ -3865,21 +3872,28 @@ class RankController extends Entity {
             ctx.fillRect(0, 0, w, h);
         }
 
-        // 2. Rank Animation (검정색 아닌 건 보라색, 검정색인 건 진한 보라색)
+        // 2. Rank Animation (처음에는 풀컬러 스프라이트, 몇 초 뒤 보라색 2톤 스프라이트)
         if (this.showRankAnim) {
-            const rankImgs = this.getRankImages();
+            const rankImgs = this.getRankImages(this.isPurple);
             if (rankImgs && rankImgs.length > 0) {
                 const idx = Math.min(rankImgs.length - 1, Math.floor(this.imageIndex));
                 const img = rankImgs[idx];
                 if (img && img.complete && img.naturalWidth > 0) {
-                    const recolored = RankController.recolorRankFrame(img);
-                    ctx.drawImage(recolored, 0, 0, w, h);
+                    const finalImg = this.isPurple ? RankController.recolorRankFrame(img) : img;
+                    ctx.drawImage(finalImg, 0, 0, w, h);
                 }
             }
         }
 
-        // 3. Sequential Text Lines (SCORE, TIME, DAMAGE, HIGHEST COMBO, BUDDY TAXED!!!) using Pizza Tower bigfont
-        if (this.revealedLines > 0) {
+        // 보라색 전환 시 순간적인 플래시 효과
+        if (this.purpleFlash > 0) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${this.purpleFlash / 8})`;
+            ctx.fillRect(0, 0, w, h);
+            this.purpleFlash--;
+        }
+
+        // 3. Sequential Text Lines (보라색 전환 후 점수도 차례차례 슬램!)
+        if (this.isPurple && this.revealedLines > 0) {
             const lines = this.getStats(game);
             const startX = 50;
             const startY = 60;
