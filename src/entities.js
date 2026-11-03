@@ -2615,7 +2615,14 @@ class SlimeDebris extends Entity {
             const cx = Math.round(this.x + this.width / 2);
             const cy = Math.round(this.y + this.height / 2);
 
+            // 이동 방향(속도 벡터) 각도 계산: 로컬 Y축이 진행 방향(속도 방향)을 향하도록 회전 정렬
+            let angle = 0;
+            if (Math.abs(this.vx) > 0.05 || Math.abs(this.vy) > 0.05) {
+                angle = Math.atan2(this.vy, this.vx) - Math.PI / 2;
+            }
+
             ctx.translate(cx, cy);
+            ctx.rotate(angle);
             ctx.scale(sx, sy);
             ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
             ctx.restore();
