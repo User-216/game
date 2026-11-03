@@ -2675,14 +2675,16 @@ class Slime extends Entity {
                 this.image_index = 0;
             }
 
-            // Drop slimedebris while walking
+            // Drop slimedebris while walking (5프레임에 2번 방울 생성)
             if (this.isGrounded && game && game.entities) {
                 this.debrisTimer = (this.debrisTimer || 0) + 1;
-                if (this.debrisTimer >= 16) {
+                if (this.debrisTimer >= 5) {
                     this.debrisTimer = 0;
-                    const dropX = this.x + this.width / 2;
+                }
+                // 5프레임 주기 중 2번 (0번째, 2번째 프레임) 생성
+                if (this.debrisTimer === 0 || this.debrisTimer === 2) {
+                    const dropX = this.x + this.width / 2 + (Math.random() - 0.5) * 4;
                     const dropY = this.y + this.height - 8;
-                    // 적당하고 경쾌한 포물선 방출 속도
                     const dropVx = -this.facingDir * (1.2 + Math.random() * 1.4) + (Math.random() - 0.5) * 0.8;
                     const dropVy = -2.8 - Math.random() * 1.6;
                     game.entities.push(new SlimeDebris(dropX, dropY, dropVx, dropVy));
