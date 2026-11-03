@@ -11,3 +11,7 @@ font_*.png
 scratch_*.png
 scratch_*.wav
 user_gye.png
+
+build/
+dist/
+*.spec
