@@ -2543,55 +2543,34 @@ class SlimeDebris extends Entity {
 
         this.vx = vx;
         this.vy = vy;
-        this.gravity = 0.3;
-        this.image_index = 0;
-        this.image_speed = 0.16; // ~6 ticks per animation frame
-        this.lifetime = 0;
-        this.maxLifetime = 38;
-        this.alpha = 1.0;
-        this.onGround = false;
+        this.gravity = 0.45;
+        this.image_index = Math.random() * 3;
+        this.image_speed = 0.25; // 연속 애니메이션 재생 속도
     }
 
     update(game) {
-        this.lifetime++;
-
-        // Advance animation
-        if (this.image_index < 2) {
-            this.image_index += this.image_speed;
-            if (this.image_index > 2) this.image_index = 2;
+        // 연속 애니메이션 재생 (무한 루프)
+        if (SlimeDebris.images && SlimeDebris.images.length > 0) {
+            this.image_index = (this.image_index + this.image_speed) % SlimeDebris.images.length;
         }
 
-        // Apply physics while falling
-        if (!this.onGround) {
-            this.x += this.vx;
-            this.y += this.vy;
-            this.vy += this.gravity;
-            if (this.vy > 8) this.vy = 8;
+        // 바닥 충돌 없이 중력과 속도로 자유롭게 포물선 비행 (바닥 통과)
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += this.gravity;
+        if (this.vy > 18) this.vy = 18;
 
-            if (game && game.entities) {
-                const bottomY = this.y + 27;
-                const centerX = this.x + 25;
-                for (let ent of game.entities) {
-                    if (ent.isDestroyed || ent.isSolid === false || ent.type === 'obj_slime' || ent.type === 'obj_debris' || ent.type === 'obj_splatter' || ent.type === 'tile') continue;
-                    if (centerX >= ent.x && centerX <= ent.x + ent.width &&
-                        bottomY >= ent.y && bottomY <= ent.y + 12 && this.vy >= 0) {
-                        this.onGround = true;
-                        this.vx = 0;
-                        this.vy = 0;
-                        this.y = ent.y - 27; // Sit flush on ground
-                        this.image_index = 2; // Flat splat frame
-                        break;
-                    }
-                }
-            }
-        }
+        // 화면 밖으로 완전히 벗어나면 삭제
+        const camX = (game && game.camera) ? game.camera.x : 0;
+        const camY = (game && game.camera) ? game.camera.y : 0;
+        const viewW = (game && game.canvas) ? game.canvas.width : 960;
+        const viewH = (game && game.canvas) ? game.canvas.height : 540;
+        const margin = 120;
 
-        // Fade out during last 12 frames
-        if (this.lifetime >= this.maxLifetime - 12) {
-            this.alpha = Math.max(0, (this.maxLifetime - this.lifetime) / 12);
-        }
-
-        if (this.lifetime >= this.maxLifetime) {
+        if (this.y > camY + viewH + margin ||
+            this.y < camY - margin * 3 ||
+            this.x < camX - margin ||
+            this.x > camX + viewW + margin) {
             this.markedForDeletion = true;
             this.isDestroyed = true;
         }
@@ -2599,16 +2578,11 @@ class SlimeDebris extends Entity {
 
     render(ctx) {
         const imgs = SlimeDebris.images;
-        if (!imgs) return;
-        const frameIdx = Math.min(imgs.length - 1, Math.floor(this.image_index));
+        if (!imgs || imgs.length === 0) return;
+        const frameIdx = Math.floor(this.image_index) % imgs.length;
         const img = imgs[frameIdx];
         if (img && img.complete && img.naturalWidth > 0) {
-            ctx.save();
-            if (this.alpha < 1) {
-                ctx.globalAlpha = Math.max(0, this.alpha);
-            }
             ctx.drawImage(img, Math.round(this.x), Math.round(this.y), this.width, this.height);
-            ctx.restore();
         }
     }
 }
@@ -2692,12 +2666,13 @@ class Slime extends Entity {
             // Drop slimedebris while walking
             if (this.isGrounded && game && game.entities) {
                 this.debrisTimer = (this.debrisTimer || 0) + 1;
-                if (this.debrisTimer >= 20) {
+                if (this.debrisTimer >= 14) {
                     this.debrisTimer = 0;
-                    const dropX = this.x + this.width / 2 - (this.facingDir * 4) + (Math.random() - 0.5) * 6;
-                    const dropY = this.y + this.height - 4;
-                    const dropVx = -this.facingDir * (0.2 + Math.random() * 0.4);
-                    const dropVy = -0.6 - Math.random() * 0.6;
+                    const dropX = this.x + this.width / 2;
+                    const dropY = this.y + this.height - 10;
+                    // 좀 더 강하게 튕겨 나가도록 넉넉한 포물선 속도 부여
+                    const dropVx = -this.facingDir * (3.5 + Math.random() * 4) + (Math.random() - 0.5) * 2;
+                    const dropVy = -6.5 - Math.random() * 4.5;
                     game.entities.push(new SlimeDebris(dropX, dropY, dropVx, dropVy));
                 }
             }
