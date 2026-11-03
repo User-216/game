@@ -2520,6 +2520,104 @@ if (typeof window !== 'undefined') {
 }
 
 
+class SlimeDebris extends Entity {
+    static images = null;
+    static initImages() {
+        if (!SlimeDebris.images) {
+            SlimeDebris.images = [];
+            for (let i = 1; i <= 3; i++) {
+                const img = new Image();
+                img.src = 'slimedebris/slimedebris' + i + '.png';
+                SlimeDebris.images.push(img);
+            }
+        }
+    }
+
+    constructor(x, y, vx = 0, vy = 0) {
+        super(x - 25, y - 25, 50, 50, 'transparent');
+        this.type = 'obj_debris';
+        this.isSolid = false;
+        this.isPlatform = false;
+        
+        SlimeDebris.initImages();
+
+        this.vx = vx;
+        this.vy = vy;
+        this.gravity = 0.3;
+        this.image_index = 0;
+        this.image_speed = 0.16; // ~6 ticks per animation frame
+        this.lifetime = 0;
+        this.maxLifetime = 38;
+        this.alpha = 1.0;
+        this.onGround = false;
+    }
+
+    update(game) {
+        this.lifetime++;
+
+        // Advance animation
+        if (this.image_index < 2) {
+            this.image_index += this.image_speed;
+            if (this.image_index > 2) this.image_index = 2;
+        }
+
+        // Apply physics while falling
+        if (!this.onGround) {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += this.gravity;
+            if (this.vy > 8) this.vy = 8;
+
+            if (game && game.entities) {
+                const bottomY = this.y + 27;
+                const centerX = this.x + 25;
+                for (let ent of game.entities) {
+                    if (ent.isDestroyed || ent.isSolid === false || ent.type === 'obj_slime' || ent.type === 'obj_debris' || ent.type === 'obj_splatter' || ent.type === 'tile') continue;
+                    if (centerX >= ent.x && centerX <= ent.x + ent.width &&
+                        bottomY >= ent.y && bottomY <= ent.y + 12 && this.vy >= 0) {
+                        this.onGround = true;
+                        this.vx = 0;
+                        this.vy = 0;
+                        this.y = ent.y - 27; // Sit flush on ground
+                        this.image_index = 2; // Flat splat frame
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fade out during last 12 frames
+        if (this.lifetime >= this.maxLifetime - 12) {
+            this.alpha = Math.max(0, (this.maxLifetime - this.lifetime) / 12);
+        }
+
+        if (this.lifetime >= this.maxLifetime) {
+            this.markedForDeletion = true;
+            this.isDestroyed = true;
+        }
+    }
+
+    render(ctx) {
+        const imgs = SlimeDebris.images;
+        if (!imgs) return;
+        const frameIdx = Math.min(imgs.length - 1, Math.floor(this.image_index));
+        const img = imgs[frameIdx];
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.save();
+            if (this.alpha < 1) {
+                ctx.globalAlpha = Math.max(0, this.alpha);
+            }
+            ctx.drawImage(img, Math.round(this.x), Math.round(this.y), this.width, this.height);
+            ctx.restore();
+        }
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.SlimeDebris = SlimeDebris;
+    window.obj_slimedebris = SlimeDebris;
+}
+
 class Slime extends Entity {
     constructor(x, y, w = 40, h = 40, flipX = false, flipY = false) {
         super(x, y, w, h, 'transparent', flipX, flipY);
@@ -2590,8 +2688,22 @@ class Slime extends Entity {
             if (this.image_index >= this.sprites.length) {
                 this.image_index = 0;
             }
+
+            // Drop slimedebris while walking
+            if (this.isGrounded && game && game.entities) {
+                this.debrisTimer = (this.debrisTimer || 0) + 1;
+                if (this.debrisTimer >= 20) {
+                    this.debrisTimer = 0;
+                    const dropX = this.x + this.width / 2 - (this.facingDir * 4) + (Math.random() - 0.5) * 6;
+                    const dropY = this.y + this.height - 4;
+                    const dropVx = -this.facingDir * (0.2 + Math.random() * 0.4);
+                    const dropVy = -0.6 - Math.random() * 0.6;
+                    game.entities.push(new SlimeDebris(dropX, dropY, dropVx, dropVy));
+                }
+            }
         } else {
             this.image_index = 0;
+            this.debrisTimer = 0;
         }
         
         if (this.state === 'piledriver_die') {
