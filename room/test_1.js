@@ -6,6 +6,9 @@ this.sRankScore = 10000;
 this.roomMusic = 'mu _shitcity.mp3';
 this.roomBackground = 'bg_cidersewer';
 this.bgFollowCamera = true;
+this.screenFilterColor = '#ffc38f';
+this.screenFilterAlpha = 0.3;
+this.screenFilterBlend = 'multiply';
 this.entities.push(
     new Platform(0, 96, 96, 704, '#00aa9e66'),
     new ExitGate(544, 576, 160, 256),
@@ -106,8 +109,6 @@ this.entities.push(
     new Collect(8032, 832, 32, 32),
     new Collect(8000, 832, 32, 32),
     new Collect(7360, 640, 32, 32),
-    Object.assign(new Slime(7712, 672, 32, 32), { flipX: true }),
-    new Slime(7552, 1088, 32, 32),
     new Platform(8480, 1120, 576, 64, '#00aa9e66'),
     new Platform(8192, 384, 416, 352, '#00aa9e66'),
     new Platform(8608, 384, 192, 352, '#00aa9e66'),
@@ -118,7 +119,6 @@ this.entities.push(
     new Collect(8480, 960, 32, 32),
     new Collect(8512, 960, 32, 32),
     new Collect(8512, 992, 32, 32),
-    Object.assign(new Slime(8224, 1088, 32, 32), { flipX: true }),
     Object.assign(new Collect(8832, 1056, 32, 32), { flipX: true }),
     Object.assign(new Collect(8896, 1056, 32, 32), { flipX: true }),
     Object.assign(new Collect(8960, 1056, 32, 32), { flipX: true }),
@@ -137,7 +137,6 @@ this.entities.push(
     new Platform(5344, 480, 128, 480, '#00aa9e66'),
     new Destroyable(5472, 992, 64, 64),
     new Destroyable(5536, 992, 64, 64),
-    Object.assign(new Slime(5504, 960, 32, 32), { flipX: true }),
     Object.assign(new Platform(6304, 928, 288, 64, '#00aa9e66'), { flipX: true }),
     Object.assign(new Platform(6208, 992, 384, 224, '#00aa9e66'), { flipX: true }),
     Object.assign(new Platform(6592, 1024, 768, 96, '#00aa9e66'), { flipX: true }),
@@ -148,7 +147,6 @@ this.entities.push(
     Object.assign(new Collect(6400, 864, 32, 32), { flipX: true }),
     Object.assign(new Collect(6432, 864, 32, 32), { flipX: true }),
     Object.assign(new Collect(6464, 864, 32, 32), { flipX: true }),
-    new Slime(5984, 928, 32, 32),
     new Collect(6880, 768, 32, 32),
     new Collect(6944, 768, 32, 32),
     new Collect(6912, 768, 32, 32),
@@ -156,11 +154,16 @@ this.entities.push(
     new Collect(7392, 640, 32, 32),
     new Collect(7328, 640, 32, 32),
     Object.assign(new Slime(1184, 864, 32, 32), { flipX: true, facingDir: -1 }),
-    Object.assign(new Slime(3360, 800, 32, 32), { flipX: true, facingDir: -1 }),
     new Collect(4416, 1056, 32, 32),
     new Collect(4480, 1056, 32, 32),
     new Collect(4448, 1056, 32, 32),
-    Object.assign(new Slime(4832, 1024, 32, 32), { flipX: true, facingDir: -1 }),
+    Object.assign(new Slime(3360, 800, 32, 32), { flipX: true }),
+    Object.assign(new Slime(4832, 1024, 32, 32), { flipX: true }),
+    Object.assign(new Slime(5504, 960, 32, 32), { flipX: true }),
+    new Slime(5984, 928, 32, 32),
+    Object.assign(new Slime(7712, 672, 32, 32), { flipX: true }),
+    new Slime(7552, 1088, 32, 32),
+    Object.assign(new Slime(8224, 1088, 32, 32), { flipX: true }),
 );
 
 };

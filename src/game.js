@@ -458,6 +458,12 @@ class Game {
         this.tileOffscreenCanvas = null;
         this.tileOffscreenCtx = null;
 
+        // Screen Atmosphere / Mood Filter
+        this.screenFilterColor = null;
+        this.screenFilterAlpha = 0;
+        this.screenFilterBlend = 'source-over';
+        this.screenFilterVignette = false;
+
         this.initRooms();
         this.bootRoomLoaded = false;
         
@@ -1975,6 +1981,131 @@ class Game {
         const bgApplyBtn = document.getElementById('bg-apply-btn');
         const bgCancelBtn = document.getElementById('bg-cancel-btn');
 
+        // Screen Filter elements
+        const filterColorPicker = document.getElementById('filter-color-picker');
+        const filterColorHex = document.getElementById('filter-color-hex');
+        const filterAlphaSlider = document.getElementById('filter-alpha-slider');
+        const filterAlphaDisplay = document.getElementById('filter-alpha-display');
+        const filterBlendSelect = document.getElementById('filter-blend-select');
+        const filterVignetteChk = document.getElementById('filter-vignette-chk');
+        const filterStatusTag = document.getElementById('filter-status-tag');
+
+        const filterPresetNone = document.getElementById('filter-preset-none');
+        const filterPresetWarm = document.getElementById('filter-preset-warm');
+        const filterPresetCool = document.getElementById('filter-preset-cool');
+        const filterPresetDark = document.getElementById('filter-preset-dark');
+        const filterPresetCider = document.getElementById('filter-preset-cider');
+        const filterPresetSunset = document.getElementById('filter-preset-sunset');
+        const filterPresetSepia = document.getElementById('filter-preset-sepia');
+
+        let backupFilterColor = this.screenFilterColor;
+        let backupFilterAlpha = this.screenFilterAlpha;
+        let backupFilterBlend = this.screenFilterBlend;
+        let backupFilterVignette = this.screenFilterVignette;
+
+        const updateFilterLive = (color, alphaPct, blend, vignette, statusText) => {
+            const numAlpha = Math.max(0, Math.min(100, alphaPct)) / 100;
+            this.screenFilterColor = (color && color !== 'none') ? color : null;
+            this.screenFilterAlpha = numAlpha;
+            this.screenFilterBlend = blend || 'source-over';
+            this.screenFilterVignette = !!vignette;
+
+            if (filterColorPicker && color && color.startsWith('#') && color.length === 7) {
+                filterColorPicker.value = color;
+            }
+            if (filterColorHex) filterColorHex.value = color || '#ffffff';
+            if (filterAlphaSlider) filterAlphaSlider.value = alphaPct;
+            if (filterAlphaDisplay) filterAlphaDisplay.textContent = alphaPct + '%';
+            if (filterBlendSelect) filterBlendSelect.value = blend || 'source-over';
+            if (filterVignetteChk) filterVignetteChk.checked = !!vignette;
+            if (filterStatusTag) {
+                filterStatusTag.textContent = statusText || (alphaPct === 0 && !vignette ? '없음 (0%)' : `적용중 (${alphaPct}%)`);
+            }
+        };
+
+        if (filterPresetNone) {
+            filterPresetNone.addEventListener('click', () => updateFilterLive('#ffffff', 0, 'source-over', false, '없음 (0%)'));
+        }
+        if (filterPresetWarm) {
+            filterPresetWarm.addEventListener('click', () => updateFilterLive('#ff8822', 22, 'source-over', false, '☀️ 따뜻함 (22%)'));
+        }
+        if (filterPresetCool) {
+            filterPresetCool.addEventListener('click', () => updateFilterLive('#2288ff', 22, 'source-over', false, '❄️ 차가움 (22%)'));
+        }
+        if (filterPresetDark) {
+            filterPresetDark.addEventListener('click', () => updateFilterLive('#080814', 55, 'multiply', true, '🌑 어둠/동굴 (55%)'));
+        }
+        if (filterPresetCider) {
+            filterPresetCider.addEventListener('click', () => updateFilterLive('#70cc18', 18, 'source-over', false, '🍏 사이다 (18%)'));
+        }
+        if (filterPresetSunset) {
+            filterPresetSunset.addEventListener('click', () => updateFilterLive('#b03080', 22, 'source-over', true, '🌆 노을 (22%)'));
+        }
+        if (filterPresetSepia) {
+            filterPresetSepia.addEventListener('click', () => updateFilterLive('#a06622', 25, 'source-over', true, '📼 세피아 (25%)'));
+        }
+
+        if (filterColorPicker) {
+            filterColorPicker.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (filterColorHex) filterColorHex.value = val;
+                this.screenFilterColor = val;
+                let aPct = filterAlphaSlider ? parseInt(filterAlphaSlider.value, 10) : 0;
+                if (aPct === 0) {
+                    aPct = 25;
+                    if (filterAlphaSlider) filterAlphaSlider.value = 25;
+                    if (filterAlphaDisplay) filterAlphaDisplay.textContent = '25%';
+                    this.screenFilterAlpha = 0.25;
+                }
+                if (filterStatusTag) filterStatusTag.textContent = `색상 선택 (${aPct}%)`;
+            });
+        }
+
+        if (filterColorHex) {
+            filterColorHex.addEventListener('input', (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#') && (val.length === 6 || val.length === 3)) val = '#' + val;
+                if (val.startsWith('#') && (val.length === 7 || val.length === 4)) {
+                    if (filterColorPicker && val.length === 7) filterColorPicker.value = val;
+                    this.screenFilterColor = val;
+                    let aPct = filterAlphaSlider ? parseInt(filterAlphaSlider.value, 10) : 0;
+                    if (aPct === 0) {
+                        aPct = 25;
+                        if (filterAlphaSlider) filterAlphaSlider.value = 25;
+                        if (filterAlphaDisplay) filterAlphaDisplay.textContent = '25%';
+                        this.screenFilterAlpha = 0.25;
+                    }
+                    if (filterStatusTag) filterStatusTag.textContent = `색상 선택 (${aPct}%)`;
+                }
+            });
+        }
+
+        if (filterAlphaSlider) {
+            filterAlphaSlider.addEventListener('input', (e) => {
+                const aPct = parseInt(e.target.value, 10);
+                this.screenFilterAlpha = aPct / 100;
+                if (!this.screenFilterColor && aPct > 0) {
+                    this.screenFilterColor = (filterColorPicker && filterColorPicker.value) ? filterColorPicker.value : '#ff8822';
+                }
+                if (filterAlphaDisplay) filterAlphaDisplay.textContent = aPct + '%';
+                if (filterStatusTag) filterStatusTag.textContent = aPct === 0 && !this.screenFilterVignette ? '없음 (0%)' : `강도 조절 (${aPct}%)`;
+            });
+        }
+
+        if (filterBlendSelect) {
+            filterBlendSelect.addEventListener('change', (e) => {
+                this.screenFilterBlend = e.target.value;
+            });
+        }
+
+        if (filterVignetteChk) {
+            filterVignetteChk.addEventListener('change', (e) => {
+                this.screenFilterVignette = e.target.checked;
+                const aPct = filterAlphaSlider ? parseInt(filterAlphaSlider.value, 10) : 0;
+                if (filterStatusTag) filterStatusTag.textContent = aPct === 0 && !this.screenFilterVignette ? '없음 (0%)' : `비네트 ${this.screenFilterVignette ? 'ON' : 'OFF'}`;
+            });
+        }
+
         if (setBgBtn) {
             setBgBtn.addEventListener('click', () => {
                 if (bgOverlay) {
@@ -1987,6 +2118,23 @@ class Game {
                     if (tileWaveChk) tileWaveChk.checked = !!this.tileWave;
                     if (tileWaveSpeedInput) tileWaveSpeedInput.value = this.tileWaveSpeed !== undefined ? this.tileWaveSpeed : 1.0;
                     if (tileWaveAmpInput) tileWaveAmpInput.value = this.tileWaveAmp !== undefined ? this.tileWaveAmp : 3.5;
+
+                    backupFilterColor = this.screenFilterColor;
+                    backupFilterAlpha = this.screenFilterAlpha;
+                    backupFilterBlend = this.screenFilterBlend;
+                    backupFilterVignette = this.screenFilterVignette;
+
+                    const curColor = this.screenFilterColor || '#ff8822';
+                    const curAlphaPct = Math.round((typeof this.screenFilterAlpha === 'number' ? this.screenFilterAlpha : 0) * 100);
+                    if (filterColorPicker) filterColorPicker.value = (curColor.startsWith('#') && curColor.length === 7) ? curColor : '#ff8822';
+                    if (filterColorHex) filterColorHex.value = curColor;
+                    if (filterAlphaSlider) filterAlphaSlider.value = curAlphaPct;
+                    if (filterAlphaDisplay) filterAlphaDisplay.textContent = curAlphaPct + '%';
+                    if (filterBlendSelect) filterBlendSelect.value = this.screenFilterBlend || 'source-over';
+                    if (filterVignetteChk) filterVignetteChk.checked = !!this.screenFilterVignette;
+                    if (filterStatusTag) {
+                        filterStatusTag.textContent = curAlphaPct === 0 && !this.screenFilterVignette ? '없음 (0%)' : `현재 설정 (${curAlphaPct}%)`;
+                    }
 
                     bgOverlay.classList.remove('hidden');
                     bgOverlay.style.display = 'flex';
@@ -2008,12 +2156,20 @@ class Game {
         }
         if (bgCancelBtn && bgOverlay) {
             bgCancelBtn.addEventListener('click', () => {
+                this.screenFilterColor = backupFilterColor;
+                this.screenFilterAlpha = backupFilterAlpha;
+                this.screenFilterBlend = backupFilterBlend;
+                this.screenFilterVignette = backupFilterVignette;
                 bgOverlay.classList.add('hidden');
                 bgOverlay.style.display = 'none';
             });
         }
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && bgOverlay && !bgOverlay.classList.contains('hidden') && bgOverlay.style.display !== 'none') {
+                this.screenFilterColor = backupFilterColor;
+                this.screenFilterAlpha = backupFilterAlpha;
+                this.screenFilterBlend = backupFilterBlend;
+                this.screenFilterVignette = backupFilterVignette;
                 bgOverlay.classList.add('hidden');
                 bgOverlay.style.display = 'none';
             }
@@ -2036,6 +2192,12 @@ class Game {
                 this.tileWaveSpeed = (!isNaN(tileWaveSpd) && tileWaveSpd >= 0) ? tileWaveSpd : 1.0;
                 const tileWaveAmpVal = tileWaveAmpInput ? parseFloat(tileWaveAmpInput.value) : 3.5;
                 this.tileWaveAmp = (!isNaN(tileWaveAmpVal) && tileWaveAmpVal >= 0) ? tileWaveAmpVal : 3.5;
+
+                // Commit the new screen filter backup
+                backupFilterColor = this.screenFilterColor;
+                backupFilterAlpha = this.screenFilterAlpha;
+                backupFilterBlend = this.screenFilterBlend;
+                backupFilterVignette = this.screenFilterVignette;
 
                 if (this.bgManager) {
                     this.bgManager.setBackground(this.roomBackground, this.bgFollowCamera, this.bgSpeed, this.bgSecret, this.bgWave, this.bgWaveAmp || 8, this.bgWaveSpeed);
@@ -3993,6 +4155,18 @@ class Game {
                 code += `this.tileWaveAmp = ${this.tileWaveAmp};\n`;
             }
         }
+        if (this.screenFilterColor && this.screenFilterAlpha > 0) {
+            code += `this.screenFilterColor = '${this.screenFilterColor}';\n`;
+            code += `this.screenFilterAlpha = ${this.screenFilterAlpha};\n`;
+            if (this.screenFilterBlend && this.screenFilterBlend !== 'source-over') {
+                code += `this.screenFilterBlend = '${this.screenFilterBlend}';\n`;
+            }
+            if (this.screenFilterVignette) {
+                code += `this.screenFilterVignette = true;\n`;
+            }
+        } else if (this.screenFilterVignette) {
+            code += `this.screenFilterVignette = true;\n`;
+        }
         code += `this.entities.push(\n`;
         this.entities.forEach(ent => {
             let line = `    `;
@@ -4218,6 +4392,10 @@ this.entities.push(
             const currentTileWaveAmp = this.tileWaveAmp;
             const currentTileWaveSpeed = this.tileWaveSpeed;
             const currentSRankScore = this.sRankScore;
+            const currentFilterColor = this.screenFilterColor;
+            const currentFilterAlpha = this.screenFilterAlpha;
+            const currentFilterBlend = this.screenFilterBlend;
+            const currentFilterVignette = this.screenFilterVignette;
             this.rooms[this.currentRoom] = () => {
                 this.sRankScore = currentSRankScore;
                 this.roomWidth = currentW;
@@ -4238,6 +4416,10 @@ this.entities.push(
                 this.tileWave = currentTileWave;
                 this.tileWaveAmp = currentTileWaveAmp;
                 this.tileWaveSpeed = currentTileWaveSpeed;
+                this.screenFilterColor = currentFilterColor;
+                this.screenFilterAlpha = currentFilterAlpha;
+                this.screenFilterBlend = currentFilterBlend;
+                this.screenFilterVignette = currentFilterVignette;
                 currentEntities.forEach(ent => this.entities.push(ent));
             };
         }
@@ -4270,6 +4452,10 @@ this.entities.push(
                 this.tileWave = false;
                 this.tileWaveAmp = 3.5;
                 this.tileWaveSpeed = 1.0;
+                this.screenFilterColor = null;
+                this.screenFilterAlpha = 0;
+                this.screenFilterBlend = 'source-over';
+                this.screenFilterVignette = false;
                 this.sRankScore = this.stageSRankScore || 10000;
                 this.rooms[roomName].call(this);
 
@@ -6984,6 +7170,9 @@ this.entities.push(
             }
         }
 
+        // Screen Atmosphere / Mood Filter Pass
+        this.renderScreenFilter(this.ctx);
+
         // Collision Toggle Toast Notification
         if (this.collisionToggleTimer > 0) {
             this.collisionToggleTimer -= 1 / 60;
@@ -8230,6 +8419,48 @@ this.entities.push(
         }
 
         this.ctx.restore();
+    }
+
+    renderScreenFilter(ctx) {
+        const alpha = (typeof this.screenFilterAlpha === 'number') ? this.screenFilterAlpha : 0;
+        const color = this.screenFilterColor;
+        const vignette = !!this.screenFilterVignette;
+        const blend = this.screenFilterBlend || 'source-over';
+
+        if ((alpha <= 0 || !color || color === 'none' || color === '') && !vignette) {
+            return;
+        }
+
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Ensure screen coordinates
+
+        // 1. Atmospheric Color Wash Tint
+        if (color && color !== 'none' && color !== '' && alpha > 0) {
+            ctx.globalAlpha = Math.max(0, Math.min(1.0, alpha));
+            ctx.globalCompositeOperation = blend;
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, w, h);
+        }
+
+        // 2. Cinematic Vignette (Edge Darkness)
+        if (vignette) {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            const cx = w / 2;
+            const cy = h / 2;
+            const maxRadius = Math.hypot(cx, cy);
+            const grad = ctx.createRadialGradient(cx, cy, maxRadius * 0.35, cx, cy, maxRadius * 0.95);
+            grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            grad.addColorStop(0.65, 'rgba(0, 0, 0, 0.28)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+        }
+
+        ctx.restore();
     }
 
     renderEditorGuides() {

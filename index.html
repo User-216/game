@@ -74,7 +74,7 @@
                     <input type="file" id="load-room-input" accept=".js" style="display:none;">
                     <button class="editor-tab" id="set-size-btn">SIZE</button>
                     <button class="editor-tab" id="set-music-btn">MUSIC</button>
-                    <button class="editor-tab" id="set-bg-btn">BG</button>
+                    <button class="editor-tab" id="set-bg-btn" title="배경 및 화면 분위기/필터 설정">BG</button>
                     <button class="editor-tab" id="set-srank-btn" title="S랭크 목표 점수 설정" style="color: #ffcc00; border-color: rgba(255, 204, 0, 0.4);">SET S RANK SCORE</button>
                     <button class="editor-tab" id="editor-flip-x-btn" title="좌우 반전 (X / F 키)">FLIP [X]</button>
                     <button class="editor-tab" id="editor-flip-y-btn" title="상하 반전 (Y / V 키)">VERT [Y]</button>
@@ -283,8 +283,8 @@
             </div>
 
             <!-- Background Settings Overlay -->
-            <div id="bg-settings-overlay" class="glass hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 1.8rem; border-radius: 20px; flex-direction: column; gap: 1rem; min-width: 360px; max-width: 440px; pointer-events: auto; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.1); font-family: 'Outfit', sans-serif;">
-                <h2 style="color: var(--primary-color, #00f2ff); margin: 0; text-align: center; font-size: 1.5rem; letter-spacing: 1px;">배경 설정 (BACKGROUND)</h2>
+            <div id="bg-settings-overlay" class="glass hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 1.6rem; border-radius: 20px; flex-direction: column; gap: 0.9rem; min-width: 380px; max-width: 480px; max-height: 88vh; overflow-y: auto; pointer-events: auto; z-index: 1000; box-shadow: 0 10px 35px rgba(0,0,0,0.85); border: 2px solid rgba(0,242,255,0.25); font-family: 'Outfit', sans-serif;">
+                <h2 style="color: var(--primary-color, #00f2ff); margin: 0; text-align: center; font-size: 1.35rem; letter-spacing: 1px;">배경 & 화면 분위기 설정 (BG & MOOD)</h2>
                 
                 <div style="display: flex; flex-direction: column; gap: 0.3rem;">
                     <label style="font-weight: 700; color: #fff; font-size: 0.9rem;">배경 이름 (Folder Name):</label>
@@ -338,6 +338,62 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label style="font-weight: 700; color: #00e1d9; font-size: 0.9rem;">🌊 타일 파도 강도 (기본 3.5):</label>
                     <input type="number" id="tile-wave-amp-input" step="0.5" min="0.5" max="15" value="3.5" style="width: 80px; padding: 0.4rem; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 0.95rem;">
+                </div>
+
+                <!-- Screen Atmosphere / Mood Filter Section -->
+                <div style="display: flex; flex-direction: column; gap: 0.65rem; background: rgba(20, 24, 38, 0.7); padding: 0.9rem; border-radius: 12px; border: 1px solid rgba(0, 242, 255, 0.25);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="font-weight: 700; color: #00f2ff; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+                            <span>🎨 화면 분위기 / 필터 (Screen Mood)</span>
+                        </label>
+                        <span id="filter-status-tag" style="font-size: 0.75rem; color: #aaa; background: rgba(0,0,0,0.5); padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">없음 (0%)</span>
+                    </div>
+
+                    <!-- Quick Mood Presets -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                        <button type="button" class="tool-btn" id="filter-preset-none" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; background: #333;">🚫 없음</button>
+                        <button type="button" class="tool-btn" id="filter-preset-warm" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; background: #884400; color: #ffcc66;">☀️ 따뜻함</button>
+                        <button type="button" class="tool-btn" id="filter-preset-cool" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; background: #003366; color: #66ccff;">❄️ 차가움</button>
+                        <button type="button" class="tool-btn" id="filter-preset-dark" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; background: #121224; color: #aa99ff; border: 1px solid #554488;">🌑 어둠/동굴</button>
+                        <button type="button" class="tool-btn" id="filter-preset-cider" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; background: #2f542a; color: #b8f060;">🍏 사이다</button>
+                        <button type="button" class="tool-btn" id="filter-preset-sunset" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; background: #551144; color: #ff88cc;">🌆 노을</button>
+                        <button type="button" class="tool-btn" id="filter-preset-sepia" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; background: #4a3010; color: #e6b87d;">📼 세피아</button>
+                    </div>
+
+                    <!-- Custom Color Picker + Hex Input -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                        <label style="font-weight: 600; color: #eee; font-size: 0.85rem;">필터 색상:</label>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <input type="color" id="filter-color-picker" value="#ff8822" style="width: 38px; height: 32px; border: 1px solid #555; border-radius: 6px; cursor: pointer; background: transparent; padding: 2px;">
+                            <input type="text" id="filter-color-hex" value="#ff8822" placeholder="#ff8822" style="width: 78px; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid #444; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.85rem; text-align: center; font-family: monospace;">
+                        </div>
+                    </div>
+
+                    <!-- Alpha / Intensity Slider -->
+                    <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <label style="font-weight: 600; color: #eee; font-size: 0.85rem;">분위기 강도 (투명도):</label>
+                            <span id="filter-alpha-display" style="font-size: 0.85rem; font-weight: bold; color: #00f2ff; min-width: 42px; text-align: right;">0%</span>
+                        </div>
+                        <input type="range" id="filter-alpha-slider" min="0" max="100" value="0" step="1" style="width: 100%; accent-color: #00f2ff; cursor: pointer;">
+                    </div>
+
+                    <!-- Blend Mode Selection -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="font-weight: 600; color: #eee; font-size: 0.85rem;">합성 방식 (Blend):</label>
+                        <select id="filter-blend-select" style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid #444; background: rgba(0,0,0,0.8); color: #fff; font-size: 0.82rem; cursor: pointer;">
+                            <option value="source-over">기본 틴트 (Normal)</option>
+                            <option value="multiply">어둡게 / 그림자 (Multiply)</option>
+                            <option value="overlay">강한 대비 (Overlay)</option>
+                            <option value="screen">부드러운 빛 (Screen)</option>
+                        </select>
+                    </div>
+
+                    <!-- Vignette Checkbox -->
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; color: #ffeb3b; font-size: 0.85rem; font-weight: 600;">
+                        <input type="checkbox" id="filter-vignette-chk" style="width: 17px; height: 17px; accent-color: #ffeb3b; cursor: pointer;">
+                        <span>🎬 외곽 어둡게 (비네트 / Vignette)</span>
+                    </label>
                 </div>
 
                 <div style="display: flex; gap: 0.8rem; margin-top: 0.3rem;">
