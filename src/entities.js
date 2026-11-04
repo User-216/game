@@ -2241,6 +2241,48 @@ class Collect extends Entity {
         Collect.initImages();
     }
 
+    isInsideBox(game) {
+        const g = game || (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        if (!g || !g.entities) return false;
+        const bx = (typeof this.baseX === 'number') ? this.baseX : this.x;
+        const by = (typeof this.baseY === 'number') ? this.baseY : this.y;
+        const cx = bx + this.width / 2;
+        const cy = by + this.height / 2;
+
+        for (let i = 0; i < g.entities.length; i++) {
+            const ent = g.entities[i];
+            if (!ent || ent === this || ent.isDestroyed || ent.markedForDeletion) continue;
+
+            const isBox = (
+                (typeof Destroyable !== 'undefined' && ent instanceof Destroyable) ||
+                (typeof Metal !== 'undefined' && ent instanceof Metal) ||
+                (typeof SecretBlock !== 'undefined' && ent instanceof SecretBlock) ||
+                ent.type === 'destroyable' ||
+                ent.type === 'metal' ||
+                ent.type === 'obj_secretblock' ||
+                ent.type === 'obj_secretbigblock' ||
+                ent.type === 'obj_secretmetalblock' ||
+                ent.type === 'pillar' ||
+                ent.type === 'escapeblock_closed' ||
+                (ent.isSolid && ent.type !== 'platform' && ent.type !== 'oneway' && ent.type !== 'ladder')
+            );
+
+            if (isBox) {
+                // If fruit center is inside the box
+                if (cx >= ent.x && cx <= ent.x + ent.width &&
+                    cy >= ent.y && cy <= ent.y + ent.height) {
+                    return true;
+                }
+                // Check AABB overlap with 4px margin
+                if (bx + 4 < ent.x + ent.width && bx + this.width - 4 > ent.x &&
+                    by + 4 < ent.y + ent.height && by + this.height - 4 > ent.y) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     update(game) {
         // In Editor (Design) Mode: restore all collected items, stay at base position!
         if (game && game.isEditorMode) {
@@ -2262,6 +2304,17 @@ class Collect extends Entity {
         }
 
         this.image_index = (this.image_index + this.image_speed) % 1000;
+
+        // If trapped inside an unbroken box or block, stay stationary and do NOT attract or collect
+        if (this.isInsideBox(game)) {
+            this.state = 'idle';
+            this.vx = 0;
+            this.vy = 0;
+            this.speed = 0;
+            if (typeof this.baseX === 'number') this.x = this.baseX;
+            if (typeof this.baseY === 'number') this.y = this.baseY;
+            return;
+        }
 
         if (this.state === 'idle') {
             this.timer += 0.1;
@@ -2347,6 +2400,7 @@ class Collect extends Entity {
         if (this.markedForDeletion) return;
         const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
         if (this.isCollected && !isEditor) return;
+        if (!isEditor && this.isInsideBox(window.game || window.gameInstance)) return;
         const typeKey = this.collectType || 1;
         let frames = (Collect.sprites && Collect.sprites[typeKey] && Collect.sprites[typeKey].length > 0)
             ? Collect.sprites[typeKey]
@@ -2460,6 +2514,7 @@ class BigCollect extends Collect {
         if (this.markedForDeletion) return;
         const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
         if (this.isCollected && !isEditor) return;
+        if (!isEditor && this.isInsideBox(window.game || window.gameInstance)) return;
 
         const typeKey = this.collectType || 1;
         let frames = (BigCollect.sprites && BigCollect.sprites[typeKey] && BigCollect.sprites[typeKey].length > 0)
