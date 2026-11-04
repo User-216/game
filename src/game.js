@@ -8735,22 +8735,16 @@ this.entities.push(
         // Locked to the bite edge of the apple:
         // When timerRatio = 1.0 (whole apple): pacX = 68
         // When timerRatio = 0.0 (all eaten): pacX = 14
-        let currentPacmanX = 0;
-        let pacFrame = 0;
-
-        if (comboChompAnim > 0) {
-            // Finished eating: Pacman swallowed final bite, mouth chewing / closed
-            currentPacmanX = 14;
-            pacFrame = 0;
-        } else {
+        let currentPacmanX = 14;
+        if (comboChompAnim <= 0) {
             // As the apple shrinks from right to left, Pacman stays TOUCHING the bite mark!
             currentPacmanX = 14 + 54 * timerRatio;
-
-            // Mouth continuously chomping into the apple at a fast, steady speed
-            const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
-            const chompSpeed = 0.55; // Fast and constant chomping rate (no speed-up when eating down)
-            pacFrame = chompCycle[Math.floor(gameTime * chompSpeed) % chompCycle.length];
         }
+
+        // Mouth continuously chomping at a fast, steady speed (continues playing even after combo ends!)
+        const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
+        const chompSpeed = 0.55;
+        const pacFrame = chompCycle[Math.floor(gameTime * chompSpeed) % chompCycle.length];
 
         const pacmanY = shelfLine - pacmanH + 2;
 
