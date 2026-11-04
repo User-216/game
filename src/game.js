@@ -6505,12 +6505,14 @@ this.entities.push(
         if (this.comboTimer > 0) {
             this.comboTimer -= 0.2;
             if (this.comboTimer <= 0) {
+                // Pacman has finished eating the apple completely!
+                // Now, and only now, does the combo break!
                 if (this.combo > 0) {
-                    this.comboChompAnim = 45;
                     this.lostComboValue = this.combo;
+                    this.comboChompAnim = 30; // Swallow and exit anim
                 }
                 this.comboTimer = 0;
-                this.combo = 0;
+                this.combo = 0; // Combo breaks here!
             }
         }
 
@@ -8538,9 +8540,9 @@ this.entities.push(
         const posY = 15 + (this.comboUIPosY || 0);
         ctx.translate(posX, posY);
 
-        const timerRatio = Math.max(0, Math.min(1, (this.comboTimer || 0) / 60));
+        const comboTimer = this.comboTimer || 0;
         const comboChompAnim = this.comboChompAnim || 0;
-        const isDanger = timerRatio < 0.25 && comboChompAnim === 0;
+        const isDanger = comboTimer <= 18 && comboTimer > 0;
         const gameTime = this.gameTime || (Date.now() / 16.6);
 
         // 1. Draw User's Hand-Drawn Frame (Striped Ladder Poles & Bottom Shelf)
@@ -8550,34 +8552,36 @@ this.entities.push(
 
         const shelfLine = Math.round(414 * scale); // ~157px
 
-        // Determine Apple frame (0 to 5) based on combo timer or chomp animation
+        // Determine Apple frame (0 to 5):
+        // comboTimer > 36: Pacman is still approaching -> Apple is 100% WHOLE (spr_apple_0)
+        // 27 < comboTimer <= 36: Pacman has reached apple -> Bite 1 (spr_apple_1)
+        // 18 < comboTimer <= 27: Bite 2 (spr_apple_2)
+        // 9 < comboTimer <= 18: Bite 3 (spr_apple_3)
+        // 0 < comboTimer <= 9: Bite 4 (spr_apple_4, last sliver)
+        // comboTimer <= 0: Pacman has finished eating! -> Empty (spr_apple_5)
+        let appleFrameIdx = 0;
+        if (comboChompAnim > 0) {
+            appleFrameIdx = 5; // Completely eaten!
+        } else if (comboTimer > 36) {
+            appleFrameIdx = 0; // Intact while Pacman approaches
+        } else if (comboTimer > 27) {
+            appleFrameIdx = 1; // Bite 1
+        } else if (comboTimer > 18) {
+            appleFrameIdx = 2; // Bite 2
+        } else if (comboTimer > 9) {
+            appleFrameIdx = 3; // Bite 3
+        } else if (comboTimer > 0) {
+            appleFrameIdx = 4; // Bite 4 (sliver)
+        } else {
+            appleFrameIdx = 5; // All eaten!
+        }
+
         // Source crop inside 184x174 canvas:
         const aCropX = 40, aCropY = 78, aCropW = 66, aCropH = 68;
         const appleW = Math.round(72);
         const appleH = Math.round(75);
         const appleX = Math.round(18);
         const appleY = shelfLine - appleH + 2;
-
-        let appleFrameIdx = 0;
-        if (comboChompAnim > 0) {
-            // Chomp sequence on combo timeout (45 down to 0):
-            // 5 bite stages (9 frames each). Pacman reaches apple and bites piece by piece!
-            if (comboChompAnim > 36) {
-                appleFrameIdx = (comboChompAnim > 40) ? 0 : 1;
-            } else if (comboChompAnim > 27) {
-                appleFrameIdx = (comboChompAnim > 31) ? 1 : 2;
-            } else if (comboChompAnim > 18) {
-                appleFrameIdx = (comboChompAnim > 22) ? 2 : 3;
-            } else if (comboChompAnim > 9) {
-                appleFrameIdx = (comboChompAnim > 13) ? 3 : 4;
-            } else {
-                appleFrameIdx = (comboChompAnim > 4) ? 4 : 5; // completely eaten
-            }
-        } else {
-            // While combo timer is active, Pacman is approaching from the right.
-            // Pacman has NOT touched the apple yet, so the apple remains completely WHOLE!
-            appleFrameIdx = 0;
-        }
 
         // 2. Draw Animated Apple
         ctx.save();
@@ -8604,7 +8608,7 @@ this.entities.push(
         // Draw "COMBO" label and number dynamically on the remaining apple flesh
         const centerRatios = [0.50, 0.47, 0.38, 0.32, 0.25];
         const numX = appleX + Math.round(appleW * centerRatios[Math.min(4, appleFrameIdx)]);
-        const displayNum = (comboChompAnim > 0) ? (this.lostComboValue || this.combo) : this.combo;
+        const displayNum = (comboChompAnim > 0) ? (this.lostComboValue || 0) : this.combo;
 
         if (appleFrameIdx < 5) {
             ctx.textAlign = 'center';
@@ -8653,27 +8657,31 @@ this.entities.push(
         const minPx = appleX + appleW - 14;
         const maxPx = w - pacmanW - 10;
 
-        let currentPacmanX = minPx + (maxPx - minPx) * timerRatio;
-        if (comboChompAnim > 0) {
-            // Pacman touches the apple and moves slightly deeper with each bite!
-            const biteDepth = Math.min(4, Math.floor((45 - comboChompAnim) / 9));
-            currentPacmanX = minPx - 3 - biteDepth * 2;
-        }
-
-        const hop = (comboChompAnim > 0) ? 0 : Math.abs(Math.sin(gameTime * 0.35)) * 3;
-        const pacmanY = shelfLine - pacmanH + 2 - hop;
-
-        // Pacman 10-frame ping-pong chomp cycle [0, 1, 2, 3, 4, 5, 4, 3, 2, 1]
-        const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
-        const chompSpeed = isDanger ? 0.45 : 0.28;
+        let currentPacmanX = minPx;
         let pacFrame = 0;
+
         if (comboChompAnim > 0) {
-            // Active biting during timeout: opens mouth wide, then snaps shut on each bite!
-            const sub = (comboChompAnim - 1) % 9;
-            pacFrame = (sub >= 4) ? 5 : 0;
+            // Finished eating: mouth chewing/closed as HUD retracts
+            currentPacmanX = minPx - 14;
+            pacFrame = (comboChompAnim > 15) ? 0 : 1;
+        } else if (comboTimer > 36) {
+            // Approaching from right ladder to apple:
+            const approachRatio = (comboTimer - 36) / 24; // 1.0 down to 0.0
+            currentPacmanX = minPx + (maxPx - minPx) * approachRatio;
+            const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
+            pacFrame = chompCycle[Math.floor(gameTime * 0.28) % chompCycle.length];
         } else {
-            pacFrame = chompCycle[Math.floor(gameTime * chompSpeed) % chompCycle.length];
+            // Actively eating the apple! Touching the bite mark at each stage:
+            const biteOffsets = [0, -2, -5, -8, -11];
+            currentPacmanX = minPx + biteOffsets[appleFrameIdx];
+
+            // Open mouth wide, then bite shut on each bite:
+            const biteSub = (36 - comboTimer) % 9;
+            pacFrame = (biteSub < 4.5) ? 5 : 0;
         }
+
+        const hop = (comboTimer <= 36 || comboChompAnim > 0) ? 0 : Math.abs(Math.sin(gameTime * 0.35)) * 3;
+        const pacmanY = shelfLine - pacmanH + 2 - hop;
 
         ctx.save();
         ctx.translate(currentPacmanX, pacmanY);
@@ -8691,18 +8699,35 @@ this.entities.push(
         }
         ctx.restore(); // Pacman restored
 
-        // 4. Chomp Effect when biting on timeout
-        if (comboChompAnim > 4 && ((comboChompAnim - 1) % 9 < 4)) {
-            ctx.save();
-            ctx.translate(appleX + appleW * 0.72, shelfLine - appleH * 0.75);
-            ctx.rotate(-0.1);
+        // 4. Visual Effects
+        // "CHOMP!" effect while biting
+        if (comboTimer <= 36 && comboTimer > 0) {
+            const biteSub = (36 - comboTimer) % 9;
+            if (biteSub < 3.2) {
+                ctx.save();
+                ctx.translate(appleX + appleW * 0.72, shelfLine - appleH * 0.75);
+                ctx.rotate(-0.1);
+                ctx.font = '900 13px "Impact", "Arial Black", sans-serif';
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#000000';
+                ctx.strokeText('CHOMP!', 0, 0);
+                ctx.fillStyle = isDanger ? '#ff1744' : '#ff9100';
+                ctx.fillText('CHOMP!', 0, 0);
+                ctx.restore();
+            }
+        }
 
-            ctx.font = '900 13px "Impact", "Arial Black", sans-serif';
+        // Combo Break effect when finished eating!
+        if (comboChompAnim > 10) {
+            ctx.save();
+            ctx.translate(appleX + appleW * 0.45, shelfLine - appleH * 0.65);
+            ctx.rotate(-0.08);
+            ctx.font = '900 14px "Impact", "Arial Black", sans-serif';
             ctx.lineWidth = 3;
             ctx.strokeStyle = '#000000';
-            ctx.strokeText('CHOMP!', 0, 0);
+            ctx.strokeText('COMBO LOST!', 0, 0);
             ctx.fillStyle = '#ff1744';
-            ctx.fillText('CHOMP!', 0, 0);
+            ctx.fillText('COMBO LOST!', 0, 0);
             ctx.restore();
         }
 
