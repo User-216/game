@@ -234,10 +234,22 @@ class Game {
         // User Hand-Drawn Combo HUD Sprites
         this.userComboFrameImg = new Image();
         this.userComboFrameImg.src = 'spr_combo_user_frame.png';
-        this.userComboAppleImg = new Image();
-        this.userComboAppleImg.src = 'spr_combo_user_apple.png';
-        this.userComboPacmanImg = new Image();
-        this.userComboPacmanImg.src = 'spr_combo_user_pacman.png';
+
+        // Animated Apple Sprites (spr_apple_0.png .. spr_apple_5.png)
+        this.userComboAppleImgs = [];
+        for (let i = 0; i < 6; i++) {
+            const img = new Image();
+            img.src = `spr_apple/spr_apple_${i}.png`;
+            this.userComboAppleImgs.push(img);
+        }
+
+        // Animated Pacman Sprites (spr_pacman1.png .. spr_pacman6.png)
+        this.userComboPacmanImgs = [];
+        for (let i = 1; i <= 6; i++) {
+            const img = new Image();
+            img.src = `spr_pacman/spr_pacman${i}.png`;
+            this.userComboPacmanImgs.push(img);
+        }
 
         this.timerBarImg = new Image();
         this.timerBarImg.src = '이미지/spr_timer_bar.png';
@@ -8536,13 +8548,35 @@ this.entities.push(
             ctx.drawImage(this.userComboFrameImg, 0, 0, w, h);
         }
 
-        const shelfLine = Math.round(414 * scale);
-        const appleW = Math.round(205 * scale);
-        const appleH = Math.round(187 * scale);
-        const appleX = Math.round(48 * scale);
-        const appleY = shelfLine - appleH + Math.round(2 * scale);
+        const shelfLine = Math.round(414 * scale); // ~157px
 
-        // 2. Draw User's Hand-Drawn Apple
+        // Determine Apple frame (0 to 5) based on combo timer or chomp animation
+        // Source crop inside 184x174 canvas:
+        const aCropX = 40, aCropY = 78, aCropW = 66, aCropH = 68;
+        const appleW = Math.round(72);
+        const appleH = Math.round(75);
+        const appleX = Math.round(18);
+        const appleY = shelfLine - appleH + 2;
+
+        let appleFrameIdx = 0;
+        if (comboChompAnim > 0) {
+            // Chomp sequence on timeout: from 36 down to 0
+            if (comboChompAnim >= 28) appleFrameIdx = 1;
+            else if (comboChompAnim >= 21) appleFrameIdx = 2;
+            else if (comboChompAnim >= 14) appleFrameIdx = 3;
+            else if (comboChompAnim >= 7) appleFrameIdx = 4;
+            else appleFrameIdx = 5; // completely eaten
+        } else {
+            // Health/timer based progression (0..4 intact down to core)
+            if (timerRatio >= 0.8) appleFrameIdx = 0;
+            else if (timerRatio >= 0.6) appleFrameIdx = 1;
+            else if (timerRatio >= 0.4) appleFrameIdx = 2;
+            else if (timerRatio >= 0.2) appleFrameIdx = 3;
+            else if (timerRatio > 0.0) appleFrameIdx = 4;
+            else appleFrameIdx = 5;
+        }
+
+        // 2. Draw Animated Apple
         ctx.save();
         let appleShakeX = 0;
         if (isDanger) {
@@ -8556,25 +8590,46 @@ this.entities.push(
         ctx.scale(bScale, 2.0 - bScale);
         ctx.translate(-appleCenterX, -appleBottomY);
 
-        if (this.userComboAppleImg && this.userComboAppleImg.complete && this.userComboAppleImg.naturalWidth > 0) {
-            ctx.drawImage(this.userComboAppleImg, appleX, appleY, appleW, appleH);
+        if (appleFrameIdx < 5 && this.userComboAppleImgs && this.userComboAppleImgs[appleFrameIdx]) {
+            const aImg = this.userComboAppleImgs[appleFrameIdx];
+            if (aImg && aImg.complete && aImg.naturalWidth > 0) {
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(aImg, aCropX, aCropY, aCropW, aCropH, appleX, appleY, appleW, appleH);
+            }
         }
 
-        // Draw Dynamic Combo Count Number inside the user's hand-drawn apple
-        const numX = appleX + appleW / 2;
-        const numY = appleY + appleH * 0.74;
+        // Draw "COMBO" label and number dynamically on the remaining apple flesh
+        const centerRatios = [0.50, 0.47, 0.38, 0.32, 0.25];
+        const numX = appleX + Math.round(appleW * centerRatios[Math.min(4, appleFrameIdx)]);
         const displayNum = (comboChompAnim > 0) ? (this.lostComboValue || this.combo) : this.combo;
 
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = 'bold 22px "Arial Black", "Impact", sans-serif';
-        ctx.fillStyle = (comboChompAnim > 0) ? '#d50000' : '#000000';
-        ctx.fillText(displayNum.toString(), numX, numY);
+        if (appleFrameIdx < 5) {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // "COMBO" label
+            if (appleFrameIdx < 4) {
+                ctx.font = '900 11px "Outfit", "Arial Black", sans-serif';
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#000000';
+                ctx.strokeText('COMBO', numX, appleY + appleH * 0.44);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('COMBO', numX, appleY + appleH * 0.44);
+            }
+
+            // Combo count number
+            ctx.font = '900 20px "Outfit", "Arial Black", sans-serif';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText(displayNum.toString(), numX, appleY + appleH * 0.72);
+            ctx.fillStyle = (comboChompAnim > 0) ? '#ff5252' : (isDanger ? '#ffeb3b' : '#ffffff');
+            ctx.fillText(displayNum.toString(), numX, appleY + appleH * 0.72);
+        }
 
         // Danger Sweat Droplet
-        if (isDanger) {
+        if (isDanger && appleFrameIdx < 5) {
             ctx.save();
-            ctx.translate(appleX + Math.round(10 * scale), appleY + Math.round(34 * scale));
+            ctx.translate(appleX + Math.round(12), appleY + Math.round(18));
             ctx.fillStyle = '#4fc3f7';
             ctx.beginPath();
             ctx.moveTo(0, -6);
@@ -8588,19 +8643,27 @@ this.entities.push(
         }
         ctx.restore(); // Apple restored
 
-        // 3. Draw User's Hand-Drawn Pac-Man
-        const pacmanW = Math.round(145 * scale);
-        const pacmanH = Math.round(150 * scale);
-        const minPx = appleX + appleW - Math.round(40 * scale);
-        const maxPx = w - pacmanW - Math.round(12 * scale);
+        // 3. Draw Animated Pac-Man
+        const pCropX = 18, pCropY = 19, pCropW = 62, pCropH = 64;
+        const pacmanW = Math.round(65);
+        const pacmanH = Math.round(67);
+        const minPx = appleX + appleW - 14;
+        const maxPx = w - pacmanW - 10;
 
         let currentPacmanX = minPx + (maxPx - minPx) * timerRatio;
         if (comboChompAnim > 0) {
-            currentPacmanX = minPx - Math.round(6 * scale); // Bites into apple!
+            currentPacmanX = minPx - 4; // Bites into apple on combo timeout!
         }
 
         const hop = (comboChompAnim > 0) ? 0 : Math.abs(Math.sin(gameTime * 0.35)) * 3;
-        const pacmanY = shelfLine - pacmanH + Math.round(2 * scale) - hop;
+        const pacmanY = shelfLine - pacmanH + 2 - hop;
+
+        // Pacman 10-frame ping-pong chomp cycle [0, 1, 2, 3, 4, 5, 4, 3, 2, 1]
+        const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
+        const chompSpeed = isDanger ? 0.45 : 0.28;
+        let pacFrame = (comboChompAnim > 0)
+            ? (comboChompAnim > 16 ? 5 : 0) // Wide open chomp then shut mouth
+            : chompCycle[Math.floor(gameTime * chompSpeed) % chompCycle.length];
 
         ctx.save();
         ctx.translate(currentPacmanX, pacmanY);
@@ -8609,8 +8672,12 @@ this.entities.push(
             ctx.rotate((Math.random() - 0.5) * 0.2);
         }
 
-        if (this.userComboPacmanImg && this.userComboPacmanImg.complete && this.userComboPacmanImg.naturalWidth > 0) {
-            ctx.drawImage(this.userComboPacmanImg, 0, 0, pacmanW, pacmanH);
+        if (this.userComboPacmanImgs && this.userComboPacmanImgs[pacFrame]) {
+            const pImg = this.userComboPacmanImgs[pacFrame];
+            if (pImg && pImg.complete && pImg.naturalWidth > 0) {
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(pImg, pCropX, pCropY, pCropW, pCropH, 0, 0, pacmanW, pacmanH);
+            }
         }
         ctx.restore(); // Pacman restored
 
