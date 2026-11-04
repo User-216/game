@@ -1592,12 +1592,49 @@ class Player {
                                     }
                                 }
                             }
+                            // User request: "야 플레이어가 slope있으면 벽에닿아도 벽타기 가능하게 해줘 bump 말고"
+                            let hasSlope = this.isOnSlope || (this.standingOnEntity && (this.standingOnEntity instanceof Slope || this.standingOnEntity.type === 'left-up' || this.standingOnEntity.type === 'right-up' || this.standingOnEntity.type === 'slope'));
+                            if (!hasSlope && entities) {
+                                for (let j = 0; j < entities.length; j++) {
+                                    const ent = entities[j];
+                                    if (!ent || ent.isDestroyed) continue;
+                                    if (ent instanceof Slope || ent.type === 'left-up' || ent.type === 'right-up' || ent.type === 'slope') {
+                                        const inX = (this.x + this.width >= ent.x - 16 && this.x <= ent.x + ent.width + 16);
+                                        const inY = (this.y + this.height >= ent.y - 32 && this.y <= ent.y + ent.height + 32);
+                                        if (inX && inY) {
+                                            hasSlope = true;
+                                            break;
+                                        }
+                                        const touchesWallX = Math.abs(ent.x + ent.width - entity.x) <= 8 || Math.abs(entity.x + entity.width - ent.x) <= 8;
+                                        const touchesWallY = (ent.y < entity.y + entity.height + 24 && ent.y + ent.height > entity.y - 24);
+                                        const playerNearWall = (this.x + this.width >= entity.x - 32 && this.x <= entity.x + entity.width + 32);
+                                        if (touchesWallX && touchesWallY && playerNearWall) {
+                                            hasSlope = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
                             const isAirborne = !isGroundedOrOnFloor;
-                            if (isAirborne && !this.isTumbling) {
-                                // 공중에서 벽에 부딪힐 때 (구르기 중이 아닐 때): 기존대로 벽 타기 (Wall Climb)
+                            if ((isAirborne || hasSlope) && (!this.isTumbling || hasSlope)) {
+                                // 공중에서 벽에 부딪히거나, slope에 있을 때: 벽 타기 (Wall Climb)
                                 this.isClimbing = true;
-                                if (this.isSuplexGrabbing) {
+                                this.isRunning = true;
+                                this.isGrounded = false;
+                                this.wasGrounded = false;
+                                this.isOnSlope = false;
+                                this.standingOnEntity = null;
+                                if (this.isSuplexGrabbing || hasSlope) {
                                     this.wallClimbGraceTimer = 10;
+                                }
+                                if (this.isTumbling) {
+                                    this.isTumbling = false;
+                                    if (this.height === 23) {
+                                        this.height = 45;
+                                        this.y -= 22;
+                                        this.mask_index = 'spr_player_mask';
+                                    }
                                 }
                                 this.isSuplexGrabbing = false;
                                 this.climbSide = resolution.amount < 0 ? 1 : -1;
