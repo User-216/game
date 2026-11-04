@@ -254,6 +254,8 @@ class Game {
         this.comboDebris = [];
         this.appleBiteShake = 0;
         this.prevAppleFrameIdx = 0;
+        this.comboUIPosY = -240;
+        this.comboUIAlpha = 0;
 
         this.timerBarImg = new Image();
         this.timerBarImg.src = '이미지/spr_timer_bar.png';
@@ -5278,7 +5280,7 @@ this.entities.push(
         this.comboChompAnim = 0;
         this.pacmanShockTimer = 0;
         this.comboUIAlpha = 0;
-        this.comboUIPosY = -120;
+        this.comboUIPosY = -240;
         this.prevCombo = 0;
         this.whiteCircle = null;
         this.whiteCircleCaughtBlackTimer = null;
@@ -6576,17 +6578,23 @@ this.entities.push(
             }
         }
 
-        const isComboActive = (this.combo > 0 || this.comboChompAnim > 0) && this.currentRoom !== 'rm_rank';
+        const isComboActive = this.combo > 0 && this.currentRoom !== 'rm_rank';
         if (isComboActive) {
-            this.comboUIAlpha = Math.min(1.0, (this.comboUIAlpha || 0) + 0.1);
-            this.comboUIPosY = (this.comboUIPosY !== undefined) ? this.comboUIPosY + (0 - this.comboUIPosY) * 0.18 : 0;
+            this.comboUIAlpha = Math.min(1.0, (this.comboUIAlpha || 0) + 0.15);
+            this.comboUIPosY = (this.comboUIPosY !== undefined) ? this.comboUIPosY + (0 - this.comboUIPosY) * 0.22 : 0;
         } else {
-            this.comboUIAlpha = Math.max(0.0, (this.comboUIAlpha || 0) - 0.08);
-            this.comboUIPosY = (this.comboUIPosY !== undefined) ? this.comboUIPosY + (-120 - this.comboUIPosY) * 0.12 : -120;
-            if (this.comboUIAlpha <= 0.01) {
+            // As soon as combo breaks (combo === 0), IMMEDIATELY slide up fast off-screen!
+            this.comboUIPosY = (this.comboUIPosY !== undefined) ? this.comboUIPosY + (-240 - this.comboUIPosY) * 0.22 : -240;
+            if (this.comboUIPosY < -180) {
+                this.comboUIAlpha = Math.max(0.0, (this.comboUIAlpha || 0) - 0.12);
+            }
+            if (this.comboUIAlpha <= 0.01 || this.comboUIPosY <= -235) {
+                this.comboUIAlpha = 0;
+                this.comboUIPosY = -240;
                 this.comboDebris = [];
                 this.appleBiteShake = 0;
                 this.prevAppleFrameIdx = 0;
+                this.comboChompAnim = 0;
             }
         }
         
