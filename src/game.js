@@ -8669,9 +8669,9 @@ this.entities.push(
             // As the apple shrinks from right to left, Pacman stays TOUCHING the bite mark!
             currentPacmanX = 14 + 54 * timerRatio;
 
-            // Mouth continuously chomping into the apple
+            // Mouth continuously chomping into the apple at a fast, steady speed
             const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
-            const chompSpeed = isDanger ? 0.45 : 0.30;
+            const chompSpeed = 0.55; // Fast and constant chomping rate (no speed-up when eating down)
             pacFrame = chompCycle[Math.floor(gameTime * chompSpeed) % chompCycle.length];
         }
 
