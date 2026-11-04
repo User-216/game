@@ -5237,6 +5237,12 @@ this.entities.push(
         this.score = 0;
         this.combo = 0;
         this.comboTimer = 0;
+        this.comboBounce = 1.0;
+        this.comboChompAnim = 0;
+        this.pacmanShockTimer = 0;
+        this.comboUIAlpha = 0;
+        this.comboUIPosY = -120;
+        this.prevCombo = 0;
         this.whiteCircle = null;
         this.whiteCircleCaughtBlackTimer = null;
         this.escapeGrayscaleFactor = 0;
@@ -6445,12 +6451,47 @@ this.entities.push(
             }
         }
 
-        // Combo Timer Logic
+        // Combo Timer & Animated Apple & Pac-Man HUD Logic
+        if (this.combo > (this.prevCombo || 0)) {
+            this.comboBounce = 1.35;
+            this.pacmanShockTimer = 16;
+            this.comboTimer = 60;
+            this.comboChompAnim = 0;
+        }
+        this.prevCombo = this.combo;
+
+        if (this.comboBounce > 1.0) {
+            this.comboBounce += (1.0 - this.comboBounce) * 0.15;
+            if (this.comboBounce < 1.01) this.comboBounce = 1.0;
+        }
+
+        if (this.pacmanShockTimer > 0) {
+            this.pacmanShockTimer--;
+        }
+
         if (this.comboTimer > 0) {
             this.comboTimer -= 0.2;
             if (this.comboTimer <= 0) {
+                if (this.combo > 0) {
+                    this.comboChompAnim = 36;
+                    this.lostComboValue = this.combo;
+                }
+                this.comboTimer = 0;
                 this.combo = 0;
             }
+        }
+
+        if (this.comboChompAnim > 0) {
+            this.comboChompAnim--;
+        }
+
+        const isComboActive = (this.combo > 0 || this.comboChompAnim > 0) && this.currentRoom !== 'rm_rank';
+        if (isComboActive) {
+            this.comboUIAlpha = Math.min(1.0, (this.comboUIAlpha || 0) + 0.1);
+            this.comboUIPosY = (this.comboUIPosY !== undefined) ? this.comboUIPosY + (0 - this.comboUIPosY) * 0.18 : 0;
+        } else {
+            this.comboUIAlpha = Math.max(0.0, (this.comboUIAlpha || 0) - 0.08);
+            this.comboUIPosY = (this.comboUIPosY !== undefined) ? this.comboUIPosY + (-120 - this.comboUIPosY) * 0.12 : -120;
         }
         
         for (let i = this.entities.length - 1; i >= 0; i--) {
@@ -8135,39 +8176,8 @@ this.entities.push(
             this.ctx.restore();
         }
 
-        // Draw combo
-        if (this.combo > 0 && this.currentRoom !== 'rm_rank') {
-            this.ctx.save();
-            this.ctx.textAlign = 'right';
-            
-            // Wiggle effect based on timer
-            const wiggleX = Math.sin(Date.now() / 50) * 2;
-            const wiggleY = Math.cos(Date.now() / 50) * 2;
-            
-            this.ctx.translate(this.canvas.width - 50 + wiggleX, 150 + wiggleY);
-            
-            this.ctx.fillStyle = '#ff0000';
-            this.ctx.strokeStyle = '#000000';
-            this.ctx.lineWidth = 4;
-            this.ctx.font = 'bold 32px Arial';
-            
-            const comboText = `${this.combo} COMBO!`;
-            this.ctx.strokeText(comboText, 0, 0);
-            this.ctx.fillText(comboText, 0, 0);
-            
-            // Draw combo timer bar
-            const barWidth = 150;
-            const barHeight = 10;
-            const timerRatio = this.comboTimer / 60;
-            
-            this.ctx.fillStyle = '#000';
-            this.ctx.fillRect(-barWidth, 15, barWidth, barHeight);
-            
-            this.ctx.fillStyle = `hsl(${timerRatio * 120}, 100%, 50%)`;
-            this.ctx.fillRect(-barWidth, 15, barWidth * timerRatio, barHeight);
-            
-            this.ctx.restore();
-        }
+        // Draw Animated Apple & Pac-Man Combo Meter HUD
+        this.drawComboMeter(this.ctx);
 
         // Draw Pizza Time Escape Clock & Timer Bar
         if (this.escape && typeof this.escapeTimer === 'number' && !this.timerBarHidden && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
@@ -8477,6 +8487,427 @@ this.entities.push(
         if (this.debugConsole && this.debugConsole.open) {
             this.renderDebugConsole();
         }
+    }
+
+    drawComboMeter(ctx) {
+        if (this.currentRoom === 'rm_rank') return;
+        const alpha = Math.max(0, Math.min(1, this.comboUIAlpha !== undefined ? this.comboUIAlpha : (this.combo > 0 ? 1 : 0)));
+        if (alpha <= 0.01) return;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        const w = 280;
+        const h = 115;
+        const posX = this.canvas.width - w - 20;
+        const posY = 18 + (this.comboUIPosY || 0);
+        ctx.translate(posX, posY);
+
+        const shelfY = 88;
+        const shelfLeft = 14;
+        const shelfRight = w - 14;
+        const postW = 16;
+        const postH = 74;
+        const postY = shelfY - postH;
+
+        const timerRatio = Math.max(0, Math.min(1, (this.comboTimer || 0) / 60));
+        const comboChompAnim = this.comboChompAnim || 0;
+        const isDanger = timerRatio < 0.25 && comboChompAnim === 0;
+        const gameTime = this.gameTime || (Date.now() / 16.6);
+
+        // --- 1. Background Frame Backdrop ---
+        ctx.save();
+        ctx.fillStyle = 'rgba(10, 10, 18, 0.45)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(shelfLeft - 6, postY - 8, (shelfRight - shelfLeft) + 12, postH + 30, 8);
+        } else {
+            ctx.rect(shelfLeft - 6, postY - 8, (shelfRight - shelfLeft) + 12, postH + 30);
+        }
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        // --- 2. Striped Ladder Posts (Left & Right) as in user's sketch ---
+        const drawPost = (px, py) => {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(px + 3, py + 3, postW, postH);
+
+            const segments = 7;
+            const segH = postH / segments;
+            for (let i = 0; i < segments; i++) {
+                ctx.fillStyle = (i % 2 === 0) ? '#e52d27' : '#fff4e6';
+                ctx.fillRect(px, py + i * segH, postW, segH);
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(px, py + (i + 1) * segH - 2, postW, 2);
+            }
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+            ctx.strokeRect(px, py, postW, postH);
+
+            const knobX = px + postW / 2;
+            const knobY = py - 3;
+            ctx.beginPath();
+            ctx.arc(knobX, knobY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffc107';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(knobX - 2.5, knobY - 2.5, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+
+            ctx.restore();
+        };
+
+        drawPost(shelfLeft, postY);
+        drawPost(shelfRight - postW, postY);
+
+        // --- 3. Top Crossbar / Wire ---
+        ctx.save();
+        ctx.strokeStyle = '#2c1808';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(shelfLeft + postW / 2, postY - 3);
+        ctx.lineTo(shelfRight - postW / 2, postY - 3);
+        ctx.stroke();
+        ctx.restore();
+
+        // --- 4. Shelf Platform (As in sketch: double bottom ledge) ---
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(shelfLeft - 8, shelfY + 16, (shelfRight - shelfLeft) + 16, 6);
+
+        ctx.fillStyle = '#5c3012';
+        ctx.fillRect(shelfLeft - 4, shelfY + 12, (shelfRight - shelfLeft) + 8, 5);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(shelfLeft - 4, shelfY + 12, (shelfRight - shelfLeft) + 8, 5);
+
+        ctx.fillStyle = '#7a3e14';
+        ctx.fillRect(shelfLeft - 6, shelfY + 4, (shelfRight - shelfLeft) + 12, 9);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(shelfLeft - 6, shelfY + 4, (shelfRight - shelfLeft) + 12, 9);
+
+        ctx.fillStyle = '#b3682a';
+        ctx.fillRect(shelfLeft - 8, shelfY, (shelfRight - shelfLeft) + 16, 5);
+        ctx.fillStyle = '#e09852';
+        ctx.fillRect(shelfLeft - 7, shelfY, (shelfRight - shelfLeft) + 14, 1.8);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(shelfLeft - 8, shelfY, (shelfRight - shelfLeft) + 16, 5);
+
+        // Track Groove
+        const trackX1 = shelfLeft + postW + 4;
+        const trackX2 = shelfRight - postW - 4;
+        ctx.fillStyle = '#3a1a06';
+        ctx.fillRect(trackX1, shelfY + 1, trackX2 - trackX1, 3);
+
+        // Track Pellets (Classic Pac-Man dots in FRONT of Pac-Man)
+        const appleX = shelfLeft + postW + 38;
+        const pacmanMinX = appleX + 38;
+        const pacmanMaxX = shelfRight - postW - 24;
+        const currentPacmanX = (comboChompAnim > 0) 
+            ? pacmanMinX - 8 
+            : pacmanMinX + (pacmanMaxX - pacmanMinX) * timerRatio;
+
+        for (let dotX = pacmanMinX; dotX < pacmanMaxX + 5; dotX += 22) {
+            if (dotX < currentPacmanX - 10) {
+                ctx.fillStyle = '#ffe600';
+                ctx.beginPath();
+                ctx.arc(dotX, shelfY - 1, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+
+        // --- 5. Apple (사과) ---
+        ctx.save();
+        let appleShakeX = 0;
+        let appleShakeY = 0;
+        if (isDanger) {
+            appleShakeX = (Math.sin(gameTime * 0.9) * 2.5);
+            appleShakeY = (Math.cos(gameTime * 1.1) * 1.8);
+        }
+        const appleCenterY = shelfY - 28;
+        ctx.translate(appleX + appleShakeX, appleCenterY + appleShakeY);
+
+        const bScale = this.comboBounce || 1.0;
+        ctx.scale(bScale, 2.0 - bScale);
+
+        const r = 27;
+
+        // Stem
+        ctx.save();
+        ctx.strokeStyle = '#5a2e0e';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 0.55);
+        ctx.quadraticCurveTo(-3, -r * 1.15, -7, -r * 1.2);
+        ctx.stroke();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        // Green Leaf with vein
+        ctx.fillStyle = '#43a047';
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 0.7);
+        ctx.quadraticCurveTo(10, -r * 1.3, 18, -r * 0.95);
+        ctx.quadraticCurveTo(10, -r * 0.65, 0, -r * 0.7);
+        ctx.fill();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+        ctx.strokeStyle = '#2e7d32';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(2, -r * 0.72);
+        ctx.lineTo(13, -r * 0.98);
+        ctx.stroke();
+        ctx.restore();
+
+        const makeApplePath = () => {
+            ctx.beginPath();
+            ctx.moveTo(0, -r * 0.55);
+            ctx.bezierCurveTo(r * 0.58, -r * 1.18, r * 1.26, -r * 0.25, r * 1.16, r * 0.45);
+            ctx.bezierCurveTo(r * 1.05, r * 0.96, r * 0.35, r * 1.16, 0, r * 0.88);
+            ctx.bezierCurveTo(-r * 0.35, r * 1.16, -r * 1.05, r * 0.96, -r * 1.16, r * 0.45);
+            ctx.bezierCurveTo(-r * 1.26, -r * 0.25, -r * 0.58, -r * 1.18, 0, -r * 0.55);
+            ctx.closePath();
+        };
+
+        const appleGrad = ctx.createRadialGradient(-5, -6, 4, 0, 0, r * 1.25);
+        appleGrad.addColorStop(0, '#ff4d4d');
+        appleGrad.addColorStop(0.65, '#e52020');
+        appleGrad.addColorStop(1, '#9e0808');
+
+        makeApplePath();
+        ctx.fillStyle = appleGrad;
+        ctx.fill();
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.46, -r * 0.36, r * 0.32, r * 0.16, -0.65, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        if (comboChompAnim > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(r * 0.75, 2, 17, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff6dc';
+            ctx.fill();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = '#2c1204';
+            ctx.beginPath();
+            ctx.ellipse(r * 0.56, 1, 3, 1.8, 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(r * 0.62, 8, 2.5, 1.5, -0.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        makeApplePath();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3.5;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // "COMBO" text
+        ctx.font = '900 12px "Impact", "Arial Black", sans-serif';
+        ctx.lineWidth = 3.2;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText('COMBO', 0, -5);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('COMBO', 0, -5);
+
+        // Combo count number
+        const displayNum = (comboChompAnim > 0) ? (this.lostComboValue || this.combo) : this.combo;
+        ctx.font = '900 23px "Impact", "Arial Black", sans-serif';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText(displayNum.toString(), 0, 13);
+        ctx.fillStyle = (comboChompAnim > 0) ? '#ff5252' : '#ffeb3b';
+        ctx.fillText(displayNum.toString(), 0, 13);
+
+        if (isDanger) {
+            ctx.save();
+            ctx.translate(-r * 0.95, -r * 0.65);
+            ctx.fillStyle = '#4fc3f7';
+            ctx.beginPath();
+            ctx.moveTo(0, -8);
+            ctx.quadraticCurveTo(5, 0, 0, 4);
+            ctx.quadraticCurveTo(-5, 0, 0, -8);
+            ctx.fill();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.6;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.restore(); // Apple restored
+
+        // --- 6. Pac-Man (팩맨) ---
+        ctx.save();
+        const pacmanR = 19;
+        const hop = (comboChompAnim > 0) ? 0 : Math.abs(Math.sin(gameTime * 0.35)) * 3.5;
+        const pacmanY = shelfY - pacmanR - hop + 1;
+
+        ctx.translate(currentPacmanX, pacmanY);
+
+        if (this.pacmanShockTimer > 0) {
+            ctx.rotate((Math.random() - 0.5) * 0.3);
+        }
+
+        let mouthAngle = 0.5;
+        if (comboChompAnim > 0) {
+            mouthAngle = Math.abs(Math.sin((36 - comboChompAnim) * 0.5)) * 0.25;
+        } else if (isDanger) {
+            mouthAngle = Math.abs(Math.sin(gameTime * 0.6)) * 0.85;
+        } else {
+            mouthAngle = Math.abs(Math.sin(gameTime * 0.25)) * 0.65;
+        }
+
+        ctx.beginPath();
+        ctx.arc(0, 0, pacmanR, Math.PI + mouthAngle, Math.PI - mouthAngle, false);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+
+        const pacGrad = ctx.createRadialGradient(-3, -3, 2, 0, 0, pacmanR);
+        pacGrad.addColorStop(0, '#fff59d');
+        pacGrad.addColorStop(0.65, '#ffd600');
+        pacGrad.addColorStop(1, '#f57f17');
+        ctx.fillStyle = pacGrad;
+        ctx.fill();
+
+        ctx.save();
+        ctx.clip();
+        ctx.fillStyle = '#7a0030';
+        ctx.beginPath();
+        ctx.arc(0, 0, pacmanR * 0.85, Math.PI - mouthAngle, Math.PI + mouthAngle, false);
+        ctx.fill();
+        ctx.fillStyle = '#ff4081';
+        ctx.beginPath();
+        ctx.arc(-pacmanR * 0.35, pacmanR * 0.2, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, pacmanR, Math.PI + mouthAngle, Math.PI - mouthAngle, false);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3.2;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        const eyeX = -3;
+        const eyeY = -8;
+        if (this.pacmanShockTimer > 0) {
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(eyeX - 3.5, eyeY - 3.5); ctx.lineTo(eyeX + 3.5, eyeY + 3.5);
+            ctx.moveTo(eyeX + 3.5, eyeY - 3.5); ctx.lineTo(eyeX - 3.5, eyeY + 3.5);
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(eyeX, eyeY, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.8;
+            ctx.stroke();
+
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(eyeX - 1.8, eyeY, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(eyeX - 2.2, eyeY - 1, 1.0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (isDanger) {
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(eyeX - 4.5, eyeY - 4.5);
+                ctx.lineTo(eyeX + 4, eyeY - 7);
+                ctx.stroke();
+            }
+        }
+
+        ctx.restore(); // Pac-Man restored
+
+        // --- 7. Chomp Comic Pop ("CHOMP!") with Comic Star Bubble ---
+        if (comboChompAnim > 10) {
+            ctx.save();
+            ctx.translate(appleX + 30, shelfY - 58);
+            ctx.rotate(-0.12);
+
+            ctx.fillStyle = '#fff176';
+            ctx.beginPath();
+            const spikes = 8;
+            const outerR = 26;
+            const innerR = 17;
+            for (let i = 0; i < spikes * 2; i++) {
+                const rad = (i % 2 === 0) ? outerR : innerR;
+                const angle = (i * Math.PI) / spikes;
+                const sx = Math.cos(angle) * rad;
+                const sy = Math.sin(angle) * (rad * 0.7);
+                if (i === 0) ctx.moveTo(sx, sy);
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            ctx.font = '900 12px "Impact", "Arial Black", sans-serif';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText('CHOMP!', 0, 1);
+            ctx.fillStyle = '#d50000';
+            ctx.fillText('CHOMP!', 0, 1);
+
+            for (let i = 0; i < 5; i++) {
+                const cx = (Math.sin(i * 1.8) * 16);
+                const cy = (Math.cos(i * 1.5) * 14);
+                ctx.fillStyle = (i % 2 === 0) ? '#ff4b4b' : '#fff4d4';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 2.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        ctx.restore(); // Widget restored
     }
 
     renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, targetLayer = 1) {
@@ -9399,7 +9830,7 @@ this.entities.push(
                     const amt = parseInt(args[0], 10);
                     if (isNaN(amt)) return 'Usage: give_combo <amount>';
                     game.combo = amt;
-                    game.comboTimer = 1;
+                    game.comboTimer = 60;
                     return `Combo set to ${amt}`;
                 }
             },
