@@ -231,6 +231,14 @@ class Game {
             this.bigFontRedImages.push(redImg);
         }
         
+        // User Hand-Drawn Combo HUD Sprites
+        this.userComboFrameImg = new Image();
+        this.userComboFrameImg.src = 'spr_combo_user_frame.png';
+        this.userComboAppleImg = new Image();
+        this.userComboAppleImg.src = 'spr_combo_user_apple.png';
+        this.userComboPacmanImg = new Image();
+        this.userComboPacmanImg.src = 'spr_combo_user_pacman.png';
+
         this.timerBarImg = new Image();
         this.timerBarImg.src = '이미지/spr_timer_bar.png';
         this.timerBarFillImg = new Image();
@@ -8497,413 +8505,114 @@ this.entities.push(
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        const w = 280;
-        const h = 115;
+        // Scale user's hand-drawn doodle HUD to fit neatly in upper right
+        const scale = 0.38;
+        const w = Math.round(500 * scale); // ~190px
+        const h = Math.round(495 * scale); // ~188px
         const posX = this.canvas.width - w - 20;
-        const posY = 18 + (this.comboUIPosY || 0);
+        const posY = 15 + (this.comboUIPosY || 0);
         ctx.translate(posX, posY);
-
-        const shelfY = 88;
-        const shelfLeft = 14;
-        const shelfRight = w - 14;
-        const postW = 16;
-        const postH = 74;
-        const postY = shelfY - postH;
 
         const timerRatio = Math.max(0, Math.min(1, (this.comboTimer || 0) / 60));
         const comboChompAnim = this.comboChompAnim || 0;
         const isDanger = timerRatio < 0.25 && comboChompAnim === 0;
         const gameTime = this.gameTime || (Date.now() / 16.6);
 
-        // --- 1. Background Frame Backdrop ---
-        ctx.save();
-        ctx.fillStyle = 'rgba(10, 10, 18, 0.45)';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(shelfLeft - 6, postY - 8, (shelfRight - shelfLeft) + 12, postH + 30, 8);
-        } else {
-            ctx.rect(shelfLeft - 6, postY - 8, (shelfRight - shelfLeft) + 12, postH + 30);
+        // 1. Draw User's Hand-Drawn Frame (Striped Ladder Poles & Bottom Shelf)
+        if (this.userComboFrameImg && this.userComboFrameImg.complete && this.userComboFrameImg.naturalWidth > 0) {
+            ctx.drawImage(this.userComboFrameImg, 0, 0, w, h);
         }
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
 
-        // --- 2. Striped Ladder Posts (Left & Right) as in user's sketch ---
-        const drawPost = (px, py) => {
-            ctx.save();
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.fillRect(px + 3, py + 3, postW, postH);
+        const shelfLine = Math.round(414 * scale);
+        const appleW = Math.round(205 * scale);
+        const appleH = Math.round(187 * scale);
+        const appleX = Math.round(48 * scale);
+        const appleY = shelfLine - appleH + Math.round(2 * scale);
 
-            const segments = 7;
-            const segH = postH / segments;
-            for (let i = 0; i < segments; i++) {
-                ctx.fillStyle = (i % 2 === 0) ? '#e52d27' : '#fff4e6';
-                ctx.fillRect(px, py + i * segH, postW, segH);
-                ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                ctx.fillRect(px, py + (i + 1) * segH - 2, postW, 2);
-            }
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 3;
-            ctx.lineJoin = 'round';
-            ctx.strokeRect(px, py, postW, postH);
-
-            const knobX = px + postW / 2;
-            const knobY = py - 3;
-            ctx.beginPath();
-            ctx.arc(knobX, knobY, 8, 0, Math.PI * 2);
-            ctx.fillStyle = '#ffc107';
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(knobX - 2.5, knobY - 2.5, 2.5, 0, Math.PI * 2);
-            ctx.fillStyle = '#ffffff';
-            ctx.fill();
-
-            ctx.restore();
-        };
-
-        drawPost(shelfLeft, postY);
-        drawPost(shelfRight - postW, postY);
-
-        // --- 3. Top Crossbar / Wire ---
-        ctx.save();
-        ctx.strokeStyle = '#2c1808';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(shelfLeft + postW / 2, postY - 3);
-        ctx.lineTo(shelfRight - postW / 2, postY - 3);
-        ctx.stroke();
-        ctx.restore();
-
-        // --- 4. Shelf Platform (As in sketch: double bottom ledge) ---
-        ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(shelfLeft - 8, shelfY + 16, (shelfRight - shelfLeft) + 16, 6);
-
-        ctx.fillStyle = '#5c3012';
-        ctx.fillRect(shelfLeft - 4, shelfY + 12, (shelfRight - shelfLeft) + 8, 5);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(shelfLeft - 4, shelfY + 12, (shelfRight - shelfLeft) + 8, 5);
-
-        ctx.fillStyle = '#7a3e14';
-        ctx.fillRect(shelfLeft - 6, shelfY + 4, (shelfRight - shelfLeft) + 12, 9);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(shelfLeft - 6, shelfY + 4, (shelfRight - shelfLeft) + 12, 9);
-
-        ctx.fillStyle = '#b3682a';
-        ctx.fillRect(shelfLeft - 8, shelfY, (shelfRight - shelfLeft) + 16, 5);
-        ctx.fillStyle = '#e09852';
-        ctx.fillRect(shelfLeft - 7, shelfY, (shelfRight - shelfLeft) + 14, 1.8);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(shelfLeft - 8, shelfY, (shelfRight - shelfLeft) + 16, 5);
-
-        // Track Groove
-        const trackX1 = shelfLeft + postW + 4;
-        const trackX2 = shelfRight - postW - 4;
-        ctx.fillStyle = '#3a1a06';
-        ctx.fillRect(trackX1, shelfY + 1, trackX2 - trackX1, 3);
-
-        // Track Pellets (Classic Pac-Man dots in FRONT of Pac-Man)
-        const appleX = shelfLeft + postW + 38;
-        const pacmanMinX = appleX + 38;
-        const pacmanMaxX = shelfRight - postW - 24;
-        const currentPacmanX = (comboChompAnim > 0) 
-            ? pacmanMinX - 8 
-            : pacmanMinX + (pacmanMaxX - pacmanMinX) * timerRatio;
-
-        for (let dotX = pacmanMinX; dotX < pacmanMaxX + 5; dotX += 22) {
-            if (dotX < currentPacmanX - 10) {
-                ctx.fillStyle = '#ffe600';
-                ctx.beginPath();
-                ctx.arc(dotX, shelfY - 1, 3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 1.2;
-                ctx.stroke();
-            }
-        }
-        ctx.restore();
-
-        // --- 5. Apple (사과) ---
+        // 2. Draw User's Hand-Drawn Apple
         ctx.save();
         let appleShakeX = 0;
-        let appleShakeY = 0;
         if (isDanger) {
-            appleShakeX = (Math.sin(gameTime * 0.9) * 2.5);
-            appleShakeY = (Math.cos(gameTime * 1.1) * 1.8);
+            appleShakeX = (Math.sin(gameTime * 0.9) * 2.2);
         }
-        const appleCenterY = shelfY - 28;
-        ctx.translate(appleX + appleShakeX, appleCenterY + appleShakeY);
 
         const bScale = this.comboBounce || 1.0;
+        const appleCenterX = appleX + appleW / 2;
+        const appleBottomY = shelfLine;
+        ctx.translate(appleCenterX + appleShakeX, appleBottomY);
         ctx.scale(bScale, 2.0 - bScale);
+        ctx.translate(-appleCenterX, -appleBottomY);
 
-        const r = 27;
-
-        // Stem
-        ctx.save();
-        ctx.strokeStyle = '#5a2e0e';
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(0, -r * 0.55);
-        ctx.quadraticCurveTo(-3, -r * 1.15, -7, -r * 1.2);
-        ctx.stroke();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1.8;
-        ctx.stroke();
-
-        // Green Leaf with vein
-        ctx.fillStyle = '#43a047';
-        ctx.beginPath();
-        ctx.moveTo(0, -r * 0.7);
-        ctx.quadraticCurveTo(10, -r * 1.3, 18, -r * 0.95);
-        ctx.quadraticCurveTo(10, -r * 0.65, 0, -r * 0.7);
-        ctx.fill();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.2;
-        ctx.stroke();
-        ctx.strokeStyle = '#2e7d32';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(2, -r * 0.72);
-        ctx.lineTo(13, -r * 0.98);
-        ctx.stroke();
-        ctx.restore();
-
-        const makeApplePath = () => {
-            ctx.beginPath();
-            ctx.moveTo(0, -r * 0.55);
-            ctx.bezierCurveTo(r * 0.58, -r * 1.18, r * 1.26, -r * 0.25, r * 1.16, r * 0.45);
-            ctx.bezierCurveTo(r * 1.05, r * 0.96, r * 0.35, r * 1.16, 0, r * 0.88);
-            ctx.bezierCurveTo(-r * 0.35, r * 1.16, -r * 1.05, r * 0.96, -r * 1.16, r * 0.45);
-            ctx.bezierCurveTo(-r * 1.26, -r * 0.25, -r * 0.58, -r * 1.18, 0, -r * 0.55);
-            ctx.closePath();
-        };
-
-        const appleGrad = ctx.createRadialGradient(-5, -6, 4, 0, 0, r * 1.25);
-        appleGrad.addColorStop(0, '#ff4d4d');
-        appleGrad.addColorStop(0.65, '#e52020');
-        appleGrad.addColorStop(1, '#9e0808');
-
-        makeApplePath();
-        ctx.fillStyle = appleGrad;
-        ctx.fill();
-
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.beginPath();
-        ctx.ellipse(-r * 0.46, -r * 0.36, r * 0.32, r * 0.16, -0.65, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        if (comboChompAnim > 0) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(r * 0.75, 2, 17, 0, Math.PI * 2);
-            ctx.fillStyle = '#fff6dc';
-            ctx.fill();
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            ctx.fillStyle = '#2c1204';
-            ctx.beginPath();
-            ctx.ellipse(r * 0.56, 1, 3, 1.8, 0.25, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(r * 0.62, 8, 2.5, 1.5, -0.2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+        if (this.userComboAppleImg && this.userComboAppleImg.complete && this.userComboAppleImg.naturalWidth > 0) {
+            ctx.drawImage(this.userComboAppleImg, appleX, appleY, appleW, appleH);
         }
 
-        makeApplePath();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3.5;
-        ctx.lineJoin = 'round';
-        ctx.stroke();
+        // Draw Dynamic Combo Count Number inside the user's hand-drawn apple
+        const numX = appleX + appleW / 2;
+        const numY = appleY + appleH * 0.74;
+        const displayNum = (comboChompAnim > 0) ? (this.lostComboValue || this.combo) : this.combo;
 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        ctx.font = 'bold 22px "Arial Black", "Impact", sans-serif';
+        ctx.fillStyle = (comboChompAnim > 0) ? '#d50000' : '#000000';
+        ctx.fillText(displayNum.toString(), numX, numY);
 
-        // "COMBO" text
-        ctx.font = '900 12px "Impact", "Arial Black", sans-serif';
-        ctx.lineWidth = 3.2;
-        ctx.strokeStyle = '#000000';
-        ctx.strokeText('COMBO', 0, -5);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('COMBO', 0, -5);
-
-        // Combo count number
-        const displayNum = (comboChompAnim > 0) ? (this.lostComboValue || this.combo) : this.combo;
-        ctx.font = '900 23px "Impact", "Arial Black", sans-serif';
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#000000';
-        ctx.strokeText(displayNum.toString(), 0, 13);
-        ctx.fillStyle = (comboChompAnim > 0) ? '#ff5252' : '#ffeb3b';
-        ctx.fillText(displayNum.toString(), 0, 13);
-
+        // Danger Sweat Droplet
         if (isDanger) {
             ctx.save();
-            ctx.translate(-r * 0.95, -r * 0.65);
+            ctx.translate(appleX + Math.round(10 * scale), appleY + Math.round(34 * scale));
             ctx.fillStyle = '#4fc3f7';
             ctx.beginPath();
-            ctx.moveTo(0, -8);
-            ctx.quadraticCurveTo(5, 0, 0, 4);
-            ctx.quadraticCurveTo(-5, 0, 0, -8);
+            ctx.moveTo(0, -6);
+            ctx.quadraticCurveTo(4, 0, 0, 3);
+            ctx.quadraticCurveTo(-4, 0, 0, -6);
             ctx.fill();
             ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 1.6;
+            ctx.lineWidth = 1.2;
             ctx.stroke();
             ctx.restore();
         }
-
         ctx.restore(); // Apple restored
 
-        // --- 6. Pac-Man (팩맨) ---
-        ctx.save();
-        const pacmanR = 19;
-        const hop = (comboChompAnim > 0) ? 0 : Math.abs(Math.sin(gameTime * 0.35)) * 3.5;
-        const pacmanY = shelfY - pacmanR - hop + 1;
+        // 3. Draw User's Hand-Drawn Pac-Man
+        const pacmanW = Math.round(145 * scale);
+        const pacmanH = Math.round(150 * scale);
+        const minPx = appleX + appleW - Math.round(40 * scale);
+        const maxPx = w - pacmanW - Math.round(12 * scale);
 
+        let currentPacmanX = minPx + (maxPx - minPx) * timerRatio;
+        if (comboChompAnim > 0) {
+            currentPacmanX = minPx - Math.round(6 * scale); // Bites into apple!
+        }
+
+        const hop = (comboChompAnim > 0) ? 0 : Math.abs(Math.sin(gameTime * 0.35)) * 3;
+        const pacmanY = shelfLine - pacmanH + Math.round(2 * scale) - hop;
+
+        ctx.save();
         ctx.translate(currentPacmanX, pacmanY);
 
         if (this.pacmanShockTimer > 0) {
-            ctx.rotate((Math.random() - 0.5) * 0.3);
+            ctx.rotate((Math.random() - 0.5) * 0.2);
         }
 
-        let mouthAngle = 0.5;
-        if (comboChompAnim > 0) {
-            mouthAngle = Math.abs(Math.sin((36 - comboChompAnim) * 0.5)) * 0.25;
-        } else if (isDanger) {
-            mouthAngle = Math.abs(Math.sin(gameTime * 0.6)) * 0.85;
-        } else {
-            mouthAngle = Math.abs(Math.sin(gameTime * 0.25)) * 0.65;
+        if (this.userComboPacmanImg && this.userComboPacmanImg.complete && this.userComboPacmanImg.naturalWidth > 0) {
+            ctx.drawImage(this.userComboPacmanImg, 0, 0, pacmanW, pacmanH);
         }
+        ctx.restore(); // Pacman restored
 
-        ctx.beginPath();
-        ctx.arc(0, 0, pacmanR, Math.PI + mouthAngle, Math.PI - mouthAngle, false);
-        ctx.lineTo(0, 0);
-        ctx.closePath();
-
-        const pacGrad = ctx.createRadialGradient(-3, -3, 2, 0, 0, pacmanR);
-        pacGrad.addColorStop(0, '#fff59d');
-        pacGrad.addColorStop(0.65, '#ffd600');
-        pacGrad.addColorStop(1, '#f57f17');
-        ctx.fillStyle = pacGrad;
-        ctx.fill();
-
-        ctx.save();
-        ctx.clip();
-        ctx.fillStyle = '#7a0030';
-        ctx.beginPath();
-        ctx.arc(0, 0, pacmanR * 0.85, Math.PI - mouthAngle, Math.PI + mouthAngle, false);
-        ctx.fill();
-        ctx.fillStyle = '#ff4081';
-        ctx.beginPath();
-        ctx.arc(-pacmanR * 0.35, pacmanR * 0.2, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        ctx.beginPath();
-        ctx.arc(0, 0, pacmanR, Math.PI + mouthAngle, Math.PI - mouthAngle, false);
-        ctx.lineTo(0, 0);
-        ctx.closePath();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3.2;
-        ctx.lineJoin = 'round';
-        ctx.stroke();
-
-        const eyeX = -3;
-        const eyeY = -8;
-        if (this.pacmanShockTimer > 0) {
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2.2;
-            ctx.beginPath();
-            ctx.moveTo(eyeX - 3.5, eyeY - 3.5); ctx.lineTo(eyeX + 3.5, eyeY + 3.5);
-            ctx.moveTo(eyeX + 3.5, eyeY - 3.5); ctx.lineTo(eyeX - 3.5, eyeY + 3.5);
-            ctx.stroke();
-        } else {
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(eyeX, eyeY, 4.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 1.8;
-            ctx.stroke();
-
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(eyeX - 1.8, eyeY, 2.2, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(eyeX - 2.2, eyeY - 1, 1.0, 0, Math.PI * 2);
-            ctx.fill();
-
-            if (isDanger) {
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 2.2;
-                ctx.beginPath();
-                ctx.moveTo(eyeX - 4.5, eyeY - 4.5);
-                ctx.lineTo(eyeX + 4, eyeY - 7);
-                ctx.stroke();
-            }
-        }
-
-        ctx.restore(); // Pac-Man restored
-
-        // --- 7. Chomp Comic Pop ("CHOMP!") with Comic Star Bubble ---
+        // 4. Chomp Effect when timer expires
         if (comboChompAnim > 10) {
             ctx.save();
-            ctx.translate(appleX + 30, shelfY - 58);
-            ctx.rotate(-0.12);
+            ctx.translate(appleX + appleW * 0.75, shelfLine - appleH * 0.7);
+            ctx.rotate(-0.1);
 
-            ctx.fillStyle = '#fff176';
-            ctx.beginPath();
-            const spikes = 8;
-            const outerR = 26;
-            const innerR = 17;
-            for (let i = 0; i < spikes * 2; i++) {
-                const rad = (i % 2 === 0) ? outerR : innerR;
-                const angle = (i * Math.PI) / spikes;
-                const sx = Math.cos(angle) * rad;
-                const sy = Math.sin(angle) * (rad * 0.7);
-                if (i === 0) ctx.moveTo(sx, sy);
-                else ctx.lineTo(sx, sy);
-            }
-            ctx.closePath();
-            ctx.fill();
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-
-            ctx.font = '900 12px "Impact", "Arial Black", sans-serif';
+            ctx.font = '900 13px "Impact", "Arial Black", sans-serif';
             ctx.lineWidth = 3;
             ctx.strokeStyle = '#000000';
-            ctx.strokeText('CHOMP!', 0, 1);
+            ctx.strokeText('CHOMP!', 0, 0);
             ctx.fillStyle = '#d50000';
-            ctx.fillText('CHOMP!', 0, 1);
-
-            for (let i = 0; i < 5; i++) {
-                const cx = (Math.sin(i * 1.8) * 16);
-                const cy = (Math.cos(i * 1.5) * 14);
-                ctx.fillStyle = (i % 2 === 0) ? '#ff4b4b' : '#fff4d4';
-                ctx.beginPath();
-                ctx.arc(cx, cy, 2.2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-            }
+            ctx.fillText('CHOMP!', 0, 0);
             ctx.restore();
         }
 
