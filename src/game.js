@@ -6505,11 +6505,11 @@ this.entities.push(
         if (this.comboTimer > 0) {
             this.comboTimer -= 0.2;
             if (this.comboTimer <= 0) {
-                // Pacman has finished eating the apple completely!
-                // Now, and only now, does the combo break!
+                // Pacman has finished eating the apple completely! (Burger Castle style)
+                // When the food is all eaten, the combo breaks!
                 if (this.combo > 0) {
                     this.lostComboValue = this.combo;
-                    this.comboChompAnim = 30; // Swallow and exit anim
+                    this.comboChompAnim = 36; // Break message & transition
                 }
                 this.comboTimer = 0;
                 this.combo = 0; // Combo breaks here!
@@ -8540,9 +8540,9 @@ this.entities.push(
         const posY = 15 + (this.comboUIPosY || 0);
         ctx.translate(posX, posY);
 
-        const comboTimer = this.comboTimer || 0;
+        const timerRatio = Math.max(0, Math.min(1, (this.comboTimer || 0) / 60));
         const comboChompAnim = this.comboChompAnim || 0;
-        const isDanger = comboTimer <= 18 && comboTimer > 0;
+        const isDanger = timerRatio < 0.25 && comboChompAnim === 0;
         const gameTime = this.gameTime || (Date.now() / 16.6);
 
         // 1. Draw User's Hand-Drawn Frame (Striped Ladder Poles & Bottom Shelf)
@@ -8552,26 +8552,26 @@ this.entities.push(
 
         const shelfLine = Math.round(414 * scale); // ~157px
 
-        // Determine Apple frame (0 to 5):
-        // comboTimer > 36: Pacman is still approaching -> Apple is 100% WHOLE (spr_apple_0)
-        // 27 < comboTimer <= 36: Pacman has reached apple -> Bite 1 (spr_apple_1)
-        // 18 < comboTimer <= 27: Bite 2 (spr_apple_2)
-        // 9 < comboTimer <= 18: Bite 3 (spr_apple_3)
-        // 0 < comboTimer <= 9: Bite 4 (spr_apple_4, last sliver)
-        // comboTimer <= 0: Pacman has finished eating! -> Empty (spr_apple_5)
+        // Apple frame progression (Burger Castle style: progressive eating from right to left):
+        // Frame 0: 100% full
+        // Frame 1: 80% (1st bite)
+        // Frame 2: 60% (2nd bite)
+        // Frame 3: 40% (3rd bite, core)
+        // Frame 4: 20% (4th bite, sliver)
+        // Frame 5: 0% (finished eating -> combo breaks!)
         let appleFrameIdx = 0;
         if (comboChompAnim > 0) {
             appleFrameIdx = 5; // Completely eaten!
-        } else if (comboTimer > 36) {
-            appleFrameIdx = 0; // Intact while Pacman approaches
-        } else if (comboTimer > 27) {
-            appleFrameIdx = 1; // Bite 1
-        } else if (comboTimer > 18) {
-            appleFrameIdx = 2; // Bite 2
-        } else if (comboTimer > 9) {
-            appleFrameIdx = 3; // Bite 3
-        } else if (comboTimer > 0) {
-            appleFrameIdx = 4; // Bite 4 (sliver)
+        } else if (timerRatio >= 0.8) {
+            appleFrameIdx = 0;
+        } else if (timerRatio >= 0.6) {
+            appleFrameIdx = 1;
+        } else if (timerRatio >= 0.4) {
+            appleFrameIdx = 2;
+        } else if (timerRatio >= 0.2) {
+            appleFrameIdx = 3;
+        } else if (timerRatio > 0.0) {
+            appleFrameIdx = 4;
         } else {
             appleFrameIdx = 5; // All eaten!
         }
@@ -8629,7 +8629,7 @@ this.entities.push(
             ctx.lineWidth = 3;
             ctx.strokeStyle = '#000000';
             ctx.strokeText(displayNum.toString(), numX, appleY + appleH * 0.72);
-            ctx.fillStyle = (comboChompAnim > 0) ? '#ff5252' : (isDanger ? '#ffeb3b' : '#ffffff');
+            ctx.fillStyle = isDanger ? '#ffeb3b' : '#ffffff';
             ctx.fillText(displayNum.toString(), numX, appleY + appleH * 0.72);
         }
 
@@ -8650,38 +8650,32 @@ this.entities.push(
         }
         ctx.restore(); // Apple restored
 
-        // 3. Draw Animated Pac-Man
+        // 3. Draw Animated Pac-Man (Burger Castle style: stays TOUCHED to the bite mark!)
         const pCropX = 18, pCropY = 19, pCropW = 62, pCropH = 64;
         const pacmanW = Math.round(65);
         const pacmanH = Math.round(67);
-        const minPx = appleX + appleW - 14;
-        const maxPx = w - pacmanW - 10;
 
-        let currentPacmanX = minPx;
+        // Locked to the bite edge of the apple:
+        // When timerRatio = 1.0 (whole apple): pacX = 68
+        // When timerRatio = 0.0 (all eaten): pacX = 14
+        let currentPacmanX = 0;
         let pacFrame = 0;
 
         if (comboChompAnim > 0) {
-            // Finished eating: mouth chewing/closed as HUD retracts
-            currentPacmanX = minPx - 14;
-            pacFrame = (comboChompAnim > 15) ? 0 : 1;
-        } else if (comboTimer > 36) {
-            // Approaching from right ladder to apple:
-            const approachRatio = (comboTimer - 36) / 24; // 1.0 down to 0.0
-            currentPacmanX = minPx + (maxPx - minPx) * approachRatio;
-            const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
-            pacFrame = chompCycle[Math.floor(gameTime * 0.28) % chompCycle.length];
+            // Finished eating: Pacman swallowed final bite, mouth chewing / closed
+            currentPacmanX = 14;
+            pacFrame = 0;
         } else {
-            // Actively eating the apple! Touching the bite mark at each stage:
-            const biteOffsets = [0, -2, -5, -8, -11];
-            currentPacmanX = minPx + biteOffsets[appleFrameIdx];
+            // As the apple shrinks from right to left, Pacman stays TOUCHING the bite mark!
+            currentPacmanX = 14 + 54 * timerRatio;
 
-            // Open mouth wide, then bite shut on each bite:
-            const biteSub = (36 - comboTimer) % 9;
-            pacFrame = (biteSub < 4.5) ? 5 : 0;
+            // Mouth continuously chomping into the apple
+            const chompCycle = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
+            const chompSpeed = isDanger ? 0.45 : 0.30;
+            pacFrame = chompCycle[Math.floor(gameTime * chompSpeed) % chompCycle.length];
         }
 
-        const hop = (comboTimer <= 36 || comboChompAnim > 0) ? 0 : Math.abs(Math.sin(gameTime * 0.35)) * 3;
-        const pacmanY = shelfLine - pacmanH + 2 - hop;
+        const pacmanY = shelfLine - pacmanH + 2;
 
         ctx.save();
         ctx.translate(currentPacmanX, pacmanY);
@@ -8699,35 +8693,25 @@ this.entities.push(
         }
         ctx.restore(); // Pacman restored
 
-        // 4. Visual Effects
-        // "CHOMP!" effect while biting
-        if (comboTimer <= 36 && comboTimer > 0) {
-            const biteSub = (36 - comboTimer) % 9;
-            if (biteSub < 3.2) {
-                ctx.save();
-                ctx.translate(appleX + appleW * 0.72, shelfLine - appleH * 0.75);
-                ctx.rotate(-0.1);
-                ctx.font = '900 13px "Impact", "Arial Black", sans-serif';
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#000000';
-                ctx.strokeText('CHOMP!', 0, 0);
-                ctx.fillStyle = isDanger ? '#ff1744' : '#ff9100';
-                ctx.fillText('CHOMP!', 0, 0);
-                ctx.restore();
-            }
-        }
-
-        // Combo Break effect when finished eating!
-        if (comboChompAnim > 10) {
+        // 4. Combo Break effect when finished eating! (Burger Castle style!)
+        if (comboChompAnim > 0) {
             ctx.save();
             ctx.translate(appleX + appleW * 0.45, shelfLine - appleH * 0.65);
-            ctx.rotate(-0.08);
-            ctx.font = '900 14px "Impact", "Arial Black", sans-serif';
+            ctx.rotate(-0.06);
+
+            ctx.font = '900 13px "Impact", "Arial Black", sans-serif';
             ctx.lineWidth = 3;
             ctx.strokeStyle = '#000000';
-            ctx.strokeText('COMBO LOST!', 0, 0);
+            ctx.strokeText('THAT APPLE WAS NOT YUMMY!', 0, -8);
             ctx.fillStyle = '#ff1744';
-            ctx.fillText('COMBO LOST!', 0, 0);
+            ctx.fillText('THAT APPLE WAS NOT YUMMY!', 0, -8);
+
+            ctx.font = '900 24px "Impact", "Arial Black", sans-serif';
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText(displayNum.toString(), 0, 16);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(displayNum.toString(), 0, 16);
             ctx.restore();
         }
 
