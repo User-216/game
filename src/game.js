@@ -3344,11 +3344,15 @@ class Game {
         if (this.isEditorMode) {
             toolbar.classList.remove('hidden');
             this.player.isNoClip = true; // Auto-noclip for building
-            this.showCollisions = true;
             const colBtn = document.getElementById('toggle-collision-btn');
             if (colBtn) {
-                colBtn.style.color = '#00ffcc';
-                colBtn.style.borderColor = '#00ffcc';
+                if (this.showCollisions) {
+                    colBtn.style.color = '#00ffcc';
+                    colBtn.style.borderColor = '#00ffcc';
+                } else {
+                    colBtn.style.color = '#888';
+                    colBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                }
             }
 
             if (this.player && this.player.isHoldingEnemy) {
@@ -3460,12 +3464,6 @@ class Game {
         } else {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
-            this.showCollisions = false;
-            const colBtn = document.getElementById('toggle-collision-btn');
-            if (colBtn) {
-                colBtn.style.color = '#888';
-                colBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-            }
             if (palette) palette.classList.add('hidden');
 
             // When exiting editor mode, resume normal enemy movement from their spawn position and reset collectibles and blocks for test play
