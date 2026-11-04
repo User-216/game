@@ -256,6 +256,8 @@ class Game {
         this.prevAppleFrameIdx = 0;
         this.comboUIPosY = -240;
         this.comboUIAlpha = 0;
+        this.comboLossMsgTimer = 0;
+        this.lostComboValue = 0;
 
         this.timerBarImg = new Image();
         this.timerBarImg.src = '이미지/spr_timer_bar.png';
@@ -6496,6 +6498,7 @@ this.entities.push(
             this.pacmanShockTimer = 16;
             this.comboTimer = 60;
             this.comboChompAnim = 0;
+            this.comboLossMsgTimer = 0;
         }
         this.prevCombo = this.combo;
 
@@ -6515,7 +6518,8 @@ this.entities.push(
                 // When the food is all eaten, the combo breaks!
                 if (this.combo > 0) {
                     this.lostComboValue = this.combo;
-                    this.comboChompAnim = 36; // Break message & transition
+                    this.comboChompAnim = 36;
+                    this.comboLossMsgTimer = 180; // "THAT APPLE WAS NOT YUMMY!" appears for 3 seconds (180 frames)
                 }
                 this.comboTimer = 0;
                 this.combo = 0; // Combo breaks here!
@@ -6524,6 +6528,10 @@ this.entities.push(
 
         if (this.comboChompAnim > 0) {
             this.comboChompAnim--;
+        }
+
+        if (this.comboLossMsgTimer > 0) {
+            this.comboLossMsgTimer--;
         }
 
         // Apple frame progression & bite detection
@@ -8282,6 +8290,7 @@ this.entities.push(
 
         // Draw Animated Apple & Pac-Man Combo Meter HUD
         this.drawComboMeter(this.ctx);
+        this.drawComboLossMessage(this.ctx);
 
         // Draw Pizza Time Escape Clock & Timer Bar
         if (this.escape && typeof this.escapeTimer === 'number' && !this.timerBarHidden && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
@@ -8790,29 +8799,61 @@ this.entities.push(
             }
         }
 
-        // 4. Combo Break effect when finished eating! (Burger Castle style!)
-        if (comboChompAnim > 0) {
-            ctx.save();
-            ctx.translate(appleX + appleW * 0.45, shelfLine - appleH * 0.65);
-            ctx.rotate(-0.06);
+        ctx.restore(); // Widget restored
+    }
 
-            ctx.font = '900 13px "Impact", "Arial Black", sans-serif';
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#000000';
-            ctx.strokeText('THAT APPLE WAS NOT YUMMY!', 0, -8);
-            ctx.fillStyle = '#ff1744';
-            ctx.fillText('THAT APPLE WAS NOT YUMMY!', 0, -8);
+    drawComboLossMessage(ctx) {
+        if (!this.comboLossMsgTimer || this.comboLossMsgTimer <= 0) return;
+        if (this.currentRoom === 'rm_rank') return;
 
-            ctx.font = '900 24px "Impact", "Arial Black", sans-serif';
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#000000';
-            ctx.strokeText(displayNum.toString(), 0, 16);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(displayNum.toString(), 0, 16);
-            ctx.restore();
+        const age = 180 - this.comboLossMsgTimer;
+        let alpha = 1.0;
+        if (this.comboLossMsgTimer < 25) {
+            alpha = this.comboLossMsgTimer / 25;
         }
 
-        ctx.restore(); // Widget restored
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        const centerX = this.canvas.width - 115;
+        const centerY = 90;
+
+        // Slight pop-in punch
+        const popScale = age < 8 ? 1.0 + (8 - age) * 0.04 : 1.0;
+
+        ctx.translate(centerX, centerY);
+        ctx.scale(popScale, popScale);
+        ctx.rotate(-0.05);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // 1. "THAT APPLE WAS"
+        ctx.font = '900 13px "Impact", "Arial Black", sans-serif';
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText('THAT APPLE WAS', 0, -18);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('THAT APPLE WAS', 0, -18);
+
+        // 2. "NOT YUMMY!" (Red accent)
+        ctx.font = '900 17px "Impact", "Arial Black", sans-serif';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText('NOT YUMMY!', 0, 1);
+        ctx.fillStyle = '#ff1744';
+        ctx.fillText('NOT YUMMY!', 0, 1);
+
+        // 3. Lost Combo Count Number
+        const lostVal = this.lostComboValue || 0;
+        ctx.font = '900 28px "Impact", "Arial Black", sans-serif';
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText(lostVal.toString(), 0, 26);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(lostVal.toString(), 0, 26);
+
+        ctx.restore();
     }
 
     renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, targetLayer = 1) {
