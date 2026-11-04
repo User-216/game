@@ -251,6 +251,10 @@ class Game {
             this.userComboPacmanImgs.push(img);
         }
 
+        this.comboDebris = [];
+        this.appleBiteShake = 0;
+        this.prevAppleFrameIdx = 0;
+
         this.timerBarImg = new Image();
         this.timerBarImg.src = '이미지/spr_timer_bar.png';
         this.timerBarFillImg = new Image();
@@ -6520,6 +6524,58 @@ this.entities.push(
             this.comboChompAnim--;
         }
 
+        // Apple frame progression & bite detection
+        const timerRatio = Math.max(0, Math.min(1, (this.comboTimer || 0) / 60));
+        let curAppleFrame = 0;
+        if (this.comboChompAnim > 0) {
+            curAppleFrame = 5;
+        } else if (timerRatio >= 0.8) {
+            curAppleFrame = 0;
+        } else if (timerRatio >= 0.6) {
+            curAppleFrame = 1;
+        } else if (timerRatio >= 0.4) {
+            curAppleFrame = 2;
+        } else if (timerRatio >= 0.2) {
+            curAppleFrame = 3;
+        } else if (timerRatio > 0.0) {
+            curAppleFrame = 4;
+        } else {
+            curAppleFrame = 5;
+        }
+
+        if (this.prevAppleFrameIdx === undefined) {
+            this.prevAppleFrameIdx = curAppleFrame;
+        } else if (curAppleFrame > this.prevAppleFrameIdx && (this.combo > 0 || this.comboChompAnim > 0)) {
+            // Apple frame changed! Pacman took a bite!
+            this.appleBiteShake = (curAppleFrame === 5) ? 14 : 10;
+            this.spawnComboDebris(timerRatio, curAppleFrame === 5);
+        }
+        this.prevAppleFrameIdx = curAppleFrame;
+
+        if (this.appleBiteShake > 0) {
+            this.appleBiteShake--;
+        }
+
+        // Update Combo Debris Particles
+        if (this.comboDebris && this.comboDebris.length > 0) {
+            for (let i = this.comboDebris.length - 1; i >= 0; i--) {
+                const p = this.comboDebris[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.rot += p.rotSpeed;
+                p.life--;
+                if (p.y >= p.floorY && p.vy > 0) {
+                    p.y = p.floorY;
+                    p.vy = -p.vy * 0.4;
+                    p.vx *= 0.6;
+                }
+                if (p.life <= 0) {
+                    this.comboDebris.splice(i, 1);
+                }
+            }
+        }
+
         const isComboActive = (this.combo > 0 || this.comboChompAnim > 0) && this.currentRoom !== 'rm_rank';
         if (isComboActive) {
             this.comboUIAlpha = Math.min(1.0, (this.comboUIAlpha || 0) + 0.1);
@@ -6527,6 +6583,11 @@ this.entities.push(
         } else {
             this.comboUIAlpha = Math.max(0.0, (this.comboUIAlpha || 0) - 0.08);
             this.comboUIPosY = (this.comboUIPosY !== undefined) ? this.comboUIPosY + (-120 - this.comboUIPosY) * 0.12 : -120;
+            if (this.comboUIAlpha <= 0.01) {
+                this.comboDebris = [];
+                this.appleBiteShake = 0;
+                this.prevAppleFrameIdx = 0;
+            }
         }
         
         for (let i = this.entities.length - 1; i >= 0; i--) {
@@ -8524,6 +8585,32 @@ this.entities.push(
         }
     }
 
+    spawnComboDebris(timerRatio, isFinalBite = false) {
+        if (!this.comboDebris) this.comboDebris = [];
+        const scale = 0.38;
+        const shelfLine = Math.round(414 * scale);
+        const biteX = 14 + 54 * timerRatio + 14;
+        const biteY = shelfLine - 38;
+        const count = isFinalBite ? 16 : 8;
+        const colors = ['#e53935', '#d32f2f', '#ffeb3b', '#fff9c4', '#ffffff', '#43a047'];
+
+        for (let i = 0; i < count; i++) {
+            this.comboDebris.push({
+                x: biteX + (Math.random() - 0.5) * 8,
+                y: biteY + (Math.random() - 0.5) * 12,
+                vx: (Math.random() * 3.5 - 0.8) * (Math.random() < 0.25 ? -1 : 1),
+                vy: -Math.random() * 3.8 - 1.5,
+                gravity: 0.28,
+                rot: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.4,
+                size: Math.random() * 2.5 + 2.5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                life: 25 + Math.floor(Math.random() * 12),
+                floorY: shelfLine - 2
+            });
+        }
+    }
+
     drawComboMeter(ctx) {
         if (this.currentRoom === 'rm_rank') return;
         const alpha = Math.max(0, Math.min(1, this.comboUIAlpha !== undefined ? this.comboUIAlpha : (this.combo > 0 ? 1 : 0)));
@@ -8542,7 +8629,6 @@ this.entities.push(
 
         const timerRatio = Math.max(0, Math.min(1, (this.comboTimer || 0) / 60));
         const comboChompAnim = this.comboChompAnim || 0;
-        const isDanger = timerRatio < 0.25 && comboChompAnim === 0;
         const gameTime = this.gameTime || (Date.now() / 16.6);
 
         // 1. Draw User's Hand-Drawn Frame (Striped Ladder Poles & Bottom Shelf)
@@ -8583,17 +8669,24 @@ this.entities.push(
         const appleX = Math.round(18);
         const appleY = shelfLine - appleH + 2;
 
-        // 2. Draw Animated Apple
+        // 2. Draw Animated Apple (Shakes when bitten/frame changes!)
         ctx.save();
         let appleShakeX = 0;
-        if (isDanger) {
-            appleShakeX = (Math.sin(gameTime * 0.9) * 2.2);
+        let appleShakeY = 0;
+        let appleShakeRot = 0;
+
+        if (this.appleBiteShake > 0) {
+            const intensity = this.appleBiteShake / 12;
+            appleShakeX = Math.sin(this.appleBiteShake * 2.8) * 4.5 * intensity;
+            appleShakeY = -Math.abs(Math.cos(this.appleBiteShake * 2.2)) * 3.0 * intensity;
+            appleShakeRot = Math.sin(this.appleBiteShake * 2.5) * 0.08 * intensity;
         }
 
         const bScale = this.comboBounce || 1.0;
         const appleCenterX = appleX + appleW / 2;
         const appleBottomY = shelfLine;
-        ctx.translate(appleCenterX + appleShakeX, appleBottomY);
+        ctx.translate(appleCenterX + appleShakeX, appleBottomY + appleShakeY);
+        ctx.rotate(appleShakeRot);
         ctx.scale(bScale, 2.0 - bScale);
         ctx.translate(-appleCenterX, -appleBottomY);
 
@@ -8629,24 +8722,8 @@ this.entities.push(
             ctx.lineWidth = 3;
             ctx.strokeStyle = '#000000';
             ctx.strokeText(displayNum.toString(), numX, appleY + appleH * 0.72);
-            ctx.fillStyle = isDanger ? '#ffeb3b' : '#ffffff';
+            ctx.fillStyle = '#ffffff';
             ctx.fillText(displayNum.toString(), numX, appleY + appleH * 0.72);
-        }
-
-        // Danger Sweat Droplet
-        if (isDanger && appleFrameIdx < 5) {
-            ctx.save();
-            ctx.translate(appleX + Math.round(12), appleY + Math.round(18));
-            ctx.fillStyle = '#4fc3f7';
-            ctx.beginPath();
-            ctx.moveTo(0, -6);
-            ctx.quadraticCurveTo(4, 0, 0, 3);
-            ctx.quadraticCurveTo(-4, 0, 0, -6);
-            ctx.fill();
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
-            ctx.restore();
         }
         ctx.restore(); // Apple restored
 
@@ -8692,6 +8769,24 @@ this.entities.push(
             }
         }
         ctx.restore(); // Pacman restored
+
+        // 4. Draw Apple Bite Debris Particles (drawn in front so crumbs pop out visibly!)
+        if (this.comboDebris && this.comboDebris.length > 0) {
+            for (let i = 0; i < this.comboDebris.length; i++) {
+                const p = this.comboDebris[i];
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillStyle = p.color;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.rect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
 
         // 4. Combo Break effect when finished eating! (Burger Castle style!)
         if (comboChompAnim > 0) {
