@@ -109,8 +109,8 @@ class Slope extends Entity {
         ctx.fill();
         
         // Stroke for better visibility
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
     }
@@ -3066,9 +3066,11 @@ class Slime extends Entity {
                 if (this.vy < 0) continue;
                 
                 const slopeY = Physics.getSlopeHeight(this, ent);
-                const snapUp = this.wasGrounded ? 30 : 5;
+                const snapUp = this.wasGrounded ? 32 : 6;
+                const slopeThickness = Math.max(48, (this.vy || 0) + 12);
+                const slopeBottom = ent.y + ent.height;
                 
-                if (slopeY !== null && this.y + this.height > slopeY - snapUp && this.y + this.height <= slopeY + 20) {
+                if (slopeY !== null && this.y + this.height > slopeY - snapUp && this.y + this.height <= slopeY + slopeThickness && this.y + this.height <= slopeBottom + 16) {
                     if (this.isGrounded && this.y + this.height < slopeY - 0.1) {
                         continue;
                     }

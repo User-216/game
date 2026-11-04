@@ -946,7 +946,7 @@ class Player {
                     for (const entity of entities) {
                         if (!entity.isDestroyed && (entity.type === 'left-up' || entity.type === 'right-up')) {
                             const slopeY = Physics.getSlopeHeight(this, entity);
-                            if (slopeY !== null && Math.abs((this.y + this.height) - slopeY) <= 35) {
+                            if (slopeY !== null && Math.abs((this.y + this.height) - slopeY) <= 45) {
                                 currentSlope = entity;
                                 break;
                             }
@@ -1704,9 +1704,11 @@ class Player {
                 const slopeY = Physics.getSlopeHeight(this, entity);
                 
                 // If the player was grounded, allow a larger snap distance downward to prevent bouncing down slopes
-                const snapUp = this.wasGrounded ? 30 : 5;
+                const snapUp = this.wasGrounded ? 32 : 6;
+                const slopeThickness = Math.max(48, (this.vy || 0) + 12);
+                const slopeBottom = entity.y + entity.height;
                 
-                if (slopeY !== null && this.y + this.height > slopeY - snapUp && this.y + this.height <= slopeY + 20) {
+                if (slopeY !== null && this.y + this.height > slopeY - snapUp && this.y + this.height <= slopeY + slopeThickness && this.y + this.height <= slopeBottom + 16) {
                     
                     // IF we already resolved AABB and are standing on a block HIGHER than this slope, ignore the slope!
                     if (this.isGrounded && this.y + this.height < slopeY - 0.1) {
