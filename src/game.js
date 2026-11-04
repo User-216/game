@@ -2667,6 +2667,7 @@ class Game {
     isCollisionEntity(e) {
         if (!e) return false;
         if (e.isSecret && e.isDestroyed) return false;
+        if (this.isEditorMode && (e.isSecret || (e.type && e.type.includes('secret')))) return false;
         if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
         if (e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e.type === 'escapeblock_closed' || e.type === 'escapeblock_open' || (typeof EscapeBlockClosed !== 'undefined' && e instanceof EscapeBlockClosed) || (typeof EscapeBlockOpen !== 'undefined' && e instanceof EscapeBlockOpen) || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
@@ -3323,6 +3324,12 @@ class Game {
         if (this.isEditorMode) {
             toolbar.classList.remove('hidden');
             this.player.isNoClip = true; // Auto-noclip for building
+            this.showCollisions = true;
+            const colBtn = document.getElementById('toggle-collision-btn');
+            if (colBtn) {
+                colBtn.style.color = '#00ffcc';
+                colBtn.style.borderColor = '#00ffcc';
+            }
 
             if (this.player && this.player.isHoldingEnemy) {
                 this.player.isHoldingEnemy = false;
@@ -3417,7 +3424,7 @@ class Game {
                     ent.speed = 0;
                     if (typeof ent.baseX === 'number') ent.x = ent.baseX;
                     if (typeof ent.baseY === 'number') ent.y = ent.baseY;
-                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.type === 'tile') {
+                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.isSecret || ent.type === 'tile') {
                     ent.isDestroyed = false;
                     ent.markedForDeletion = false;
                     ent.particles = [];
@@ -3433,6 +3440,12 @@ class Game {
         } else {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
+            this.showCollisions = false;
+            const colBtn = document.getElementById('toggle-collision-btn');
+            if (colBtn) {
+                colBtn.style.color = '#888';
+                colBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+            }
             if (palette) palette.classList.add('hidden');
 
             // When exiting editor mode, resume normal enemy movement from their spawn position and reset collectibles and blocks for test play
@@ -3455,7 +3468,7 @@ class Game {
                     ent.speed = 0;
                     if (typeof ent.baseX === 'number') ent.x = ent.baseX;
                     if (typeof ent.baseY === 'number') ent.y = ent.baseY;
-                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.type === 'tile') {
+                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.isSecret || ent.type === 'tile') {
                     ent.isDestroyed = false;
                     ent.markedForDeletion = false;
                     ent.particles = [];
@@ -6518,7 +6531,7 @@ this.entities.push(
                     if (!this.killedEnemies.includes(ent)) {
                         this.killedEnemies.push(ent);
                     }
-                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.type === 'tile') {
+                } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.isSecret || ent.type === 'tile') {
                     if (!this.destroyedBlocks) this.destroyedBlocks = [];
                     if (!this.destroyedBlocks.includes(ent)) {
                         this.destroyedBlocks.push(ent);
@@ -7104,7 +7117,7 @@ this.entities.push(
             const e = this.entities[i];
             if (e.type !== 'hallway' && e.type !== 'hallwayvertical' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
                 if (this.tileWave && (e.type === 'door' || e instanceof Door || e.type === 'obj_cutoff' || e.type === 'obj_cutoffsmall' || e.type === 'cutoff' || e.isCutoff || (typeof Cutoff !== 'undefined' && e instanceof Cutoff))) continue;
-                if (!this.showCollisions && this.isCollisionEntity(e)) continue;
+                if (!this.showCollisions && !this.isEditorMode && this.isCollisionEntity(e)) continue;
                 let eLeft = e.x;
                 let eRight = e.x + e.width;
                 let eTop = e.y;

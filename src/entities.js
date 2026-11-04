@@ -555,6 +555,10 @@ class SecretBlock extends Destroyable {
                     if (overlapW > 1 && overlapH > 1) {
                         ent.isDestroyed = true;
                         ent.markedForDeletion = true;
+                        if (!g.destroyedBlocks) g.destroyedBlocks = [];
+                        if (!g.destroyedBlocks.includes(ent)) {
+                            g.destroyedBlocks.push(ent);
+                        }
                         g.entities.splice(i, 1);
                     }
                 }
