@@ -1913,6 +1913,20 @@ class Game {
             });
         }
 
+        // Clear Room button (Wipe all entities/objects, preserve background & dimensions)
+        const clearRoomBtn = document.getElementById('clear-room-btn');
+        if (clearRoomBtn) {
+            clearRoomBtn.addEventListener('click', () => {
+                const count = this.entities.length;
+                const warningMsg = `⚠️ [경고: 방 초기화]\n\n현재 방('${this.currentRoom || 'room'}')의 모든 오브젝트(${count}개)를 삭제하시겠습니까?\n\n• 발판, 경사로, 블록, 적, 아이템, 타일 등이 모두 삭제됩니다.\n• 배경 이미지 및 화면 필터, 방 크기는 그대로 유지됩니다.\n\n정말로 모든 오브젝트를 삭제하시겠습니까?`;
+                if (confirm(warningMsg)) {
+                    if (confirm(`🚨 [최종 확인]\n\n이 작업은 되돌릴 수 없습니다!\n정말로 현재 방의 모든 오브젝트를 초기화할까요?`)) {
+                        this.clearRoomObjects();
+                    }
+                }
+            });
+        }
+
         // Add Room button
         const addRoomBtn = document.getElementById('add-room-btn');
         if (addRoomBtn) {
@@ -4405,6 +4419,33 @@ class Game {
     saveCurrentRoomToMemory() {
         if (!this.currentRoom) return;
         this.saveRoomToLocalStorage(this.currentRoom);
+    }
+
+    clearRoomObjects() {
+        this.entities = [];
+        this.collectedItems = [];
+        this.killedEnemies = [];
+        this.destroyedBlocks = [];
+        this.selectedEntities = [];
+        this.activeEnemies = [];
+        this.baddiesSpawners = [];
+        this.hoveredEntity = null;
+        this.dragStart = null;
+
+        if (this.player) {
+            this.player.isNoClip = true;
+            this.player.vx = 0;
+            this.player.vy = 0;
+            this.player.isGrounded = false;
+            this.player.isHoldingEnemy = false;
+            this.player.heldEnemy = null;
+        }
+
+        if (this.currentRoom) {
+            this.saveCurrentRoomToMemory();
+        }
+
+        this.showFlipToast('방의 모든 오브젝트가 초기화되었습니다 (배경 유지)');
     }
 
     exportLevel() {
@@ -9708,6 +9749,23 @@ this.entities.push(
                     game.saveCurrentRoomToMemory();
                     return `S Rank Score for ${game.currentRoom} set to: ${game.sRankScore}`;
                 }
+            },
+            'clearroom': {
+                args: [],
+                execute: (game) => {
+                    const count = game.entities.length;
+                    if (confirm(`⚠️ [경고: 방 초기화]\n\n현재 방('${game.currentRoom || 'room'}')의 모든 오브젝트(${count}개)를 삭제하시겠습니까?\n\n• 발판, 경사로, 블록, 적, 아이템, 타일 등이 모두 삭제됩니다.\n• 배경 이미지 및 화면 필터, 방 크기는 그대로 유지됩니다.\n\n정말로 모든 오브젝트를 삭제하시겠습니까?`)) {
+                        if (confirm(`🚨 [최종 확인]\n\n이 작업은 되돌릴 수 없습니다!\n정말로 현재 방의 모든 오브젝트를 초기화할까요?`)) {
+                            game.clearRoomObjects();
+                            return 'Room objects cleared (background preserved)';
+                        }
+                    }
+                    return 'Clear room cancelled';
+                }
+            },
+            'clear_room': {
+                args: [],
+                execute: (game) => game.debugCommands['clearroom'].execute(game)
             },
             'showcollisions': {
                 args: [
