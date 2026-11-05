@@ -444,6 +444,8 @@ class Game {
 
         this.player = new Player(100, 300);
         this.entities = [];
+        this.toppins = [];
+        this.playerTrail = [];
         this.keys = {};
         this.camera = { x: 0, y: 0 };
         this.cameraShake = 0;
@@ -3468,8 +3470,14 @@ class Game {
                     ent.particles = [];
                     if (ent.maxHealth) ent.health = ent.maxHealth;
                     else ent.health = 1;
+                } else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
+                    ent.isOpened = false;
+                    ent.particles = [];
                 }
             });
+
+            this.toppins = [];
+            this.playerTrail = [];
 
             if (palette && this.isTileType(this.selectedType)) {
                 palette.classList.remove('hidden');
@@ -3506,8 +3514,14 @@ class Game {
                     ent.particles = [];
                     if (ent.maxHealth) ent.health = ent.maxHealth;
                     else ent.health = 1;
+                } else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
+                    ent.isOpened = false;
+                    ent.particles = [];
                 }
             });
+
+            this.toppins = [];
+            this.playerTrail = [];
         }
         this.needsVoidClear = true;
     }
@@ -4165,6 +4179,10 @@ class Game {
             case 'obj_computer':
                 entity = new OnlineComputer(x, y, w, h);
                 break;
+            case 'pizzaboxunopen':
+            case 'obj_pizzaboxunopen':
+                entity = new PizzaBoxUnopen(x, y, 64, 64);
+                break;
             case 'obj_collect':
                 entity = new Collect(x, y, w, h);
                 break;
@@ -4365,6 +4383,7 @@ class Game {
             else if (ent instanceof TutorialBook) base = `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             else if (ent instanceof PaletteDresser) base = `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof OnlineComputer) base = `new OnlineComputer(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') base = `new PizzaBoxUnopen(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Slime) {
                 if (ent.spawnedBySpawner) return; // Never save cloned/spawned enemies
                 const sx = ent.spawnX !== undefined ? ent.spawnX : ent.x;
@@ -4423,6 +4442,8 @@ class Game {
 
     clearRoomObjects() {
         this.entities = [];
+        this.toppins = [];
+        this.playerTrail = [];
         this.collectedItems = [];
         this.killedEnemies = [];
         this.destroyedBlocks = [];
@@ -4908,6 +4929,17 @@ this.entities.push(
                 this.camera.x = targetCamX;
                 this.camera.y = targetCamY;
                 this.cameraSpeedOffset = 0;
+
+                // Snap toppins to new room position behind player
+                if (this.toppins && this.toppins.length > 0 && this.player) {
+                    this.playerTrail = [];
+                    this.toppins.forEach((toppin, idx) => {
+                        toppin.x = this.player.x + (this.player.facingDir === 1 ? -28 - (idx * 24) : this.player.width + 4 + (idx * 24));
+                        toppin.y = this.player.y + this.player.height - toppin.height;
+                        toppin.facingDir = this.player.facingDir || 1;
+                        toppin.popTimer = 0;
+                    });
+                }
                 
                 this.currentRoom = roomName;
                 this.updateSaveProgress();
@@ -6496,6 +6528,26 @@ this.entities.push(
 
         this.player.update(this.keys, this.entities, this.audio);
 
+        // Update Toppin Followers
+        if (!this.playerTrail) this.playerTrail = [];
+        if (this.player && !this.isEditorMode) {
+            this.playerTrail.unshift({
+                x: this.player.x,
+                y: this.player.y + this.player.height - 45,
+                facingDir: this.player.facingDir || 1,
+                isMoving: Math.abs(this.player.vx) > 0.5,
+                isGrounded: this.player.isGrounded
+            });
+            if (this.playerTrail.length > 250) {
+                this.playerTrail.pop();
+            }
+        }
+        if (this.toppins && this.toppins.length > 0 && !this.isEditorMode) {
+            for (let i = 0; i < this.toppins.length; i++) {
+                this.toppins[i].update(this, i);
+            }
+        }
+
         // When player finished entering level gate animation, launch Title Card
         if (this.player && this.player.state === 'enterlevelgate' && this.player.enterLevelGateFinished && this.enteringGate) {
             const gate = this.enteringGate;
@@ -7257,6 +7309,12 @@ this.entities.push(
                     eRight = eLeft + 100;
                     eTop = e.y + e.height - 100;
                 }
+                if (e.type === 'pizzaboxunopen' || (typeof PizzaBoxUnopen !== 'undefined' && e instanceof PizzaBoxUnopen)) {
+                    eLeft = e.x - 16;
+                    eRight = e.x + 80;
+                    eTop = e.y - 16;
+                    eBottom = e.y + 80;
+                }
                 if (eRight > viewLeft && eLeft < viewRight && 
                     eBottom > viewTop && eTop < viewBottom) {
                     e.render(this.ctx);
@@ -7264,6 +7322,13 @@ this.entities.push(
             }
         }
         
+        // Render Toppin Followers
+        if (this.toppins && this.toppins.length > 0 && !this.isEditorMode) {
+            for (let i = 0; i < this.toppins.length; i++) {
+                this.toppins[i].render(this.ctx);
+            }
+        }
+
         if (this.player.visible !== false) this.player.render(this.ctx);
         
         // Render other online players
@@ -9126,7 +9191,7 @@ this.entities.push(
                 pw = 100; ph = 100;
             } else if (this.selectedType === 'obj_slime' || this.selectedType === 'obj_baddiespawner') {
                 pw = 40; ph = 40;
-            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect') {
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect' || this.selectedType === 'pizzaboxunopen') {
                 pw = 64; ph = 64;
             }
 
@@ -9287,6 +9352,19 @@ this.entities.push(
                     ctx.fillStyle = '#e67e22';
                     ctx.beginPath(); ctx.arc(32, 32, 24, 0, Math.PI * 2); ctx.fill();
                     ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('100', 32, 32);
+                }
+            } else if (this.selectedType === 'pizzaboxunopen') {
+                const img = typeof PizzaBoxUnopen !== 'undefined' && PizzaBoxUnopen.sprites && PizzaBoxUnopen.sprites[0];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, -16, -16, 96, 96);
+                } else {
+                    ctx.fillStyle = '#d4ac0d';
+                    ctx.fillRect(0, 0, 64, 64);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('P-BOX', 32, 32);
                 }
             } else if (this.selectedType === 'oneway') {
                 ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';

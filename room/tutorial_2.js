@@ -2,6 +2,7 @@ window.roomData = window.roomData || {};
 window.roomData['tutorial_2'] = function() {
 this.roomWidth = 4200;
 this.roomHeight = 800;
+this.sRankScore = 10000;
 this.roomBackground = 'bg_tutorial';
 this.bgFollowCamera = true;
 this.bgSecret = true;
@@ -2936,6 +2937,7 @@ this.entities.push(
     new Tile3(1184, 416, 32, 32, 192, 96, 'tile_tutorial.png', 32, 32),
     new Tile3(1216, 384, 32, 32, 192, 96, 'tile_tutorial.png', 32, 32),
     new Tile3(1216, 416, 32, 32, 192, 96, 'tile_tutorial.png', 32, 32),
+    new PizzaBoxUnopen(3616, 480, 64, 64),
 );
 
 };

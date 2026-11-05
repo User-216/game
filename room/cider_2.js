@@ -1,10 +1,13 @@
 window.roomData = window.roomData || {};
 window.roomData['cider_2'] = function() {
-this.roomWidth = 10000;
-this.roomHeight = 1400;
+this.roomWidth = 7400;
+this.roomHeight = 1700;
 this.sRankScore = 10000;
 this.roomBackground = 'bg_cidersewer';
 this.bgFollowCamera = true;
+this.screenFilterColor = '#ffc38f';
+this.screenFilterAlpha = 0.3;
+this.screenFilterBlend = 'multiply';
 this.entities.push(
     new Platform(-352, 960, 864, 128, '#00aa9e66'),
     new Platform(-224, 672, 32, 32, '#00aa9e66'),
@@ -86,16 +89,13 @@ this.entities.push(
     new Platform(6240, 448, 96, 800, '#00aa9e66'),
     new Platform(5184, 1024, 192, 160, '#00aa9e66'),
     new Platform(4832, 928, 544, 96, '#00aa9e66'),
-    new Platform(5376, 384, 128, 608, '#00aa9e66'),
     new OneWayPlatform(5728, 960, 224, 32, '#9e00aa66'),
-    new OneWayPlatform(5504, 512, 256, 32, '#9e00aa66'),
     new Platform(5760, 512, 480, 96, '#00aa9e66'),
     new Collect(5920, 928, 32, 32),
     new Collect(5888, 896, 32, 32),
     new Collect(5856, 928, 32, 32),
     new Collect(5824, 896, 32, 32),
     new BigCollect(5760, 896, 64, 64),
-    new Platform(5376, 96, 128, 288, '#00aa9e66'),
     new Platform(5504, 96, 832, 64, '#00aa9e66'),
     new Slope(6144, 448, 96, 64, 'left-up'),
     new OneWayPlatform(6336, 448, 320, 32, '#9e00aa66'),
@@ -108,9 +108,6 @@ this.entities.push(
     new Platform(6336, 0, 992, 64, '#00aa9e66'),
     new Platform(6240, 160, 96, 224, '#00aa9e66'),
     new Destroyable(6272, 384, 64, 64),
-    new Slope(6336, 864, 64, 96, 'right-up'),
-    new Slope(6400, 960, 64, 64, 'right-up'),
-    new Platform(6464, 1024, 864, 96, '#00aa9e66'),
     new Collect(6432, 384, 32, 32),
     new Collect(6464, 352, 32, 32),
     new Collect(6496, 384, 32, 32),
@@ -118,7 +115,6 @@ this.entities.push(
     new BigCollect(6592, 352, 64, 64),
     new Slope(7040, 640, 96, 64, 'left-up'),
     new Slope(7136, 576, 64, 64, 'left-up'),
-    Object.assign(new Slime(1280, 1056, 32, 32), { flipX: true }),
     new Platform(4416, 896, 128, 128, '#00aa9e66'),
     new Slope(4096, 1216, 128, 96, 'right-up'),
     new Hallway(-256, 704, 64, 256, 'cider_1', 'C'),
@@ -128,13 +124,32 @@ this.entities.push(
     new Collect(4416, 1248, 32, 32),
     new Collect(4480, 1248, 32, 32),
     new Collect(4544, 1248, 32, 32),
-    new Platform(7200, 960, 128, 64, '#00aa9e66'),
-    new Collect(7232, 896, 32, 32),
-    new Collect(7232, 864, 32, 32),
-    new Collect(7264, 864, 32, 32),
-    new Collect(7264, 896, 32, 32),
-    Object.assign(new Slime(6912, 992, 32, 32), { flipX: true, facingDir: -1 }),
-    Object.assign(new Platform(7328, 1024, 640, 96, '#00aa9e66'), { flipX: true }),
+    new Platform(6560, 800, 224, 128, '#00aa9e66'),
+    new Platform(6784, 800, 192, 128, '#00aa9e66'),
+    Object.assign(new Platform(5376, 512, 128, 512, '#00aa9e66'), { flipX: true }),
+    Object.assign(new Platform(4928, 512, 448, 96, '#00aa9e66'), { flipX: true }),
+    Object.assign(new Platform(5408, 96, 96, 256, '#00aa9e66'), { flipX: true }),
+    Object.assign(new Platform(6336, 704, 224, 224, '#00aa9e66'), { flipX: true }),
+    Object.assign(new BigCollect(6688, 640, 64, 64), { flipX: true }),
+    Object.assign(new Platform(5408, 352, 96, 32, '#00aa9e66'), { flipX: true }),
+    new Destroyable(5408, 448, 64, 64),
+    new Destroyable(5408, 384, 64, 64),
+    new Platform(4608, 448, 320, 64, '#00aa9e66'),
+    new Slope(4928, 448, 128, 64, 'right-up'),
+    new Platform(4224, 0, 160, 512, '#00aa9e66'),
+    new Platform(4864, 0, 512, 128, '#00aa9e66'),
+    new Platform(4384, 448, 224, 64, '#00aa9e66'),
+    new Platform(4640, 0, 224, 128, '#00aa9e66'),
+    new Destroyable(4672, 384, 64, 64),
+    new Destroyable(4736, 384, 64, 64),
+    new Destroyable(4704, 320, 64, 64),
+    new Platform(4640, 128, 224, 192, '#00aa9e66'),
+    new Platform(5376, 0, 32, 128, '#00aa9e66'),
+    new Platform(4224, -160, 160, 160, '#00aa9e66'),
+    new Platform(4640, -160, 96, 160, '#00aa9e66'),
+    new HallwayVertical(4384, -160, 256, 64, 'cider_3', 'A', 'up'),
+    new TargetDoor_A(4512, -32, 32, 32),
+    Object.assign(new Slime(1280, 1056, 32, 32), { flipX: true, facingDir: -1 }),
 );
 
 };

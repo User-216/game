@@ -2512,6 +2512,7 @@ class BigCollect extends Collect {
         this.image_index = Math.random() * maxF;
         this.image_speed = 0.35;
         BigCollect.initImages();
+
     }
 
     render(ctx) {
@@ -2578,6 +2579,286 @@ if (typeof window !== 'undefined') {
     window.obj_collect = Collect;
     window.obj_bigcollect = BigCollect;
 }
+
+class PizzaBoxUnopen extends Entity {
+    static sprites = [];
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (PizzaBoxUnopen.imagesLoaded) return;
+        PizzaBoxUnopen.sprites = [];
+        for (let i = 0; i < 30; i++) {
+            const img = new Image();
+            img.src = `spr_pizzaboxunopen/spr_pizzaboxunopen_${i}.png`;
+            PizzaBoxUnopen.sprites.push(img);
+        }
+        PizzaBoxUnopen.imagesLoaded = true;
+    }
+
+    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false, toppinType = 'mushroom') {
+        super(x, y, width, height, 'transparent', flipX, flipY);
+        this.type = 'pizzaboxunopen';
+        this.isSolid = false;
+        this.isPlatform = false;
+        this.toppinType = toppinType;
+        this.isOpened = false;
+        this.image_index = 0;
+        this.image_speed = 0.35;
+        this.particles = [];
+        PizzaBoxUnopen.initImages();
+    }
+
+    open(game) {
+        if (this.isOpened) return;
+        this.isOpened = true;
+
+        if (game.audio && game.audio.playFile) {
+            game.audio.playFile('sfx_collect', true);
+        } else if (game.audio && game.audio.play) {
+            game.audio.play('break');
+        }
+
+        // Add 1000 score points
+        if (game.score === undefined) game.score = 0;
+        game.score += 1000;
+
+        // Combo timer refresh
+        if (game.combo > 0) {
+            game.comboTimer = 60;
+        }
+
+        // Floating score popup (+1000)
+        game.floatingTexts = game.floatingTexts || [];
+        game.floatingTexts.push({
+            x: this.x + this.width / 2,
+            y: this.y,
+            text: "1000",
+            alpha: 1.0,
+            vy: -1.5
+        });
+
+        // Burst particles
+        const colors = ['#df7208', '#f39c12', '#d35400', '#ffffff', '#e67e22'];
+        for (let i = 0; i < 16; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd = 2 + Math.random() * 6;
+            this.particles.push({
+                x: this.x + this.width / 2,
+                y: this.y + this.height / 2,
+                vx: Math.cos(angle) * spd,
+                vy: Math.sin(angle) * spd - 3,
+                size: 3 + Math.random() * 5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                alpha: 1.0,
+                life: 30 + Math.random() * 20
+            });
+        }
+
+        // Spawn freed toppin follower!
+        game.toppins = game.toppins || [];
+        const toppin = new Toppin(this.x + this.width / 2 - 13, this.y + this.height - 45, this.toppinType);
+        game.toppins.push(toppin);
+    }
+
+    update(game) {
+        const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
+
+        // Update burst particles
+        if (this.particles.length > 0) {
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                const p = this.particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.25;
+                p.alpha -= 1 / p.life;
+                if (p.alpha <= 0) {
+                    this.particles.splice(i, 1);
+                }
+            }
+        }
+
+        if (isEditor) {
+            this.isOpened = false;
+            this.image_index = (this.image_index + this.image_speed) % 30;
+            return;
+        }
+
+        if (this.isOpened) return;
+
+        this.image_index = (this.image_index + this.image_speed) % 30;
+
+        // Player overlap trigger
+        if (game && game.player) {
+            const p = game.player;
+            if (p.x + p.width > this.x && p.x < this.x + this.width &&
+                p.y + p.height > this.y && p.y < this.y + this.height) {
+                this.open(game);
+            }
+        }
+    }
+
+    render(ctx) {
+        // Draw burst particles
+        if (this.particles.length > 0) {
+            ctx.save();
+            for (const p of this.particles) {
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+            }
+            ctx.restore();
+        }
+
+        const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
+        if (this.isOpened && !isEditor) return;
+
+        ctx.save();
+        if (this.flipX || this.flipY) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            ctx.translate(cx, cy);
+            ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
+
+        const frames = PizzaBoxUnopen.sprites;
+        const frameIdx = Math.floor(this.image_index) % 30;
+        const img = frames && frames[frameIdx];
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            // Draw 96x96 sprite with 16px offset to align 64x64 box to entity bounding box
+            ctx.drawImage(img, this.x - 16, this.y - 16, 96, 96);
+        } else {
+            // Fallback while loading
+            ctx.fillStyle = '#b7950b';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText('P-BOX', this.x + 14, this.y + 36);
+        }
+
+        // Show outline in editor mode or collision view
+        const showDebug = (window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
+        if (showDebug) {
+            ctx.strokeStyle = '#f39c12';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+        }
+
+        ctx.restore();
+    }
+}
+
+class Toppin {
+    static maskImage = null;
+    static initImage() {
+        if (!Toppin.maskImage) {
+            Toppin.maskImage = new Image();
+            Toppin.maskImage.src = 'player/spr_player_mask.png';
+        }
+    }
+
+    constructor(x, y, toppinType = 'mushroom') {
+        this.x = x;
+        this.y = y;
+        this.width = 26;
+        this.height = 45;
+        this.toppinType = toppinType;
+        this.facingDir = 1;
+        this.animTimer = Math.random() * 10;
+        this.popTimer = 22; // Pop-out frames
+        this.popVy = -7;
+        this.isSolid = false;
+        Toppin.initImage();
+    }
+
+    update(game, index = 0) {
+        this.animTimer += 0.2;
+
+        if (this.popTimer > 0) {
+            this.popTimer--;
+            this.y += this.popVy;
+            this.popVy += 0.5;
+            return;
+        }
+
+        const player = game.player;
+        if (!player) return;
+
+        const trail = game.playerTrail || [];
+        // Delay frames based on toppin index (1st toppin: 16 frames, 2nd: 32 frames, etc.)
+        const targetFrame = Math.min((index + 1) * 16, Math.max(0, trail.length - 1));
+        const point = trail[targetFrame];
+
+        if (point) {
+            const dx = point.x - this.x;
+            const dy = point.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 350) {
+                // Catch up if separated by room warp
+                this.x = point.x;
+                this.y = point.y;
+                this.facingDir = point.facingDir || 1;
+            } else if (dist > 3) {
+                // Smooth follow
+                const spd = Math.min(0.25, 0.12 + dist * 0.001);
+                this.x += dx * spd;
+                this.y += dy * spd;
+                if (Math.abs(dx) > 1) {
+                    this.facingDir = Math.sign(dx);
+                }
+            } else {
+                this.facingDir = player.facingDir || 1;
+            }
+        } else {
+            // Cluster behind player when stationary / starting
+            const targetX = player.x + (player.facingDir === 1 ? -28 - (index * 24) : player.width + 4 + (index * 24));
+            const targetY = player.y + player.height - this.height;
+            this.x += (targetX - this.x) * 0.2;
+            this.y += (targetY - this.y) * 0.2;
+            this.facingDir = player.facingDir || 1;
+        }
+    }
+
+    render(ctx) {
+        ctx.save();
+        
+        // Cute little hopping / bobbing animation while following
+        const bobY = Math.abs(Math.sin(this.animTimer)) * -4;
+        const renderX = Math.round(this.x);
+        const renderY = Math.round(this.y + bobY);
+
+        if (this.facingDir === -1) {
+            ctx.translate(renderX + this.width / 2, renderY + this.height / 2);
+            ctx.scale(-1, 1);
+            ctx.translate(-(renderX + this.width / 2), -(renderY + this.height / 2));
+        }
+
+        const img = Toppin.maskImage;
+        if (img && img.complete && img.naturalWidth > 0) {
+            // Draw spr_player_mask centered on entity hitbox
+            // spr_player_mask.png has bbox (38, 35, 64, 80) inside 100x100
+            ctx.drawImage(img, renderX - 38, renderY - 35, 100, 100);
+        } else {
+            ctx.fillStyle = '#ff3333';
+            ctx.fillRect(renderX, renderY, this.width, this.height);
+        }
+
+        ctx.restore();
+    }
+}
+
+PizzaBoxUnopen.initImages();
+Toppin.initImage();
+
+if (typeof window !== 'undefined') {
+    window.PizzaBoxUnopen = PizzaBoxUnopen;
+    window.pizzaboxunopen = PizzaBoxUnopen;
+    window.obj_pizzaboxunopen = PizzaBoxUnopen;
+    window.Toppin = Toppin;
+}
+
 
 
 class SlimeDebris extends Entity {

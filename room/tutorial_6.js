@@ -2360,6 +2360,7 @@ this.entities.push(
     new EscapeBlockOpen(288, 192, 64, 544),
     new TutorialBook(480, 704, 32, 32, "tutorial18"),
     new TutorialBook(2304, 800, 32, 32, "tutorial19"),
+    new PizzaBoxUnopen(1280, 672, 64, 64),
 );
 
 };

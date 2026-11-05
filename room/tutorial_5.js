@@ -6521,6 +6521,7 @@ this.entities.push(
     new Tile3(4352, 256, 32, 32, 64, 192, 'tile_tutorial.png', 32, 32, true, false),
     new TargetDoor_A(4160, 1280, 32, 32),
     new TutorialBook(640, 480, 32, 32, "tutorial14"),
+    new PizzaBoxUnopen(2720, 640, 64, 64),
 );
 
 };
