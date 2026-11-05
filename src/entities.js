@@ -139,6 +139,10 @@ class Destroyable extends Entity {
     destroy() {
         if (this.isDestroyed) return;
         this.isDestroyed = true;
+        const g = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        if (g && g.persistentDestruction && !g.isEditorMode && this.persistentId && g.destroyedEntityIds) {
+            g.destroyedEntityIds.add(this.persistentId);
+        }
         const particleColors = ['#df7208', '#7f2800', '#ffaa44', '#b85400'];
         for (let i = 0; i < 20; i++) {
             this.particles.push({
@@ -219,6 +223,548 @@ class Destroyable extends Entity {
 }
 Destroyable.initImages();
 
+
+
+class PizzaBlockDead extends Entity {
+    static spritesSmall = [];
+    static spritesBig = [];
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (PizzaBlockDead.imagesLoaded) return;
+        PizzaBlockDead.spritesSmall = [];
+        PizzaBlockDead.spritesBig = [];
+
+        // spr_pizzablockdead: 9 frames (61x61)
+        for (let i = 0; i < 9; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_pizzablockdead/spr_pizzablockdead_${i}.png`;
+            PizzaBlockDead.spritesSmall.push(img);
+        }
+
+        // spr_bigpizzablockdead: 10 frames (149x141)
+        for (let i = 0; i < 10; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_bigpizzablockdead/spr_bigpizzablockdead_${i}.png`;
+            PizzaBlockDead.spritesBig.push(img);
+        }
+
+        PizzaBlockDead.imagesLoaded = true;
+    }
+
+    constructor(cx, cy, isBig = false) {
+        const w = isBig ? 149 : 61;
+        const h = isBig ? 141 : 61;
+        super(cx - w / 2, cy - h / 2, w, h, 'transparent');
+        this.type = 'obj_debris';
+        this.isSolid = false;
+        this.isPlatform = false;
+        this.renderBehind = false;
+        this.isBig = isBig;
+        this.image_index = 0;
+        this.image_speed = 0.38;
+        this.vx = (Math.random() - 0.5) * 1.5;
+        this.vy = -1.2;
+        this.gravity = 0.12;
+        PizzaBlockDead.initImages();
+    }
+
+    update(game) {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += this.gravity;
+        this.image_index += this.image_speed;
+
+        const frames = this.isBig ? PizzaBlockDead.spritesBig : PizzaBlockDead.spritesSmall;
+        if (this.image_index >= frames.length) {
+            this.markedForDeletion = true;
+        }
+    }
+
+    render(ctx) {
+        const frames = this.isBig ? PizzaBlockDead.spritesBig : PizzaBlockDead.spritesSmall;
+        const frameIdx = Math.floor(this.image_index);
+        if (frameIdx < frames.length) {
+            const img = frames[frameIdx];
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, Math.round(this.x), Math.round(this.y), this.width, this.height);
+            }
+        }
+    }
+}
+
+class AppleBlock extends Destroyable {
+    static spritesSmall = [];
+    static spritesBig = [];
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (AppleBlock.imagesLoaded) return;
+        AppleBlock.spritesSmall = [];
+        AppleBlock.spritesBig = [];
+
+        // spr_destroyable2: 10 frames (32x32)
+        for (let i = 0; i < 10; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_destroyable2/spr_destroyable2_${i}.png`;
+            AppleBlock.spritesSmall.push(img);
+        }
+
+        // spr_bigbreakable2: 12 frames (64x64)
+        for (let i = 0; i < 12; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_bigbreakable2/spr_bigbreakable2_${i}.png`;
+            AppleBlock.spritesBig.push(img);
+        }
+
+        PizzaBlockDead.initImages();
+        AppleBlock.imagesLoaded = true;
+    }
+
+    constructor(x, y, width = 16, height = 16, isBig = null, flipX = false, flipY = false) {
+        let actualBig = false;
+        if (typeof isBig === 'boolean') {
+            actualBig = isBig;
+        } else {
+            actualBig = (width >= 32 && height >= 32);
+        }
+
+        super(x, y, width, height, '#e74c3c', flipX, flipY);
+        this.isBig = actualBig;
+        this.type = this.isBig ? 'appleblock_big' : 'appleblock_small';
+        this.isSolid = true;
+        this.isPlatform = false;
+        this.points = this.isBig ? 100 : 10;
+        this.image_index = Math.random() * 5;
+        this.image_speed = this.isBig ? 0.35 : 0.2;
+        AppleBlock.initImages();
+    }
+
+    destroy(game = window.gameInstance) {
+        if (this.isDestroyed) return;
+        this.isDestroyed = true;
+        this.isSolid = false;
+        this.isPlatform = false;
+
+        const g = game || window.gameInstance || window.game;
+        if (g && g.persistentDestruction && !g.isEditorMode && this.persistentId && g.destroyedEntityIds) {
+            g.destroyedEntityIds.add(this.persistentId);
+        }
+        if (g) {
+            // Break sound
+            if (g.audio && g.audio.play) {
+                g.audio.play('break');
+            }
+
+            // Score
+            if (g.score === undefined) g.score = 0;
+            g.score += this.points;
+
+            // Combo timer: 16x16 increases like fruit (+20), 32x32 sets to max combo time (60)
+            if (g.combo > 0) {
+                if (this.isBig) {
+                    g.comboTimer = 60; // Max combo time
+                } else {
+                    g.comboTimer = Math.min(60, (g.comboTimer || 0) + 20); // Fruit combo time
+                }
+            }
+
+            // Floating score popup (+10 or +100)
+            g.floatingTexts = g.floatingTexts || [];
+            g.floatingTexts.push({
+                x: this.x + this.width / 2,
+                y: this.y,
+                text: this.points.toString(),
+                alpha: 1.0,
+                vy: -1.2
+            });
+
+            // Track destroyed block for level reload / escape
+            g.destroyedBlocks = g.destroyedBlocks || [];
+            if (!g.destroyedBlocks.includes(this)) {
+                g.destroyedBlocks.push(this);
+            }
+
+            // Spawn PizzaBlockDead debris
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            const deadEffect = new PizzaBlockDead(cx, cy, this.isBig);
+            g.entities.push(deadEffect);
+        }
+    }
+
+    render(ctx) {
+        if (!this.isDestroyed) {
+            ctx.save();
+            if (this.flipX || this.flipY) {
+                const cx = this.x + this.width / 2;
+                const cy = this.y + this.height / 2;
+                ctx.translate(cx, cy);
+                ctx.scale(this.flipX ? -1 : 1, this.flipY ? -1 : 1);
+                ctx.translate(-cx, -cy);
+            }
+
+            const frames = this.isBig ? AppleBlock.spritesBig : AppleBlock.spritesSmall;
+            if (frames && frames.length > 0) {
+                this.image_index = (this.image_index + this.image_speed) % frames.length;
+                const frameIdx = Math.floor(this.image_index);
+                const img = frames[frameIdx];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(img, this.x, this.y, this.width, this.height);
+                } else {
+                    ctx.fillStyle = this.isBig ? '#c0392b' : '#e74c3c';
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
+            } else {
+                ctx.fillStyle = this.isBig ? '#c0392b' : '#e74c3c';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+
+            // Editor mode outline
+            const isEditor = (window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode);
+            if (isEditor) {
+                ctx.strokeStyle = '#2ecc71';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+            }
+
+            ctx.restore();
+        }
+    }
+}
+
+class AppleBlockSmall extends AppleBlock {
+    constructor(x, y, width = 16, height = 16, isBig = false, flipX = false, flipY = false) {
+        super(x, y, width, height, false, flipX, flipY);
+    }
+}
+
+class AppleBlockBig extends AppleBlock {
+    constructor(x, y, width = 32, height = 32, isBig = true, flipX = false, flipY = false) {
+        super(x, y, width, height, true, flipX, flipY);
+    }
+}
+
+AppleBlock.initImages();
+PizzaBlockDead.initImages();
+
+
+
+
+class SecretPortal extends Entity {
+    static spritesIdle = [];
+    static spritesClose = [];
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (SecretPortal.imagesLoaded) return;
+        SecretPortal.spritesIdle = [];
+        SecretPortal.spritesClose = [];
+
+        // spr_secretportal_idle: 14 frames (0 to 13)
+        for (let i = 0; i < 14; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_secretportal_idle/spr_secretportal_idle_${i}.png`;
+            SecretPortal.spritesIdle.push(img);
+        }
+
+        // spr_secretportal_close: 16 frames (0 to 15)
+        for (let i = 0; i < 16; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_secretportal_close/spr_secretportal_close_${i}.png`;
+            SecretPortal.spritesClose.push(img);
+        }
+
+        SecretPortal.imagesLoaded = true;
+    }
+
+    constructor(x, y, width = 64, height = 64, targetRoom = 'cider_1', flipX = false, flipY = false) {
+        super(x, y, width, height, 'rgba(142, 68, 173, 0.4)', flipX, flipY);
+        this.type = 'secretportal';
+        this.targetRoom = targetRoom || '';
+        this.isSolid = false;
+        this.isPlatform = false;
+        this.state = 'idle'; // 'idle' | 'close'
+        this.image_index = 0;
+        this.image_speed = 0.35;
+        this.renderBehind = false;
+        SecretPortal.initImages();
+    }
+
+    convertToExit(game = window.gameInstance) {
+        const exit = new SecretPortalExit(this.x, this.y, this.width, this.height);
+        const g = game || window.gameInstance || window.game;
+        if (g && g.entities) {
+            const idx = g.entities.indexOf(this);
+            if (idx !== -1) {
+                g.entities[idx] = exit;
+            } else {
+                g.entities.push(exit);
+            }
+        }
+        return exit;
+    }
+
+    update(game = window.gameInstance) {
+        if (this.isDestroyed) return;
+        const g = game || window.gameInstance || window.game;
+        if (!g) return;
+
+        SecretPortal.initImages();
+
+        if (this.state === 'idle') {
+            const frames = SecretPortal.spritesIdle;
+            if (frames.length > 0) {
+                this.image_index = (this.image_index + this.image_speed) % frames.length;
+            }
+
+            if (!g.isEditorMode && g.player && g.player.state !== 'secretportal' && g.player.state !== 'secretportal_exit' && g.player.state !== 'enterdoor') {
+                if (Physics.checkCollision(this, g.player)) {
+                    // Sucked into portal
+                    this.state = 'close';
+                    this.image_index = 0;
+                    g.player.state = 'secretportal';
+                    g.player.portalTarget = {
+                        x: this.x + this.width / 2 - g.player.width / 2,
+                        y: this.y + this.height / 2 - g.player.height / 2
+                    };
+                    g.player.portalScale = 1.0;
+                    g.player.vx = 0;
+                    g.player.vy = 0;
+                }
+            }
+        } else if (this.state === 'close') {
+            this.image_index += this.image_speed;
+
+            if (g.player && g.player.state === 'secretportal') {
+                const targetX = this.x + this.width / 2 - g.player.width / 2;
+                const targetY = this.y + this.height / 2 - g.player.height / 2;
+                g.player.x += (targetX - g.player.x) * 0.3;
+                g.player.y += (targetY - g.player.y) * 0.3;
+                if (g.player.portalScale !== undefined) {
+                    g.player.portalScale = Math.max(0.05, g.player.portalScale * 0.88);
+                }
+            }
+
+            const frames = SecretPortal.spritesClose;
+            if (this.image_index >= frames.length) {
+                this.state = 'idle';
+                this.image_index = 0;
+                if (g.player) {
+                    g.player.portalScale = 1.0;
+                }
+                if (this.targetRoom) {
+                    if (typeof g.triggerSecretPortalTransition === 'function') {
+                        g.triggerSecretPortalTransition(this.targetRoom);
+                    } else if (typeof g.triggerRoomTransition === 'function') {
+                        g.isPortalTransition = true;
+                        g.triggerRoomTransition(this.targetRoom, 'SECRET_PORTAL', false);
+                    }
+                } else {
+                    if (g.player) g.player.state = 'normal';
+                }
+            }
+        }
+    }
+
+    render(ctx) {
+        if (this.isDestroyed) return;
+        SecretPortal.initImages();
+
+        const frames = (this.state === 'close') ? SecretPortal.spritesClose : SecretPortal.spritesIdle;
+        const frameIdx = Math.min(frames.length - 1, Math.floor(this.image_index));
+        const img = frames[frameIdx];
+
+        ctx.save();
+        if (img && img.complete && img.naturalWidth > 0) {
+            const drawX = Math.round(this.x + this.width / 2 - 64);
+            const drawY = Math.round(this.y + this.height / 2 - 64);
+            ctx.drawImage(img, drawX, drawY, 128, 128);
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+
+        const g = window.gameInstance;
+        if (g && g.isEditorMode) {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(`PORTAL -> ${this.targetRoom || 'none'}`, this.x + this.width / 2, this.y - 6);
+        }
+        ctx.restore();
+    }
+}
+
+class SecretPortalExit extends Entity {
+    static spritesSpawnOpen = [];
+    static spritesSpawnIdle = [];
+    static spritesSpawnClose = [];
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (SecretPortalExit.imagesLoaded) return;
+        SecretPortalExit.spritesSpawnOpen = [];
+        SecretPortalExit.spritesSpawnIdle = [];
+        SecretPortalExit.spritesSpawnClose = [];
+
+        // spr_secretportal_spawnopen: 10 frames (0 to 9)
+        for (let i = 0; i < 10; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_secretportal_spawnopen/spr_secretportal_spawnopen_${i}.png`;
+            SecretPortalExit.spritesSpawnOpen.push(img);
+        }
+
+        // spr_secretportal_spawnidle: 12 frames (0 to 11)
+        for (let i = 0; i < 12; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_secretportal_spawnidle/spr_secretportal_spawnidle_${i}.png`;
+            SecretPortalExit.spritesSpawnIdle.push(img);
+        }
+
+        // spr_secretportal_spawnclose: 8 frames (0 to 7)
+        for (let i = 0; i < 8; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_secretportal_spawnclose/spr_secretportal_spawnclose_${i}.png`;
+            SecretPortalExit.spritesSpawnClose.push(img);
+        }
+
+        SecretPortalExit.imagesLoaded = true;
+    }
+
+    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false) {
+        super(x, y, width, height, 'rgba(142, 68, 173, 0.4)', flipX, flipY);
+        this.type = 'secretportalexit';
+        this.isSolid = false;
+        this.isPlatform = false;
+        this.active = false;
+        this.state = 'spawnidle'; // 'spawnopen' | 'spawnidle' | 'spawnclose'
+        this.image_index = 0;
+        this.image_speed = 0.35;
+        this.idleRepeatCount = 0;
+        this.renderBehind = false;
+        SecretPortalExit.initImages();
+    }
+
+    activate(player = null) {
+        this.active = true;
+        this.state = 'spawnopen';
+        this.image_index = 0;
+        this.idleRepeatCount = 0;
+        if (player) {
+            player.state = 'secretportal_exit';
+            player.x = this.x + this.width / 2 - player.width / 2;
+            player.y = this.y + this.height - player.height;
+            player.vx = 0;
+            player.vy = 0;
+            player.visible = true;
+            player.portalScale = 1.0;
+        }
+    }
+
+    update(game = window.gameInstance) {
+        if (this.isDestroyed || this.markedForDeletion) return;
+        const g = game || window.gameInstance || window.game;
+        if (!g) return;
+
+        if (g.isEditorMode) {
+            return;
+        }
+
+        SecretPortalExit.initImages();
+
+        if (!this.active) {
+            return;
+        }
+
+        if (this.state === 'spawnopen') {
+            this.image_index += this.image_speed;
+
+            if (g.player && g.player.state === 'secretportal_exit') {
+                g.player.x = this.x + this.width / 2 - g.player.width / 2;
+                g.player.y = this.y + this.height - g.player.height;
+                g.player.vx = 0;
+                g.player.vy = 0;
+            }
+
+            const frames = SecretPortalExit.spritesSpawnOpen;
+            if (this.image_index >= frames.length) {
+                this.state = 'spawnidle';
+                this.image_index = 0;
+                this.idleRepeatCount = 0;
+
+                if (g.player && g.player.state === 'secretportal_exit') {
+                    g.player.state = 'normal';
+                    g.player.isGrounded = false;
+                    g.player.vy = -6; // Pop player upwards out of the portal
+                    g.player.sprite_index = 'spr_player_jump';
+                    g.player.image_index = 0;
+                }
+            }
+        } else if (this.state === 'spawnidle') {
+            this.image_index += this.image_speed;
+            const frames = SecretPortalExit.spritesSpawnIdle;
+            if (this.image_index >= frames.length) {
+                this.image_index = 0;
+                this.idleRepeatCount++;
+                if (this.idleRepeatCount >= 5) {
+                    this.state = 'spawnclose';
+                    this.image_index = 0;
+                }
+            }
+        } else if (this.state === 'spawnclose') {
+            this.image_index += this.image_speed;
+            const frames = SecretPortalExit.spritesSpawnClose;
+            if (this.image_index >= frames.length) {
+                this.markedForDeletion = true;
+            }
+        }
+    }
+
+    render(ctx) {
+        if (this.isDestroyed || this.markedForDeletion) return;
+        SecretPortalExit.initImages();
+
+        const g = window.gameInstance;
+        let frames = SecretPortalExit.spritesSpawnIdle;
+        if (this.state === 'spawnopen') frames = SecretPortalExit.spritesSpawnOpen;
+        else if (this.state === 'spawnidle') frames = SecretPortalExit.spritesSpawnIdle;
+        else if (this.state === 'spawnclose') frames = SecretPortalExit.spritesSpawnClose;
+
+        const frameIdx = (this.active || (g && !g.isEditorMode)) 
+            ? Math.min(frames.length - 1, Math.floor(this.image_index))
+            : 0;
+        const img = frames[frameIdx];
+
+        ctx.save();
+        if (img && img.complete && img.naturalWidth > 0) {
+            const drawX = Math.round(this.x + this.width / 2 - 64);
+            const drawY = Math.round(this.y + this.height / 2 - 64);
+            ctx.drawImage(img, drawX, drawY, 128, 128);
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+
+        if (g && g.isEditorMode) {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(`PORTAL EXIT`, this.x + this.width / 2, this.y - 6);
+        }
+        ctx.restore();
+    }
+}
+
+SecretPortal.initImages();
+SecretPortalExit.initImages();
+
+
 class Metal extends Destroyable {
     constructor(x, y, width, height) {
         super(x, y, width, height, '#c2dedc');
@@ -237,6 +783,9 @@ class Metal extends Destroyable {
         if (this.isDestroyed) return;
         this.isDestroyed = true;
         const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
+        if (g && g.persistentDestruction && !g.isEditorMode && this.persistentId && g.destroyedEntityIds) {
+            g.destroyedEntityIds.add(this.persistentId);
+        }
         if (g) {
             if (g.player) g.player.requestScreenShake = 20;
             if (g.cameraShake !== undefined) g.cameraShake = Math.max(g.cameraShake || 0, 20);
@@ -319,6 +868,9 @@ class SecretBlock extends Destroyable {
         const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
         if (g && g.isEditorMode) return;
         this.isDestroyed = true;
+        if (g && g.persistentDestruction && !g.isEditorMode && this.persistentId && g.destroyedEntityIds) {
+            g.destroyedEntityIds.add(this.persistentId);
+        }
 
         const particleColors = ['#df7208', '#7f2800', '#ffaa44', '#b85400', '#ffd700'];
         for (let i = 0; i < 20; i++) {
@@ -654,6 +1206,9 @@ class SecretMetalBlock extends Metal {
         const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
         if (g && g.isEditorMode) return;
         this.isDestroyed = true;
+        if (g && g.persistentDestruction && !g.isEditorMode && this.persistentId && g.destroyedEntityIds) {
+            g.destroyedEntityIds.add(this.persistentId);
+        }
         if (g) {
             if (g.player) g.player.requestScreenShake = 20;
             if (g.cameraShake !== undefined) g.cameraShake = Math.max(g.cameraShake || 0, 20);
@@ -928,6 +1483,9 @@ class Pillar extends Destroyable {
         this.isDestroyed = true;
 
         const g = game || (typeof window !== 'undefined' ? window.gameInstance : null);
+        if (g && g.persistentDestruction && !g.isEditorMode && this.persistentId && g.destroyedEntityIds) {
+            g.destroyedEntityIds.add(this.persistentId);
+        }
         if (g) {
             // Activate Escape Sequence with this Pillar's custom escapeTime!
             const sec = (typeof this.escapeTime === 'number' && this.escapeTime > 0) ? this.escapeTime : 120;
@@ -2595,12 +3153,34 @@ class PizzaBoxUnopen extends Entity {
         PizzaBoxUnopen.imagesLoaded = true;
     }
 
-    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false, toppinType = 'mushroom') {
-        super(x, y, width, height, 'transparent', flipX, flipY);
+    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false, toppinType = 1) {
+        let actualW = 64;
+        let actualH = 64;
+        let actualFlipX = false;
+        let actualFlipY = false;
+        let actualType = 1;
+
+        if (typeof width === 'number' && width <= 5) {
+            actualType = width;
+        } else if (typeof width === 'string' && ['1', '2', '3', '4', '5', 'shroom', 'mushroom', 'cheese', 'tomato', 'sausage', 'pineapple', 'apple', 'orange', 'grape', 'watermelon'].includes(width.toLowerCase())) {
+            actualType = width;
+        } else {
+            actualW = typeof width === 'number' ? width : 64;
+            actualH = typeof height === 'number' ? height : 64;
+            if (typeof flipX === 'number' || (typeof flipX === 'string' && ['1', '2', '3', '4', '5'].includes(flipX))) {
+                actualType = flipX;
+            } else {
+                actualFlipX = !!flipX;
+                actualFlipY = !!flipY;
+                actualType = toppinType !== undefined ? toppinType : 1;
+            }
+        }
+
+        super(x, y, actualW, actualH, 'transparent', actualFlipX, actualFlipY);
         this.type = 'pizzaboxunopen';
         this.isSolid = false;
         this.isPlatform = false;
-        this.toppinType = toppinType;
+        this.toppinType = actualType;
         this.isOpened = false;
         this.image_index = 0;
         this.image_speed = 0.35;
@@ -2611,6 +3191,9 @@ class PizzaBoxUnopen extends Entity {
     open(game) {
         if (this.isOpened) return;
         this.isOpened = true;
+        if (game && game.persistentDestruction && !game.isEditorMode && this.persistentId && game.destroyedEntityIds) {
+            game.destroyedEntityIds.add(this.persistentId);
+        }
 
         if (game.audio && game.audio.playFile) {
             game.audio.playFile('sfx_collect', true);
@@ -2654,9 +3237,13 @@ class PizzaBoxUnopen extends Entity {
             });
         }
 
-        // Spawn freed toppin follower!
+        // Spawn freed toppin follower! (1=사과/버섯, 2=오렌지/치즈, 3=포도/토마토, 4=수박/소시지, 5=파인애플)
         game.toppins = game.toppins || [];
-        const toppin = new Toppin(this.x + this.width / 2 - 13, this.y + this.height - 45, this.toppinType);
+        let typeToUse = this.toppinType;
+        if (!typeToUse || typeToUse === 'mushroom') {
+            typeToUse = (game.toppins.length % 5) + 1;
+        }
+        const toppin = new Toppin(this.x + this.width / 2 - 16, this.y + this.height - 36, typeToUse);
         game.toppins.push(toppin);
     }
 
@@ -2745,6 +3332,29 @@ class PizzaBoxUnopen extends Entity {
             ctx.strokeRect(this.x, this.y, this.width, this.height);
         }
 
+        // In editor mode, show cute badge indicating toppin character (1..5)
+        if (isEditor) {
+            let typeId = 1;
+            if (typeof this.toppinType === 'number' && this.toppinType >= 1 && this.toppinType <= 5) {
+                typeId = this.toppinType;
+            } else if (typeof this.toppinType === 'string') {
+                const parsed = parseInt(this.toppinType, 10);
+                if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) typeId = parsed;
+            }
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(this.x + 4, this.y + 4, 22, 18);
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(this.x + 4, this.y + 4, 22, 18);
+            ctx.fillStyle = '#f1c40f';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(typeId), this.x + 15, this.y + 13);
+            ctx.restore();
+        }
+
         ctx.restore();
     }
 }
@@ -2756,93 +3366,163 @@ class Toppin {
             Toppin.maskImage = new Image();
             Toppin.maskImage.src = 'player/spr_player_mask.png';
         }
+        if (typeof Collect !== 'undefined' && typeof Collect.initImages === 'function') {
+            Collect.initImages();
+        }
     }
 
-    constructor(x, y, toppinType = 'mushroom') {
+    constructor(x, y, toppinType = 1) {
         this.x = x;
         this.y = y;
-        this.width = 26;
-        this.height = 45;
+        this.width = 32;
+        this.height = 36;
         this.toppinType = toppinType;
         this.facingDir = 1;
         this.animTimer = Math.random() * 10;
-        this.popTimer = 22; // Pop-out frames
-        this.popVy = -7;
+        this.popTimer = 10; // Pop-out frames
+        this.popVy = -6;
         this.isSolid = false;
+        this.dragLag = 0; // Trailing drag inertia for Option A
         Toppin.initImage();
     }
 
+    getCollectTypeId(index = 0) {
+        if (typeof this.toppinType === 'number' && this.toppinType >= 1 && this.toppinType <= 5) {
+            return this.toppinType;
+        }
+        if (typeof this.toppinType === 'string') {
+            const lower = this.toppinType.toLowerCase();
+            if (lower.includes('shroom') || lower.includes('mushroom') || lower.includes('apple') || lower === '1') return 1;
+            if (lower.includes('cheese') || lower.includes('orange') || lower === '2') return 2;
+            if (lower.includes('tomato') || lower.includes('grape') || lower === '3') return 3;
+            if (lower.includes('sausage') || lower.includes('watermelon') || lower === '4') return 4;
+            if (lower.includes('pineapple') || lower === '5') return 5;
+        }
+        return (index % 5) + 1;
+    }
+
     update(game, index = 0) {
-        this.animTimer += 0.2;
+        const player = game.player;
+        if (!player) return;
 
         if (this.popTimer > 0) {
             this.popTimer--;
             this.y += this.popVy;
-            this.popVy += 0.5;
+            this.popVy += 0.6;
+            // Pop 중에 플레이어 방향으로 유도
+            const playerCenterX = player.x + player.width / 2;
+            const thisCenterX = this.x + this.width / 2;
+            const driftX = playerCenterX - thisCenterX;
+            if (Math.abs(driftX) > 1) {
+                this.x += Math.sign(driftX) * Math.min(Math.abs(driftX), 10);
+            }
             return;
         }
 
-        const player = game.player;
-        if (!player) return;
-
         const trail = game.playerTrail || [];
-        // Delay frames based on toppin index (1st toppin: 16 frames, 2nd: 32 frames, etc.)
-        const targetFrame = Math.min((index + 1) * 16, Math.max(0, trail.length - 1));
-        const point = trail[targetFrame];
+        if (trail.length === 0) return;
 
-        if (point) {
-            const dx = point.x - this.x;
-            const dy = point.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+        // [Option A] Trailing Drag (바람/관성에 의한 거리 벌어짐):
+        // 수평 질주 시 토핑이 바로 등 뒤(24px)에 바짝 붙지 않고, 바람과 관성에 끌려오듯 자연스럽게 60~80px 후방으로 벌어짐
+        const horizontalSpd = Math.abs(player.vx || 0);
+        const speedExcess = Math.max(0, horizontalSpd - 3);
+        const targetDrag = Math.min(8, speedExcess * 0.7);
 
-            if (dist > 350) {
-                // Catch up if separated by room warp
-                this.x = point.x;
-                this.y = point.y;
-                this.facingDir = point.facingDir || 1;
-            } else if (dist > 3) {
-                // Smooth follow
-                const spd = Math.min(0.25, 0.12 + dist * 0.001);
-                this.x += dx * spd;
-                this.y += dy * spd;
-                if (Math.abs(dx) > 1) {
-                    this.facingDir = Math.sign(dx);
-                }
-            } else {
-                this.facingDir = player.facingDir || 1;
-            }
+        if (this.dragLag === undefined) this.dragLag = 0;
+        const lagRate = targetDrag > this.dragLag ? 0.09 : 0.08;
+        this.dragLag += (targetDrag - this.dragLag) * lagRate;
+
+        // 후속 토핑 간격도 질주 시 비례하여 여유 있게 벌어짐 (P > T0 > T1 > T2 순서 완벽 유지)
+        const followerSpread = Math.round(this.dragLag * 0.3);
+        const targetIndex = Math.min(trail.length - 1, Math.round(6 + this.dragLag + index * (6 + followerSpread)));
+        const target = trail[targetIndex];
+        if (!target) return;
+
+        const targetX = target.x;
+        const targetY = target.y;
+        const targetFacing = target.facingDir || 1;
+
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        const isMoving = dist > 1.5 || horizontalSpd > 0.4;
+        this.animTimer += (isMoving ? 0.32 : 0.22);
+
+        if (dist > 500) {
+            // 룸 이동 등 극단적으로 거리가 벌어지면 즉시 스냅
+            this.x = targetX;
+            this.y = targetY;
+            this.facingDir = targetFacing;
+        } else if (dist <= 1.0) {
+            this.x = targetX;
+            this.y = targetY;
+            this.facingDir = targetFacing;
         } else {
-            // Cluster behind player when stationary / starting
-            const targetX = player.x + (player.facingDir === 1 ? -28 - (index * 24) : player.width + 4 + (index * 24));
-            const targetY = player.y + player.height - this.height;
-            this.x += (targetX - this.x) * 0.2;
-            this.y += (targetY - this.y) * 0.2;
-            this.facingDir = player.facingDir || 1;
+            // 부드러운 탄성 추적 (질주 시 자연스러운 슬립스트림 완충)
+            const ease = Math.min(0.42, 0.28 + dist * 0.002);
+            this.x += dx * ease;
+            this.y += dy * ease;
+            this.facingDir = targetFacing;
         }
     }
 
-    render(ctx) {
+    render(ctx, index = 0) {
         ctx.save();
         
-        // Cute little hopping / bobbing animation while following
-        const bobY = Math.abs(Math.sin(this.animTimer)) * -4;
+        // 정지 및 이동 중에도 파도타기 위상차로 생동감 있게 뛰는 깡총 바운스 효과
+        const hopHeight = 11;
+        const hopProgress = Math.sin(this.animTimer + index * 0.8);
+        const bobY = Math.abs(hopProgress) * -hopHeight;
         const renderX = Math.round(this.x);
         const renderY = Math.round(this.y + bobY);
 
+        const cx = renderX + this.width / 2;
+        const cy = renderY + this.height;
+        ctx.translate(cx, cy);
+
+        // 좌우 반전
         if (this.facingDir === -1) {
-            ctx.translate(renderX + this.width / 2, renderY + this.height / 2);
             ctx.scale(-1, 1);
-            ctx.translate(-(renderX + this.width / 2), -(renderY + this.height / 2));
         }
 
-        const img = Toppin.maskImage;
-        if (img && img.complete && img.naturalWidth > 0) {
-            // Draw spr_player_mask centered on entity hitbox
-            // spr_player_mask.png has bbox (38, 35, 64, 80) inside 100x100
-            ctx.drawImage(img, renderX - 38, renderY - 35, 100, 100);
-        } else {
-            ctx.fillStyle = '#ff3333';
-            ctx.fillRect(renderX, renderY, this.width, this.height);
+        // [Option A] 질주 시 바람 저항(Slipstream Drag) 연출:
+        // 바람에 끌려올 때 뒤로 살짝 눕는 틸트와 유선형 스트레치
+        const dragIntensity = Math.min(1.0, (this.dragLag || 0) / 7.5);
+        if (dragIntensity > 0.05) {
+            ctx.rotate(-dragIntensity * 0.12); // 뒤로 약 7도 자연스러운 바람 눕힘
+        }
+
+        // 도약/착지에 맞춘 귀여운 스쿼시 & 스트레치
+        const stretch = 1.0 + (bobY / hopHeight) * -0.15 - dragIntensity * 0.05;
+        const squash = 1.0 + (1.0 - Math.abs(bobY / hopHeight)) * 0.1 + dragIntensity * 0.1;
+        ctx.scale(squash, stretch);
+
+        const typeId = this.getCollectTypeId(index);
+        let drawn = false;
+
+        // [임시 과일/음식 수집품 이미지 적용] spr_collect 1~5 애니메이션 스프라이트 렌더링
+        if (typeof Collect !== 'undefined' && Collect.sprites && Collect.sprites[typeId]) {
+            const frames = Collect.sprites[typeId];
+            if (frames && frames.length > 0) {
+                const frameIdx = Math.floor(this.animTimer * 1.0) % frames.length;
+                const img = frames[frameIdx];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    // spr_collect 스프라이트(100x100) 하단(Y=68)을 지면 피벗(Y=0)에 자연스럽게 정렬
+                    ctx.drawImage(img, -50, -68, 100, 100);
+                    drawn = true;
+                }
+            }
+        }
+
+        if (!drawn) {
+            const img = Toppin.maskImage;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, -this.width / 2 - 38, -this.height - 35, 100, 100);
+            } else {
+                ctx.fillStyle = '#ff3333';
+                ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
+            }
         }
 
         ctx.restore();
@@ -2857,6 +3537,24 @@ if (typeof window !== 'undefined') {
     window.pizzaboxunopen = PizzaBoxUnopen;
     window.obj_pizzaboxunopen = PizzaBoxUnopen;
     window.Toppin = Toppin;
+
+    window.AppleBlock = AppleBlock;
+    window.AppleBlockSmall = AppleBlockSmall;
+    window.AppleBlockBig = AppleBlockBig;
+    window.appleblock = AppleBlock;
+    window.appleblock_small = AppleBlockSmall;
+    window.appleblock_big = AppleBlockBig;
+    window.obj_destroyable2 = AppleBlockSmall;
+    window.obj_bigbreakable2 = AppleBlockBig;
+    window.PizzaBlockDead = PizzaBlockDead;
+
+    window.SecretPortal = SecretPortal;
+    window.SecretPortalExit = SecretPortalExit;
+    window.secretportal = SecretPortal;
+    window.secretportalexit = SecretPortalExit;
+    window.obj_secretportal = SecretPortal;
+    window.obj_secretportalexit = SecretPortalExit;
+
 }
 
 
@@ -4208,7 +4906,7 @@ class RankController extends Entity {
     }
 
     getStats(game) {
-        const score = (game && game.score !== undefined) ? game.score : 0;
+        const score = (game && game.lastStageScore !== undefined) ? game.lastStageScore : ((game && game.score !== undefined) ? game.score : 0);
         const totalSec = (game && game.stageSeconds !== undefined && game.stageSeconds > 0) ? game.stageSeconds : 15.54;
         
         const hours = Math.floor(totalSec / 3600);
@@ -4368,6 +5066,13 @@ class RankController extends Entity {
                         player.visible = true;
                     }
                     const hubRoom = game.hub_room || 'demo_hub';
+                    if (typeof game.resetScoreAndToppins === 'function') {
+                        game.resetScoreAndToppins();
+                    } else {
+                        game.score = 0;
+                        game.toppins = [];
+                        game.playerTrail = [];
+                    }
                     game.transitionState = 'FADE_OUT';
                     game.transitionTimer = 0;
                     game.pendingRoom = hubRoom;

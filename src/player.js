@@ -531,6 +531,41 @@ class Player {
             return;
         }
 
+        if (this.state === 'secretportal' || this.state === 'secretportal_exit') {
+            this.vx = 0;
+            this.vy = 0;
+            this.isRunning = false;
+            this.isDrifting = false;
+            this.isDrifting1 = false;
+            this.isMachSliding = false;
+            this.isClimbing = false;
+            this.isGroundPounding = false;
+            this.freefallLoopStarted = false;
+            this.isSuplexGrabbing = false;
+            this.isTumbling = false;
+            this.isCrouching = false;
+            this.machAfters = [];
+            this.ghostAfters = [];
+            if (this.height === 23) {
+                this.height = 45;
+                this.y -= 22;
+                this.mask_index = 'spr_player_mask';
+            }
+
+            if (this.state === 'secretportal') {
+                if (this.portalTarget) {
+                    this.x += (this.portalTarget.x - this.x) * 0.25;
+                    this.y += (this.portalTarget.y - this.y) * 0.25;
+                }
+                this.sprite_index = 'spr_player_fall';
+                this.image_speed = 0.35;
+            } else if (this.state === 'secretportal_exit') {
+                this.sprite_index = 'spr_player_jump';
+                this.image_speed = 0.35;
+            }
+            return;
+        }
+
         if (this.state === 'walkfront') {
             this.vx = 0;
             this.vy = 0;
@@ -1098,7 +1133,7 @@ class Player {
             const headBox = { x: this.x, y: this.y - 22, width: 26, height: 22 };
             let hitCeiling = false;
             for (let entity of entities) {
-                if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
+                if (entity.isDestroyed || entity.isSolid === false || entity.type === 'secretportal' || entity.type === 'secretportalexit' || entity.type === 'obj_secretportal' || entity.type === 'obj_secretportalexit' || (typeof SecretPortal !== 'undefined' && entity instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && entity instanceof SecretPortalExit) || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
                 if (Physics.checkCollision(headBox, entity)) {
                     hitCeiling = true;
                     break;
@@ -1448,7 +1483,7 @@ class Player {
         // Collision Resolution Pass 1: Normal AABB
         entities.forEach(entity => {
             if (entity.isDestroyed) return;
-            if (entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type === 'rankcontroller' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'ladder' || entity.type === 'tile') return;
+            if (entity.isSolid === false || entity.type === 'secretportal' || entity.type === 'secretportalexit' || entity.type === 'obj_secretportal' || entity.type === 'obj_secretportalexit' || (typeof SecretPortal !== 'undefined' && entity instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && entity instanceof SecretPortalExit) || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type === 'rankcontroller' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'ladder' || entity.type === 'tile') return;
             if (entity.type === 'left-up' || entity.type === 'right-up') return;
 
             // Normal AABB Support
@@ -1469,10 +1504,16 @@ class Player {
 
                 // Step Up logic: If resolved horizontally, but feet are near the top of the block, convert to vertical
                 if (resolution.axis === 'x' && entity.type !== 'oneway') {
-                    const overlapAtFeet = (this.y + this.height) - entity.y;
-                    if (overlapAtFeet > 0 && overlapAtFeet <= 25 && this.y < entity.y && !this.isClimbing) {
-                        resolution.axis = 'y';
-                        resolution.amount = -overlapAtFeet;
+                    const isDestroyableTarget = (entity.type === 'destroyable' || entity.type === 'obj_secretblock' || entity.type === 'secretblock' || entity.type === 'obj_secretbigblock' || entity.type === 'secretbigblock' || (entity instanceof Destroyable && !(entity instanceof Metal) && !(typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)));
+                    const canBreakHorizontally = (isDestroyableTarget && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || this.isTumbling)) ||
+                        ((entity.type === 'metal' || entity.type === 'obj_secretmetalblock' || entity.type === 'secretmetalblock' || entity instanceof Metal || (typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)) && Math.abs(this.vx) >= 11.5);
+
+                    if (!canBreakHorizontally) {
+                        const overlapAtFeet = (this.y + this.height) - entity.y;
+                        if (overlapAtFeet > 0 && overlapAtFeet <= 25 && this.y < entity.y && !this.isClimbing) {
+                            resolution.axis = 'y';
+                            resolution.amount = -overlapAtFeet;
+                        }
                     }
                 }
 
@@ -2413,6 +2454,12 @@ class Player {
             ctx.globalAlpha = 0.5; // Phantom effect
         }
 
+        if (this.state === 'secretportal' && typeof this.portalScale === 'number') {
+            ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+            ctx.scale(this.portalScale, this.portalScale);
+            ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
+        }
+
         if (this.sprite_index === 'spr_player_idle') {
             const frames = this.sprites.spr_player_idle;
             const frameIndex = Math.floor(this.image_index) % frames.length;
@@ -2816,6 +2863,8 @@ class Player {
         else if (this.state === 'enterdoor') debugState = 'enterdoor';
         else if (this.state === 'enterlevelgate') debugState = 'enterlevelgate';
         else if (this.state === 'walkfront') debugState = 'walkfront';
+        else if (this.state === 'secretportal') debugState = 'secretportal';
+        else if (this.state === 'secretportal_exit') debugState = 'secretportal_exit';
         else if (this.state === 'rank') debugState = 'rank';
         else if (this.isGroundPounding) debugState = 'groundpound';
         else if (this.isGroundPoundLand) debugState = 'groundpound land';

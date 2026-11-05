@@ -557,6 +557,10 @@ class Game {
         this.mousePos = { x: 0, y: 0 };
         this.showCollisions = false;
         this.collisionToggleTimer = 0;
+        const savedPersist = localStorage.getItem('persistentDestruction');
+        this.persistentDestruction = (savedPersist !== null) ? (savedPersist === 'true') : true;
+        this.persistentToggleTimer = 0;
+        this.destroyedEntityIds = new Set();
         this.tileFlipX = false;
         this.tileFlipY = false;
         this.objectFlipX = false;
@@ -1542,6 +1546,13 @@ class Game {
                     }
                 }
             }
+            if (!this.bindingKeyFor && (e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3')) {
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+                    e.preventDefault();
+                    this.togglePersistentDestruction();
+                }
+            }
             if (!this.bindingKeyFor && (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4')) {
                 const activeTag = document.activeElement ? document.activeElement.tagName : '';
                 if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
@@ -1701,6 +1712,42 @@ class Game {
         this.canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.handleRightClick(e);
+        });
+        this.canvas.addEventListener('dblclick', (e) => {
+            if (!this.isEditorMode) return;
+            const worldPos = this.getMouseInWorld(e);
+            const box = this.entities.find(ent => 
+                (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') &&
+                worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
+                worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height
+            );
+            if (box) {
+                const cur = box.toppinType || 1;
+                const input = prompt('피자 상자에 들어갈 토핑 캐릭터 번호를 변경하세요 (1~5):\n1: 사과(버섯)\n2: 치즈\n3: 토마토\n4: 소시지\n5: 파인애플', String(cur));
+                if (input !== null) {
+                    let chosen = parseInt(input.trim(), 10);
+                    if (!isNaN(chosen) && chosen >= 1 && chosen <= 5) {
+                        box.toppinType = chosen;
+                        this.lastPizzaBoxType = chosen;
+                        this.saveCurrentRoomToMemory();
+                    }
+                }
+            }
+
+            const portal = this.entities.find(ent => 
+                (ent instanceof SecretPortal || ent.type === 'secretportal') &&
+                worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
+                worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height
+            );
+            if (portal) {
+                const cur = portal.targetRoom || '';
+                const input = prompt('Secret Portal 이동 대상 방(targetRoom)을 입력하세요 (예: cider_1, demo_hub):', cur);
+                if (input !== null) {
+                    portal.targetRoom = input.trim();
+                    this.lastSecretPortalRoom = portal.targetRoom;
+                    this.saveCurrentRoomToMemory();
+                }
+            }
         });
     }
 
@@ -2334,6 +2381,20 @@ class Game {
                 bgOverlay.style.display = 'none';
             });
         }
+        // Toggle Persistent Destruction button in topbar
+        const togglePersistBtn = document.getElementById('toggle-persistent-btn');
+        if (togglePersistBtn) {
+            if (this.persistentDestruction) {
+                togglePersistBtn.style.color = '#00ffcc';
+                togglePersistBtn.style.borderColor = '#00ffcc';
+            } else {
+                togglePersistBtn.style.color = '#888';
+                togglePersistBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+            }
+            togglePersistBtn.addEventListener('click', () => {
+                this.togglePersistentDestruction();
+            });
+        }
         // Toggle Collisions button in topbar
         const toggleColBtn = document.getElementById('toggle-collision-btn');
         if (toggleColBtn) {
@@ -2685,6 +2746,51 @@ class Game {
         }
     }
 
+    togglePersistentDestruction() {
+        this.persistentDestruction = !this.persistentDestruction;
+        try {
+            localStorage.setItem('persistentDestruction', this.persistentDestruction);
+        } catch(e) {}
+        this.persistentToggleTimer = 1.8;
+        const btn = document.getElementById('toggle-persistent-btn');
+        if (btn) {
+            if (this.persistentDestruction) {
+                btn.style.color = '#00ffcc';
+                btn.style.borderColor = '#00ffcc';
+            } else {
+                btn.style.color = '#888';
+                btn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+            }
+        }
+    }
+
+    isEligibleForPersistence(ent) {
+        if (!ent) return false;
+        // Never persist removal of doors, gates, portals, hallways, checkpoints, triggers
+        if (ent instanceof Door || ent instanceof LevelGate || ent instanceof ExitGate ||
+            ent instanceof SecretPortal || ent instanceof SecretPortalExit ||
+            ent instanceof Hallway || ent instanceof HallwayVertical ||
+            (ent.type && (ent.type.startsWith('targetDoor') || ent.type === 'door' || 
+                          ent.type === 'levelgate' || ent.type === 'exitgate' || 
+                          ent.type === 'secretportal' || ent.type === 'secretportalexit' ||
+                          ent.type === 'secretportal_exit' || ent.type === 'obj_secretportal' ||
+                          ent.type === 'obj_secretportalexit' || ent.type === 'hallway' || 
+                          ent.type === 'hallwayvertical' || ent.type === 'rankcontroller'))) {
+            return false;
+        }
+        // Only persist destruction of blocks, enemies, items, toppin boxes
+        const isDestroyedBlock = (ent instanceof Destroyable || ent.isDestroyed || 
+                                  ent.type === 'destroyable' || ent.type === 'metal' || 
+                                  ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || 
+                                  ent.isSecret || ent.type === 'tile');
+        const isEnemy = (!ent.spawnedBySpawner && (ent instanceof Slime || ent.type === 'obj_slime'));
+        const isItem = (ent instanceof Collect || ent instanceof PizzaBoxUnopen || 
+                        ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || 
+                        ent.type === 'pizzaboxunopen');
+
+        return isDestroyedBlock || isEnemy || isItem;
+    }
+
     toggleCollisions() {
         this.showCollisions = !this.showCollisions;
         this.collisionToggleTimer = 1.5;
@@ -2706,7 +2812,7 @@ class Game {
         if (this.isEditorMode && (e.isSecret || (e.type && e.type.includes('secret')))) return false;
         if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
-        if (e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e.type === 'escapeblock_closed' || e.type === 'escapeblock_open' || (typeof EscapeBlockClosed !== 'undefined' && e instanceof EscapeBlockClosed) || (typeof EscapeBlockOpen !== 'undefined' && e instanceof EscapeBlockOpen) || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
+        if (e.type === 'secretportal' || e.type === 'secretportalexit' || e.type === 'obj_secretportal' || e.type === 'obj_secretportalexit' || (typeof SecretPortal !== 'undefined' && e instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && e instanceof SecretPortalExit) || e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e.type === 'escapeblock_closed' || e.type === 'escapeblock_open' || (typeof EscapeBlockClosed !== 'undefined' && e instanceof EscapeBlockClosed) || (typeof EscapeBlockOpen !== 'undefined' && e instanceof EscapeBlockOpen) || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
         const type = e.type;
         if (type === 'platform' || e instanceof Platform) return true;
         if (type === 'oneway' || e instanceof OneWayPlatform) return true;
@@ -3466,6 +3572,7 @@ class Game {
                     if (typeof ent.baseY === 'number') ent.y = ent.baseY;
                 } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.isSecret || ent.type === 'tile') {
                     ent.isDestroyed = false;
+                    ent.isSolid = true;
                     ent.markedForDeletion = false;
                     ent.particles = [];
                     if (ent.maxHealth) ent.health = ent.maxHealth;
@@ -3510,6 +3617,7 @@ class Game {
                     if (typeof ent.baseY === 'number') ent.y = ent.baseY;
                 } else if (ent instanceof Destroyable || ent.isDestroyed || ent.type === 'destroyable' || ent.type === 'metal' || ent.type === 'pillar' || (ent.type && ent.type.includes('secret')) || ent.isSecret || ent.type === 'tile') {
                     ent.isDestroyed = false;
+                    ent.isSolid = true;
                     ent.markedForDeletion = false;
                     ent.particles = [];
                     if (ent.maxHealth) ent.health = ent.maxHealth;
@@ -3995,7 +4103,13 @@ class Game {
 
         // Minimum / default size
         if (w === 0 && h === 0) {
-            if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff') {
+            if (this.selectedType === 'appleblock-small' || this.selectedType === 'appleblock_small') {
+                w = 16;
+                h = 16;
+            } else if (this.selectedType === 'appleblock-big' || this.selectedType === 'appleblock_big' || this.selectedType === 'appleblock') {
+                w = 32;
+                h = 32;
+            } else if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff') {
                 w = 32;
                 h = 32;
             } else if (this.selectedType === 'pillar') {
@@ -4027,7 +4141,7 @@ class Game {
             } else if (this.selectedType === 'door') {
                 w = 100;
                 h = 100;
-            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock') {
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit') {
                 w = 64;
                 h = 64;
             } else {
@@ -4049,6 +4163,15 @@ class Game {
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable-small': entity = new Destroyable(x, y, w, h); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
+            case 'appleblock-small':
+            case 'appleblock_small':
+                entity = new AppleBlockSmall(x, y, w, h);
+                break;
+            case 'appleblock-big':
+            case 'appleblock_big':
+            case 'appleblock':
+                entity = new AppleBlockBig(x, y, w, h);
+                break;
             case 'metal': entity = new Metal(x, y, w, h); break;
             case 'secretblock': entity = new SecretBlock(x, y, w, h); break;
             case 'secretbigblock': entity = new SecretBigBlock(x, y, w, h); break;
@@ -4157,6 +4280,26 @@ class Game {
                 if (dDoor === null) break;
                 entity = new Door(x, y, w, h, dDoor, dRoom); 
                 break;
+            case 'secretportal':
+            case 'obj_secretportal': {
+                let defaultRoom = this.lastSecretPortalRoom || "cider_1";
+                let pRoom = prompt("Secret Portal Target Room (이동할 방 이름, 예: cider_1, demo_hub):", defaultRoom);
+                if (pRoom === null) break;
+                pRoom = pRoom.trim();
+                if (pRoom) this.lastSecretPortalRoom = pRoom;
+                let pw = (w < 40 && h < 40) ? 64 : w;
+                let ph = (w < 40 && h < 40) ? 64 : h;
+                entity = new SecretPortal(x, y, pw, ph, pRoom);
+                break;
+            }
+            case 'secretportalexit':
+            case 'secretportal_exit':
+            case 'obj_secretportalexit': {
+                let pw = (w < 40 && h < 40) ? 64 : w;
+                let ph = (w < 40 && h < 40) ? 64 : h;
+                entity = new SecretPortalExit(x, y, pw, ph);
+                break;
+            }
             case 'levelgate':
                 this.openLevelGateModal(x, y, w, h);
                 this.dragStart = null;
@@ -4180,9 +4323,18 @@ class Game {
                 entity = new OnlineComputer(x, y, w, h);
                 break;
             case 'pizzaboxunopen':
-            case 'obj_pizzaboxunopen':
-                entity = new PizzaBoxUnopen(x, y, 64, 64);
+            case 'obj_pizzaboxunopen': {
+                const defaultType = this.lastPizzaBoxType || 1;
+                const input = prompt('피자 상자에 들어갈 토핑 캐릭터 번호를 설정하세요 (1~5):\n1: 사과(버섯)\n2: 치즈\n3: 토마토\n4: 소시지\n5: 파인애플', String(defaultType));
+                if (input === null) break;
+                let chosenType = parseInt(input.trim(), 10);
+                if (isNaN(chosenType) || chosenType < 1 || chosenType > 5) {
+                    chosenType = 1;
+                }
+                this.lastPizzaBoxType = chosenType;
+                entity = new PizzaBoxUnopen(x, y, 64, 64, false, false, chosenType);
                 break;
+            }
             case 'obj_collect':
                 entity = new Collect(x, y, w, h);
                 break;
@@ -4370,12 +4522,17 @@ class Game {
                 base = `new Cutoff(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.side || 'top'}', '${ent.spriteType || '32x32'}', ${ent.imageIndex || 0})`;
             }
             else if (ent instanceof Metal) base = `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof AppleBlock || ent.type === 'appleblock' || ent.type === 'appleblock_small' || ent.type === 'appleblock_big') {
+                base = `new AppleBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.isBig})`;
+            }
             else if (ent instanceof Destroyable) base = `new Destroyable(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Hallway) base = `new Hallway(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'})`;
             else if ((typeof HallwayVertical !== 'undefined' && ent instanceof HallwayVertical) || ent.type === 'hallwayvertical') base = `new HallwayVertical(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.targetRoom ? `'${ent.targetRoom}'` : 'null'}, ${ent.targetDoor ? `'${ent.targetDoor}'` : 'null'}, '${ent.verticalDir || 'up'}')`;
             else if ((typeof EscapeBlockClosed !== 'undefined' && ent instanceof EscapeBlockClosed) || ent.type === 'escapeblock_closed') base = `new EscapeBlockClosed(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof EscapeBlockOpen !== 'undefined' && ent instanceof EscapeBlockOpen) || ent.type === 'escapeblock_open') base = `new EscapeBlockOpen(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof Door) base = `new Door(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.label}', '${ent.targetRoom}')`;
+            else if (ent instanceof SecretPortal || ent.type === 'secretportal') base = `new SecretPortal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || '')})`;
+            else if (ent instanceof SecretPortalExit || ent.type === 'secretportalexit' || ent.type === 'secretportal_exit') base = `new SecretPortalExit(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof LevelGate !== 'undefined' && ent instanceof LevelGate) || ent.type === 'levelgate') base = `new LevelGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.targetRoom || 'tutorial_1')}, ${JSON.stringify(ent.targetDoor || 'A')}, ${JSON.stringify(ent.titleCardImage || '0')}, ${JSON.stringify(ent.titleCardText || '')}, ${ent.gateIndex || 0}, ${JSON.stringify(ent.color || 'rgba(192, 57, 43, 0.8)')}, ${Boolean(ent.flipX)}, ${Boolean(ent.flipY)}, ${ent.sRankScore || 10000})`;
             else if ((typeof ExitGate !== 'undefined' && ent instanceof ExitGate) || ent.type === 'exitgate') base = `new ExitGate(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if ((typeof RankController !== 'undefined' && ent instanceof RankController) || ent.type === 'rankcontroller') base = `new RankController(${ent.x}, ${ent.y})`;
@@ -4383,7 +4540,10 @@ class Game {
             else if (ent instanceof TutorialBook) base = `new TutorialBook(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${JSON.stringify(ent.text)})`;
             else if (ent instanceof PaletteDresser) base = `new PaletteDresser(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
             else if (ent instanceof OnlineComputer) base = `new OnlineComputer(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
-            else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') base = `new PizzaBoxUnopen(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
+                const toppinVal = ent.toppinType !== undefined ? ent.toppinType : 1;
+                base = `new PizzaBoxUnopen(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, false, false, ${typeof toppinVal === 'string' ? JSON.stringify(toppinVal) : toppinVal})`;
+            }
             else if (ent instanceof Slime) {
                 if (ent.spawnedBySpawner) return; // Never save cloned/spawned enemies
                 const sx = ent.spawnX !== undefined ? ent.spawnX : ent.x;
@@ -4589,6 +4749,19 @@ this.entities.push(
         if (roomName === 'rank') roomName = 'rm_rank';
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         this.lastTargetDoorId = targetDoorId;
+
+        // Record destroyed/killed entities of current room before switching
+        if (this.persistentDestruction && !this.isEditorMode && this.entities && this.destroyedEntityIds) {
+            for (const ent of this.entities) {
+                const isDeadEnemy = (ent instanceof Slime || ent.type === 'obj_slime') && (ent.state === 'dead' || ent.state === 'piledriver_die');
+                const isCollectedItem = ent.isCollected || (ent instanceof Collect && (ent.state === 'collected' || ent.state === 'collected_done'));
+                if (ent.isDestroyed || ent.markedForDeletion || isDeadEnemy || isCollectedItem || ent.isOpened) {
+                    if (ent.persistentId && this.isEligibleForPersistence(ent)) {
+                        this.destroyedEntityIds.add(ent.persistentId);
+                    }
+                }
+            }
+        }
         
         // Save current room state to memory before switching
         if (this.currentRoom && this.rooms[this.currentRoom] && this.entities.length > 0) {
@@ -4689,7 +4862,54 @@ this.entities.push(
                 this.screenFilterBlend = 'source-over';
                 this.screenFilterVignette = false;
                 this.sRankScore = this.stageSRankScore || 10000;
+                if (roomName === 'demo_hub') {
+                    this.resetScoreAndToppins();
+                } else if (roomName === 'rm_rank') {
+                    this.toppins = [];
+                    this.playerTrail = [];
+                }
                 this.rooms[roomName].call(this);
+
+                // Assign deterministic persistentId to all initial room entities
+                this.entities.forEach((ent, index) => {
+                    if (!ent.persistentId) {
+                        ent.persistentId = `${roomName}#${index}#${ent.type || ent.constructor.name}#${Math.round(ent.x)}#${Math.round(ent.y)}`;
+                    }
+                });
+
+                // If persistent destruction is active, filter out previously destroyed blocks, killed enemies, etc.
+                if (this.persistentDestruction && !this.isEditorMode && this.destroyedEntityIds) {
+                    for (let i = this.entities.length - 1; i >= 0; i--) {
+                        const ent = this.entities[i];
+                        if (ent.persistentId && this.destroyedEntityIds.has(ent.persistentId) && this.isEligibleForPersistence(ent)) {
+                            ent.isDestroyed = true;
+                            ent.markedForDeletion = true;
+                            if (typeof ent.spawnCutoffs === 'function') {
+                                ent.spawnCutoffs(this);
+                            }
+                            if (ent instanceof Slime || ent.type === 'obj_slime') {
+                                ent.state = 'dead';
+                                if (!this.killedEnemies) this.killedEnemies = [];
+                                if (!this.killedEnemies.includes(ent)) this.killedEnemies.push(ent);
+                            } else if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
+                                ent.isCollected = true;
+                                if (!this.collectedItems) this.collectedItems = [];
+                                if (!this.collectedItems.includes(ent)) this.collectedItems.push(ent);
+                            } else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
+                                ent.isOpened = true;
+                            } else {
+                                if (!this.destroyedBlocks) this.destroyedBlocks = [];
+                                if (!this.destroyedBlocks.includes(ent)) this.destroyedBlocks.push(ent);
+                            }
+                            this.entities.splice(i, 1);
+                        }
+                    }
+                }
+
+                // LevelGate(레벨 게이트)에서 설정한 스테이지 S랭크 점수가 있다면 방 내부 기본값에 덮어씌워지지 않도록 우선 적용
+                if (this.stageSRankScore !== null && this.stageSRankScore !== undefined) {
+                    this.sRankScore = this.stageSRankScore;
+                }
 
                 // If escape sequence is active, any John Pillar in the room must stay destroyed!
                 if (this.escape) {
@@ -4756,11 +4976,44 @@ this.entities.push(
                 let startX = 100;
                 let startY = 300;
                 
-                if (targetDoorId && targetDoorId !== 'null') {
+                if (targetDoorId && targetDoorId !== 'null' && targetDoorId !== 'SECRET_PORTAL') {
                     const doorObj = this.entities.find(e => e.type === `targetDoor_${targetDoorId}`);
                     if (doorObj) {
                         startX = doorObj.x + doorObj.width/2 - this.player.width/2;
                         startY = doorObj.y + doorObj.height - this.player.height;
+                    }
+                }
+
+                if (targetDoorId === 'SECRET_PORTAL' || this.isPortalTransition) {
+                    this.isPortalTransition = false;
+
+                    let exitObj = this.entities.find(e => (e instanceof SecretPortalExit || e.type === 'secretportalexit' || e.type === 'secretportal_exit' || e.type === 'obj_secretportalexit'));
+                    
+                    if (!exitObj) {
+                        const portalObj = this.entities.find(e => (e instanceof SecretPortal || e.type === 'secretportal' || e.type === 'obj_secretportal'));
+                        if (portalObj) {
+                            if (typeof portalObj.convertToExit === 'function') {
+                                exitObj = portalObj.convertToExit(this);
+                            } else {
+                                exitObj = new SecretPortalExit(portalObj.x, portalObj.y, portalObj.width, portalObj.height);
+                                const pIdx = this.entities.indexOf(portalObj);
+                                if (pIdx !== -1) this.entities[pIdx] = exitObj;
+                                else this.entities.push(exitObj);
+                            }
+                        }
+                    }
+
+                    if (exitObj) {
+                        startX = exitObj.x + exitObj.width / 2 - this.player.width / 2;
+                        startY = exitObj.y + exitObj.height - this.player.height;
+                        this.player.x = startX;
+                        this.player.y = startY;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                        this.player.visible = true;
+                        if (typeof exitObj.activate === 'function') {
+                            exitObj.activate(this.player);
+                        }
                     }
                 }
                 
@@ -4930,14 +5183,26 @@ this.entities.push(
                 this.camera.y = targetCamY;
                 this.cameraSpeedOffset = 0;
 
-                // Snap toppins to new room position behind player
+                // Snap toppins to new room position behind player with initialized trail
                 if (this.toppins && this.toppins.length > 0 && this.player) {
                     this.playerTrail = [];
+                    const pX = this.player.x;
+                    const pY = this.player.y + this.player.height - 45;
+                    const pFacing = this.player.facingDir || 1;
+                    for (let i = 0; i < 120; i++) {
+                        this.playerTrail.push({
+                            x: pX - pFacing * (i * 4),
+                            y: pY,
+                            facingDir: pFacing
+                        });
+                    }
                     this.toppins.forEach((toppin, idx) => {
-                        toppin.x = this.player.x + (this.player.facingDir === 1 ? -28 - (idx * 24) : this.player.width + 4 + (idx * 24));
-                        toppin.y = this.player.y + this.player.height - toppin.height;
-                        toppin.facingDir = this.player.facingDir || 1;
+                        const tIdx = Math.min(6 + idx * 6, this.playerTrail.length - 1);
+                        toppin.x = this.playerTrail[tIdx].x;
+                        toppin.y = this.playerTrail[tIdx].y;
+                        toppin.facingDir = pFacing;
                         toppin.popTimer = 0;
+                        toppin.dragLag = 0;
                     });
                 }
                 
@@ -4972,6 +5237,9 @@ this.entities.push(
             };
             roomScript.onerror = () => {
                 // If room file does not exist on disk (e.g. titlescreen or custom room), fallback to in-memory
+                if (window.roomData && window.roomData[roomName]) {
+                    this.rooms[roomName] = window.roomData[roomName];
+                }
                 const saved = localStorage.getItem('saved_room_' + roomName);
                 if (saved) {
                     try {
@@ -5028,6 +5296,7 @@ this.entities.push(
         const gateScore = (gate && gate.sRankScore) ? gate.sRankScore : 10000;
         this.stageSRankScore = gateScore;
         this.sRankScore = gateScore;
+        this.resetScoreAndToppins();
 
         this.player.showUpArrow = false;
         this.player.state = 'enterlevelgate';
@@ -5093,6 +5362,10 @@ this.entities.push(
 
         // 스테이지 클리어 및 랭크/점수 영구 저장!
         this.updateSaveProgress(true);
+
+        // 마지막 스테이지 점수 기록 및 토핑/점수 리셋 (rm_rank 진입)
+        this.lastStageScore = this.score || 0;
+        this.resetScoreAndToppins();
 
         // UP 키 누르자 마자 딜레이/페이드 대기 없이 바로 rm_rank 방으로 이동!
         this.transitionState = 'NONE';
@@ -5202,7 +5475,9 @@ this.entities.push(
                 this.audio.files.boss_gate.currentTime = 0;
             }
 
+            this.resetScoreAndToppins();
             this.loadRoom(targetRoom, targetDoor).then(() => {
+                this.resetScoreAndToppins();
                 this.gameState = 'PLAYING';
                 if (this.player) {
                     const touchingDoor = this.entities.find(e => {
@@ -5344,11 +5619,21 @@ this.entities.push(
         ctx.restore();
     }
 
-    restartCurrentLevel() {
-        this.escape = false;
+    resetScoreAndToppins() {
         this.score = 0;
+        this.toppins = [];
+        this.playerTrail = [];
         this.combo = 0;
         this.comboTimer = 0;
+        this.floatingTexts = [];
+        if (this.destroyedEntityIds) {
+            this.destroyedEntityIds.clear();
+        }
+    }
+
+    restartCurrentLevel() {
+        this.escape = false;
+        this.resetScoreAndToppins();
         this.comboBounce = 1.0;
         this.comboChompAnim = 0;
         this.pacmanShockTimer = 0;
@@ -5361,6 +5646,7 @@ this.entities.push(
         if (this.audio) this.audio.resetMusic();
         const roomToLoad = this.restart_room || this.currentRoom;
         this.loadRoom(roomToLoad, 'A').then(() => {
+            this.resetScoreAndToppins();
             this.gameState = 'PLAYING';
             if (this.uiOverlay) this.uiOverlay.style.display = 'block';
         });
@@ -5372,12 +5658,14 @@ this.entities.push(
         this.updateSaveProgress();
         this.stageSRankScore = null;
         this.sRankScore = 10000;
+        this.resetScoreAndToppins();
 
         if (this.hub_room) {
             const destRoom = this.hub_room;
             const hx = this.hubX;
             const hy = this.hubY;
             this.loadRoom(destRoom).then(() => {
+                this.resetScoreAndToppins();
                 if (this.player && hx !== null && hy !== null) {
                     this.player.x = hx;
                     this.player.y = hy;
@@ -5425,6 +5713,7 @@ this.entities.push(
         if (!this.player) return;
         if (this.isExitingLevelGate) {
             this.isExitingLevelGate = false;
+            this.resetScoreAndToppins();
             if (this.hubX !== null && this.hubY !== null && typeof this.hubX === 'number') {
                 this.player.x = this.hubX;
                 this.player.y = this.hubY;
@@ -5525,6 +5814,17 @@ this.entities.push(
             this.player.isEnteringDoor = false;
             this.player.targetDoorX = null;
         }
+    }
+
+    triggerSecretPortalTransition(roomName) {
+        if (!roomName) return;
+        if (this.transitionState !== 'NONE') return;
+        this.isPortalTransition = true;
+        this.pendingRoom = roomName;
+        this.pendingDoor = 'SECRET_PORTAL';
+        this.pendingPreserveVelocity = false;
+        this.transitionState = 'FADE_OUT';
+        this.transitionTimer = 0;
     }
 
     triggerRoomTransition(roomName, targetDoorId = 'A', preserveVelocity = false) {
@@ -6495,6 +6795,7 @@ this.entities.push(
             return;
         }
 
+
         if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS' || this.gameState === 'ONLINE_MENU' || this.transitionState === 'LOADING_ROOM') {
             return;
         }
@@ -6528,19 +6829,77 @@ this.entities.push(
 
         this.player.update(this.keys, this.entities, this.audio);
 
-        // Update Toppin Followers
+        // Update Toppin Followers (Distance-spaced Breadcrumb Trail for continuous wave movement)
         if (!this.playerTrail) this.playerTrail = [];
         if (this.player && !this.isEditorMode) {
-            this.playerTrail.unshift({
-                x: this.player.x,
-                y: this.player.y + this.player.height - 45,
-                facingDir: this.player.facingDir || 1,
-                isMoving: Math.abs(this.player.vx) > 0.5,
-                isGrounded: this.player.isGrounded
-            });
-            if (this.playerTrail.length > 250) {
-                this.playerTrail.pop();
+            const playerX = this.player.x;
+            const playerY = this.player.y + this.player.height - 45;
+            const playerFacing = this.player.facingDir || 1;
+
+            if (this.playerTrail.length === 0) {
+                for (let i = 0; i < 120; i++) {
+                    this.playerTrail.push({
+                        x: playerX - playerFacing * (i * 4),
+                        y: playerY,
+                        facingDir: playerFacing
+                    });
+                }
             }
+
+            const lastPoint = this.playerTrail[0];
+            const dx = playerX - lastPoint.x;
+            const dy = playerY - lastPoint.y;
+            const absDx = Math.abs(dx);
+            const isClimbing = this.player.isClimbing || this.player.isClimbingLadder;
+
+            if (absDx >= 4) {
+                // 수평 이동 시 4px 단위로 정확한 거리 분할 기록 -> 점프나 이동 중에도 토핑 간격이 일자로 무너지지 않고 항상 24px 간격 차례대로 뒤에 유지
+                const steps = Math.floor(absDx / 4);
+                for (let s = 1; s <= steps; s++) {
+                    const t = s / steps;
+                    this.playerTrail.unshift({
+                        x: lastPoint.x + dx * t,
+                        y: lastPoint.y + dy * t,
+                        facingDir: playerFacing
+                    });
+                }
+                if (this.playerTrail.length > 250) {
+                    this.playerTrail.length = 250;
+                }
+            } else if (isClimbing && Math.abs(dy) >= 4) {
+                // 사다리나 벽 타기 중일 때만 수직 경로 기록
+                const steps = Math.floor(Math.abs(dy) / 4);
+                for (let s = 1; s <= steps; s++) {
+                    const t = s / steps;
+                    this.playerTrail.unshift({
+                        x: playerX,
+                        y: lastPoint.y + dy * t,
+                        facingDir: playerFacing
+                    });
+                }
+                if (this.playerTrail.length > 250) {
+                    this.playerTrail.length = 250;
+                }
+            } else if (!this.player.isGrounded || (this.toppins && this.toppins.length > 0 && this.playerTrail.some(pt => Math.abs(pt.y - playerY) > 0.5))) {
+                // 걷기 속도 0일 때 (제자리 점프 / 낙하):
+                // X 좌표는 각자의 후방 위치에 고정(세로 1자 겹침 방지)하면서, Y 높이만 트레일 아래로 순차 전달하여 제자리 파도타기 점프 수행!
+                for (let i = this.playerTrail.length - 1; i > 0; i--) {
+                    this.playerTrail[i].y = this.playerTrail[i - 1].y;
+                }
+                this.playerTrail[0].y = playerY;
+                for (let i = 0; i < this.playerTrail.length; i++) {
+                    this.playerTrail[i].x = playerX - playerFacing * (i * 4);
+                    this.playerTrail[i].facingDir = playerFacing;
+                }
+            } else if (playerFacing !== lastPoint.facingDir && Math.abs(this.player.vx) < 0.5) {
+                // 제자리에서 뒤돌아볼 때: 반대편으로 트레일 축 정렬
+                for (let i = 0; i < this.playerTrail.length; i++) {
+                    this.playerTrail[i].x = playerX - playerFacing * (i * 4);
+                    this.playerTrail[i].y = playerY;
+                    this.playerTrail[i].facingDir = playerFacing;
+                }
+            }
+
         }
         if (this.toppins && this.toppins.length > 0 && !this.isEditorMode) {
             for (let i = 0; i < this.toppins.length; i++) {
@@ -6701,6 +7060,12 @@ this.entities.push(
             let ent = this.entities[i];
             if (ent.update) {
                 ent.update(this);
+            }
+            const isDeadEnemy = (ent instanceof Slime || ent.type === 'obj_slime') && (ent.state === 'dead' || ent.state === 'piledriver_die');
+            const isCollectedItem = ent.isCollected || (ent instanceof Collect && (ent.state === 'collected' || ent.state === 'collected_done'));
+            const isGone = ent.markedForDeletion || ent.isDestroyed || isDeadEnemy || isCollectedItem || ent.isOpened;
+            if (isGone && this.persistentDestruction && !this.isEditorMode && ent.persistentId && this.isEligibleForPersistence(ent)) {
+                this.destroyedEntityIds.add(ent.persistentId);
             }
             if (ent.markedForDeletion) {
                 if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
@@ -7315,6 +7680,12 @@ this.entities.push(
                     eTop = e.y - 16;
                     eBottom = e.y + 80;
                 }
+                if (e.type === 'secretportal' || e.type === 'secretportalexit' || (typeof SecretPortal !== 'undefined' && e instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && e instanceof SecretPortalExit)) {
+                    eLeft = e.x + e.width / 2 - 64;
+                    eRight = eLeft + 128;
+                    eTop = e.y + e.height / 2 - 64;
+                    eBottom = eTop + 128;
+                }
                 if (eRight > viewLeft && eLeft < viewRight && 
                     eBottom > viewTop && eTop < viewBottom) {
                     e.render(this.ctx);
@@ -7325,7 +7696,7 @@ this.entities.push(
         // Render Toppin Followers
         if (this.toppins && this.toppins.length > 0 && !this.isEditorMode) {
             for (let i = 0; i < this.toppins.length; i++) {
-                this.toppins[i].render(this.ctx);
+                this.toppins[i].render(this.ctx, i);
             }
         }
 
@@ -7584,6 +7955,43 @@ this.entities.push(
 
         // Screen Atmosphere / Mood Filter Pass
         this.renderScreenFilter(this.ctx);
+
+        // Persistent Destruction Toggle Toast Notification
+        if (this.persistentToggleTimer > 0) {
+            this.persistentToggleTimer -= 1 / 60;
+            this.ctx.save();
+            const alpha = Math.min(1.0, this.persistentToggleTimer * 2);
+            this.ctx.globalAlpha = alpha;
+            const text = this.persistentDestruction 
+                ? '파괴/처치 유지: ON (방 이동 시 재생성 안 됨) [3]' 
+                : '파괴/처치 유지: OFF (방 이동 시 재생성 됨) [3]';
+            this.ctx.font = 'bold 15px "Outfit", sans-serif';
+            const metrics = this.ctx.measureText(text);
+            const boxW = metrics.width + 28;
+            const boxH = 32;
+            const boxX = this.canvas.width / 2 - boxW / 2;
+            let boxY = 24;
+            if (this.collisionToggleTimer > 0) boxY += 40;
+            if (this.flipToastTimer > 0) boxY += 40;
+
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            this.ctx.strokeStyle = this.persistentDestruction ? '#00ffcc' : '#ff4444';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            if (this.ctx.roundRect) {
+                this.ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+            } else {
+                this.ctx.rect(boxX, boxY, boxW, boxH);
+            }
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = this.persistentDestruction ? '#00ffcc' : '#ff8888';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(text, this.canvas.width / 2, boxY + boxH / 2);
+            this.ctx.restore();
+        }
 
         // Collision Toggle Toast Notification
         if (this.collisionToggleTimer > 0) {
@@ -9181,7 +9589,11 @@ this.entities.push(
             // General entity preview with flip support
             let pw = this.gridSize;
             let ph = this.gridSize;
-            if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff' || this.selectedType === 'obj_collect' || this.selectedType === 'tutorialbook' || this.selectedType === 'slope-left' || this.selectedType === 'slope-right') {
+            if (this.selectedType === 'appleblock-small' || this.selectedType === 'appleblock_small') {
+                pw = 16; ph = 16;
+            } else if (this.selectedType === 'appleblock-big' || this.selectedType === 'appleblock_big' || this.selectedType === 'appleblock') {
+                pw = 32; ph = 32;
+            } else if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff' || this.selectedType === 'obj_collect' || this.selectedType === 'tutorialbook' || this.selectedType === 'slope-left' || this.selectedType === 'slope-right') {
                 pw = 32; ph = 32;
             } else if (this.selectedType === 'pillar') {
                 pw = 128; ph = 224;
@@ -9191,7 +9603,7 @@ this.entities.push(
                 pw = 100; ph = 100;
             } else if (this.selectedType === 'obj_slime' || this.selectedType === 'obj_baddiespawner') {
                 pw = 40; ph = 40;
-            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect' || this.selectedType === 'pizzaboxunopen') {
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect' || this.selectedType === 'pizzaboxunopen' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit') {
                 pw = 64; ph = 64;
             }
 
@@ -9203,7 +9615,15 @@ this.entities.push(
                 ctx.translate(snapX, snapY);
             }
 
-            if (this.selectedType === 'destroyable-small') {
+            if (this.selectedType === 'appleblock-small' || this.selectedType === 'appleblock_small') {
+                const img = typeof AppleBlock !== 'undefined' && AppleBlock.spritesSmall && AppleBlock.spritesSmall[0];
+                if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 16, 16);
+                else { ctx.fillStyle = '#e74c3c'; ctx.fillRect(0, 0, 16, 16); }
+            } else if (this.selectedType === 'appleblock-big' || this.selectedType === 'appleblock_big' || this.selectedType === 'appleblock') {
+                const img = typeof AppleBlock !== 'undefined' && AppleBlock.spritesBig && AppleBlock.spritesBig[0];
+                if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 32, 32);
+                else { ctx.fillStyle = '#c0392b'; ctx.fillRect(0, 0, 32, 32); }
+            } else if (this.selectedType === 'destroyable-small') {
                 const img = Destroyable.imageSmall;
                 if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 32, 32);
                 else { ctx.fillStyle = '#df7208'; ctx.fillRect(0, 0, 32, 32); }
@@ -9215,6 +9635,14 @@ this.entities.push(
                 const img = Metal.image;
                 if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 64, 64);
                 else { ctx.fillStyle = '#c2dedc'; ctx.fillRect(0, 0, 64, 64); }
+            } else if (this.selectedType === 'secretportal' || this.selectedType === 'obj_secretportal') {
+                const img = typeof SecretPortal !== 'undefined' && SecretPortal.spritesIdle && SecretPortal.spritesIdle[0];
+                if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, -32, -32, 128, 128);
+                else { ctx.fillStyle = '#8e44ad'; ctx.fillRect(0, 0, 64, 64); }
+            } else if (this.selectedType === 'secretportalexit' || this.selectedType === 'secretportal_exit' || this.selectedType === 'obj_secretportalexit') {
+                const img = typeof SecretPortalExit !== 'undefined' && SecretPortalExit.spritesSpawnIdle && SecretPortalExit.spritesSpawnIdle[0];
+                if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, -32, -32, 128, 128);
+                else { ctx.fillStyle = '#5b2c6f'; ctx.fillRect(0, 0, 64, 64); }
             } else if (this.selectedType === 'secretblock') {
                 ctx.fillStyle = 'rgba(223, 114, 8, 0.6)';
                 ctx.fillRect(0, 0, 32, 32);
@@ -9844,6 +10272,41 @@ this.entities.push(
             'clear_room': {
                 args: [],
                 execute: (game) => game.debugCommands['clearroom'].execute(game)
+            },
+            'persistent_destruction': {
+                args: [
+                    {
+                        name: 'state',
+                        getOptions: (game, currentArg) => ['true', 'false'].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'true/false'
+                    }
+                ],
+                execute: (game, args) => {
+                    if (args[0] !== undefined) {
+                        game.persistentDestruction = (args[0] === 'true' || args[0] === '1');
+                    } else {
+                        game.persistentDestruction = !game.persistentDestruction;
+                    }
+                    try {
+                        localStorage.setItem('persistentDestruction', game.persistentDestruction);
+                    } catch(e) {}
+                    game.persistentToggleTimer = 1.8;
+                    const btn = document.getElementById('toggle-persistent-btn');
+                    if (btn) {
+                        if (game.persistentDestruction) {
+                            btn.style.color = '#00ffcc';
+                            btn.style.borderColor = '#00ffcc';
+                        } else {
+                            btn.style.color = '#888';
+                            btn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                        }
+                    }
+                    return `Persistent Destruction: ${game.persistentDestruction ? 'ON' : 'OFF'}`;
+                }
+            },
+            'toggle_persist': {
+                args: [],
+                execute: (game, args) => game.debugCommands['persistent_destruction'].execute(game, args)
             },
             'showcollisions': {
                 args: [

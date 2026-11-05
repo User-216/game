@@ -150,6 +150,7 @@ this.entities.push(
     new HallwayVertical(4384, -160, 256, 64, 'cider_3', 'A', 'up'),
     new TargetDoor_A(4512, -32, 32, 32),
     Object.assign(new Slime(1280, 1056, 32, 32), { flipX: true, facingDir: -1 }),
+    new PizzaBoxUnopen(6464, 640, 64, 64),
 );
 
 };

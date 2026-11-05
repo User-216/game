@@ -19,7 +19,6 @@ this.entities.push(
     new TargetDoor_A(192, 416, 32, 32),
     new PaletteDresser(448, 384, 64, 64),
     new OnlineComputer(608, 384, 64, 64),
-    new LevelGate(768, 160, 192, 288, "tutorial_1", "A", "0", "GATE 1", 0, "rgba(192, 57, 43, 0.8)", false, false, 10000),
     new Tile(96, 448, 32, 32, 64, 96, 'tile_tutorial.png', 32, 32),
     new Tile(96, 480, 32, 32, 64, 128, 'tile_tutorial.png', 32, 32),
     new Tile(96, 512, 32, 32, 64, 160, 'tile_tutorial.png', 32, 32),
@@ -722,6 +721,13 @@ this.entities.push(
     new BigCollect(608, 224, 64, 64),
     Object.assign(new Slime(1376, 384, 32, 32), { flipX: true, facingDir: -1 }),
     new LevelGate(1056, 160, 192, 288, "cider_1", "A", "0", "GATE 2", 0, "rgba(192, 57, 43, 0.8)", false, false, 10000),
+    new LevelGate(768, 160, 192, 288, "tutorial_1", "A", "0", "GATE 2", 0, "rgba(192, 57, 43, 0.8)", false, false, 5000),
+    new PizzaBoxUnopen(1248, 384, 64, 64, false, false, 1),
+    new PizzaBoxUnopen(1312, 384, 64, 64, false, false, 1),
+    new PizzaBoxUnopen(1376, 384, 64, 64, false, false, 1),
+    new PizzaBoxUnopen(1280, 320, 64, 64, false, false, 1),
+    new PizzaBoxUnopen(1344, 320, 64, 64, false, false, 1),
+    new SecretPortal(1408, 192, 64, 64, "SecretPortal_test"),
 );
 
 };

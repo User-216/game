@@ -79,6 +79,7 @@
                     <button class="editor-tab" id="set-srank-btn" title="S랭크 목표 점수 설정" style="color: #ffcc00; border-color: rgba(255, 204, 0, 0.4);">SET S RANK SCORE</button>
                     <button class="editor-tab" id="editor-flip-x-btn" title="좌우 반전 (X / F 키)">FLIP [X]</button>
                     <button class="editor-tab" id="editor-flip-y-btn" title="상하 반전 (Y / V 키)">VERT [Y]</button>
+                    <button class="editor-tab" id="toggle-persistent-btn" title="파괴/처치 상태 유지 토글 (3 키)" style="color: #00ffcc; border-color: #00ffcc;">PERSIST [3]</button>
                     <button class="editor-tab" id="toggle-collision-btn" title="Toggle Collision Visibility (Key 4)" style="color: #888; border-color: rgba(255, 255, 255, 0.15);">COL [4]</button>
                     <button class="editor-tab" id="toggle-console-btn" title="디버그 콘솔 열기 (5 / F5 / ` 키)" style="color: #c2227d; border-color: rgba(194, 34, 125, 0.35);">CONSOLE [5]</button>
                 </div>
@@ -100,6 +101,8 @@
                         <button class="tool-btn" data-type="slope-right" data-category="solids">SL \</button>
                         <button class="tool-btn" data-type="destroyable-small" data-category="solids" style="background:#d35400;">BRK 1</button>
                         <button class="tool-btn" data-type="destroyable" data-category="solids" style="background:#e67e22;">BRK 2</button>
+                        <button class="tool-btn" data-type="appleblock-small" data-category="solids" style="background:#e74c3c; color:#fff;" title="Apple Block 16x16 (사과 블록 - 10점, 콤보 시간 증가)">APL 1</button>
+                        <button class="tool-btn" data-type="appleblock-big" data-category="solids" style="background:#c0392b; color:#fff;" title="Big Apple Block 32x32 (큰 사과 블록 - 100점, 최대 콤보 시간)">APL 2</button>
                         <button class="tool-btn" data-type="metal" style="background:#555" data-category="solids">MTL</button>
                         <button class="tool-btn" data-type="pillar" data-category="solids" style="background:#795548; color:#fff;">PILR</button>
                         <button class="tool-btn" data-type="escapeblock_closed" data-category="solids" style="background:#6c3483; color:#fff;" title="Escape Block Closed (탈출 시 열림 / 평소 닫힘)">ESC-C</button>
@@ -116,7 +119,11 @@
                         
                         <button class="tool-btn" data-type="hallway" data-category="triggers" style="display:none;">HALL</button>
                         <button class="tool-btn" data-type="hallwayvertical" data-category="triggers" style="display:none; background:#d35400; color:#fff;" title="Vertical Hallway (위/아래 이동 홀웨이)">V-HALL</button>
+                        <button class="tool-btn" data-type="secretportal" data-category="triggers" style="display:none; background:#8e44ad; color:#fff;" title="Secret Portal (비밀방 이동 포탈)">PORTAL</button>
+                        <button class="tool-btn" data-type="secretportalexit" data-category="triggers" style="display:none; background:#5b2c6f; color:#fff;" title="Secret Portal Exit (비밀방 출구 포탈)">P-EXIT</button>
                         <button class="tool-btn" data-type="door" data-category="objects" style="background:#8e44ad; color:#fff; display:none;">DOOR</button>
+                        <button class="tool-btn" data-type="secretportal" data-category="objects" style="background:#8e44ad; color:#fff; display:none;" title="Secret Portal (비밀방 이동 포탈)">PORTAL</button>
+                        <button class="tool-btn" data-type="secretportalexit" data-category="objects" style="background:#5b2c6f; color:#fff; display:none;" title="Secret Portal Exit (비밀방 출구 포탈)">P-EXIT</button>
                         <button class="tool-btn" data-type="levelgate" data-category="objects" style="background:#c0392b; color:#fff; display:none;" title="Level Gate (피자타워 레벨 게이트)">LV GATE</button>
                         <button class="tool-btn" data-type="exitgate" data-category="objects" style="background:#27ae60; color:#fff; display:none;" title="Exit Gate (탈출 게이트)">EXIT</button>
                         <button class="tool-btn" data-type="targetDoor" data-category="triggers" style="display:none;">T-DR</button>
