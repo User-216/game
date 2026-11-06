@@ -493,14 +493,24 @@ class SecretPortal extends Entity {
     }
 
     convertToExit(game = window.gameInstance) {
-        const exit = new SecretPortalExit(this.x, this.y, this.width, this.height);
+        const exit = new SecretPortalExit(this.x, this.y, this.width, this.height, this.flipX, this.flipY, this);
+        exit.originalPortal = this;
+        exit.isConvertedFromPortal = true;
+        exit.targetRoom = this.targetRoom;
+        this.convertedExit = exit;
+
         const g = game || window.gameInstance || window.game;
-        if (g && g.entities) {
-            const idx = g.entities.indexOf(this);
-            if (idx !== -1) {
-                g.entities[idx] = exit;
-            } else {
-                g.entities.push(exit);
+        if (g) {
+            if (!g.convertedPortals) g.convertedPortals = [];
+            if (!g.convertedPortals.includes(exit)) g.convertedPortals.push(exit);
+
+            if (g.entities) {
+                const idx = g.entities.indexOf(this);
+                if (idx !== -1) {
+                    g.entities[idx] = exit;
+                } else {
+                    g.entities.push(exit);
+                }
             }
         }
         return exit;
@@ -635,7 +645,7 @@ class SecretPortalExit extends Entity {
         SecretPortalExit.imagesLoaded = true;
     }
 
-    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false) {
+    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false, originalPortal = null) {
         super(x, y, width, height, 'rgba(142, 68, 173, 0.4)', flipX, flipY);
         this.type = 'secretportalexit';
         this.isSolid = false;
@@ -646,7 +656,38 @@ class SecretPortalExit extends Entity {
         this.image_speed = 0.35;
         this.idleRepeatCount = 0;
         this.renderBehind = false;
+        this.originalPortal = originalPortal;
         SecretPortalExit.initImages();
+    }
+
+    convertToPortal(game = window.gameInstance) {
+        let portal = this.originalPortal;
+        if (!portal && (this.isConvertedFromPortal || this.targetRoom)) {
+            portal = new SecretPortal(this.x, this.y, this.width, this.height, this.targetRoom || 'cider_1', this.flipX, this.flipY);
+        }
+        if (!portal) return null;
+
+        portal.state = 'idle';
+        portal.image_index = 0;
+        portal.isDestroyed = false;
+        portal.markedForDeletion = false;
+
+        const g = game || window.gameInstance || window.game;
+        if (g) {
+            if (g.convertedPortals) {
+                const cIdx = g.convertedPortals.indexOf(this);
+                if (cIdx !== -1) g.convertedPortals.splice(cIdx, 1);
+            }
+            if (g.entities) {
+                const idx = g.entities.indexOf(this);
+                if (idx !== -1) {
+                    g.entities[idx] = portal;
+                } else if (!g.entities.includes(portal)) {
+                    g.entities.push(portal);
+                }
+            }
+        }
+        return portal;
     }
 
     activate(player = null) {
@@ -3193,6 +3234,10 @@ class PizzaBoxUnopen extends Entity {
         this.isOpened = true;
         if (game && game.persistentDestruction && !game.isEditorMode && this.persistentId && game.destroyedEntityIds) {
             game.destroyedEntityIds.add(this.persistentId);
+        }
+        if (game) {
+            if (!game.openedPizzaBoxes) game.openedPizzaBoxes = [];
+            if (!game.openedPizzaBoxes.includes(this)) game.openedPizzaBoxes.push(this);
         }
 
         if (game.audio && game.audio.playFile) {

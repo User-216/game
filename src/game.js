@@ -543,6 +543,8 @@ class Game {
         this.collectedItems = [];
         this.killedEnemies = [];
         this.destroyedBlocks = [];
+        this.openedPizzaBoxes = [];
+        this.convertedPortals = [];
         this.selectedType = 'platform';
         this.selectedTileX = 0;
         this.selectedTileY = 0;
@@ -1746,6 +1748,27 @@ class Game {
                     portal.targetRoom = input.trim();
                     this.lastSecretPortalRoom = portal.targetRoom;
                     this.saveCurrentRoomToMemory();
+                }
+            } else {
+                const portalExit = this.entities.find(ent => 
+                    (ent instanceof SecretPortalExit || ent.type === 'secretportalexit' || ent.type === 'secretportal_exit') &&
+                    worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
+                    worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height
+                );
+                if (portalExit) {
+                    const cur = portalExit.originalPortal ? (portalExit.originalPortal.targetRoom || '') : (this.lastSecretPortalRoom || 'cider_1');
+                    const input = prompt('Secret Portal Exit를 Secret Portal로 변환하시겠습니까? 이동 대상 방(targetRoom)을 입력하세요 (예: cider_1, demo_hub):', cur);
+                    if (input !== null && input.trim()) {
+                        const newPortal = new SecretPortal(portalExit.x, portalExit.y, portalExit.width, portalExit.height, input.trim(), portalExit.flipX, portalExit.flipY);
+                        const idx = this.entities.indexOf(portalExit);
+                        if (idx !== -1) {
+                            this.entities[idx] = newPortal;
+                        } else {
+                            this.entities.push(newPortal);
+                        }
+                        this.lastSecretPortalRoom = input.trim();
+                        this.saveCurrentRoomToMemory();
+                    }
                 }
             }
         });
@@ -3482,6 +3505,11 @@ class Game {
                 this.player.heldEnemy = null;
             }
 
+            // Clear all persistent destruction memory when entering editor mode
+            if (this.destroyedEntityIds) {
+                this.destroyedEntityIds.clear();
+            }
+
             // Restore any collected items from fallback list back into entities
             if (this.collectedItems && this.collectedItems.length > 0) {
                 for (const item of this.collectedItems) {
@@ -3523,6 +3551,7 @@ class Game {
             if (this.destroyedBlocks && this.destroyedBlocks.length > 0) {
                 for (const block of this.destroyedBlocks) {
                     block.isDestroyed = false;
+                    block.isSolid = true;
                     block.markedForDeletion = false;
                     block.particles = [];
                     if (block.maxHealth) block.health = block.maxHealth;
@@ -3532,6 +3561,56 @@ class Game {
                     }
                 }
                 this.destroyedBlocks = [];
+            }
+
+            // Restore any opened toppin boxes back into entities
+            if (this.openedPizzaBoxes && this.openedPizzaBoxes.length > 0) {
+                for (const box of this.openedPizzaBoxes) {
+                    box.isOpened = false;
+                    box.markedForDeletion = false;
+                    box.particles = [];
+                    if (!this.entities.includes(box)) {
+                        this.entities.push(box);
+                    }
+                }
+                this.openedPizzaBoxes = [];
+            }
+
+            // Restore any converted secret portals back to SecretPortal
+            if (this.convertedPortals && this.convertedPortals.length > 0) {
+                for (const exit of this.convertedPortals) {
+                    if (exit) {
+                        if (typeof exit.convertToPortal === 'function') {
+                            exit.convertToPortal(this);
+                        } else if (exit.originalPortal) {
+                            const portal = exit.originalPortal;
+                            portal.state = 'idle';
+                            portal.image_index = 0;
+                            portal.isDestroyed = false;
+                            portal.markedForDeletion = false;
+                            const idx = this.entities.indexOf(exit);
+                            if (idx !== -1) this.entities[idx] = portal;
+                            else if (!this.entities.includes(portal)) this.entities.push(portal);
+                        }
+                    }
+                }
+                this.convertedPortals = [];
+            }
+            for (let i = 0; i < this.entities.length; i++) {
+                const ent = this.entities[i];
+                if (ent && (ent instanceof SecretPortalExit || ent.type === 'secretportalexit' || ent.type === 'secretportal_exit')) {
+                    if (typeof ent.convertToPortal === 'function') {
+                        const portal = ent.convertToPortal(this);
+                        if (portal) this.entities[i] = portal;
+                    } else if (ent.originalPortal || ent.isConvertedFromPortal || ent.targetRoom) {
+                        const portal = ent.originalPortal || new SecretPortal(ent.x, ent.y, ent.width, ent.height, ent.targetRoom || 'cider_1', ent.flipX, ent.flipY);
+                        portal.state = 'idle';
+                        portal.image_index = 0;
+                        portal.isDestroyed = false;
+                        portal.markedForDeletion = false;
+                        this.entities[i] = portal;
+                    }
+                }
             }
 
             // 1. Remove all dynamically cloned/spawned baddies & splatters
@@ -3579,6 +3658,7 @@ class Game {
                     else ent.health = 1;
                 } else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
                     ent.isOpened = false;
+                    ent.markedForDeletion = false;
                     ent.particles = [];
                 }
             });
@@ -3594,6 +3674,55 @@ class Game {
             toolbar.classList.add('hidden');
             this.player.isNoClip = false;
             if (palette) palette.classList.add('hidden');
+
+            if (this.openedPizzaBoxes && this.openedPizzaBoxes.length > 0) {
+                for (const box of this.openedPizzaBoxes) {
+                    box.isOpened = false;
+                    box.markedForDeletion = false;
+                    box.particles = [];
+                    if (!this.entities.includes(box)) {
+                        this.entities.push(box);
+                    }
+                }
+                this.openedPizzaBoxes = [];
+            }
+
+            // Restore any converted secret portals back to SecretPortal
+            if (this.convertedPortals && this.convertedPortals.length > 0) {
+                for (const exit of this.convertedPortals) {
+                    if (exit) {
+                        if (typeof exit.convertToPortal === 'function') {
+                            exit.convertToPortal(this);
+                        } else if (exit.originalPortal) {
+                            const portal = exit.originalPortal;
+                            portal.state = 'idle';
+                            portal.image_index = 0;
+                            portal.isDestroyed = false;
+                            portal.markedForDeletion = false;
+                            const idx = this.entities.indexOf(exit);
+                            if (idx !== -1) this.entities[idx] = portal;
+                            else if (!this.entities.includes(portal)) this.entities.push(portal);
+                        }
+                    }
+                }
+                this.convertedPortals = [];
+            }
+            for (let i = 0; i < this.entities.length; i++) {
+                const ent = this.entities[i];
+                if (ent && (ent instanceof SecretPortalExit || ent.type === 'secretportalexit' || ent.type === 'secretportal_exit')) {
+                    if (typeof ent.convertToPortal === 'function') {
+                        const portal = ent.convertToPortal(this);
+                        if (portal) this.entities[i] = portal;
+                    } else if (ent.originalPortal || ent.isConvertedFromPortal || ent.targetRoom) {
+                        const portal = ent.originalPortal || new SecretPortal(ent.x, ent.y, ent.width, ent.height, ent.targetRoom || 'cider_1', ent.flipX, ent.flipY);
+                        portal.state = 'idle';
+                        portal.image_index = 0;
+                        portal.isDestroyed = false;
+                        portal.markedForDeletion = false;
+                        this.entities[i] = portal;
+                    }
+                }
+            }
 
             // When exiting editor mode, resume normal enemy movement from their spawn position and reset collectibles and blocks for test play
             this.entities.forEach(ent => {
@@ -3624,6 +3753,7 @@ class Game {
                     else ent.health = 1;
                 } else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
                     ent.isOpened = false;
+                    ent.markedForDeletion = false;
                     ent.particles = [];
                 }
             });
@@ -4501,6 +4631,9 @@ class Game {
         this.entities.forEach(ent => {
             let line = `    `;
             let base = ``;
+            if ((ent instanceof SecretPortalExit || ent.type === 'secretportalexit' || ent.type === 'secretportal_exit') && (ent.originalPortal || ent.isConvertedFromPortal)) {
+                ent = ent.originalPortal || new SecretPortal(ent.x, ent.y, ent.width, ent.height, ent.targetRoom || 'cider_1', ent.flipX, ent.flipY);
+            }
             if (ent instanceof OneWayPlatform) base = `new OneWayPlatform(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Ladder) base = `new Ladder(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.color}')`;
             else if (ent instanceof Tile) {
@@ -4607,6 +4740,8 @@ class Game {
         this.collectedItems = [];
         this.killedEnemies = [];
         this.destroyedBlocks = [];
+        this.openedPizzaBoxes = [];
+        this.convertedPortals = [];
         this.selectedEntities = [];
         this.activeEnemies = [];
         this.baddiesSpawners = [];
@@ -4765,7 +4900,64 @@ this.entities.push(
         
         // Save current room state to memory before switching
         if (this.currentRoom && this.rooms[this.currentRoom] && this.entities.length > 0) {
+            // Revert any converted secret portals back to original SecretPortal before caching room state
+            if (this.convertedPortals && this.convertedPortals.length > 0) {
+                for (const exit of this.convertedPortals) {
+                    if (exit) {
+                        if (typeof exit.convertToPortal === 'function') {
+                            exit.convertToPortal(this);
+                        } else if (exit.originalPortal) {
+                            const portal = exit.originalPortal;
+                            portal.state = 'idle';
+                            portal.image_index = 0;
+                            portal.isDestroyed = false;
+                            portal.markedForDeletion = false;
+                            const idx = this.entities.indexOf(exit);
+                            if (idx !== -1) this.entities[idx] = portal;
+                            else if (!this.entities.includes(portal)) this.entities.push(portal);
+                        }
+                    }
+                }
+                this.convertedPortals = [];
+            }
+            for (let i = 0; i < this.entities.length; i++) {
+                const ent = this.entities[i];
+                if (ent && (ent instanceof SecretPortalExit || ent.type === 'secretportalexit' || ent.type === 'secretportal_exit')) {
+                    if (typeof ent.convertToPortal === 'function') {
+                        const portal = ent.convertToPortal(this);
+                        if (portal) this.entities[i] = portal;
+                    } else if (ent.originalPortal || ent.isConvertedFromPortal || ent.targetRoom) {
+                        const portal = ent.originalPortal || new SecretPortal(ent.x, ent.y, ent.width, ent.height, ent.targetRoom || 'cider_1', ent.flipX, ent.flipY);
+                        portal.state = 'idle';
+                        portal.image_index = 0;
+                        portal.isDestroyed = false;
+                        portal.markedForDeletion = false;
+                        this.entities[i] = portal;
+                    }
+                }
+            }
+
             const currentEntities = [...this.entities];
+            if (this.destroyedBlocks && this.destroyedBlocks.length > 0) {
+                for (const b of this.destroyedBlocks) {
+                    if (!currentEntities.includes(b)) currentEntities.push(b);
+                }
+            }
+            if (this.killedEnemies && this.killedEnemies.length > 0) {
+                for (const k of this.killedEnemies) {
+                    if (!currentEntities.includes(k)) currentEntities.push(k);
+                }
+            }
+            if (this.collectedItems && this.collectedItems.length > 0) {
+                for (const c of this.collectedItems) {
+                    if (!currentEntities.includes(c)) currentEntities.push(c);
+                }
+            }
+            if (this.openedPizzaBoxes && this.openedPizzaBoxes.length > 0) {
+                for (const pb of this.openedPizzaBoxes) {
+                    if (!currentEntities.includes(pb)) currentEntities.push(pb);
+                }
+            }
             const currentW = this.roomWidth;
             const currentH = this.roomHeight;
             const currentMusic = this.roomMusic;
@@ -4838,6 +5030,8 @@ this.entities.push(
                 this.collectedItems = [];
                 this.killedEnemies = [];
                 this.destroyedBlocks = [];
+                this.openedPizzaBoxes = [];
+        this.convertedPortals = [];
                 this.roomWidth = 0;
                 this.roomHeight = 0;
                 this.roomMusic = undefined;
@@ -4897,6 +5091,8 @@ this.entities.push(
                                 if (!this.collectedItems.includes(ent)) this.collectedItems.push(ent);
                             } else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
                                 ent.isOpened = true;
+                                if (!this.openedPizzaBoxes) this.openedPizzaBoxes = [];
+                                if (!this.openedPizzaBoxes.includes(ent)) this.openedPizzaBoxes.push(ent);
                             } else {
                                 if (!this.destroyedBlocks) this.destroyedBlocks = [];
                                 if (!this.destroyedBlocks.includes(ent)) this.destroyedBlocks.push(ent);
@@ -4995,10 +5191,15 @@ this.entities.push(
                             if (typeof portalObj.convertToExit === 'function') {
                                 exitObj = portalObj.convertToExit(this);
                             } else {
-                                exitObj = new SecretPortalExit(portalObj.x, portalObj.y, portalObj.width, portalObj.height);
+                                exitObj = new SecretPortalExit(portalObj.x, portalObj.y, portalObj.width, portalObj.height, portalObj.flipX, portalObj.flipY, portalObj);
+                                exitObj.originalPortal = portalObj;
+                                exitObj.isConvertedFromPortal = true;
+                                exitObj.targetRoom = portalObj.targetRoom;
                                 const pIdx = this.entities.indexOf(portalObj);
                                 if (pIdx !== -1) this.entities[pIdx] = exitObj;
                                 else this.entities.push(exitObj);
+                                if (!this.convertedPortals) this.convertedPortals = [];
+                                if (!this.convertedPortals.includes(exitObj)) this.convertedPortals.push(exitObj);
                             }
                         }
                     }
@@ -5623,6 +5824,8 @@ this.entities.push(
         this.score = 0;
         this.toppins = [];
         this.playerTrail = [];
+        this.openedPizzaBoxes = [];
+        this.convertedPortals = [];
         this.combo = 0;
         this.comboTimer = 0;
         this.floatingTexts = [];
@@ -7082,6 +7285,18 @@ this.entities.push(
                     if (!this.destroyedBlocks) this.destroyedBlocks = [];
                     if (!this.destroyedBlocks.includes(ent)) {
                         this.destroyedBlocks.push(ent);
+                    }
+                } else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
+                    if (!this.openedPizzaBoxes) this.openedPizzaBoxes = [];
+                    if (!this.openedPizzaBoxes.includes(ent)) {
+                        this.openedPizzaBoxes.push(ent);
+                    }
+                } else if (ent instanceof SecretPortalExit || ent.type === 'secretportalexit' || ent.type === 'secretportal_exit') {
+                    if (ent.originalPortal || ent.isConvertedFromPortal) {
+                        if (!this.convertedPortals) this.convertedPortals = [];
+                        if (!this.convertedPortals.includes(ent)) {
+                            this.convertedPortals.push(ent);
+                        }
                     }
                 }
                 this.entities.splice(i, 1);
