@@ -45,6 +45,7 @@ class Player {
             this.sprite_index = 'spr_player_idle';
             this.image_speed = (this.vy !== 0) ? 0.3 : 0;
         this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
         this.suplexGrabTimer = 0;
         this.isHoldingEnemy = false;
         this.heldEnemy = null;
@@ -113,6 +114,8 @@ class Player {
             spr_player_suplexgrab: [],
             spr_player_suplexgrabfall: [],
             spr_player_suplexgrabfallloop: [],
+            spr_player_longjump: [],
+            spr_player_longjumploop: [],
             spr_player_lookdoor: [],
             spr_player_walkfront: [],
             spr_player_enterlevelgate: [],
@@ -197,6 +200,22 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_suplexgrabfallloop/spr_playerT_suplexgrabfallloop${i}.png`;
             this.sprites.spr_player_suplexgrabfallloop.push(img);
+        }
+
+        // Load longjump sprite (7 frames)
+        this.sprites.spr_player_longjump = [];
+        for (let i = 1; i <= 7; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_longjump/spr_playerT_longjump${i}.png`;
+            this.sprites.spr_player_longjump.push(img);
+        }
+
+        // Load longjumploop sprite (2 frames)
+        this.sprites.spr_player_longjumploop = [];
+        for (let i = 1; i <= 2; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_longjumploop/spr_playerT_longjumploop${i}.png`;
+            this.sprites.spr_player_longjumploop.push(img);
         }
 
         // Load lookdoor sprite (10 frames)
@@ -429,6 +448,7 @@ class Player {
             this.isGroundPounding = false;
             this.freefallLoopStarted = false;
             this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
             this.isTumbling = false;
             this.isCrouching = false;
             this.machAfters = [];
@@ -446,6 +466,7 @@ class Player {
             this.isClimbing = false;
             this.isGroundPounding = false;
             this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
             if (this.height === 23 || this.isCrouching || this.isTumbling) {
                 this.height = 45;
                 this.y -= 22;
@@ -492,6 +513,7 @@ class Player {
             this.isClimbing = false;
             this.isGroundPounding = false;
             this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
             if (this.height === 23 || this.isCrouching || this.isTumbling) {
                 this.height = 45;
                 this.y -= 22;
@@ -542,6 +564,7 @@ class Player {
             this.isGroundPounding = false;
             this.freefallLoopStarted = false;
             this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
             this.isTumbling = false;
             this.isCrouching = false;
             this.machAfters = [];
@@ -576,6 +599,7 @@ class Player {
             this.isClimbing = false;
             this.isGroundPounding = false;
             this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
             if (this.height === 23 || this.isCrouching || this.isTumbling) {
                 this.height = 45;
                 this.y -= 22;
@@ -687,6 +711,9 @@ class Player {
         }
 
         // ・ｬ・ｴ・ｰ ・卓乱・・・ｬ・ｬ・ｰ ・・・ ・菩�・・�・
+        if (this.isLongJumping && !this.isGrounded) {
+            isCurrentlyRunning = true;
+        }
         if (this.isTumbling) {
             isCurrentlyRunning = true;
         }
@@ -761,6 +788,7 @@ class Player {
                 this.isGroundPounding = false;
                 this.isClimbing = false;
                 this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
                 this.isMachSliding = false;
                 this.isDrifting = false;
                 this.isDrifting1 = false;
@@ -810,6 +838,7 @@ class Player {
         if (this.isSuplexGrabbing) {
             if ((this.facingDir === 1 && keys.actionLeft) || (this.facingDir === -1 && keys.actionRight)) {
                 this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
                 this.vx = 0; // ・ｵ・・・・・・・ｴ・・擽 ・餓亨 ・菩ｧ (・・ｱ ・懋ｱｰ)
             }
         }
@@ -1105,6 +1134,7 @@ class Player {
                 // ・｡・ｰ ・護ｧ・・・・・椈・ｼ ・・･ｴ・ｴ ・護ｧ・揆 ・ｨ・醐葺・� ・餓亨 ・ｬ・ｴ・ｰ・・・ｰ・・葺・ｰ ・鷺巡・ｼ 12・・・・､孖ｸ
                 wantTumble = true;
                 this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
                 this.suplexGrabTimer = 0;
                 this.vx = 12 * this.facingDir;
             } else if (this.isTumbling) {
@@ -1290,6 +1320,7 @@ class Player {
         // Suplex Grab Trigger
         if (this.grabBufferTimer > 0 && !this.isHoldingEnemy && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling && this.state !== 'bump') {
             this.isSuplexGrabbing = true;
+            this.isLongJumping = false;
             this.image_index = 0;
             this.grabBufferTimer = 0; // Consume the buffer
             if (!this.isGrounded) {
@@ -1318,6 +1349,7 @@ class Player {
                 this.vx = absVx * this.facingDir;
             } else {
                 this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
             }
         }
 
@@ -1678,6 +1710,7 @@ class Player {
                                     }
                                 }
                                 this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
                                 this.climbSide = resolution.amount < 0 ? 1 : -1;
                                 this.vy = -Math.min(20, Math.max(12, Math.abs(this.vx)));
                                 if (this.vy > -12) this.vy = -12;
@@ -1694,6 +1727,7 @@ class Player {
                                 this.isDrifting1 = false;
                                 this.isMachSliding = false;
                                 this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
                                 this.isTumbling = false;
                                 this.isCrouching = false;
                                 if (this.height === 23) {
@@ -1875,6 +1909,24 @@ class Player {
         if (this.jumpBufferTimer > 0) {
             if (this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3' || this.state === 'bump') {
                 this.jumpBufferTimer = 0; // 드리프트 중 점프 금지
+            } else if (this.isSuplexGrabbing) {
+                // 잡기 중 점프: mach2로 전환 및 spr_player_longjump
+                this.isSuplexGrabbing = false;
+                this.suplexGrabTimer = 0;
+                this.isLongJumping = true;
+                this.isRunning = true;
+                this.wasRunningLastFrame = true;
+                this.vy = this.jumpForce;
+                this.vx = Math.max(Math.abs(this.vx), 10) * this.facingDir;
+                this.isGrounded = false;
+                this.standingOnEntity = null;
+                this.jumpBufferTimer = 0;
+                this.sprite_index = 'spr_player_longjump';
+                this.image_index = 0;
+                if (audio) {
+                    audio.stopFile('sfx_suplexdash');
+                    audio.play('jump');
+                }
             } else if (this.isGrounded && !this.isGroundPoundLand) {
                 if (this.isCrouching) {
                     this.vy = -8;
@@ -1958,12 +2010,21 @@ class Player {
             this.vy = 10; // ・ｨ・ｴ・・ｰ ・懍梠﨑俯株 ・懋ｰ・・鷺巡・ｼ 10・ｼ・・・､・・(・�・ｴ・� ・ｵ・・葺・・
         }
 
+        if (this.isGrounded && this.isLongJumping) {
+            this.isLongJumping = false;
+        }
+
         // Determine sprite index
         if (this.state === 'bump') {
             this.sprite_index = 'spr_player_bump';
             this.image_speed = 0.5;
         } else if (this.isClimbing) {
             this.sprite_index = 'spr_player_climbwall';
+        } else if (this.isLongJumping && !this.isGrounded) {
+            if (this.sprite_index !== 'spr_player_longjump' && this.sprite_index !== 'spr_player_longjumploop') {
+                this.sprite_index = 'spr_player_longjump';
+                this.image_index = 0;
+            }
         } else if (this.isSuplexGrabbing) {
             if (!this.isGrounded) {
                 if (this.sprite_index !== 'spr_player_suplexgrabfall' && this.sprite_index !== 'spr_player_suplexgrabfallloop') {
@@ -1973,6 +2034,7 @@ class Player {
             } else if (this.isGrounded) {
                 if (this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop') {
                     this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
                 } else {
                     this.sprite_index = 'spr_player_suplexgrab';
                 }
@@ -2013,7 +2075,7 @@ class Player {
                 this.sprite_index = targetSprite;
                 this.image_index = 0;
             }
-        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_machslideboost3') {
+        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && !this.isLongJumping && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_longjump' && this.sprite_index !== 'spr_player_longjumploop') {
             this.sprite_index = 'spr_player_fall';
         } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand && !this.isSuplexGrabbing) {
             if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
@@ -2071,6 +2133,10 @@ class Player {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_suplexgrab' || this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop') {
             this.image_speed = 0.45;
+        } else if (this.sprite_index === 'spr_player_longjump') {
+            this.image_speed = 0.4;
+        } else if (this.sprite_index === 'spr_player_longjumploop') {
+            this.image_speed = 0.35;
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55;
         } else if (this.sprite_index === 'spr_player_groundpound') {
@@ -2128,6 +2194,10 @@ class Player {
         }
         if (this.sprite_index === 'spr_player_mach3jump' && this.image_index >= this.sprites.spr_player_mach3jump.length) {
             this.sprite_index = 'spr_player_mach3';
+            this.image_index = 0;
+        }
+        if (this.sprite_index === 'spr_player_longjump' && this.image_index >= this.sprites.spr_player_longjump.length) {
+            this.sprite_index = 'spr_player_longjumploop';
             this.image_index = 0;
         }
         if (this.sprite_index === 'spr_player_suplexgrabfall' && this.image_index >= this.sprites.spr_player_suplexgrabfall.length) {
@@ -2223,6 +2293,7 @@ class Player {
         // ・ｵ・卓乱・・・｡・ｰ ・護ｧ・・・・・乱 ・ｿ・俯共・ｴ ・餓亨 ・護ｧ・・・｣・
         if (this.isSuplexGrabbing && !this.wasGrounded && this.isGrounded) {
             this.isSuplexGrabbing = false;
+        this.isLongJumping = false;
             this.suplexGrabTimer = 0;
         }
         // ・ｴ・・嵓・�溢桷 墲､ ・・・ ・・･
@@ -2292,6 +2363,20 @@ class Player {
                 if (frames && frames.length > 0) {
                     let frameIndex = Math.floor(m.image_index);
                     if (m.sprite_index === 'spr_player_suplexgrabfallloop') {
+                        frameIndex = frameIndex % frames.length;
+                    } else if (frameIndex >= frames.length) {
+                        frameIndex = frames.length - 1;
+                    }
+                    const frame = frames[frameIndex];
+                    if (frame && frame.complete && frame.naturalWidth > 0) {
+                        imgToDraw = frame;
+                    }
+                }
+            } else if (m.sprite_index === 'spr_player_longjump' || m.sprite_index === 'spr_player_longjumploop') {
+                const frames = this.sprites[m.sprite_index];
+                if (frames && frames.length > 0) {
+                    let frameIndex = Math.floor(m.image_index);
+                    if (m.sprite_index === 'spr_player_longjumploop') {
                         frameIndex = frameIndex % frames.length;
                     } else if (frameIndex >= frames.length) {
                         frameIndex = frames.length - 1;
@@ -2668,6 +2753,27 @@ class Player {
                     ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
                 }
             }
+        } else if (this.sprite_index === 'spr_player_longjump' || this.sprite_index === 'spr_player_longjumploop') {
+            const frames = this.sprites[this.sprite_index];
+            if (frames && frames.length > 0) {
+                let frameIndex = Math.floor(this.image_index);
+                if (this.sprite_index === 'spr_player_longjumploop') {
+                    frameIndex = frameIndex % frames.length;
+                } else if (frameIndex >= frames.length) {
+                    frameIndex = frames.length - 1;
+                }
+                const img = frames[frameIndex];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    const drawX = this.x;
+                    const drawY = this.y;
+                    ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                    if (this.facingDir === -1) {
+                        ctx.scale(-1, 1);
+                    }
+                    const offsetY = -57.5;
+                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                }
+            }
         } else if (this.sprite_index === 'spr_player_walkfront') {
             const frames = this.sprites.spr_player_walkfront;
             if (frames && frames.length > 0) {
@@ -2872,6 +2978,7 @@ class Player {
         else if (this.isMachSliding) debugState = 'machslide';
         else if (this.isDrifting || this.isDrifting1) debugState = 'drifting';
         else if (this.isSuplexGrabbing) debugState = 'suplexgrab';
+        else if (this.isLongJumping) debugState = 'longjump';
         
         if (this.sprite_index) {
             debugState += ` [${this.sprite_index}]`;
