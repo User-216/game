@@ -116,6 +116,8 @@ class Player {
             spr_player_suplexgrabfallloop: [],
             spr_player_longjump: [],
             spr_player_longjumploop: [],
+            spr_player_haulingidle: [],
+            spr_player_haulingwalk: [],
             spr_player_lookdoor: [],
             spr_player_walkfront: [],
             spr_player_enterlevelgate: [],
@@ -202,9 +204,9 @@ class Player {
             this.sprites.spr_player_suplexgrabfallloop.push(img);
         }
 
-        // Load longjump sprite (7 frames)
+        // Load longjump sprite (13 frames)
         this.sprites.spr_player_longjump = [];
-        for (let i = 1; i <= 7; i++) {
+        for (let i = 1; i <= 13; i++) {
             let img = new Image();
             img.src = `player/spr_player_longjump/spr_playerT_longjump${i}.png`;
             this.sprites.spr_player_longjump.push(img);
@@ -216,6 +218,22 @@ class Player {
             let img = new Image();
             img.src = `player/spr_player_longjumploop/spr_playerT_longjumploop${i}.png`;
             this.sprites.spr_player_longjumploop.push(img);
+        }
+
+        // Load haulingidle sprite (6 frames)
+        this.sprites.spr_player_haulingidle = [];
+        for (let i = 1; i <= 6; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_haulingidle/spr_player_haulingidle${i}.png`;
+            this.sprites.spr_player_haulingidle.push(img);
+        }
+
+        // Load haulingwalk sprite (6 frames)
+        this.sprites.spr_player_haulingwalk = [];
+        for (let i = 1; i <= 6; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_haulingwalk/spr_player_haulingwalk${i}.png`;
+            this.sprites.spr_player_haulingwalk.push(img);
         }
 
         // Load lookdoor sprite (10 frames)
@@ -1301,6 +1319,7 @@ class Player {
                 this.heldEnemy.vy = 0;
                 this.heldEnemy.squashTimer = 18;
                 this.heldEnemy.maxSquashTimer = 18;
+                this.heldEnemy.hitCooldown = 20;
                 this.requestScreenShake = 10; // Screen shake on kick!
                 
                 this.heldEnemy = null;
@@ -1941,7 +1960,7 @@ class Player {
                 const wasCrouching = this.isCrouching;
                 this.isRollGettingUp = false;
                 this.jumpBufferTimer = 0;
-                this.sprite_index = wasCrouching ? 'spr_player_crouch' : (isMach3Jump ? 'spr_player_mach3jump' : 'spr_player_jump');
+                this.sprite_index = wasCrouching ? 'spr_player_crouch' : (isMach3Jump ? 'spr_player_mach3jump' : (this.isHoldingEnemy ? 'spr_player_haulingidle' : 'spr_player_jump'));
                 this.image_index = 0;
                 if (audio) audio.play('jump');
                 
@@ -2075,10 +2094,21 @@ class Player {
                 this.sprite_index = targetSprite;
                 this.image_index = 0;
             }
-        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && !this.isLongJumping && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_longjump' && this.sprite_index !== 'spr_player_longjumploop') {
-            this.sprite_index = 'spr_player_fall';
+        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && !this.isLongJumping && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_longjump' && this.sprite_index !== 'spr_player_longjumploop' && this.sprite_index !== 'spr_player_haulingidle' && this.sprite_index !== 'spr_player_haulingwalk') {
+            if (this.isHoldingEnemy && this.kickWindupTimer <= 0) {
+                this.sprite_index = 'spr_player_haulingidle';
+            } else {
+                this.sprite_index = 'spr_player_fall';
+            }
         } else if (this.isGrounded && this.sprite_index !== 'spr_player_land' && !this.isRollGettingUp && !this.isGroundPoundLand && !this.isSuplexGrabbing) {
-            if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
+            if (this.isHoldingEnemy && this.kickWindupTimer <= 0) {
+                const isWalking = Math.abs(this.vx) > 0.1;
+                const targetSprite = isWalking ? 'spr_player_haulingwalk' : 'spr_player_haulingidle';
+                if (this.sprite_index !== targetSprite) {
+                    this.sprite_index = targetSprite;
+                    this.image_index = 0;
+                }
+            } else if (Math.abs(this.vx) < 0.1 && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing && !keys.actionLeft && !keys.actionRight) {
                 this.sprite_index = 'spr_player_idle';
             } else if (Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
                 this.sprite_index = 'spr_player_walk';
@@ -2134,9 +2164,13 @@ class Player {
         } else if (this.sprite_index === 'spr_player_suplexgrab' || this.sprite_index === 'spr_player_suplexgrabfall' || this.sprite_index === 'spr_player_suplexgrabfallloop') {
             this.image_speed = 0.45;
         } else if (this.sprite_index === 'spr_player_longjump') {
-            this.image_speed = 0.4;
+            this.image_speed = 25 / 60; // 40ms per frame (25 FPS at 60Hz)
         } else if (this.sprite_index === 'spr_player_longjumploop') {
+            this.image_speed = 25 / 60; // 40ms per frame (25 FPS at 60Hz)
+        } else if (this.sprite_index === 'spr_player_haulingidle') {
             this.image_speed = 0.35;
+        } else if (this.sprite_index === 'spr_player_haulingwalk') {
+            this.image_speed = Math.max(0.2, Math.abs(this.vx) * 0.08);
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             this.image_speed = 0.55;
         } else if (this.sprite_index === 'spr_player_groundpound') {
@@ -2312,8 +2346,8 @@ class Player {
             ctx.globalAlpha = m.alpha;
             let imgToDraw = null;
             
-            if (m.sprite_index === 'spr_player_idle') {
-                const frames = this.sprites.spr_player_idle;
+            if (m.sprite_index === 'spr_player_idle' || m.sprite_index === 'spr_player_haulingidle' || m.sprite_index === 'spr_player_haulingwalk') {
+                const frames = this.sprites[m.sprite_index];
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
@@ -2545,8 +2579,8 @@ class Player {
             ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
         }
 
-        if (this.sprite_index === 'spr_player_idle') {
-            const frames = this.sprites.spr_player_idle;
+        if (this.sprite_index === 'spr_player_idle' || this.sprite_index === 'spr_player_haulingidle' || this.sprite_index === 'spr_player_haulingwalk') {
+            const frames = this.sprites[this.sprite_index];
             const frameIndex = Math.floor(this.image_index) % frames.length;
             const img = frames[frameIndex];
             
@@ -2979,6 +3013,7 @@ class Player {
         else if (this.isDrifting || this.isDrifting1) debugState = 'drifting';
         else if (this.isSuplexGrabbing) debugState = 'suplexgrab';
         else if (this.isLongJumping) debugState = 'longjump';
+        else if (this.isHoldingEnemy) debugState = 'hauling';
         
         if (this.sprite_index) {
             debugState += ` [${this.sprite_index}]`;

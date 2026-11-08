@@ -3777,11 +3777,13 @@ class Slime extends Entity {
         if (this.state === 'held') {
             const p = game.player;
             if (p.isHoldingEnemy && p.heldEnemy === this) {
-                this.x = p.x + p.width/2 - this.width/2;
-                this.y = p.y - this.height + 10;
+                const dir = p.facingDir || 1;
+                this.facingDir = dir;
+                this.isGrounded = false;
+                this.x = p.x + (p.width - this.width) / 2 - dir * 3;
+                this.y = p.y - 26 + (p.isCrouching ? 10 : 0);
                 this.vx = 0;
                 this.vy = 0;
-                this.facingDir = p.facingDir || 1;
                 return;
             }
         }
@@ -4292,7 +4294,7 @@ class Slime extends Entity {
                 } else {
                     // 평상시 / 기절 / 밟힘 및 튕겨나감 찌부 상태:
                     // 공중/튕겨나갈 때는 중심 앵커, 바닥에 있을 때는 발바닥 앵커 사용
-                    const isAir = !this.isGrounded || this.state === 'kicked';
+                    const isAir = !this.isGrounded || this.state === 'kicked' || this.state === 'held';
                     const cx = Math.round(drawX + this.width / 2);
                     const cy = isAir ? Math.round(drawY + this.height / 2) : Math.round(drawY + this.height / 2 + 22.5);
                     const drawOffsetY = isAir ? -57.5 : -80;

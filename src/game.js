@@ -7164,18 +7164,26 @@ this.entities.push(
             this.pacmanShockTimer--;
         }
 
+        // 시크릿 방 이동, 시크릿 포탈 빨려가는 중, 방 이동 트랜지션 효과 중에는 콤보 타이머 일시정지
+        const isSecretRoom = !!(this.bgSecret || (this.currentRoom && this.currentRoom.toLowerCase().includes('secret')));
+        const isSecretPortalState = !!(this.player && (this.player.state === 'secretportal' || this.player.state === 'secretportal_exit'));
+        const isRoomTransition = (this.transitionState !== 'NONE') || !!this.isPlayingTransition || !!this.isPortalTransition || !!(this.player && (this.player.state === 'enterdoor' || this.player.state === 'enterlevelgate' || this.player.state === 'walkfront' || this.player.isEnteringDoor));
+        const isComboTimerFrozen = isSecretRoom || isSecretPortalState || isRoomTransition || this.isEditorMode;
+
         if (this.comboTimer > 0) {
-            this.comboTimer -= 0.2;
-            if (this.comboTimer <= 0) {
-                // Pacman has finished eating the apple completely! (Burger Castle style)
-                // When the food is all eaten, the combo breaks!
-                if (this.combo > 0) {
-                    this.lostComboValue = this.combo;
-                    this.comboChompAnim = 36;
-                    this.comboLossMsgTimer = 180; // "THAT APPLE WAS NOT YUMMY!" appears for 3 seconds (180 frames)
+            if (!isComboTimerFrozen) {
+                this.comboTimer -= 0.2;
+                if (this.comboTimer <= 0) {
+                    // Pacman has finished eating the apple completely! (Burger Castle style)
+                    // When the food is all eaten, the combo breaks!
+                    if (this.combo > 0) {
+                        this.lostComboValue = this.combo;
+                        this.comboChompAnim = 36;
+                        this.comboLossMsgTimer = 180; // "THAT APPLE WAS NOT YUMMY!" appears for 3 seconds (180 frames)
+                    }
+                    this.comboTimer = 0;
+                    this.combo = 0; // Combo breaks here!
                 }
-                this.comboTimer = 0;
-                this.combo = 0; // Combo breaks here!
             }
         }
 
@@ -7903,7 +7911,11 @@ this.entities.push(
                 }
                 if (eRight > viewLeft && eLeft < viewRight && 
                     eBottom > viewTop && eTop < viewBottom) {
-                    e.render(this.ctx);
+                    if (this.player && this.player.isHoldingEnemy && this.player.heldEnemy === e) {
+                        // 잡힌 적은 플레이어 앞 레이어로 렌더링하기 위해 여기서 건너뜀
+                    } else {
+                        e.render(this.ctx);
+                    }
                 }
             }
         }
@@ -7916,6 +7928,11 @@ this.entities.push(
         }
 
         if (this.player.visible !== false) this.player.render(this.ctx);
+
+        // Render held enemy in front of player
+        if (this.player && this.player.isHoldingEnemy && this.player.heldEnemy && typeof this.player.heldEnemy.render === 'function') {
+            this.player.heldEnemy.render(this.ctx);
+        }
         
         // Render other online players
         if (this.otherPlayers && this.player.sprites) {
