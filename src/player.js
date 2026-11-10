@@ -112,6 +112,8 @@ class Player {
             spr_player_mach3jump: [],
             spr_player_machslideboost: [],
             spr_player_machslideboost3: [],
+            spr_player_machslidestart: [],
+            spr_player_machslide: [],
             spr_player_rollgetup: [],
             spr_player_climbwall: [],
             spr_player_groundpoundland: [],
@@ -332,6 +334,22 @@ class Player {
             this.sprites.spr_player_machslideboost3.push(img);
         }
 
+        // Load machslidestart sprite (6 frames: 1 to 6)
+        this.sprites.spr_player_machslidestart = [];
+        for (let i = 1; i <= 6; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_machslidestart/spr_player_machslidestart${i}.png`;
+            this.sprites.spr_player_machslidestart.push(img);
+        }
+
+        // Load machslide sprite (3 frames: 1 to 3)
+        this.sprites.spr_player_machslide = [];
+        for (let i = 1; i <= 3; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_machslide/spr_player_machslide${i}.png`;
+            this.sprites.spr_player_machslide.push(img);
+        }
+
         // Load ground pound start sprite (10 frames)
         this.sprites.spr_player_groundpoundstart = [];
         for (let i = 1; i <= 10; i++) {
@@ -445,6 +463,23 @@ class Player {
         this.mask_image_crouch.src = 'player/spr_player_maskc.png';
         this.frameCount = 0;
         this.paletteManager = typeof PaletteManager !== 'undefined' ? new PaletteManager() : null;
+    }
+
+    /**
+     * Exit machslide state cleanly, optionally resetting sprite to idle/fall.
+     * @param {boolean} resetSprite
+     */
+    stopMachSlide(resetSprite = false) {
+        this.isMachSliding = false;
+        if (this.state === 'machslide') {
+            this.state = 'normal';
+        }
+        if (resetSprite) {
+            this.sprite_index = this.isGrounded
+                ? (this.isHoldingEnemy ? 'spr_player_haulingidle' : 'spr_player_idle')
+                : (this.isHoldingEnemy ? 'spr_player_haulingidle' : 'spr_player_fall');
+            this.image_index = 0;
+        }
     }
 
     update(keys, entities, audio) {
@@ -769,7 +804,7 @@ class Player {
         if (this.isTumbling) {
             isCurrentlyRunning = true;
         }
-        if (this.state === 'bump' || this.isFinishingBlow) {
+        if (this.state === 'bump' || this.isFinishingBlow || this.isMachSliding) {
             isCurrentlyRunning = false;
         }
 
@@ -872,14 +907,24 @@ class Player {
         }
 
         // Running cancel triggers: ・・乱・・・ｬ・ｬ・・・・Shift・ｼ ・ｼ・ｴ ・ｬ・ｼ・ｴ・・・罹徐 (・ｬ・ｴ・ｰ ・卓乱・・・懍匣)
-        if (this.wasRunningLastFrame && !isCurrentlyRunning && this.isGrounded && !this.isTumbling && !this.isFinishingBlow) {
+        const isGrabActiveOrTriggered = this.isSuplexGrabbing || this.state === 'suplexgrab' || this.isHoldingEnemy || (keys.actionGrab && this.canGrab) || this.grabBufferTimer > 0;
+        if (this.wasRunningLastFrame && !isCurrentlyRunning && this.isGrounded && !this.isTumbling && !this.isFinishingBlow && !isGrabActiveOrTriggered) {
             if (audio) {
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
-                audio.playFile('sfx_break', true);
+                audio.stopFile('mach4');
             }
-            if (Math.abs(this.vx) >= this.machThreshold && !this.isDrifting && !this.isDrifting1) {
+            if (Math.abs(this.vx) >= 8 && !this.isDrifting && !this.isDrifting1 && !this.isCrouching && !this.isGroundPounding && !this.isClimbing && !this.isClimbingLadder && this.state !== 'bump') {
+                if (audio) {
+                    audio.playFile('sfx_break', true);
+                }
                 this.isMachSliding = true;
+                this.isLongJumping = false;
+                this.isRollGettingUp = false;
+                this.state = 'machslide';
+                this.facingDir = Math.sign(this.vx);
+                this.sprite_index = 'spr_player_machslidestart';
+                this.image_index = 0;
             }
         }
 
@@ -1170,11 +1215,15 @@ class Player {
 
         // Mach Sliding Logic
         if (this.isMachSliding) {
-            this.vx *= this.machSlideFriction;
+            if (this.vx > 0) {
+                this.vx = Math.max(0, this.vx * this.machSlideFriction - 0.08);
+            } else if (this.vx < 0) {
+                this.vx = Math.min(0, this.vx * this.machSlideFriction + 0.08);
+            }
 
             // ・鷺巡・ ・ｮ・・ｧ・ｰ・・・・乱・・・ｨ・ｴ・・ｴ ・・｣・(・尖株 ・ｬ・ｩ・川攪 ・､・ｸ ・ｰ・・
-            if (Math.abs(this.vx) < 1.5) {
-                this.isMachSliding = false;
+            if (this.vx === 0) {
+                this.stopMachSlide(true);
             }
         }
 
@@ -1322,6 +1371,8 @@ class Player {
         } else if (this.isCrouching) {
             this.state = 'crouch';
             // ・ｰ・ｴ・・ｰ・ｼ ・・紛 ・菩�・・菩ｧ(this.vx = 0) ・懋ｱｰ
+        } else if (this.isMachSliding) {
+            this.state = 'machslide';
         } else {
             this.state = 'normal';
         }
@@ -1422,8 +1473,12 @@ class Player {
         }
 
         // Suplex Grab Trigger
-        if (this.grabBufferTimer > 0 && !this.isHoldingEnemy && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling && !this.isFinishingBlow && this.state !== 'bump') {
+        if (this.grabBufferTimer > 0 && !this.isHoldingEnemy && !this.isSuplexGrabbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isTumbling && !this.isFinishingBlow && this.state !== 'bump') {
+            if (this.isMachSliding) {
+                this.stopMachSlide(false);
+            }
             this.isSuplexGrabbing = true;
+            this.state = 'suplexgrab';
             this.isLongJumping = false;
             this.image_index = 0;
             this.grabBufferTimer = 0; // Consume the buffer
@@ -1758,7 +1813,7 @@ class Player {
                         // User request: "달리는 중 공중말고 벽에 붙이칠떄 상태를 bump 로 해줘 sprite index는 spr_player_bump 로 해주고"
                         // "야 bump 일떄 y를 8 로 정하고 뒤로가는걸 7 로 정해줘"
                         const isRunningIntoWall = (this.isRunning || this.isTumbling || this.isSuplexGrabbing || (this.sprite_index && this.sprite_index.includes('mach')));
-                        if (this.state !== 'bump' && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_machslideboost' && isRunningIntoWall) {
+                        if (this.state !== 'bump' && !this.isClimbing && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_machslideboost' && this.sprite_index !== 'spr_player_machslidestart' && this.sprite_index !== 'spr_player_machslide' && isRunningIntoWall) {
                             let isGroundedOrOnFloor = this.isGrounded || this.wasGrounded;
                             if (!isGroundedOrOnFloor) {
                                 for (let j = 0; j < entities.length; j++) {
@@ -1999,6 +2054,10 @@ class Player {
             }
         }
 
+        if (this.isMachSliding && this.vx === 0) {
+            this.stopMachSlide(this.isGrounded);
+        }
+
 
         // Jump (Z key)
         if (!keys.actionJump) {
@@ -2009,14 +2068,14 @@ class Player {
             this.jumpBufferTimer--;
         }
 
-        if (keys.actionJump && this.canJump && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_machslideboost' && !this.isClimbingLadder && this.state !== 'bump') {
+        if (keys.actionJump && this.canJump && !this.isDrifting && !this.isDrifting1 && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_machslideboost' && !this.isClimbingLadder && this.state !== 'bump' && !(this.isTumbling && this.isGrounded)) {
             this.jumpBufferTimer = 18; // 18 frames (0.3s) of jump buffer
             this.canJump = false; // Consume the jump press immediately
         }
 
         if (this.jumpBufferTimer > 0) {
-            if (this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3' || this.sprite_index === 'spr_player_machslideboost' || this.state === 'bump' || this.isFinishingBlow) {
-                this.jumpBufferTimer = 0; // 드리프트 또는 피니싱 블로우 중 점프 금지
+            if (this.isDrifting || this.isDrifting1 || this.sprite_index === 'spr_player_machslideboost3' || this.sprite_index === 'spr_player_machslideboost' || this.state === 'bump' || this.isFinishingBlow || (this.isTumbling && this.isGrounded)) {
+                this.jumpBufferTimer = 0; // 드리프트, 피니싱 블로우 또는 지상 구르기 중 점프 금지
             } else if (this.isSuplexGrabbing) {
                 // 잡기 중 점프: mach2로 전환 및 spr_player_longjump
                 this.isSuplexGrabbing = false;
@@ -2035,7 +2094,7 @@ class Player {
                     audio.stopFile('sfx_suplexdash');
                     audio.play('jump');
                 }
-            } else if (this.isGrounded && !this.isGroundPoundLand) {
+            } else if (this.isGrounded && !this.isGroundPoundLand && !this.isTumbling) {
                 if (this.isCrouching) {
                     this.vy = -8;
                 } else {
@@ -2048,6 +2107,9 @@ class Player {
 
                 const wasCrouching = this.isCrouching;
                 this.isRollGettingUp = false;
+                if (this.isMachSliding) {
+                    this.stopMachSlide(false);
+                }
                 this.jumpBufferTimer = 0;
                 this.sprite_index = wasCrouching ? 'spr_player_crouch' : (isMach3Jump ? 'spr_player_mach3jump' : (this.isHoldingEnemy ? 'spr_player_haulingidle' : 'spr_player_jump'));
                 this.image_index = 0;
@@ -2077,7 +2139,7 @@ class Player {
                 this.sprite_index = (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3') ? 'spr_player_mach3jump' : 'spr_player_jump';
                 this.image_index = 0;
                 if (audio) audio.play('jump');
-            } else if (this.isTumbling) {
+            } else if (this.isTumbling && !this.isGrounded) {
                 // Divebomb: Cancel air tumble into a normal ground pound
                 this.isTumbling = false;
                 this.sprite_index = 'spr_player_idle';
@@ -2167,7 +2229,12 @@ class Player {
             } else {
                 this.isRollGettingUp = false;
             }
-        } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing && !this.isRunning) {
+        } else if (this.isMachSliding) {
+            if (this.sprite_index !== 'spr_player_machslidestart' && this.sprite_index !== 'spr_player_machslide') {
+                this.sprite_index = 'spr_player_machslidestart';
+                this.image_index = 0;
+            }
+        } else if (!this.wasGrounded && this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isGroundPoundLand && !this.isTumbling && !this.isSuplexGrabbing && !this.isRunning && !this.isDrifting && !this.isDrifting1) {
             this.sprite_index = 'spr_player_land';
             this.image_index = 0;
             if (!this.isRunning && !this.isSuplexGrabbing) {
@@ -2309,7 +2376,7 @@ class Player {
                     });
                 }
             }
-        } else if (this.sprite_index === 'spr_player_machslideboost3' || this.sprite_index === 'spr_player_machslideboost') {
+        } else if (this.sprite_index === 'spr_player_machslideboost3' || this.sprite_index === 'spr_player_machslideboost' || this.sprite_index === 'spr_player_machslidestart' || this.sprite_index === 'spr_player_machslide') {
             this.image_speed = 0.5;
         } else if (this.sprite_index === 'spr_player_crouch' || this.sprite_index === 'spr_player_crawl') {
             this.image_speed = (Math.abs(this.vx) > 0) ? 0.35 : 0.2;
@@ -2347,6 +2414,10 @@ class Player {
         }
         if (this.sprite_index === 'spr_player_groundpoundstart' && this.image_index >= this.sprites.spr_player_groundpoundstart.length) {
             this.sprite_index = 'spr_player_groundpound';
+            this.image_index = 0;
+        }
+        if (this.sprite_index === 'spr_player_machslidestart' && this.sprites.spr_player_machslidestart && this.image_index >= this.sprites.spr_player_machslidestart.length) {
+            this.sprite_index = 'spr_player_machslide';
             this.image_index = 0;
         }
         if (this.sprite_index === 'spr_player_bump' || this.state === 'bump') {
@@ -2495,7 +2566,17 @@ class Player {
                 if (frame && frame.complete && frame.naturalWidth > 0) {
                     imgToDraw = frame;
                 }
-            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump' || m.sprite_index === 'spr_player_machslideboost3' || m.sprite_index === 'spr_player_machslideboost' || m.sprite_index === 'spr_player_rollgetup' || m.sprite_index === 'spr_player_roll') {
+            } else if (m.sprite_index === 'spr_player_machslidestart') {
+                const frames = this.sprites.spr_player_machslidestart;
+                if (frames && frames.length > 0) {
+                    let frameIndex = Math.floor(m.image_index);
+                    if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                    const frame = frames[frameIndex];
+                    if (frame && frame.complete && frame.naturalWidth > 0) {
+                        imgToDraw = frame;
+                    }
+                }
+            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump' || m.sprite_index === 'spr_player_machslideboost3' || m.sprite_index === 'spr_player_machslideboost' || m.sprite_index === 'spr_player_machslide' || m.sprite_index === 'spr_player_rollgetup' || m.sprite_index === 'spr_player_roll') {
                 const frames = this.sprites[m.sprite_index];
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
@@ -2835,11 +2916,15 @@ class Player {
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
                 ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
             }
-        } else if (this.sprite_index === 'spr_player_machslideboost3' || this.sprite_index === 'spr_player_machslideboost') {
+        } else if (this.sprite_index === 'spr_player_machslideboost3' || this.sprite_index === 'spr_player_machslideboost' || this.sprite_index === 'spr_player_machslidestart' || this.sprite_index === 'spr_player_machslide') {
             const frames = this.sprites[this.sprite_index];
             if (frames && frames.length > 0) {
                 let frameIndex = Math.floor(this.image_index);
-                if (frameIndex >= frames.length) frameIndex = frames.length - 1;
+                if (this.sprite_index === 'spr_player_machslide') {
+                    frameIndex = frameIndex % frames.length;
+                } else if (frameIndex >= frames.length) {
+                    frameIndex = frames.length - 1;
+                }
                 const img = frames[frameIndex];
                 if (img && img.complete && img.naturalWidth > 0) {
                     const drawX = this.x;

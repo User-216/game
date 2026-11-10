@@ -52,6 +52,7 @@ this.entities.push(
     new Collect(1696, 1376, 32, 32),
     new Collect(1664, 1408, 32, 32),
     new Collect(1632, 1376, 32, 32),
+    new PizzaSon(1248, 1344, 64, 64),
 );
 
 };

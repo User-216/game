@@ -15,7 +15,7 @@ const i18n = {
         'state.idle': 'IDLE', 'state.climbing': 'CLIMBING', 'state.running': 'RUNNING',
         'state.grounded': 'GROUNDED', 'state.airborne': 'AIRBORNE', 'state.groundpound': 'GROUNDPOUND',
         'state.groundpoundland': 'GROUNDPOUNDLAND',
-        'state.drifting': 'DRIFTING', 'state.mach': 'MACH', 'title.press': '- Press Z to Start -'
+        'state.drifting': 'DRIFTING', 'state.machslide': 'MACHSLIDE', 'state.mach': 'MACH', 'title.press': '- Press Z to Start -'
     },
     ko: {
         'ui.speed': '속도', 'ui.climb': '등반', 'ui.state': '상태', 'ui.room': '방',
@@ -33,7 +33,7 @@ const i18n = {
         'state.idle': '대기', 'state.climbing': '등반중', 'state.running': '달리는중',
         'state.grounded': '지상', 'state.airborne': '공중', 'state.groundpound': '찍기',
         'state.groundpoundland': '찍기착지',
-        'state.drifting': '드리프트', 'state.mach': '마하', 'title.press': '- Z를 눌러 시작 -'
+        'state.drifting': '드리프트', 'state.machslide': '마하슬라이드', 'state.mach': '마하', 'title.press': '- Z를 눌러 시작 -'
     }
 };
 
@@ -2808,8 +2808,9 @@ class Game {
                                   ent.isSecret || ent.type === 'tile');
         const isEnemy = (!ent.spawnedBySpawner && (ent instanceof Slime || ent.type === 'obj_slime'));
         const isItem = (ent instanceof Collect || ent instanceof PizzaBoxUnopen || 
+                        (typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) ||
                         ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || 
-                        ent.type === 'pizzaboxunopen');
+                        ent.type === 'pizzaboxunopen' || ent.type === 'obj_pizzason' || ent.type === 'pizzason');
 
         return isDestroyedBlock || isEnemy || isItem;
     }
@@ -3513,14 +3514,18 @@ class Game {
             // Restore any collected items from fallback list back into entities
             if (this.collectedItems && this.collectedItems.length > 0) {
                 for (const item of this.collectedItems) {
-                    item.isCollected = false;
-                    item.markedForDeletion = false;
-                    item.state = 'idle';
-                    item.vx = 0;
-                    item.vy = 0;
-                    item.speed = 0;
-                    if (typeof item.baseX === 'number') item.x = item.baseX;
-                    if (typeof item.baseY === 'number') item.y = item.baseY;
+                    if (typeof item.resetState === 'function') {
+                        item.resetState();
+                    } else {
+                        item.isCollected = false;
+                        item.markedForDeletion = false;
+                        item.state = 'idle';
+                        item.vx = 0;
+                        item.vy = 0;
+                        item.speed = 0;
+                        if (typeof item.baseX === 'number') item.x = item.baseX;
+                        if (typeof item.baseY === 'number') item.y = item.baseY;
+                    }
                     if (!this.entities.includes(item)) {
                         this.entities.push(item);
                     }
@@ -3660,6 +3665,8 @@ class Game {
                     ent.isOpened = false;
                     ent.markedForDeletion = false;
                     ent.particles = [];
+                } else if ((typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) || ent.type === 'obj_pizzason' || ent.type === 'pizzason') {
+                    ent.resetState();
                 }
             });
 
@@ -3755,6 +3762,8 @@ class Game {
                     ent.isOpened = false;
                     ent.markedForDeletion = false;
                     ent.particles = [];
+                } else if ((typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) || ent.type === 'obj_pizzason' || ent.type === 'pizzason') {
+                    ent.resetState();
                 }
             });
 
@@ -4271,7 +4280,7 @@ class Game {
             } else if (this.selectedType === 'door') {
                 w = 100;
                 h = 100;
-            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit') {
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit' || this.selectedType === 'obj_pizzason' || this.selectedType === 'pizzason') {
                 w = 64;
                 h = 64;
             } else {
@@ -4465,6 +4474,10 @@ class Game {
                 entity = new PizzaBoxUnopen(x, y, 64, 64, false, false, chosenType);
                 break;
             }
+            case 'pizzason':
+            case 'obj_pizzason':
+                entity = new PizzaSon(x, y, w, h);
+                break;
             case 'obj_collect':
                 entity = new Collect(x, y, w, h);
                 break;
@@ -4676,6 +4689,11 @@ class Game {
             else if (ent instanceof PizzaBoxUnopen || ent.type === 'pizzaboxunopen') {
                 const toppinVal = ent.toppinType !== undefined ? ent.toppinType : 1;
                 base = `new PizzaBoxUnopen(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, false, false, ${typeof toppinVal === 'string' ? JSON.stringify(toppinVal) : toppinVal})`;
+            }
+            else if ((typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) || ent.type === 'obj_pizzason' || ent.type === 'pizzason') {
+                const bx = ent.baseX !== undefined ? ent.baseX : ent.x;
+                const by = ent.baseY !== undefined ? ent.baseY : ent.y;
+                base = `new PizzaSon(${bx}, ${by}, ${ent.width}, ${ent.height})`;
             }
             else if (ent instanceof Slime) {
                 if (ent.spawnedBySpawner) return; // Never save cloned/spawned enemies
@@ -5085,7 +5103,7 @@ this.entities.push(
                                 ent.state = 'dead';
                                 if (!this.killedEnemies) this.killedEnemies = [];
                                 if (!this.killedEnemies.includes(ent)) this.killedEnemies.push(ent);
-                            } else if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
+                            } else if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || (typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) || ent.type === 'obj_pizzason' || ent.type === 'pizzason') {
                                 ent.isCollected = true;
                                 if (!this.collectedItems) this.collectedItems = [];
                                 if (!this.collectedItems.includes(ent)) this.collectedItems.push(ent);
@@ -7279,7 +7297,7 @@ this.entities.push(
                 this.destroyedEntityIds.add(ent.persistentId);
             }
             if (ent.markedForDeletion) {
-                if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect') {
+                if (ent instanceof Collect || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || (typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) || ent.type === 'obj_pizzason' || ent.type === 'pizzason') {
                     if (!this.collectedItems) this.collectedItems = [];
                     if (!this.collectedItems.includes(ent)) {
                         this.collectedItems.push(ent);
@@ -7456,6 +7474,7 @@ this.entities.push(
         if (this.player.isGroundPounding) currentStates.push(dict['state.groundpound']);
         if (this.player.isDrifting) currentStates.push(dict['state.drifting']);
         if (this.player.isDrifting1) currentStates.push(dict['state.drifting']);
+        if (this.player.isMachSliding) currentStates.push(dict['state.machslide']);
         if (Math.abs(this.player.vx) >= this.player.machThreshold) currentStates.push(dict['state.mach']);
 
         // Door & Gate Interaction Check
@@ -7902,6 +7921,18 @@ this.entities.push(
                     eRight = e.x + 80;
                     eTop = e.y - 16;
                     eBottom = e.y + 80;
+                }
+                if (e.type === 'obj_pizzason' || e.type === 'pizzason' || (typeof PizzaSon !== 'undefined' && e instanceof PizzaSon)) {
+                    if (e.spawnedFruits && e.spawnedFruits.length > 0) {
+                        eLeft = -Infinity; eRight = Infinity; eTop = -Infinity; eBottom = Infinity;
+                    } else {
+                        const cx = e.x + e.width / 2;
+                        const cy = e.y + e.height / 2;
+                        eLeft = cx - 50;
+                        eRight = cx + 50;
+                        eTop = cy + e.height / 2 - 74;
+                        eBottom = eTop + 100;
+                    }
                 }
                 if (e.type === 'secretportal' || e.type === 'secretportalexit' || (typeof SecretPortal !== 'undefined' && e instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && e instanceof SecretPortalExit)) {
                     eLeft = e.x + e.width / 2 - 64;
@@ -8973,10 +9004,10 @@ this.entities.push(
             for (let ft of this.floatingTexts) {
                 this.ctx.globalAlpha = Math.max(0, ft.alpha);
                 
-                // Use credits font for floating text
+                // Use credits font for floating text (only switch to Korean pixel font if the text actually contains Hangul)
                 const textStr = ft.text.toString();
                 const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(textStr);
-                const useKoreanFont = hasKorean || (this.settings && this.settings.language === 'ko');
+                const useKoreanFont = hasKorean;
 
                 let screenX = ft.x - this.camera.x;
                 let screenY = ft.y - this.camera.y;
@@ -9835,7 +9866,7 @@ this.entities.push(
                 pw = 100; ph = 100;
             } else if (this.selectedType === 'obj_slime' || this.selectedType === 'obj_baddiespawner') {
                 pw = 40; ph = 40;
-            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect' || this.selectedType === 'pizzaboxunopen' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit') {
+            } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect' || this.selectedType === 'pizzaboxunopen' || this.selectedType === 'obj_pizzason' || this.selectedType === 'pizzason' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit') {
                 pw = 64; ph = 64;
             }
 
@@ -10025,6 +10056,19 @@ this.entities.push(
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('P-BOX', 32, 32);
+                }
+            } else if (this.selectedType === 'obj_pizzason' || this.selectedType === 'pizzason') {
+                const img = typeof PizzaSon !== 'undefined' && PizzaSon.idleSprites && PizzaSon.idleSprites[0];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, pw / 2 - 50, ph - 74, 100, 100);
+                } else {
+                    ctx.fillStyle = '#e67e22';
+                    ctx.fillRect(0, 0, pw, ph);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('PIZZASON', pw / 2, ph / 2);
                 }
             } else if (this.selectedType === 'oneway') {
                 ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';

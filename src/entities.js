@@ -3574,14 +3574,267 @@ class Toppin {
     }
 }
 
+class PizzaSon extends Entity {
+    static idleSprites = [];
+    static throwSprites = [];
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (PizzaSon.imagesLoaded) return;
+        PizzaSon.idleSprites = [];
+        for (let i = 1; i <= 11; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_pizzasona1/spr_pizzasona${i}.png`;
+            PizzaSon.idleSprites.push(img);
+        }
+        PizzaSon.throwSprites = [];
+        for (let i = 1; i <= 7; i++) {
+            const img = new Image();
+            img.src = `이미지/spr_pizzasona1throw/spr_pizzasona1throw${i}.png`;
+            PizzaSon.throwSprites.push(img);
+        }
+        if (typeof Collect !== 'undefined' && typeof Collect.initImages === 'function') {
+            Collect.initImages();
+        }
+        PizzaSon.imagesLoaded = true;
+    }
+
+    constructor(x, y, width = 64, height = 64, flipX = false, flipY = false) {
+        super(x, y, width, height, 'transparent', flipX, flipY);
+        this.type = 'obj_pizzason';
+        this.baseX = x;
+        this.baseY = y;
+        this.isSolid = false;
+        this.isPlatform = false;
+        this.facingDir = flipX ? -1 : 1;
+        this.isActivated = false;
+        this.isCollected = false;
+        this.isOffScreenGone = false;
+        this.pointsGiven = 0;
+        this.scoreTickTimer = 0;
+        this.vy = 0;
+        this.alpha = 1.0;
+        this.image_index = 0;
+        this.image_speed = 0.25;
+        this.spawnedFruits = [];
+        PizzaSon.initImages();
+    }
+
+    resetState() {
+        this.isActivated = false;
+        this.isCollected = false;
+        this.isOffScreenGone = false;
+        this.markedForDeletion = false;
+        this.isDestroyed = false;
+        this.pointsGiven = 0;
+        this.scoreTickTimer = 0;
+        this.vy = 0;
+        this.alpha = 1.0;
+        this.image_index = 0;
+        this.spawnedFruits = [];
+        if (typeof this.baseX === 'number') this.x = this.baseX;
+        if (typeof this.baseY === 'number') this.y = this.baseY;
+        this.facingDir = this.flipX ? -1 : 1;
+    }
+
+    spawnFruit() {
+        if (typeof Collect !== 'undefined' && typeof Collect.initImages === 'function') {
+            Collect.initImages();
+        }
+        const collectType = Math.floor(Math.random() * 5) + 1;
+        const frameMap = { 1: 8, 2: 13, 3: 16, 4: 4, 5: 5 };
+        const maxF = frameMap[collectType] || 8;
+        this.spawnedFruits.push({
+            x: this.x + this.width / 2,
+            y: this.y + this.height / 2,
+            vx: (Math.random() - 0.5) * 7,
+            vy: -4 - Math.random() * 3,
+            collectType,
+            image_index: Math.random() * maxF,
+            image_speed: 0.35,
+            scatterTimer: 10
+        });
+    }
+
+    updateFruits(game) {
+        const camX = (game && game.camera) ? game.camera.x : 0;
+        const camY = (game && game.camera) ? game.camera.y : 0;
+        const targetX = camX + 130;
+        const targetY = camY + 70;
+
+        for (let i = this.spawnedFruits.length - 1; i >= 0; i--) {
+            const f = this.spawnedFruits[i];
+            f.image_index = (f.image_index + f.image_speed) % 1000;
+            if (f.scatterTimer > 0) {
+                f.scatterTimer--;
+                f.x += f.vx;
+                f.y += f.vy;
+                f.vy += 0.35;
+            } else {
+                const dx = targetX - f.x;
+                const dy = targetY - f.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 20) {
+                    this.spawnedFruits.splice(i, 1);
+                } else {
+                    f.x += (dx / dist) * 20;
+                    f.y += (dy / dist) * 20;
+                }
+            }
+        }
+    }
+
+    update(game) {
+        const isEditor = (game && game.isEditorMode) || (typeof window !== 'undefined' && ((window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode)));
+        if (isEditor) {
+            this.resetState();
+            const len = PizzaSon.idleSprites.length || 11;
+            this.image_index = (this.image_index + this.image_speed) % len;
+            return;
+        }
+
+        this.updateFruits(game);
+
+        if (this.isOffScreenGone) {
+            if (this.spawnedFruits.length === 0) {
+                this.markedForDeletion = true;
+            }
+            return;
+        }
+
+        if (game && game.player) {
+            const p = game.player;
+            const pCenterX = p.x + p.width / 2;
+            const selfCenterX = this.x + this.width / 2;
+            this.facingDir = (pCenterX < selfCenterX) ? -1 : 1;
+
+            if (!this.isActivated &&
+                p.x < this.x + this.width &&
+                p.x + p.width > this.x &&
+                p.y < this.y + this.height &&
+                p.y + p.height > this.y) {
+                this.isActivated = true;
+                this.isCollected = true;
+                this.image_index = 0;
+                this.vy = 0;
+                this.scoreTickTimer = 0;
+            }
+        }
+
+        if (!this.isActivated) {
+            const len = PizzaSon.idleSprites.length || 11;
+            this.image_index = (this.image_index + this.image_speed) % len;
+            return;
+        }
+
+        const throwLen = PizzaSon.throwSprites.length || 7;
+        this.image_index = (this.image_index + 0.3) % throwLen;
+
+        if (this.pointsGiven < 250) {
+            if (this.scoreTickTimer % 4 === 0) {
+                this.pointsGiven += 10;
+                this.spawnFruit();
+                if (game) {
+                    game.score = (game.score || 0) + 10;
+                    if (game.combo > 0) {
+                        game.comboTimer = Math.min(60, (game.comboTimer || 0) + 10);
+                    }
+                    if (game.audio && game.audio.play) {
+                        game.audio.play('sfx_collect');
+                    }
+                }
+            }
+            this.scoreTickTimer++;
+        }
+
+        if (this.pointsGiven >= 250) {
+            // Once all 250 points are awarded, launch upwards fast while fading out and remove outside screen bounds
+            if (this.vy === 0) {
+                this.vy = -3;
+            }
+            this.vy -= 0.35;
+            this.y += this.vy;
+            this.alpha = Math.max(0, this.alpha - 0.02);
+
+            if (game && game.camera && game.canvas) {
+                const camX = game.camera.x;
+                const camY = game.camera.y;
+                const camW = game.canvas.width;
+                const camH = game.canvas.height;
+                const isOffScreen =
+                    this.y + this.height < camY ||
+                    this.y > camY + camH ||
+                    this.x + this.width < camX ||
+                    this.x > camX + camW;
+                if (isOffScreen) {
+                    this.isOffScreenGone = true;
+                    if (this.spawnedFruits.length === 0) {
+                        this.markedForDeletion = true;
+                    }
+                }
+            }
+        }
+    }
+
+    render(ctx) {
+        if (!this.isOffScreenGone) {
+            const frames = this.isActivated ? PizzaSon.throwSprites : PizzaSon.idleSprites;
+            const frameIdx = frames.length > 0 ? Math.floor(this.image_index) % frames.length : 0;
+            const img = frames[frameIdx];
+
+            ctx.save();
+            ctx.globalAlpha *= Math.max(0, this.alpha);
+            if (img && img.complete && img.naturalWidth > 0) {
+                const cx = Math.round(this.x + this.width / 2);
+                const cy = Math.round(this.y + this.height / 2);
+                ctx.translate(cx, cy);
+                ctx.scale(this.facingDir === -1 ? -1 : 1, this.flipY ? -1 : 1);
+                const drawOffsetY = this.height / 2 - 74;
+                ctx.drawImage(img, -50, drawOffsetY, 100, 100);
+            } else {
+                ctx.fillStyle = '#e67e22';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+            ctx.restore();
+
+            const showDebug = (typeof window !== 'undefined' && window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
+            if (showDebug) {
+                ctx.strokeStyle = '#ff9f43';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        // Render fruits spawned by PizzaSon
+        if (this.spawnedFruits && this.spawnedFruits.length > 0 && typeof Collect !== 'undefined' && Collect.sprites) {
+            for (let i = 0; i < this.spawnedFruits.length; i++) {
+                const f = this.spawnedFruits[i];
+                const frames = (Collect.sprites[f.collectType] && Collect.sprites[f.collectType].length > 0)
+                    ? Collect.sprites[f.collectType]
+                    : Collect.sprites[1];
+                if (frames && frames.length > 0) {
+                    const img = frames[Math.floor(f.image_index) % frames.length];
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, f.x - 50, f.y - 50, 100, 100);
+                    }
+                }
+            }
+        }
+    }
+}
+
 PizzaBoxUnopen.initImages();
 Toppin.initImage();
+PizzaSon.initImages();
 
 if (typeof window !== 'undefined') {
     window.PizzaBoxUnopen = PizzaBoxUnopen;
     window.pizzaboxunopen = PizzaBoxUnopen;
     window.obj_pizzaboxunopen = PizzaBoxUnopen;
     window.Toppin = Toppin;
+    window.PizzaSon = PizzaSon;
+    window.pizzason = PizzaSon;
+    window.obj_pizzason = PizzaSon;
 
     window.AppleBlock = AppleBlock;
     window.AppleBlockSmall = AppleBlockSmall;
@@ -3754,6 +4007,75 @@ class Slime extends Entity {
         }
     }
 
+    static isBreakableBlock(ent) {
+        return (typeof Destroyable !== 'undefined' && ent instanceof Destroyable) ||
+            ent.type === 'destroyable' || ent.type === 'appleblock_small' || ent.type === 'appleblock_big' ||
+            ent.type === 'obj_secretblock' || ent.type === 'secretblock' ||
+            ent.type === 'obj_secretbigblock' || ent.type === 'secretbigblock' ||
+            ent.type === 'metal' || ent.type === 'obj_secretmetalblock' || ent.type === 'secretmetalblock' ||
+            ent.type === 'pillar';
+    }
+
+    awardKillScore(game) {
+        if (!game) return;
+        if (!this.spawnedBySpawner) {
+            game.combo = (game.combo || 0) + 1;
+            game.comboTimer = 60;
+            const x = game.combo;
+            const pts = Math.floor(x * x * 0.25 + 10 * x);
+            if (game.score === undefined) game.score = 0;
+            game.score += pts;
+
+            game.floatingTexts = game.floatingTexts || [];
+            game.floatingTexts.push({
+                x: this.x + this.width / 2,
+                y: this.y,
+                text: pts.toString(),
+                alpha: 1.0,
+                vy: -1
+            });
+        } else if (game.combo > 0) {
+            game.comboTimer = 60;
+        }
+    }
+
+    kill(game, knockDir = 1, sourceVx = 15 * knockDir) {
+        if (this.state === 'dead' || this.state === 'piledriver_die' || this.isDestroyed) return;
+        const dir = Math.sign(knockDir) || 1;
+
+        let floorY = this.y + this.height;
+        const splatterOffset = (typeof sourceVx === 'number' ? sourceVx : 0) * 3;
+        const splatterX = this.x + this.width / 2 + splatterOffset;
+        let floorEnt = null;
+        if (game && Array.isArray(game.entities)) {
+            for (let step = 0; step < 200; step += 10) {
+                const checkY = floorY + step;
+                let foundFloor = false;
+                for (let ent of game.entities) {
+                    if (!ent || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
+                    if (splatterX >= ent.x && splatterX <= ent.x + ent.width && checkY >= ent.y && checkY <= ent.y + ent.height) {
+                        floorY = ent.y;
+                        floorEnt = ent;
+                        foundFloor = true;
+                        break;
+                    }
+                }
+                if (foundFloor) break;
+            }
+            game.entities.push(new Splatter(splatterX, floorY, floorEnt));
+        }
+
+        this.state = 'dead';
+        this.vy = -15;
+        this.vx = 15 * dir;
+        if (game) {
+            game.cameraShake = 20;
+            this.awardKillScore(game);
+            if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
+        }
+        this.hitCooldown = 15;
+    }
+
     update(game) {
         // If spawned by spawner and currently in editor mode, disappear immediately!
         if (this.spawnedBySpawner && game && game.isEditorMode) {
@@ -3831,27 +4153,8 @@ class Slime extends Entity {
         }
         
         if (this.state === 'piledriver_die') {
-            // Grant Combo & Points
-            if (!this.spawnedBySpawner) {
-                game.combo = (game.combo || 0) + 1;
-                game.comboTimer = 60; 
-                const x = game.combo;
-                const pts = Math.floor(x * x * 0.25 + 10 * x);
-                if (game.score === undefined) game.score = 0;
-                game.score += pts;
-                
-                game.floatingTexts = game.floatingTexts || [];
-                game.floatingTexts.push({
-                    x: this.x + this.width / 2,
-                    y: this.y,
-                    text: pts.toString(),
-                    alpha: 1.0,
-                    vy: -1
-                });
-            } else if (game.combo > 0) {
-                game.comboTimer = 60;
-            }
-            
+            this.awardKillScore(game);
+
             this.state = 'dead';
             this.vx = Math.random() > 0.5 ? 5 : -5;
             this.vy = -12;
@@ -3993,6 +4296,50 @@ class Slime extends Entity {
         
         let hitWall = false;
         let hitWallEnt = null;
+
+        // Kicked enemies break blocks and kill normal enemies along their flight path
+        if (this.state === 'kicked') {
+            const kickDir = Math.sign(this.vx) || this.facingDir || 1;
+            const prevX = this.x - this.vx;
+            let reachLeft = Math.min(prevX, this.x);
+            let reachRight = Math.max(prevX, this.x) + this.width;
+            const snapshotCount = game.entities.length;
+
+            // Clamp sweep range to the nearest unbreakable wall so targets behind solid walls aren't hit
+            for (let i = 0; i < snapshotCount; i++) {
+                const ent = game.entities[i];
+                if (!ent || ent === this || ent.isDestroyed || ent.isSolid === false || Slime.isBreakableBlock(ent)) continue;
+                if (ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || (typeof ent.type === 'string' && ent.type.startsWith('targetDoor')) || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+                if (reachLeft < ent.x + ent.width && reachRight > ent.x && ent.y < this.y + this.height - 14 && this.y < ent.y + ent.height - 10) {
+                    if (kickDir > 0 && ent.x >= prevX) {
+                        reachRight = Math.min(reachRight, ent.x + 1);
+                    } else if (kickDir < 0 && ent.x + ent.width <= prevX + this.width) {
+                        reachLeft = Math.max(reachLeft, ent.x + ent.width - 1);
+                    }
+                }
+            }
+
+            for (let i = 0; i < snapshotCount; i++) {
+                const ent = game.entities[i];
+                if (!ent || ent === this || ent.isDestroyed || ent.markedForDeletion) continue;
+                if (!(reachLeft < ent.x + ent.width && reachRight > ent.x && this.y < ent.y + ent.height && this.y + this.height > ent.y)) {
+                    continue;
+                }
+
+                if (Slime.isBreakableBlock(ent) && typeof ent.destroy === 'function') {
+                    ent.destroy(game);
+                    if (game.audio && game.audio.play && ent.type !== 'appleblock_small' && ent.type !== 'appleblock_big') {
+                        game.audio.play('break');
+                    }
+                    if (game.player) {
+                        game.player.requestScreenShake = Math.max(game.player.requestScreenShake || 0, 12);
+                    }
+                } else if (((typeof Slime !== 'undefined' && ent instanceof Slime) || ent.type === 'obj_slime') &&
+                    ent.state !== 'dead' && ent.state !== 'piledriver_die' && ent.state !== 'held' && ent.state !== 'kicked') {
+                    ent.kill(game, kickDir, this.vx);
+                }
+            }
+        }
         
         // AABB with solid platforms
         for (let ent of game.entities) {
@@ -4018,27 +4365,7 @@ class Slime extends Entity {
                 if (game.audio && game.audio.play) game.audio.play('break');
                 
                 game.player.requestScreenShake = 20; // Strong screen shake on wall crash!
-                
-                // Grant Combo & Points
-                if (!this.spawnedBySpawner) {
-                    game.combo = (game.combo || 0) + 1;
-                    game.comboTimer = 60; 
-                    const x = game.combo;
-                    const pts = Math.floor(x * x * 0.25 + 10 * x);
-                    if (game.score === undefined) game.score = 0;
-                    game.score += pts;
-                    
-                    game.floatingTexts = game.floatingTexts || [];
-                    game.floatingTexts.push({
-                        x: this.x + this.width / 2,
-                        y: this.y,
-                        text: pts.toString(),
-                        alpha: 1.0,
-                        vy: -1
-                    });
-                } else if (game.combo > 0) {
-                    game.comboTimer = 60;
-                }
+                this.awardKillScore(game);
                 
                 // Bounce dead body off the wall
                 this.vx = -10 * this.facingDir;
@@ -4175,70 +4502,11 @@ class Slime extends Entity {
             const killCondition = isMach3 || isGroundPound;
             
             if (killCondition) {
-                // Spawn splatter on the ground below
-                let floorY = this.y + this.height;
-                // Raycast down up to 200 pixels to find a solid platform
-                let splatterOffset = p.vx * 3;
-                let splatterX = this.x + this.width/2 + splatterOffset;
-                let floorEnt = null;
-                for (let step = 0; step < 200; step += 10) {
-                    let checkY = floorY + step;
-                    let foundFloor = false;
-                    for (let ent of game.entities) {
-                        if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
-                        if (splatterX >= ent.x && splatterX <= ent.x + ent.width) {
-                            if (checkY >= ent.y && checkY <= ent.y + ent.height) {
-                                floorY = ent.y;
-                                floorEnt = ent;
-                                foundFloor = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (foundFloor) break;
-                }
-                game.entities.push(new Splatter(splatterX, floorY, floorEnt));
-
-                // Kill immediately (fly off screen)
-                this.state = 'dead';
-                this.vy = -15;
-                const knockDir = p.facingDir || 1;
-                this.vx = 15 * knockDir;
-                
-                game.cameraShake = 20;
-                
-                if (game.combo > 0) {
-                    game.comboTimer = 60; // 1 second (60 frames)
-                }
-                
-                if (!this.spawnedBySpawner) {
-                    game.combo = (game.combo || 0) + 1;
-                    game.comboTimer = 60; // 1 second (60 frames)
-                    
-                    const x = game.combo;
-                    const pts = Math.floor(x * x * 0.25 + 10 * x);
-                    
-                    if (game.score === undefined) game.score = 0;
-                    game.score += pts;
-                    
-                    game.floatingTexts = game.floatingTexts || [];
-                    game.floatingTexts.push({
-                        x: this.x + this.width / 2,
-                        y: this.y,
-                        text: pts.toString(),
-                        alpha: 1.0,
-                        vy: -1
-                    });
-                }
-                
+                this.kill(game, p.facingDir || 1, p.vx);
                 if (isStomp) {
                     p.vy = -10;
                     p.sprite_index = 'spr_player_jump';
                 }
-                
-                this.hitCooldown = 15;
-                if (game.audio && game.audio.play) game.audio.play('sfx_enemyhit');
-                
             } else if (isStomp) {
                 // 밟힘(Stomp): 수평 넉백 없이 바닥에서 찌부(squash)되었다가 바로 통통 튀며 복원
                 this.state = 'stunned';
