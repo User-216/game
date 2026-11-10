@@ -15,6 +15,7 @@ class AudioManager {
             sfx_freefall: new Audio('sound/sfx_freefall.wav'),
             sfx_freefallstart: new Audio('sound/sfx_freefallstart.wav'),
             sfx_groundpound: new Audio('sound/sfx_groundpound.wav'),
+            sfx_killingblow: new Audio('sound/sfx_killingblow.wav'),
             sfx_pausestart: new Audio('sound/sfx_pausestart.wav'),
             sfx_rollgetup: new Audio('sound/sfx_rollgetup.wav'),
             sfx_step: new Audio('sound/sfx_step.wav'),

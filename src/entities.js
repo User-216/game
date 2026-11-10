@@ -3780,8 +3780,16 @@ class Slime extends Entity {
                 const dir = p.facingDir || 1;
                 this.facingDir = dir;
                 this.isGrounded = false;
-                this.x = p.x + (p.width - this.width) / 2 - dir * 3;
-                this.y = p.y - 26 + (p.isCrouching ? 10 : 0);
+                if (p.isFinishingBlow) {
+                    // 피니싱 블로우 차지 중: 주먹 앞에 위치하며 카툰 스타일로 부들부들 떨림
+                    const trembleX = (Math.random() - 0.5) * 3;
+                    const trembleY = (Math.random() - 0.5) * 3;
+                    this.x = p.x + (p.width - this.width) / 2 + dir * 38 + trembleX;
+                    this.y = p.y + 4 + trembleY;
+                } else {
+                    this.x = p.x + (p.width - this.width) / 2 - dir * 3;
+                    this.y = p.y - 26 + (p.isCrouching ? 10 : 0);
+                }
                 this.vx = 0;
                 this.vy = 0;
                 return;

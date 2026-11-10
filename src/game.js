@@ -7957,7 +7957,7 @@ this.entities.push(
                         }
                         
                         // Default size in player.js is -51 offset, 100x100
-                        const isCrouched = (p.sprite === 'spr_player_crouch' || p.sprite === 'spr_player_crawl' || p.sprite === 'spr_player_tumble' || p.sprite === 'spr_player_roll');
+                        const isCrouched = (p.sprite === 'spr_player_crouch' || p.sprite === 'spr_player_crawl' || p.sprite === 'spr_player_tumble' || p.sprite === 'spr_player_roll' || p.sprite === 'spr_player_dive');
                         const offsetY = isCrouched ? -68.5 : -57.5; // from player.js
                         if (p.sprite === 'spr_player_walkfront') {
                             const maxF = (frames && frames.length > 0) ? frames.length : 15;
