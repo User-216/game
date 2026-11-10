@@ -2130,6 +2130,7 @@ class LevelGate extends Entity {
     static gateBGImages = [];
     static gateMaskImages = [];
     static titleCardImages = {};
+    static titleCardTitleImages = {};
     static rankBubbleImages = [];
     static rankFImage = null;
     static imagesLoaded = false;
@@ -2186,6 +2187,19 @@ class LevelGate extends Entity {
             LevelGate.titleCardImages[src] = img;
         }
         return LevelGate.titleCardImages[src];
+    }
+
+    static getTitleCardTitleImage(numOrPath) {
+        if (!numOrPath && numOrPath !== 0) return null;
+        const num = String(numOrPath).trim();
+        if (!/^\d+$/.test(num)) return null;
+        const src = `이미지/spr_titlecards_title/spr_titlecards_title_${num}.png`;
+        if (!LevelGate.titleCardTitleImages[src]) {
+            const img = new Image();
+            img.src = src;
+            LevelGate.titleCardTitleImages[src] = img;
+        }
+        return LevelGate.titleCardTitleImages[src];
     }
 
     constructor(x, y, width = 192, height = 288, targetRoom = 'tutorial_1', targetDoor = 'A', titleCardImage = '0', titleCardText = '', gateIndex = 0, color = 'rgba(192, 57, 43, 0.8)', flipX = false, flipY = false, sRankScore = 10000) {

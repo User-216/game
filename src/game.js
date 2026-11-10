@@ -511,33 +511,11 @@ class Game {
             });
         } catch(e) {}
 
-        // Preload rooms and load initial room during boot loading
-        const roomsToPreload = ['demo_hub', 'tutorial_1', 'rm_rank'];
-        let preloadedCount = 0;
-        roomsToPreload.forEach(rName => {
-            const script = document.createElement('script');
-            script.src = `room/${rName}.js?t=${new Date().getTime()}`;
-            script.onload = () => {
-                if (window.roomData && window.roomData[rName]) {
-                    this.rooms[rName] = window.roomData[rName];
-                }
-                preloadedCount++;
-                if (preloadedCount === roomsToPreload.length) {
-                    this.loadRoom('demo_hub').then(() => {
-                        this.bootRoomLoaded = true;
-                    });
-                }
-            };
-            script.onerror = () => {
-                preloadedCount++;
-                if (preloadedCount === roomsToPreload.length) {
-                    this.loadRoom('demo_hub').then(() => {
-                        this.bootRoomLoaded = true;
-                    });
-                }
-            };
-            document.body.appendChild(script);
-        });
+        // Preload all rooms and room-referenced assets during boot loading
+        this.bootRoomLoaded = false;
+        this.bootRoomsLoadedCount = 0;
+        this.bootRoomsTotalCount = this.getDefaultRoomList().length;
+        this.preloadAllRooms();
         
         this.isEditorMode = false;
         this.collectedItems = [];
@@ -1979,7 +1957,7 @@ class Game {
                         } catch(e) {}
                         delete this.rooms[this.currentRoom];
                         if (window.roomData) delete window.roomData[this.currentRoom];
-                        this.loadRoom(this.currentRoom);
+                        this.loadRoom(this.currentRoom, 'A', false, true);
                     }
                 }
             });
@@ -4898,7 +4876,165 @@ this.entities.push(
         }
     }
 
-    async loadRoom(roomName, targetDoorId = 'A', preserveVelocity = false) {
+    getDefaultRoomList() {
+        return [
+            'demo_hub',
+            'tutorial_1',
+            'tutorial_2',
+            'tutorial_3',
+            'tutorial_4',
+            'tutorial_5',
+            'tutorial_6',
+            'cider_1',
+            'cider_2',
+            'cider_3',
+            'cider_lap',
+            'cider_secret_1',
+            'rm_rank',
+            'SecretPortal_test'
+        ];
+    }
+
+    preloadRoomScript(roomName, cacheBuster = Date.now()) {
+        return new Promise((resolve) => {
+            const finishOne = () => {
+                if (typeof window !== 'undefined' && window.roomData && window.roomData[roomName]) {
+                    this.rooms[roomName] = window.roomData[roomName];
+                }
+                this.bootRoomsLoadedCount = (this.bootRoomsLoadedCount || 0) + 1;
+                resolve();
+            };
+
+            if (typeof window !== 'undefined' && window.roomData && window.roomData[roomName]) {
+                finishOne();
+                return;
+            }
+            if (typeof document === 'undefined') {
+                finishOne();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = `room/${roomName}.js?t=${cacheBuster}`;
+            script.onload = () => {
+                if (script.parentNode) script.parentNode.removeChild(script);
+                finishOne();
+            };
+            script.onerror = () => {
+                if (script.parentNode) script.parentNode.removeChild(script);
+                this.bootRoomsLoadedCount = (this.bootRoomsLoadedCount || 0) + 1;
+                resolve();
+            };
+            const targetParent = document.body || document.head;
+            if (targetParent) {
+                targetParent.appendChild(script);
+            } else {
+                this.bootRoomsLoadedCount = (this.bootRoomsLoadedCount || 0) + 1;
+                resolve();
+            }
+        });
+    }
+
+    warmPreloadedRooms(roomNames) {
+        if (typeof Image !== 'undefined' && typeof Tile !== 'undefined') {
+            if (!Tile.images) Tile.images = {};
+            ['tile_tutorial.png', 'tile_city.png', 'pmo_beaker.png'].forEach((tileName) => {
+                if (!Tile.images[tileName]) {
+                    const img = new Image();
+                    img.src = `Tileset/${tileName}`;
+                    Tile.images[tileName] = img;
+                }
+            });
+        }
+        if (typeof LevelGate !== 'undefined') {
+            if (typeof LevelGate.initGateImages === 'function') LevelGate.initGateImages();
+            if (typeof LevelGate.getTitleCardImage === 'function') LevelGate.getTitleCardImage('0');
+            if (typeof LevelGate.getTitleCardTitleImage === 'function') LevelGate.getTitleCardTitleImage('0');
+        }
+
+        const dryCtx = {
+            entities: [],
+            roomWidth: 0,
+            roomHeight: 0,
+            sRankScore: 10000,
+            roomMusic: undefined,
+            roomBackground: 'bg_beaker',
+            bgFollowCamera: true,
+            bgSpeed: 1.0,
+            bgMoveY: false,
+            bgSpeedY: 1.0,
+            bgAutoSpeedY: 0.0,
+            bgAutoSpeedX: 0.0,
+            bgTileY: true,
+            bgSecret: false,
+            bgWave: false,
+            bgWaveAmp: 8,
+            bgWaveSpeed: 1.0,
+            tileWave: false,
+            tileWaveAmp: 3.5,
+            tileWaveSpeed: 1.0,
+            screenFilterColor: null,
+            screenFilterAlpha: 0,
+            screenFilterBlend: 'source-over',
+            screenFilterVignette: false
+        };
+
+        for (const rName of roomNames) {
+            const roomFn = (typeof window !== 'undefined' && window.roomData && window.roomData[rName]) || (this.rooms && this.rooms[rName]);
+            if (typeof roomFn !== 'function') continue;
+            dryCtx.entities = [];
+            try {
+                roomFn.call(dryCtx);
+                for (const ent of dryCtx.entities) {
+                    if (ent && ent.type === 'levelgate' && typeof LevelGate !== 'undefined' && typeof LevelGate.getTitleCardTitleImage === 'function') {
+                        LevelGate.getTitleCardTitleImage(ent.titleCardImage !== undefined ? ent.titleCardImage : '0');
+                    }
+                }
+            } catch (e) {
+                console.warn(`Failed to warm room assets for ${rName}:`, e);
+            }
+        }
+    }
+
+    async preloadAllRooms() {
+        const bootBust = Date.now();
+        const roomSet = new Set(this.getDefaultRoomList());
+
+        if (typeof fetch === 'function') {
+            try {
+                const res = await fetch(`room/rooms.json?t=${bootBust}`);
+                if (res && res.ok) {
+                    const list = await res.json();
+                    if (Array.isArray(list)) {
+                        for (const item of list) {
+                            const clean = String(item || '').replace(/\.js$/i, '').trim();
+                            if (clean) roomSet.add(clean);
+                        }
+                    }
+                }
+            } catch (e) {
+                // Fallback gracefully to default room list (e.g. file:// protocol)
+            }
+        }
+
+        const roomsToPreload = Array.from(roomSet);
+        if (!this.discoveredRooms) this.discoveredRooms = new Set();
+        roomsToPreload.forEach(r => this.discoveredRooms.add(r));
+
+        this.bootRoomsLoadedCount = 0;
+        this.bootRoomsTotalCount = Math.max(1, roomsToPreload.length);
+
+        await Promise.all(roomsToPreload.map(rName => this.preloadRoomScript(rName, bootBust)));
+        this.warmPreloadedRooms(roomsToPreload);
+
+        try {
+            await this.loadRoom('demo_hub');
+        } finally {
+            this.bootRoomLoaded = true;
+        }
+    }
+
+    async loadRoom(roomName, targetDoorId = 'A', preserveVelocity = false, forceReload = false) {
         if (roomName === 'rank') roomName = 'rm_rank';
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         this.lastTargetDoorId = targetDoorId;
@@ -5430,7 +5566,33 @@ this.entities.push(
                 resolve();
             };
 
-            // Inject script to bypass CORS and always load latest file changes from disk
+            const applyLocalStorageRoom = () => {
+                const saved = (typeof localStorage !== 'undefined') ? localStorage.getItem('saved_room_' + roomName) : null;
+                if (saved) {
+                    try {
+                        new Function(saved)();
+                        if (typeof window !== 'undefined' && window.roomData && window.roomData[roomName]) {
+                            this.rooms[roomName] = window.roomData[roomName];
+                        }
+                    } catch (e) {
+                        console.warn('Failed to load saved room from localStorage:', e);
+                    }
+                }
+            };
+
+            if (!forceReload) {
+                applyLocalStorageRoom();
+                const cachedRoom = (typeof window !== 'undefined' && window.roomData && window.roomData[roomName])
+                    ? window.roomData[roomName]
+                    : this.rooms[roomName];
+                if (cachedRoom) {
+                    this.rooms[roomName] = cachedRoom;
+                    finishLoading();
+                    return;
+                }
+            }
+
+            // Fallback / forceReload: inject script to bypass cache and load latest file from disk
             let roomScript = document.getElementById('dynamic-room-script');
             if (roomScript) roomScript.remove();
             
@@ -5441,17 +5603,7 @@ this.entities.push(
                 if (window.roomData && window.roomData[roomName]) {
                     this.rooms[roomName] = window.roomData[roomName];
                 }
-                const saved = localStorage.getItem('saved_room_' + roomName);
-                if (saved) {
-                    try {
-                        new Function(saved)();
-                        if (window.roomData && window.roomData[roomName]) {
-                            this.rooms[roomName] = window.roomData[roomName];
-                        }
-                    } catch(e) {
-                        console.warn('Failed to load saved room from localStorage:', e);
-                    }
-                }
+                applyLocalStorageRoom();
                 finishLoading();
             };
             roomScript.onerror = () => {
@@ -5459,17 +5611,7 @@ this.entities.push(
                 if (window.roomData && window.roomData[roomName]) {
                     this.rooms[roomName] = window.roomData[roomName];
                 }
-                const saved = localStorage.getItem('saved_room_' + roomName);
-                if (saved) {
-                    try {
-                        new Function(saved)();
-                        if (window.roomData && window.roomData[roomName]) {
-                            this.rooms[roomName] = window.roomData[roomName];
-                        }
-                    } catch(e) {
-                        console.warn('Failed to load saved room from localStorage:', e);
-                    }
-                }
+                applyLocalStorageRoom();
                 finishLoading();
             };
             document.body.appendChild(roomScript);
@@ -5625,13 +5767,23 @@ this.entities.push(
             titleImgSrc = `이미지/spr_titlecards_title/spr_titlecards_title_0.png`;
         }
 
-        const bgImage = new Image();
-        bgImage.src = cardImgSrc;
+        let bgImage = (typeof LevelGate !== 'undefined' && LevelGate.getTitleCardImage)
+            ? LevelGate.getTitleCardImage(imgVal || '0')
+            : null;
+        if (!bgImage) {
+            bgImage = new Image();
+            bgImage.src = cardImgSrc;
+        }
 
         let titleImage = null;
         if (titleImgSrc) {
-            titleImage = new Image();
-            titleImage.src = titleImgSrc;
+            titleImage = (typeof LevelGate !== 'undefined' && LevelGate.getTitleCardTitleImage)
+                ? LevelGate.getTitleCardTitleImage(imgVal || '0')
+                : null;
+            if (!titleImage) {
+                titleImage = new Image();
+                titleImage.src = titleImgSrc;
+            }
         }
 
         this.titleCard = {
@@ -6341,11 +6493,12 @@ this.entities.push(
                     }
                 }
                 
-                // Also wait for room loading to finish
-                totalAssets += 1;
-                if (this.bootRoomLoaded) {
-                    readyCount += 1;
-                } else {
+                // Also wait for all rooms preloading & initial room loading to finish
+                const bootRoomsTotal = Math.max(1, this.bootRoomsTotalCount || 1);
+                const bootRoomsDone = Math.min(bootRoomsTotal, this.bootRoomsLoadedCount || 0);
+                totalAssets += bootRoomsTotal + 1;
+                readyCount += bootRoomsDone + (this.bootRoomLoaded ? 1 : 0);
+                if (!this.bootRoomLoaded) {
                     allReady = false;
                 }
                 
