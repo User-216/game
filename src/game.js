@@ -4938,7 +4938,7 @@ this.entities.push(
     warmPreloadedRooms(roomNames) {
         if (typeof Image !== 'undefined' && typeof Tile !== 'undefined') {
             if (!Tile.images) Tile.images = {};
-            ['tile_tutorial.png', 'tile_city.png', 'pmo_beaker.png'].forEach((tileName) => {
+            ['tile_tutorial.png', 'tile_city.png', 'pmo_beaker.png', 'tile_cidersewer.png'].forEach((tileName) => {
                 if (!Tile.images[tileName]) {
                     const img = new Image();
                     img.src = `Tileset/${tileName}`;
@@ -5508,14 +5508,7 @@ this.entities.push(
                     });
 
                     if (touchingDoor) {
-                        this.player.state = 'walkfront';
-                        this.player.isEnteringDoor = false;
-                        this.player.sprite_index = 'spr_player_walkfront';
-                        this.player.image_index = 0;
-                        this.player.image_speed = 0.45;
-                        this.player.targetDoorX = null;
-                        this.player.vx = 0;
-                        this.player.vy = 0;
+                        this.startWalkfrontFromDoor(touchingDoor);
                     }
                 }
                 
@@ -6070,14 +6063,7 @@ this.entities.push(
                         );
                     });
                     if (touchingDoor) {
-                        this.player.state = 'walkfront';
-                        this.player.isEnteringDoor = false;
-                        this.player.sprite_index = 'spr_player_walkfront';
-                        this.player.image_index = 0;
-                        this.player.image_speed = 0.45;
-                        this.player.targetDoorX = null;
-                        this.player.vx = 0;
-                        this.player.vy = 0;
+                        this.startWalkfrontFromDoor(touchingDoor);
                     }
                 }
                 this.gameState = 'PLAYING';
@@ -6087,6 +6073,21 @@ this.entities.push(
             this.gameState = 'TITLE';
             if (this.uiOverlay) this.uiOverlay.style.display = 'none';
         }
+    }
+
+    startWalkfrontFromDoor(door) {
+        if (!this.player) return;
+        if (door && (door.type === 'exitgate' || (typeof ExitGate !== 'undefined' && door instanceof ExitGate))) {
+            door.introOpen = true;
+        }
+        this.player.state = 'walkfront';
+        this.player.isEnteringDoor = false;
+        this.player.sprite_index = 'spr_player_walkfront';
+        this.player.image_index = 0;
+        this.player.image_speed = 0.45;
+        this.player.targetDoorX = null;
+        this.player.vx = 0;
+        this.player.vy = 0;
     }
 
     onRoomTransitionLoaded() {
@@ -6132,14 +6133,7 @@ this.entities.push(
             this.transitionAlpha = 0;
             this.transitionState = 'NONE';
         } else if (touchingDoor) {
-            this.player.state = 'walkfront';
-            this.player.isEnteringDoor = false;
-            this.player.sprite_index = 'spr_player_walkfront';
-            this.player.image_index = 0;
-            this.player.image_speed = 0.45;
-            this.player.targetDoorX = null;
-            this.player.vx = 0;
-            this.player.vy = 0;
+            this.startWalkfrontFromDoor(touchingDoor);
         } else if (this.pendingPreserveVelocity) {
             this.player.isEnteringDoor = false;
             this.player.targetDoorX = null;

@@ -2065,7 +2065,20 @@ class ExitGate extends Entity {
         super(x, y, width, height, color, flipX, flipY);
         this.type = 'exitgate';
         this.isSolid = false;
+        this.introOpen = false;
         ExitGate.initImages();
+    }
+
+    overlapsEntity(ent) {
+        if (!ent) return false;
+        const ew = ent.width || 32;
+        const eh = ent.height || 45;
+        return (
+            ent.x < this.x + this.width &&
+            ent.x + ew > this.x &&
+            ent.y < this.y + this.height &&
+            ent.y + eh > this.y
+        );
     }
 
     render(ctx) {
@@ -2082,8 +2095,13 @@ class ExitGate extends Entity {
         }
 
         const game = window.gameInstance;
-        // 탈출 중일 때 문 열림(spr_exitgate_1), 평소에는 문 닫힘(spr_exitgate_0)
-        const isOpen = !!(game && game.escape);
+        const player = game && game.player;
+        const isWalkfrontOpen = !!(
+            this.introOpen ||
+            (player && player.state === 'walkfront' && this.overlapsEntity(player))
+        );
+        // 탈출 중이거나 레벨 진입 walkfront 중일 때 문 열림(spr_exitgate_1), 그 외에는 문 닫힘(spr_exitgate_0)
+        const isOpen = !!(game && (game.escape || isWalkfrontOpen));
         const img = isOpen ? ExitGate.imageOpen : ExitGate.imageClosed;
 
         if (img && img.complete && img.naturalWidth > 0) {

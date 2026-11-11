@@ -482,6 +482,38 @@ class Player {
         }
     }
 
+    finishWalkfront(entities) {
+        this.state = 'normal';
+        this.sprite_index = 'spr_player_idle';
+        this.image_index = 0;
+        this.image_speed = 0.4;
+        this.height = 45;
+        this.mask_index = 'spr_player_mask';
+        this.isCrouching = false;
+        this.isTumbling = false;
+
+        if (!Array.isArray(entities)) return;
+        const game = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        let closedExitGate = false;
+        for (const ent of entities) {
+            if (!ent || ent.isDestroyed) continue;
+            const isExitGate = ent.type === 'exitgate' || (typeof ExitGate !== 'undefined' && ent instanceof ExitGate);
+            if (!isExitGate) continue;
+            const overlaps = (typeof ent.overlapsEntity === 'function')
+                ? ent.overlapsEntity(this)
+                : (this.x < ent.x + ent.width && this.x + this.width > ent.x && this.y < ent.y + ent.height && this.y + this.height > ent.y);
+            if (ent.introOpen || overlaps) {
+                ent.introOpen = false;
+                if (!(game && game.escape)) {
+                    closedExitGate = true;
+                }
+            }
+        }
+        if (closedExitGate) {
+            this.requestScreenShake = Math.max(this.requestScreenShake || 0, 14);
+        }
+    }
+
     update(keys, entities, audio) {
         this.frameCount++;
         this.wasGrounded = this.isGrounded;
@@ -705,19 +737,10 @@ class Player {
                 }
                 this.image_index += this.image_speed;
                 if (this.image_index >= this.sprites.spr_player_walkfront.length) {
-                    this.state = 'normal';
-                    this.sprite_index = 'spr_player_idle';
-                    this.image_index = 0;
-                    this.image_speed = 0.4;
-                    this.height = 45;
-                    this.mask_index = 'spr_player_mask';
-                    this.isCrouching = false;
-                    this.isTumbling = false;
+                    this.finishWalkfront(entities);
                 }
             } else {
-                this.state = 'normal';
-                this.sprite_index = 'spr_player_idle';
-                this.image_index = 0;
+                this.finishWalkfront(entities);
             }
             return;
         }
