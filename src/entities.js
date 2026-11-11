@@ -3987,6 +3987,25 @@ if (typeof window !== 'undefined') {
 }
 
 class Slime extends Entity {
+    static deadImage = null;
+    static stunImages = null;
+
+    static initImages() {
+        if (!Slime.deadImage) {
+            const deadImg = new Image();
+            deadImg.src = 'spr_slimedead.png';
+            Slime.deadImage = deadImg;
+        }
+        if (!Slime.stunImages) {
+            Slime.stunImages = [];
+            for (let i = 1; i <= 3; i++) {
+                const sImg = new Image();
+                sImg.src = `spr_slimestun/spr_slimestun${i}.png`;
+                Slime.stunImages.push(sImg);
+            }
+        }
+    }
+
     constructor(x, y, w = 40, h = 40, flipX = false, flipY = false) {
         super(x, y, w, h, 'transparent', flipX, flipY);
         this.type = 'obj_slime';
@@ -4019,6 +4038,15 @@ class Slime extends Entity {
             img.src = `spr_slimewalk/spr_slimewalk${i}.png`;
             this.sprites.push(img);
         }
+        Slime.initImages();
+        this.deadSprite = Slime.deadImage;
+        this.stunSprites = Slime.stunImages;
+        this.deadDebrisTimer = 0;
+    }
+
+    advanceStunAnim() {
+        const stunLen = (this.stunSprites && this.stunSprites.length > 0) ? this.stunSprites.length : 3;
+        this.image_index = (this.image_index + this.image_speed) % stunLen;
     }
 
     static isBreakableBlock(ent) {
@@ -4105,6 +4133,7 @@ class Slime extends Entity {
             this.hitCooldown = 0;
             this.stunTimer = 0;
             this.squashTimer = 0;
+            this.deadDebrisTimer = 0;
             if (typeof this.spawnX === 'number') this.x = this.spawnX;
             if (typeof this.spawnY === 'number') this.y = this.spawnY;
             return;
@@ -4128,6 +4157,7 @@ class Slime extends Entity {
                 }
                 this.vx = 0;
                 this.vy = 0;
+                this.advanceStunAnim();
                 return;
             }
         }
@@ -4162,6 +4192,8 @@ class Slime extends Entity {
                 const headVy = -3.2 - Math.random() * 0.8;
                 game.entities.push(new SlimeDebris(headX, headY, headVx, headVy));
             }
+        } else if (this.state === 'stunned' || this.state === 'kicked') {
+            this.advanceStunAnim();
         } else {
             this.image_index = 0;
         }
@@ -4200,6 +4232,24 @@ class Slime extends Entity {
             this.x += this.vx;
             this.y += this.vy;
             this.vy += 0.5; // gravity for arc
+
+            if (game && Array.isArray(game.entities)) {
+                const camY = (game.camera && typeof game.camera.y === 'number') ? game.camera.y : 0;
+                const viewH = (game.canvas && typeof game.canvas.height === 'number') ? game.canvas.height : 540;
+                const tick = this.deadDebrisTimer || 0;
+                if (tick % 3 === 0 && this.y <= camY + viewH + 100) {
+                    const count = (tick === 0) ? 2 : 1;
+                    const moveDir = Math.sign(this.vx) || 0;
+                    for (let i = 0; i < count; i++) {
+                        const cx = this.x + this.width / 2 + (Math.random() - 0.5) * 14;
+                        const cy = this.y + this.height / 2 + (Math.random() - 0.5) * 14;
+                        const dropVx = -moveDir * (1.2 + Math.random() * 1.4) + (Math.random() - 0.5) * 2.2;
+                        const dropVy = -2.2 - Math.random() * 2.4 + (this.vy < 0 ? this.vy * 0.12 : 0);
+                        game.entities.push(new SlimeDebris(cx, cy, dropVx, dropVy));
+                    }
+                }
+                this.deadDebrisTimer = tick + 1;
+            }
             
             // Delete when it falls way below screen
             if (this.y > game.camera.y + game.canvas.height + 200) {
@@ -4555,17 +4605,40 @@ class Slime extends Entity {
 
     render(ctx) {
         const isScared = this.state === 'scared';
+        const isDead = this.state === 'dead' || this.state === 'piledriver_die';
         
         let drawX = this.x;
         let drawY = this.y;
+
+        if (isDead) {
+            Slime.initImages();
+            const deadImg = this.deadSprite || Slime.deadImage;
+            if (deadImg && deadImg.complete && deadImg.naturalWidth > 0) {
+                ctx.save();
+                const scaleX = (this.facingDir === -1) ? -1 : 1;
+                const scaleY = this.flipY ? -1 : 1;
+                ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
+                ctx.scale(scaleX, scaleY);
+                ctx.drawImage(deadImg, -51, -57.5, 100, 100);
+                ctx.restore();
+                return;
+            }
+        }
         
-        if (this.sprites.length > 0) {
+        const useStunSprites = (this.state === 'stunned' || this.state === 'held' || this.state === 'kicked') &&
+            this.stunSprites && this.stunSprites.length > 0;
+        const activeSprites = useStunSprites ? this.stunSprites : this.sprites;
+
+        if (activeSprites.length > 0) {
             // 찌부(스쿼시) 초기에는 납작한 프레임(8프레임, index 7), 복원되면서 원래 프레임 표시
-            let frameIndex = Math.floor(this.image_index) % this.sprites.length;
-            if (this.squashTimer > this.maxSquashTimer * 0.5) {
+            let frameIndex = Math.floor(this.image_index) % activeSprites.length;
+            if (!useStunSprites && this.squashTimer > this.maxSquashTimer * 0.5) {
                 frameIndex = 7;
             }
-            const img = this.sprites[frameIndex];
+            let img = activeSprites[frameIndex];
+            if (useStunSprites && !(img && img.complete && img.naturalWidth > 0) && this.sprites.length > 0) {
+                img = this.sprites[Math.floor(this.image_index) % this.sprites.length];
+            }
             
             if (img && img.complete && img.naturalWidth > 0) {
                 ctx.save();
