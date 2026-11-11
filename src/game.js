@@ -5741,6 +5741,16 @@ this.entities.push(
         });
     }
 
+    stopTitleCardAudio() {
+        if (!this.audio) return;
+        if (typeof this.audio.stopFile === 'function') {
+            this.audio.stopFile('boss_gate');
+        } else if (this.audio.files && this.audio.files.boss_gate) {
+            this.audio.files.boss_gate.pause();
+            this.audio.files.boss_gate.currentTime = 0;
+        }
+    }
+
     startTitleCard(gate) {
         this.gameState = 'TITLECARD';
         this.stageSeconds = 0;
@@ -5748,7 +5758,7 @@ this.entities.push(
         this.highestCombo = 0;
         if (this.uiOverlay) this.uiOverlay.style.display = 'none';
 
-        // Stop music during Title Card and reset
+        // Stop music during Title Card and reset (do not play boss_gate)
         if (this.audio) {
             this.audio.resetMusic();
         }
@@ -5791,12 +5801,21 @@ this.entities.push(
             targetRoom: gate.targetRoom,
             targetDoor: gate.targetDoor || 'A',
             titleText: gate.titleCardText || `GATE ${gate.gateIndex + 1}`, 
+            phase: 'SHOW',
             timer: 0,
-            duration: 180, // ~3 seconds at 60fps
+            holdDuration: 240,      // ~4.0s full display matching Pizza Tower titlecard
+            fadeOutDuration: 12,    // ~0.2s quick fade into solid black
+            blackHoldDuration: 18,  // ~0.3s solid black screen before stage fade-in
+            fadeTimer: 0,
+            blackTimer: 0,
+            duration: 240,
             bgImage: bgImage,
             titleImage: titleImage,
-            alpha: 0,
-            skipTriggered: false
+            alpha: 1.0,             // Instant cut-in at full visibility (no slow fade-in)
+            shakeX: 0,
+            shakeY: 0,
+            skipTriggered: false,
+            isLoading: false
         };
     }
 
@@ -5807,89 +5826,92 @@ this.entities.push(
         }
 
         const tc = this.titleCard;
-        tc.timer++;
+        if (tc.isLoading) return;
 
-        const fadeInFrames = 20;
-        const fadeOutFrames = 20;
-
-        // Skip detection: Z, Enter, Space, X, Jump
-        const skipPressed = (
-            this.keys['z'] || this.keys['Z'] || 
-            this.keys['Enter'] || this.keys[' '] || 
-            this.keys['x'] || this.keys['X'] ||
-            this.isActionPressed('jump') || this.isActionPressed('menu_confirm')
-        );
-
-        if (skipPressed && !tc.skipTriggered && tc.timer > 10) {
-            tc.skipTriggered = true;
-            tc.timer = tc.duration - fadeOutFrames;
-            if (this.audio) {
-                try { this.audio.playFile('sfx_step', true); } catch(e){}
-            }
+        // Refresh stepped cartoon shake on title text every 2 ticks
+        if ((tc.timer + tc.fadeTimer) % 2 === 0 && tc.phase !== 'BLACK_HOLD') {
+            const mag = tc.timer < 20 ? 3.5 : 2.5;
+            tc.shakeX = Math.round((Math.random() * 2 - 1) * mag);
+            tc.shakeY = Math.round((Math.random() * 2 - 1) * mag);
         }
 
-        if (tc.timer < fadeInFrames) {
-            tc.alpha = tc.timer / fadeInFrames;
-        } else if (tc.timer > tc.duration - fadeOutFrames) {
-            tc.alpha = Math.max(0, (tc.duration - tc.timer) / fadeOutFrames);
-        } else {
+        if (tc.phase === 'SHOW') {
+            tc.timer++;
             tc.alpha = 1.0;
-        }
 
-        if (tc.timer >= tc.duration) {
-            const targetRoom = tc.targetRoom;
-            const targetDoor = tc.targetDoor;
-            this.titleCard = null;
+            // Optional silent skip: Z, Enter, Space, X, Jump
+            const skipPressed = (
+                this.keys['z'] || this.keys['Z'] ||
+                this.keys['Enter'] || this.keys[' '] ||
+                this.keys['x'] || this.keys['X'] ||
+                this.isActionPressed('jump') || this.isActionPressed('menu_confirm')
+            );
 
-            if (this.audio && this.audio.files && this.audio.files.boss_gate) {
-                this.audio.files.boss_gate.pause();
-                this.audio.files.boss_gate.currentTime = 0;
+            if (skipPressed && !tc.skipTriggered && tc.timer > 15) {
+                tc.skipTriggered = true;
+                tc.phase = 'FADE_OUT_BLACK';
+                tc.fadeTimer = 0;
+                if (this.audio) {
+                    try { this.audio.playFile('sfx_step', true); } catch(e){}
+                }
+                return;
             }
 
-            this.resetScoreAndToppins();
-            this.loadRoom(targetRoom, targetDoor).then(() => {
+            if (tc.timer >= tc.holdDuration) {
+                tc.phase = 'FADE_OUT_BLACK';
+                tc.fadeTimer = 0;
+            }
+            return;
+        }
+
+        if (tc.phase === 'FADE_OUT_BLACK') {
+            tc.fadeTimer++;
+            const fadeDur = Math.max(1, tc.fadeOutDuration || 12);
+            tc.alpha = Math.max(0, 1 - (tc.fadeTimer / fadeDur));
+
+            if (tc.fadeTimer >= fadeDur) {
+                tc.alpha = 0;
+                tc.phase = 'BLACK_HOLD';
+                tc.blackTimer = 0;
+                this.stopTitleCardAudio();
+            }
+            return;
+        }
+
+        if (tc.phase === 'BLACK_HOLD') {
+            tc.alpha = 0;
+            tc.blackTimer++;
+            const targetBlackFrames = tc.skipTriggered ? Math.min(6, tc.blackHoldDuration) : tc.blackHoldDuration;
+            if (tc.blackTimer >= targetBlackFrames) {
+                tc.isLoading = true;
+                const targetRoom = tc.targetRoom;
+                const targetDoor = tc.targetDoor;
+                this.titleCard = null;
+                this.stopTitleCardAudio();
+
+                this.transitionState = 'LOADING_ROOM';
+                this.transitionAlpha = 1;
+                this.transitionTimer = 0;
+
                 this.resetScoreAndToppins();
-                this.gameState = 'PLAYING';
-                if (this.player) {
-                    const touchingDoor = this.entities.find(e => {
-                        if (!e || e.isDestroyed) return false;
-                        if (e.type !== 'door' && e.type !== 'levelgate') return false;
-                        const minW = Math.max(e.width, 48);
-                        const minH = Math.max(e.height, 64);
-                        const left = e.x + e.width / 2 - minW / 2;
-                        const right = left + minW;
-                        const bottom = e.y + e.height;
-                        const top = bottom - minH;
-                        return (
-                            this.player.x < right &&
-                            this.player.x + this.player.width > left &&
-                            this.player.y < bottom &&
-                            this.player.y + this.player.height > top
-                        );
-                    });
-                    if (touchingDoor) {
-                        this.player.state = 'walkfront';
-                        this.player.sprite_index = 'spr_player_walkfront';
-                        this.player.image_index = 0;
-                        this.player.image_speed = 0.45;
-                        this.player.targetDoorX = null;
-                        this.player.vx = 0;
-                        this.player.vy = 0;
-                    } else {
-                        this.player.state = 'normal';
-                        this.player.sprite_index = 'spr_player_idle';
+                this.loadRoom(targetRoom, targetDoor).then(() => {
+                    this.resetScoreAndToppins();
+                    this.gameState = 'PLAYING';
+                    this.transitionState = 'FADE_IN';
+                    this.transitionTimer = 0;
+                    this.transitionAlpha = 1;
+                    this.pendingPreserveVelocity = false;
+                    this.onRoomTransitionLoaded();
+                    if (this.player) {
+                        this.player.enterLevelGateFinished = false;
                     }
-                    this.player.isEnteringDoor = false;
-                    this.player.enterLevelGateFinished = false;
-                }
-                if (this.uiOverlay) this.uiOverlay.style.display = 'block';
-            });
+                    if (this.uiOverlay) this.uiOverlay.style.display = 'block';
+                });
+            }
         }
     }
 
     renderTitleCard() {
-        if (!this.titleCard) return;
-        const tc = this.titleCard;
         const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;
@@ -5897,10 +5919,14 @@ this.entities.push(
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, w, h);
 
+        if (!this.titleCard) return;
+        const tc = this.titleCard;
+        if (tc.alpha <= 0) return;
+
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, tc.alpha));
 
-        // Background Artwork
+        // Background Spotlight Artwork (stationary)
         if (tc.bgImage && tc.bgImage.complete && tc.bgImage.naturalWidth > 0) {
             ctx.drawImage(tc.bgImage, 0, 0, w, h);
         } else {
@@ -5924,27 +5950,21 @@ this.entities.push(
             ctx.restore();
         }
 
-        // Title Overlay Logo
+        // Title Overlay Logo (crisp integer shake)
+        const scale = (w / 960);
+        const shakeX = Math.round((tc.shakeX || 0) * scale);
+        const shakeY = Math.round((tc.shakeY || 0) * scale);
+
         if (tc.titleImage && tc.titleImage.complete && tc.titleImage.naturalWidth > 0) {
-            const scale = (w / 960);
-            const titleW = tc.titleImage.naturalWidth * scale;
-            const titleH = tc.titleImage.naturalHeight * scale;
-            
-            // Shake effect without growing / scaling up
-            const shakeMag = tc.timer < 25 ? (5 - (tc.timer / 25) * 2.5) : 2.5;
-            const shakeX = (Math.random() * 2 - 1) * shakeMag * scale;
-            const shakeY = (Math.random() * 2 - 1) * shakeMag * scale;
+            const titleW = Math.round(tc.titleImage.naturalWidth * scale);
+            const titleH = Math.round(tc.titleImage.naturalHeight * scale);
 
             ctx.save();
-            ctx.translate(w / 2 + shakeX, h / 2 + shakeY);
-            ctx.drawImage(tc.titleImage, -titleW / 2, -titleH / 2, titleW, titleH);
+            ctx.translate(Math.round(w / 2) + shakeX, Math.round(h / 2) + shakeY);
+            ctx.drawImage(tc.titleImage, -Math.round(titleW / 2), -Math.round(titleH / 2), titleW, titleH);
             ctx.restore();
         } else {
             const levelName = (tc.titleText || 'LEVEL').toUpperCase();
-            const scale = (w / 960);
-            const shakeMag = tc.timer < 25 ? (5 - (tc.timer / 25) * 2.5) : 2.5;
-            const shakeX = (Math.random() * 2 - 1) * shakeMag * scale;
-            const shakeY = (Math.random() * 2 - 1) * shakeMag * scale;
 
             ctx.save();
             ctx.translate(shakeX, shakeY);
@@ -5971,19 +5991,6 @@ this.entities.push(
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 4;
             ctx.strokeText(levelName, w / 2, h / 2);
-            ctx.restore();
-        }
-
-        // Bottom Skip prompt
-        if (tc.timer > 20) {
-            ctx.save();
-            ctx.textAlign = 'right';
-            ctx.font = 'bold 14px "Outfit", sans-serif';
-            const pulse = 0.5 + Math.sin(tc.timer * 0.15) * 0.5;
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + pulse * 0.5})`;
-            ctx.shadowColor = '#000';
-            ctx.shadowBlur = 4;
-            ctx.fillText('PRESS [Z] / [SPACE] TO SKIP >', w - 30, h - 25);
             ctx.restore();
         }
 
