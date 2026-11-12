@@ -1152,10 +1152,16 @@ class SecretBlock extends Destroyable {
                         if (!g.destroyedBlocks.includes(ent)) {
                             g.destroyedBlocks.push(ent);
                         }
+                        if (typeof g.unregisterTileFromCache === 'function') {
+                            g.unregisterTileFromCache(ent);
+                        }
                         g.entities.splice(i, 1);
                     }
                 }
             }
+        }
+        if (typeof g.syncEntityCacheLength === 'function') {
+            g.syncEntityCacheLength();
         }
     }
 
@@ -2879,13 +2885,17 @@ class Collect extends Entity {
     isInsideBox(game) {
         const g = game || (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
         if (!g || !g.entities) return false;
+        const boxList = (typeof g.getBoxEntities === 'function')
+            ? g.getBoxEntities()
+            : ((typeof g.getNonTileEntities === 'function') ? g.getNonTileEntities() : g.entities);
+        if (boxList.length === 0) return false;
         const bx = (typeof this.baseX === 'number') ? this.baseX : this.x;
         const by = (typeof this.baseY === 'number') ? this.baseY : this.y;
         const cx = bx + this.width / 2;
         const cy = by + this.height / 2;
 
-        for (let i = 0; i < g.entities.length; i++) {
-            const ent = g.entities[i];
+        for (let i = 0; i < boxList.length; i++) {
+            const ent = boxList[i];
             if (!ent || ent === this || ent.isDestroyed || ent.markedForDeletion) continue;
 
             const isBox = (
@@ -4107,22 +4117,35 @@ class Slime extends Entity {
         const splatterOffset = (typeof sourceVx === 'number' ? sourceVx : 0) * 3;
         const splatterX = this.x + this.width / 2 + splatterOffset;
         let floorEnt = null;
+        let foundFloor = false;
         if (game && Array.isArray(game.entities)) {
-            for (let step = 0; step < 200; step += 10) {
+            const checkList = (typeof game.getNonTileEntities === 'function') ? game.getNonTileEntities() : game.entities;
+            for (let step = 0; step < 240; step += 10) {
                 const checkY = floorY + step;
-                let foundFloor = false;
-                for (let ent of game.entities) {
+                for (let ent of checkList) {
                     if (!ent || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
-                    if (splatterX >= ent.x && splatterX <= ent.x + ent.width && checkY >= ent.y && checkY <= ent.y + ent.height) {
-                        floorY = ent.y;
-                        floorEnt = ent;
-                        foundFloor = true;
-                        break;
+                    if (splatterX >= ent.x && splatterX <= ent.x + ent.width) {
+                        if (ent.type === 'left-up' || ent.type === 'right-up') {
+                            const sY = Physics.getSlopeHeight({ x: splatterX - 4, width: 8 }, ent);
+                            if (sY !== null && checkY >= sY - 8 && checkY <= ent.y + ent.height) {
+                                floorY = sY;
+                                floorEnt = ent;
+                                foundFloor = true;
+                                break;
+                            }
+                        } else if (checkY >= ent.y && checkY <= ent.y + ent.height) {
+                            floorY = ent.y;
+                            floorEnt = ent;
+                            foundFloor = true;
+                            break;
+                        }
                     }
                 }
                 if (foundFloor) break;
             }
-            game.entities.push(new Splatter(splatterX, floorY, floorEnt));
+            if (foundFloor) {
+                game.entities.push(new Splatter(splatterX, floorY, floorEnt, false));
+            }
         }
 
         this.state = 'dead';
@@ -4224,15 +4247,25 @@ class Slime extends Entity {
             this.vy = -12;
             
             // Raycast for floor splatter
+            const checkList = (game && typeof game.getNonTileEntities === 'function') ? game.getNonTileEntities() : game.entities;
+            const probeX = this.x + this.width / 2;
             let floorY = this.y + this.height;
             let floorEnt = null;
-            for (let step = 0; step < 200; step += 10) {
+            let foundFloor = false;
+            for (let step = 0; step < 240; step += 10) {
                 let checkY = floorY + step;
-                let foundFloor = false;
-                for (let ent of game.entities) {
+                for (let ent of checkList) {
                     if (ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter') continue;
-                    if (this.x + this.width/2 >= ent.x && this.x + this.width/2 <= ent.x + ent.width) {
-                        if (checkY >= ent.y && checkY <= ent.y + ent.height) {
+                    if (probeX >= ent.x && probeX <= ent.x + ent.width) {
+                        if (ent.type === 'left-up' || ent.type === 'right-up') {
+                            const sY = Physics.getSlopeHeight({ x: probeX - 4, width: 8 }, ent);
+                            if (sY !== null && checkY >= sY - 8 && checkY <= ent.y + ent.height) {
+                                floorY = sY;
+                                floorEnt = ent;
+                                foundFloor = true;
+                                break;
+                            }
+                        } else if (checkY >= ent.y && checkY <= ent.y + ent.height) {
                             floorY = ent.y;
                             floorEnt = ent;
                             foundFloor = true;
@@ -4242,7 +4275,9 @@ class Slime extends Entity {
                 }
                 if (foundFloor) break;
             }
-            game.entities.push(new Splatter(this.x + this.width/2, floorY, floorEnt));
+            if (foundFloor) {
+                game.entities.push(new Splatter(probeX, floorY, floorEnt, false));
+            }
             return;
         }
         
@@ -4379,17 +4414,19 @@ class Slime extends Entity {
         let hitWall = false;
         let hitWallEnt = null;
 
+        const checkEntities = (game && typeof game.getNonTileEntities === 'function') ? game.getNonTileEntities() : game.entities;
+
         // Kicked enemies break blocks and kill normal enemies along their flight path
         if (this.state === 'kicked') {
             const kickDir = Math.sign(this.vx) || this.facingDir || 1;
             const prevX = this.x - this.vx;
             let reachLeft = Math.min(prevX, this.x);
             let reachRight = Math.max(prevX, this.x) + this.width;
-            const snapshotCount = game.entities.length;
+            const snapshotCount = checkEntities.length;
 
             // Clamp sweep range to the nearest unbreakable wall so targets behind solid walls aren't hit
             for (let i = 0; i < snapshotCount; i++) {
-                const ent = game.entities[i];
+                const ent = checkEntities[i];
                 if (!ent || ent === this || ent.isDestroyed || ent.isSolid === false || Slime.isBreakableBlock(ent)) continue;
                 if (ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || (typeof ent.type === 'string' && ent.type.startsWith('targetDoor')) || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
                 if (reachLeft < ent.x + ent.width && reachRight > ent.x && ent.y < this.y + this.height - 14 && this.y < ent.y + ent.height - 10) {
@@ -4402,7 +4439,7 @@ class Slime extends Entity {
             }
 
             for (let i = 0; i < snapshotCount; i++) {
-                const ent = game.entities[i];
+                const ent = checkEntities[i];
                 if (!ent || ent === this || ent.isDestroyed || ent.markedForDeletion) continue;
                 if (!(reachLeft < ent.x + ent.width && reachRight > ent.x && this.y < ent.y + ent.height && this.y + this.height > ent.y)) {
                     continue;
@@ -4424,7 +4461,7 @@ class Slime extends Entity {
         }
         
         // AABB with solid platforms
-        for (let ent of game.entities) {
+        for (let ent of checkEntities) {
             if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             
             if (this.x < ent.x + ent.width &&
@@ -4453,10 +4490,10 @@ class Slime extends Entity {
                 this.vx = -10 * this.facingDir;
                 this.vy = -10;
                 
-                // Spawn splatter on the wall
+                // Spawn splatter on the wall surface
                 let oldVx = 10 * this.facingDir;
-                let wallX = oldVx > 0 ? this.x + this.width + 50 : this.x - 50;
-                game.entities.push(new Splatter(wallX, this.y + this.height/2, hitWallEnt)); // Wall splatter
+                let wallX = oldVx > 0 ? this.x + this.width + 25 : this.x - 25;
+                game.entities.push(new Splatter(wallX, this.y + this.height / 2, hitWallEnt, true)); // Wall splatter
                 return;
             } else if (this.state === 'walk') {
                 this.vx *= -1; // Turn around
@@ -4473,7 +4510,7 @@ class Slime extends Entity {
         this.y += this.vy;
         this.isGrounded = false;
         
-        for (let ent of game.entities) {
+        for (let ent of checkEntities) {
             if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
             // Handle oneway
             if (ent.type === 'oneway' && this.vy < 0) continue;
@@ -4503,7 +4540,7 @@ class Slime extends Entity {
         }
         
         // Collision Resolution Pass 2: Slopes
-        for (let ent of game.entities) {
+        for (let ent of checkEntities) {
             if (ent.isDestroyed) continue;
             if (ent.type === 'left-up' || ent.type === 'right-up') {
                 if (this.vy < 0) continue;
@@ -4530,7 +4567,7 @@ class Slime extends Entity {
             let probeX = (this.vx > 0) ? this.x + this.width + 5 : this.x - 5;
             const feetY = this.y + this.height;
 
-            for (let ent of game.entities) {
+            for (let ent of checkEntities) {
                 if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile') continue;
                 
                 if (probeX >= ent.x && probeX <= ent.x + ent.width) {
@@ -4776,35 +4813,84 @@ class BaddieSpawner extends Entity {
 }
 
 class Splatter extends Entity {
-    constructor(x, y, floorEnt = null) {
+    static sharedImage = null;
+    static imageLoaded = false;
+    static maskCanvas = null;
+    static maskCtx = null;
+
+    static initAssets() {
+        if (!Splatter.sharedImage) {
+            Splatter.sharedImage = new Image();
+            Splatter.sharedImage.onload = () => { Splatter.imageLoaded = true; };
+            Splatter.sharedImage.src = 'spr_slimeSplatter.png';
+            if (Splatter.sharedImage.complete && Splatter.sharedImage.naturalWidth > 0) {
+                Splatter.imageLoaded = true;
+            }
+        }
+        if (!Splatter.maskCanvas && typeof document !== 'undefined') {
+            Splatter.maskCanvas = document.createElement('canvas');
+            Splatter.maskCanvas.width = 100;
+            Splatter.maskCanvas.height = 100;
+            Splatter.maskCtx = Splatter.maskCanvas.getContext('2d');
+        }
+    }
+
+    constructor(x, y, floorEnt = null, isWall = false) {
         super(x, y, 100, 100, 'transparent');
         this.type = 'obj_splatter';
         this.floorEnt = floorEnt;
-        this.image = new Image();
-        this.image.src = 'spr_slimeSplatter.png';
-        this.imageLoaded = false;
-        this.image.onload = () => { this.imageLoaded = true; };
-        // Center the splatter on x, and place it exactly at y
-        this.x = x - 50; 
-        this.y = y - 45; // Adjust so it sits on the ground
+        this.isWall = !!isWall;
+        Splatter.initAssets();
+        this.image = Splatter.sharedImage;
+        // Center on x; for floor splatters anchor deeper onto the wall face, for wall splatters center on impact
+        this.x = Math.round(x - 50);
+        this.y = Math.round(isWall ? (y - 50) : (y - 28));
     }
-    
+
     update(game) {
-        // Splatters just stay on the ground
+        // Splatters stay baked on tile/wall surfaces
     }
-    
+
     render(ctx) {
-        if (this.imageLoaded) {
-            ctx.save();
-            ctx.globalAlpha = 0.7; // Make it a bit transparent
-            if (this.floorEnt) {
-                ctx.beginPath();
-                ctx.rect(this.floorEnt.x, this.floorEnt.y, this.floorEnt.width, this.floorEnt.height);
-                ctx.clip();
+        Splatter.initAssets();
+        const img = Splatter.sharedImage;
+        if (!img || !img.complete || img.naturalWidth === 0) return;
+
+        const g = (typeof window !== 'undefined' && (window.gameInstance || window.game)) || null;
+        const maskCanvas = Splatter.maskCanvas;
+        const maskCtx = Splatter.maskCtx;
+
+        // Mask strictly to actual rendered Layer-1 tile pixels so splatters never float in arch openings or clip along invisible hitboxes
+        if (g && typeof g.renderTileLayer === 'function' && maskCanvas && maskCtx) {
+            maskCtx.globalCompositeOperation = 'source-over';
+            maskCtx.globalAlpha = 1.0;
+            maskCtx.clearRect(0, 0, 100, 100);
+            maskCtx.save();
+            maskCtx.translate(-this.x, -this.y);
+            const drawnTiles = g.renderTileLayer(maskCtx, this.x, this.x + 100, this.y, this.y + 100, 1);
+            maskCtx.restore();
+
+            if (drawnTiles > 0) {
+                maskCtx.globalCompositeOperation = 'source-atop';
+                maskCtx.globalAlpha = 0.9;
+                maskCtx.drawImage(img, 0, 0, 100, 100);
+                maskCtx.globalCompositeOperation = 'source-over';
+                maskCtx.globalAlpha = 1.0;
+                ctx.drawImage(maskCanvas, this.x, this.y);
+                return;
             }
-            ctx.drawImage(this.image, this.x, this.y, 100, 100);
-            ctx.restore();
         }
+
+        // Fallback when no Layer-1 tiles exist at this location (e.g. untiled collision test rooms)
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        if (this.floorEnt) {
+            ctx.beginPath();
+            ctx.rect(this.floorEnt.x, this.floorEnt.y, this.floorEnt.width, this.floorEnt.height);
+            ctx.clip();
+        }
+        ctx.drawImage(img, this.x, this.y, 100, 100);
+        ctx.restore();
     }
 }
 

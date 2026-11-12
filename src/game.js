@@ -3762,6 +3762,366 @@ class Game {
         this.needsVoidClear = true;
     }
 
+    isTileEntityObj(ent) {
+        return Boolean(ent && (ent instanceof Tile || ent.type === 'tile'));
+    }
+
+    ensureEntityCaches() {
+        const CHUNK_SIZE = 512;
+        if (!this._entityCache) {
+            this._entityCache = {
+                chunkSize: CHUNK_SIZE,
+                nonTiles: [],
+                boxEntities: [],
+                tiles: [],
+                tileGrid: { 1: new Map(), 2: new Map(), 3: new Map() },
+                chunksByLayer: { 1: new Map(), 2: new Map(), 3: new Map() },
+                maxEntityBottom: 0,
+                entitiesRef: null,
+                entitiesLen: -1,
+                tileCount: 0,
+                partitionDirty: true,
+                tilesDirty: true
+            };
+        }
+        const c = this._entityCache;
+        const entities = this.entities || [];
+
+        const isBoxCandidate = (e) => (
+            (typeof Destroyable !== 'undefined' && e instanceof Destroyable) ||
+            (typeof Metal !== 'undefined' && e instanceof Metal) ||
+            (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) ||
+            e.type === 'destroyable' ||
+            e.type === 'metal' ||
+            e.type === 'obj_secretblock' ||
+            e.type === 'obj_secretbigblock' ||
+            e.type === 'obj_secretmetalblock' ||
+            e.type === 'pillar' ||
+            e.type === 'escapeblock_closed' ||
+            (e.isSolid && e.type !== 'platform' && e.type !== 'oneway' && e.type !== 'ladder')
+        );
+
+        let needFullTiles = (c.entitiesRef !== entities || c.tilesDirty);
+        if (!needFullTiles && (c.partitionDirty || c.entitiesLen !== entities.length)) {
+            const nonTiles = [];
+            const boxEntities = [];
+            let curTileCount = 0;
+            let maxBottom = 0;
+            for (let i = 0; i < entities.length; i++) {
+                const e = entities[i];
+                if (!e) continue;
+                const bottom = (e.y || 0) + (e.height || 0);
+                if (bottom > maxBottom) maxBottom = bottom;
+                if (this.isTileEntityObj(e)) {
+                    curTileCount++;
+                } else {
+                    nonTiles.push(e);
+                    if (isBoxCandidate(e)) boxEntities.push(e);
+                }
+            }
+            if (curTileCount !== c.tileCount) {
+                needFullTiles = true;
+            } else {
+                c.nonTiles = nonTiles;
+                c.boxEntities = boxEntities;
+                c.maxEntityBottom = maxBottom;
+                c.entitiesRef = entities;
+                c.entitiesLen = entities.length;
+                c.partitionDirty = false;
+                return c;
+            }
+        }
+
+        if (needFullTiles) {
+            c.nonTiles = [];
+            c.boxEntities = [];
+            c.tiles = [];
+            c.tileGrid = { 1: new Map(), 2: new Map(), 3: new Map() };
+            c.chunksByLayer = { 1: new Map(), 2: new Map(), 3: new Map() };
+            c.maxEntityBottom = 0;
+            c.tileCount = 0;
+            c.entitiesRef = entities;
+            for (let i = 0; i < entities.length; i++) {
+                const e = entities[i];
+                if (!e) continue;
+                const bottom = (e.y || 0) + (e.height || 0);
+                if (bottom > c.maxEntityBottom) c.maxEntityBottom = bottom;
+                if (this.isTileEntityObj(e)) {
+                    this._insertTileIntoCacheBuckets(c, e, false);
+                    c.tileCount++;
+                } else {
+                    c.nonTiles.push(e);
+                    if (isBoxCandidate(e)) c.boxEntities.push(e);
+                }
+            }
+            c.entitiesLen = entities.length;
+            c.partitionDirty = false;
+            c.tilesDirty = false;
+        }
+
+        return c;
+    }
+
+    _insertTileIntoCacheBuckets(c, tile, markExistingDirty = true) {
+        c.tiles.push(tile);
+        const layer = (tile.layer === 2 || tile.layer === 3) ? tile.layer : 1;
+        const gridMap = c.tileGrid[layer];
+        const cellX0 = Math.floor(tile.x / 32);
+        const cellY0 = Math.floor(tile.y / 32);
+        const cellX1 = Math.floor((tile.x + Math.max(1, tile.width) - 1) / 32);
+        const cellY1 = Math.floor((tile.y + Math.max(1, tile.height) - 1) / 32);
+        for (let cy = cellY0; cy <= cellY1; cy++) {
+            for (let cx = cellX0; cx <= cellX1; cx++) {
+                const key = `${cx},${cy}`;
+                let bucket = gridMap.get(key);
+                if (!bucket) {
+                    bucket = [];
+                    gridMap.set(key, bucket);
+                }
+                bucket.push(tile);
+            }
+        }
+
+        const CS = c.chunkSize;
+        const layerChunks = c.chunksByLayer[layer];
+        const chX0 = Math.floor(tile.x / CS);
+        const chY0 = Math.floor(tile.y / CS);
+        const chX1 = Math.floor((tile.x + Math.max(1, tile.width) - 1) / CS);
+        const chY1 = Math.floor((tile.y + Math.max(1, tile.height) - 1) / CS);
+        for (let cy = chY0; cy <= chY1; cy++) {
+            for (let cx = chX0; cx <= chX1; cx++) {
+                const cKey = `${cx},${cy}`;
+                let chunk = layerChunks.get(cKey);
+                if (!chunk) {
+                    chunk = {
+                        key: cKey,
+                        layer,
+                        cx,
+                        cy,
+                        x: cx * CS,
+                        y: cy * CS,
+                        tiles: [],
+                        canvas: null,
+                        ctx: null,
+                        dirty: true,
+                        pendingImages: null
+                    };
+                    layerChunks.set(cKey, chunk);
+                }
+                chunk.tiles.push(tile);
+                if (markExistingDirty) chunk.dirty = true;
+            }
+        }
+    }
+
+    invalidateEntityPartition() {
+        if (this._entityCache) {
+            this._entityCache.partitionDirty = true;
+        }
+    }
+
+    invalidateTileCache() {
+        if (this._entityCache) {
+            this._entityCache.tilesDirty = true;
+            this._entityCache.partitionDirty = true;
+        }
+    }
+
+    syncEntityCacheLength() {
+        if (this._entityCache && this._entityCache.entitiesRef === this.entities) {
+            this._entityCache.entitiesLen = this.entities.length;
+        }
+    }
+
+    registerTileInCache(tile) {
+        if (!this._entityCache || this._entityCache.entitiesRef !== this.entities || this._entityCache.tilesDirty) {
+            this.invalidateTileCache();
+            return;
+        }
+        const c = this._entityCache;
+        this._insertTileIntoCacheBuckets(c, tile, true);
+        c.tileCount++;
+        const bottom = (tile.y || 0) + (tile.height || 0);
+        if (bottom > c.maxEntityBottom) c.maxEntityBottom = bottom;
+        c.entitiesLen = this.entities.length;
+    }
+
+    unregisterTileFromCache(tile) {
+        if (!tile || !this._entityCache || this._entityCache.entitiesRef !== this.entities || this._entityCache.tilesDirty) {
+            this.invalidateTileCache();
+            return;
+        }
+        const c = this._entityCache;
+        const layer = (tile.layer === 2 || tile.layer === 3) ? tile.layer : 1;
+        const gridMap = c.tileGrid[layer];
+        const cellX0 = Math.floor(tile.x / 32);
+        const cellY0 = Math.floor(tile.y / 32);
+        const cellX1 = Math.floor((tile.x + Math.max(1, tile.width) - 1) / 32);
+        const cellY1 = Math.floor((tile.y + Math.max(1, tile.height) - 1) / 32);
+        for (let cy = cellY0; cy <= cellY1; cy++) {
+            for (let cx = cellX0; cx <= cellX1; cx++) {
+                const key = `${cx},${cy}`;
+                const bucket = gridMap.get(key);
+                if (bucket) {
+                    const idx = bucket.indexOf(tile);
+                    if (idx !== -1) bucket.splice(idx, 1);
+                    if (bucket.length === 0) gridMap.delete(key);
+                }
+            }
+        }
+
+        const CS = c.chunkSize;
+        const layerChunks = c.chunksByLayer[layer];
+        const chX0 = Math.floor(tile.x / CS);
+        const chY0 = Math.floor(tile.y / CS);
+        const chX1 = Math.floor((tile.x + Math.max(1, tile.width) - 1) / CS);
+        const chY1 = Math.floor((tile.y + Math.max(1, tile.height) - 1) / CS);
+        for (let cy = chY0; cy <= chY1; cy++) {
+            for (let cx = chX0; cx <= chX1; cx++) {
+                const cKey = `${cx},${cy}`;
+                const chunk = layerChunks.get(cKey);
+                if (chunk) {
+                    const idx = chunk.tiles.indexOf(tile);
+                    if (idx !== -1) chunk.tiles.splice(idx, 1);
+                    chunk.dirty = true;
+                    if (chunk.tiles.length === 0) {
+                        layerChunks.delete(cKey);
+                    }
+                }
+            }
+        }
+
+        const tIdx = c.tiles.indexOf(tile);
+        if (tIdx !== -1) c.tiles.splice(tIdx, 1);
+        c.tileCount = Math.max(0, c.tileCount - 1);
+    }
+
+    markTileChunksDirtyForRect(x, y, w, h, layer = null) {
+        if (!this._entityCache || this._entityCache.tilesDirty) return;
+        const c = this._entityCache;
+        const CS = c.chunkSize;
+        const chX0 = Math.floor(x / CS);
+        const chY0 = Math.floor(y / CS);
+        const chX1 = Math.floor((x + Math.max(1, w) - 1) / CS);
+        const chY1 = Math.floor((y + Math.max(1, h) - 1) / CS);
+        const layers = layer ? [(layer === 2 || layer === 3) ? layer : 1] : [1, 2, 3];
+        for (const lyr of layers) {
+            const layerChunks = c.chunksByLayer[lyr];
+            for (let cy = chY0; cy <= chY1; cy++) {
+                for (let cx = chX0; cx <= chX1; cx++) {
+                    const chunk = layerChunks.get(`${cx},${cy}`);
+                    if (chunk) chunk.dirty = true;
+                }
+            }
+        }
+    }
+
+    getTilesAtCell(layer, cellX, cellY) {
+        const c = this.ensureEntityCaches();
+        const lyr = (layer === 2 || layer === 3) ? layer : 1;
+        return c.tileGrid[lyr].get(`${Math.floor(cellX / 32)},${Math.floor(cellY / 32)}`) || null;
+    }
+
+    getNonTileEntities() {
+        return this.ensureEntityCaches().nonTiles;
+    }
+
+    getBoxEntities() {
+        return this.ensureEntityCaches().boxEntities;
+    }
+
+    bakeTileChunk(chunk, chunkSize) {
+        if (typeof document === 'undefined') return false;
+        if (!chunk.canvas) {
+            chunk.canvas = document.createElement('canvas');
+            chunk.canvas.width = chunkSize;
+            chunk.canvas.height = chunkSize;
+            chunk.ctx = chunk.canvas.getContext('2d');
+        }
+        const cCtx = chunk.ctx;
+        if (!cCtx) return false;
+
+        cCtx.imageSmoothingEnabled = false;
+        cCtx.clearRect(0, 0, chunkSize, chunkSize);
+        cCtx.save();
+        cCtx.translate(-chunk.x, -chunk.y);
+
+        let pending = null;
+        for (let i = 0; i < chunk.tiles.length; i++) {
+            const t = chunk.tiles[i];
+            if (!t) continue;
+            const img = (typeof Tile !== 'undefined' && Tile.images) ? Tile.images[t.tileImageName] : null;
+            if (!img || !img.complete || img.naturalWidth === 0) {
+                if (!pending) pending = new Set();
+                pending.add(t.tileImageName);
+            }
+            t.render(cCtx);
+        }
+
+        cCtx.restore();
+        chunk.pendingImages = pending;
+        chunk.dirty = false;
+        return true;
+    }
+
+    renderTileLayer(ctx, viewLeft, viewRight, viewTop, viewBottom, targetLayer) {
+        const c = this.ensureEntityCaches();
+        const lyr = (targetLayer === 2 || targetLayer === 3) ? targetLayer : 1;
+        const layerChunks = c.chunksByLayer[lyr];
+        if (!layerChunks || layerChunks.size === 0) return 0;
+
+        const CS = c.chunkSize;
+        const chX0 = Math.floor(viewLeft / CS);
+        const chX1 = Math.floor((viewRight - 0.001) / CS);
+        const chY0 = Math.floor(viewTop / CS);
+        const chY1 = Math.floor((viewBottom - 0.001) / CS);
+
+        let drawnCount = 0;
+        const tileImages = (typeof Tile !== 'undefined' && Tile.images) ? Tile.images : null;
+
+        for (let cy = chY0; cy <= chY1; cy++) {
+            for (let cx = chX0; cx <= chX1; cx++) {
+                const chunk = layerChunks.get(`${cx},${cy}`);
+                if (!chunk || chunk.tiles.length === 0) continue;
+
+                if (chunk.pendingImages && tileImages) {
+                    for (const imgName of chunk.pendingImages) {
+                        const im = tileImages[imgName];
+                        if (im && im.complete && im.naturalWidth > 0) {
+                            chunk.dirty = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (chunk.dirty) {
+                    if (!this.bakeTileChunk(chunk, CS)) {
+                        for (let i = 0; i < chunk.tiles.length; i++) {
+                            const t = chunk.tiles[i];
+                            if (t.x + t.width > viewLeft && t.x < viewRight &&
+                                t.y + t.height > viewTop && t.y < viewBottom) {
+                                t.render(ctx);
+                                drawnCount++;
+                            }
+                        }
+                        continue;
+                    }
+                }
+
+                ctx.drawImage(chunk.canvas, chunk.x, chunk.y);
+                drawnCount += chunk.tiles.length;
+            }
+        }
+        return drawnCount;
+    }
+
+    flushPendingTileSave() {
+        if (this._pendingTileSave) {
+            this._pendingTileSave = false;
+            this.saveCurrentRoomToMemory();
+        }
+    }
+
     isTileType(type) {
         return type === 'tile' || type === 'tile1' || type === 'tile2' || type === 'tile3';
     }
@@ -3839,6 +4199,7 @@ class Game {
                 } else {
                     hoveredTile.flipX = !hoveredTile.flipX;
                 }
+                this.markTileChunksDirtyForRect(hoveredTile.x, hoveredTile.y, hoveredTile.width, hoveredTile.height, hoveredTile.layer || 1);
                 this.saveCurrentRoomToMemory();
                 const stateStr = isVertical ? (hoveredTile.flipY ? 'VERT ON [Y]' : 'VERT OFF [Y]') : (hoveredTile.flipX ? 'ON [X / F]' : 'OFF [X / F]');
                 this.showFlipToast(`TILE FLIP: ${stateStr}`);
@@ -4001,6 +4362,7 @@ class Game {
         const tileSize = 32;
         const targetLayer = this.getTileLayerFromType(this.selectedType);
         
+        this.ensureEntityCaches();
         let changed = false;
         for (let ox = 0; ox < totalW; ox += tileSize) {
             for (let oy = 0; oy < totalH; oy += tileSize) {
@@ -4012,14 +4374,17 @@ class Game {
                 const srcY = (this.selectedTileY || 0) + srcOy;
 
                 let existing = null;
-                for (let i = this.entities.length - 1; i >= 0; i--) {
-                    let ent = this.entities[i];
-                    if (ent instanceof Tile && (ent.layer || 1) === targetLayer) {
+                const bucket = this.getTilesAtCell(targetLayer, cellX, cellY);
+                if (bucket && bucket.length > 0) {
+                    for (let i = bucket.length - 1; i >= 0; i--) {
+                        const ent = bucket[i];
                         if (ent.x === cellX && ent.y === cellY && ent.width === tileSize && ent.height === tileSize) {
                             existing = ent;
                             break;
                         } else if (cellX >= ent.x && cellX < ent.x + ent.width && cellY >= ent.y && cellY < ent.y + ent.height) {
-                            this.entities.splice(i, 1);
+                            this.unregisterTileFromCache(ent);
+                            const eIdx = this.entities.indexOf(ent);
+                            if (eIdx !== -1) this.entities.splice(eIdx, 1);
                             changed = true;
                         }
                     }
@@ -4037,6 +4402,7 @@ class Game {
                         existing.tileImageName = this.currentTilesetName;
                         existing.flipX = flipX;
                         existing.flipY = flipY;
+                        this.markTileChunksDirtyForRect(existing.x, existing.y, existing.width, existing.height, targetLayer);
                         changed = true;
                     }
                 } else {
@@ -4046,12 +4412,18 @@ class Game {
                             ? new Tile3(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, flipX, flipY)
                             : new Tile(cellX, cellY, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, flipX, flipY));
                     this.entities.push(newTile);
+                    this.registerTileInCache(newTile);
                     changed = true;
                 }
             }
         }
         if (changed) {
-            this.saveCurrentRoomToMemory();
+            this.syncEntityCacheLength();
+            if (this.isPaintingTile) {
+                this._pendingTileSave = true;
+            } else {
+                this.saveCurrentRoomToMemory();
+            }
         }
     }
 
@@ -4067,6 +4439,8 @@ class Game {
         const isTile = this.isTileType(this.selectedType);
         const targetLayer = isTile ? this.getTileLayerFromType(this.selectedType) : null;
 
+        let removedTile = false;
+        let removedNonTile = false;
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const ent = this.entities[i];
             if (isTile) {
@@ -4080,9 +4454,17 @@ class Game {
             }
             if (ent.x < maxX && ent.x + ent.width > minX &&
                 ent.y < maxY && ent.y + ent.height > minY) {
+                if (this.isTileEntityObj(ent)) {
+                    this.unregisterTileFromCache(ent);
+                    removedTile = true;
+                } else {
+                    removedNonTile = true;
+                }
                 this.entities.splice(i, 1);
             }
         }
+        if (removedTile) this.syncEntityCacheLength();
+        if (removedNonTile) this.invalidateEntityPartition();
         this.rightDragStart = null;
         this.justExecutedRightDrag = true;
         this.saveCurrentRoomToMemory();
@@ -4164,6 +4546,8 @@ class Game {
                 return;
             }
             this.isPaintingTile = true;
+            this._lastPaintCellX = this.snapToGrid(worldPos.x);
+            this._lastPaintCellY = this.snapToGrid(worldPos.y);
             this.paintTile(worldPos.x, worldPos.y);
             return;
         }
@@ -4187,7 +4571,13 @@ class Game {
         this.mousePos = worldPos;
         
         if (this.isEditorMode && this.isPaintingTile && e.buttons === 1) {
-            this.paintTile(worldPos.x, worldPos.y);
+            const cellX = this.snapToGrid(worldPos.x);
+            const cellY = this.snapToGrid(worldPos.y);
+            if (cellX !== this._lastPaintCellX || cellY !== this._lastPaintCellY) {
+                this._lastPaintCellX = cellX;
+                this._lastPaintCellY = cellY;
+                this.paintTile(worldPos.x, worldPos.y);
+            }
         }
     }
 
@@ -4202,6 +4592,9 @@ class Game {
 
         if (this.isPaintingTile) {
             this.isPaintingTile = false;
+            this._lastPaintCellX = null;
+            this._lastPaintCellY = null;
+            this.flushPendingTileSave();
             return;
         }
         if (!this.isEditorMode || !this.dragStart || e.button !== 0) return;
@@ -4216,6 +4609,7 @@ class Game {
         const maxY = Math.max(this.dragStart.y, endY) + this.gridSize;
 
         if (this.selectedType === 'erase') {
+            let erasedAny = false;
             for (let i = this.entities.length - 1; i >= 0; i--) {
                 const ent = this.entities[i];
                 if (!(ent instanceof Tile || ent.type === 'tile')) {
@@ -4223,8 +4617,14 @@ class Game {
                 }
                 if (ent.x < maxX && ent.x + ent.width > minX &&
                     ent.y < maxY && ent.y + ent.height > minY) {
+                    this.unregisterTileFromCache(ent);
                     this.entities.splice(i, 1);
+                    erasedAny = true;
                 }
+            }
+            if (erasedAny) {
+                this.syncEntityCacheLength();
+                this.saveCurrentRoomToMemory();
             }
             this.dragStart = null;
             return;
@@ -4360,10 +4760,15 @@ class Game {
                         const srcY = (this.selectedTileY || 0) + srcOy;
                         
                         // Replace existing tile at this cell on the SAME layer
-                        for (let i = this.entities.length - 1; i >= 0; i--) {
-                            const ent = this.entities[i];
-                            if (ent instanceof Tile && (ent.layer || 1) === targetLayer && cx >= ent.x && cx < ent.x + ent.width && cy >= ent.y && cy < ent.y + ent.height) {
-                                this.entities.splice(i, 1);
+                        const bucket = this.getTilesAtCell(targetLayer, cx, cy);
+                        if (bucket && bucket.length > 0) {
+                            for (let i = bucket.length - 1; i >= 0; i--) {
+                                const ent = bucket[i];
+                                if (cx >= ent.x && cx < ent.x + ent.width && cy >= ent.y && cy < ent.y + ent.height) {
+                                    this.unregisterTileFromCache(ent);
+                                    const eIdx = this.entities.indexOf(ent);
+                                    if (eIdx !== -1) this.entities.splice(eIdx, 1);
+                                }
                             }
                         }
                         const newTile = (targetLayer === 2)
@@ -4372,10 +4777,12 @@ class Game {
                                 ? new Tile3(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, !!this.tileFlipX, !!this.tileFlipY)
                                 : new Tile(cx, cy, tileSize, tileSize, srcX, srcY, this.currentTilesetName, tileSize, tileSize, !!this.tileFlipX, !!this.tileFlipY));
                         this.entities.push(newTile);
+                        this.registerTileInCache(newTile);
                         changed = true;
                     }
                 }
                 if (changed) {
+                    this.syncEntityCacheLength();
                     this.saveCurrentRoomToMemory();
                 }
                 break;
@@ -4545,13 +4952,17 @@ class Game {
 
         if (this.selectedType === 'erase') {
             if (tileIndex !== -1) {
+                const removedTile = this.entities[tileIndex];
+                this.unregisterTileFromCache(removedTile);
                 this.entities.splice(tileIndex, 1);
+                this.syncEntityCacheLength();
                 this.saveCurrentRoomToMemory();
             }
         } else if (!isTile) {
             // When deleting other things (solids, objects, enemies), do not delete tiles!
             if (nonTileIndex !== -1) {
                 this.entities.splice(nonTileIndex, 1);
+                this.invalidateEntityPartition();
                 this.saveCurrentRoomToMemory();
             }
         } else {
@@ -4559,9 +4970,13 @@ class Game {
             // If user clicked on a non-tile entity ("딴거"), delete that entity without deleting the tile!
             if (nonTileIndex !== -1) {
                 this.entities.splice(nonTileIndex, 1);
+                this.invalidateEntityPartition();
                 this.saveCurrentRoomToMemory();
             } else if (tileIndex !== -1) {
+                const removedTile = this.entities[tileIndex];
+                this.unregisterTileFromCache(removedTile);
                 this.entities.splice(tileIndex, 1);
+                this.syncEntityCacheLength();
                 this.saveCurrentRoomToMemory();
             }
         }
@@ -4794,6 +5209,7 @@ class Game {
         const isTileEntity = (ent) => Boolean(ent && (ent instanceof Tile || ent.type === 'tile'));
         this.entities = this.entities.filter(ent => !isTileEntity(ent));
         const removed = before - this.entities.length;
+        this.invalidateTileCache();
         if (Array.isArray(this.destroyedBlocks) && this.destroyedBlocks.length > 0) {
             this.destroyedBlocks = this.destroyedBlocks.filter(ent => !isTileEntity(ent));
         }
@@ -7252,7 +7668,8 @@ this.entities.push(
             }
         }
 
-        this.player.update(this.keys, this.entities, this.audio);
+        const nonTileEntities = this.getNonTileEntities();
+        this.player.update(this.keys, nonTileEntities, this.audio);
 
         // Update Toppin Followers (Distance-spaced Breadcrumb Trail for continuous wave movement)
         if (!this.playerTrail) this.playerTrail = [];
@@ -7489,8 +7906,10 @@ this.entities.push(
             }
         }
         
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            let ent = this.entities[i];
+        const activeNonTiles = this.getNonTileEntities();
+        for (let i = activeNonTiles.length - 1; i >= 0; i--) {
+            let ent = activeNonTiles[i];
+            if (!ent) continue;
             if (ent.update) {
                 ent.update(this);
             }
@@ -7529,7 +7948,9 @@ this.entities.push(
                         }
                     }
                 }
-                this.entities.splice(i, 1);
+                const eIdx = this.entities.lastIndexOf(ent);
+                if (eIdx !== -1) this.entities.splice(eIdx, 1);
+                this.invalidateEntityPartition();
             }
         }
 
@@ -7547,11 +7968,8 @@ this.entities.push(
         // Out of bounds respawn (only active in play mode, never in editor mode)
         let roomBottomLimit = this.roomHeight;
         if (!roomBottomLimit || roomBottomLimit <= 0) {
-            let lowestEntityY = 0;
-            for (let e of this.entities) {
-                if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
-            }
-            roomBottomLimit = Math.max(lowestEntityY, this.canvas.height);
+            const cache = this.ensureEntityCaches();
+            roomBottomLimit = Math.max(cache.maxEntityBottom || 0, this.canvas.height);
         }
         const boundsBottom = roomBottomLimit + 200;
         if (!this.isEditorMode && this.player.y > boundsBottom && !this.isPlayingTransition && this.transitionState === 'NONE') {
@@ -7617,10 +8035,7 @@ this.entities.push(
             } else {
                 // roomHeight가 설정되지 않은(무한 맵) 경우에만:
                 // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 엔티티 최하단 기준으로 Y 제한
-                let lowestEntityY = 0;
-                for (let e of this.entities) {
-                    if (e.y + e.height > lowestEntityY) lowestEntityY = e.y + e.height;
-                }
+                const lowestEntityY = this.ensureEntityCaches().maxEntityBottom || 0;
                 let maxTargetY = lowestEntityY + 100 - this.canvas.height;
                 if (targetY > maxTargetY) {
                     targetY = maxTargetY;
@@ -7682,7 +8097,7 @@ this.entities.push(
         if (Math.abs(this.player.vx) >= this.player.machThreshold) currentStates.push(dict['state.mach']);
 
         // Door & Gate Interaction Check
-        const overlappingInteractable = this.entities.find(e => {
+        const overlappingInteractable = nonTileEntities.find(e => {
             if (!e || e.isDestroyed) return false;
             if (e.type === 'door' || e.type === 'levelgate' || e.type === 'exitgate' || e.type === 'obj_palettedresser' || e.type === 'obj_computer') {
                 // ExitGate는 탈출 중(this.escape === true)일 때만 열려서 상호작용 가능!
@@ -7771,7 +8186,7 @@ this.entities.push(
 
         // Hallway Transition Check (No cooldown lockout - instant teleport without falling penalty)
         if (!this.player.isNoClip && this.transitionState === 'NONE') {
-            const overlappingHallway = this.entities.find(e => 
+            const overlappingHallway = nonTileEntities.find(e => 
                 (e.type === 'hallway' || e.type === 'hallwayvertical') && e.targetRoom && e.targetDoor && e.targetRoom !== 'null' && e.targetDoor !== 'null' &&
                 this.player.x < e.x + e.width &&
                 this.player.x + this.player.width > e.x &&
@@ -7810,8 +8225,8 @@ this.entities.push(
         // Tutorial Book Interaction Check
         let touchingBook = false;
         let bookText = null;
-        for (let i = 0; i < this.entities.length; i++) {
-            const e = this.entities[i];
+        for (let i = 0; i < nonTileEntities.length; i++) {
+            const e = nonTileEntities[i];
             if (e.type === 'tutorialbook' && !e.isDestroyed) {
                 // Check distance
                 const dx = (this.player.x + this.player.width/2) - (e.x + e.width/2);
@@ -8024,10 +8439,12 @@ this.entities.push(
         const viewTop = this.camera.y - 100;
         const viewBottom = this.camera.y + this.canvas.height + 100;
 
-        // Render in two passes to maintain layering without using .filter()
+        const nonTiles = this.getNonTileEntities();
+
+        // Render in passes using pre-partitioned non-tiles and 512x512 chunked tile layer caches
         // 1. Backgrounds (Hallways)
-        for (let i = 0; i < this.entities.length; i++) {
-            const e = this.entities[i];
+        for (let i = 0; i < nonTiles.length; i++) {
+            const e = nonTiles[i];
             if (e.type === 'hallway' || e.type === 'hallwayvertical') {
                 // Frustum culling: check if entity is in view
                 if (e.x + e.width > viewLeft && e.x < viewRight && 
@@ -8053,28 +8470,23 @@ this.entities.push(
         if (this.tileWave) {
             this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 3);
         } else {
-            for (let i = 0; i < this.entities.length; i++) {
-                const e = this.entities[i];
-                if ((e.type === 'tile' || e instanceof Tile) && e.layer === 3) {
-                    if (e.x + e.width > viewLeft && e.x < viewRight && 
-                        e.y + e.height > viewTop && e.y < viewBottom) {
-                        e.render(this.ctx);
-                    }
-                }
-            }
+            this.renderTileLayer(this.ctx, viewLeft, viewRight, viewTop, viewBottom, 3);
         }
         
         // 2. Tile Layer 1 (Main Tiles)
         if (this.tileWave) {
             this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 1);
         } else {
-            for (let i = 0; i < this.entities.length; i++) {
-                const e = this.entities[i];
-                if ((e.type === 'tile' || e instanceof Tile) && (e.layer === 1 || !e.layer)) {
-                    if (e.x + e.width > viewLeft && e.x < viewRight && 
-                        e.y + e.height > viewTop && e.y < viewBottom) {
-                        e.render(this.ctx);
-                    }
+            this.renderTileLayer(this.ctx, viewLeft, viewRight, viewTop, viewBottom, 1);
+        }
+
+        // 2.1. Floor/Wall Splatters masked onto Layer 1 tiles (behind Layer 2 foreground tiles, enemies, doors, and player)
+        for (let i = 0; i < nonTiles.length; i++) {
+            const e = nonTiles[i];
+            if (e.type === 'obj_splatter') {
+                if (e.x + e.width > viewLeft && e.x < viewRight &&
+                    e.y + e.height > viewTop && e.y < viewBottom) {
+                    e.render(this.ctx);
                 }
             }
         }
@@ -8083,20 +8495,12 @@ this.entities.push(
         if (this.tileWave) {
             this.renderTileWave(viewLeft, viewRight, viewTop, viewBottom, shakeX, shakeY, 2);
         } else {
-            for (let i = 0; i < this.entities.length; i++) {
-                const e = this.entities[i];
-                if ((e.type === 'tile' || e instanceof Tile) && e.layer === 2) {
-                    if (e.x + e.width > viewLeft && e.x < viewRight && 
-                        e.y + e.height > viewTop && e.y < viewBottom) {
-                        e.render(this.ctx);
-                    }
-                }
-            }
+            this.renderTileLayer(this.ctx, viewLeft, viewRight, viewTop, viewBottom, 2);
         }
 
         // 2.4. Behind-Entity Debris (Slime droplets behind slime/enemies)
-        for (let i = 0; i < this.entities.length; i++) {
-            const e = this.entities[i];
+        for (let i = 0; i < nonTiles.length; i++) {
+            const e = nonTiles[i];
             if (e.type === 'obj_debris' && e.renderBehind) {
                 if (e.x + e.width > viewLeft && e.x < viewRight && 
                     e.y + e.height > viewTop && e.y < viewBottom) {
@@ -8106,9 +8510,9 @@ this.entities.push(
         }
 
         // 2.5. Objects & Platforms (Platforms, slopes, enemies, doors, etc.)
-        for (let i = 0; i < this.entities.length; i++) {
-            const e = this.entities[i];
-            if (e.type !== 'hallway' && e.type !== 'hallwayvertical' && e.type !== 'obj_debris' && e.type !== 'tile' && !(e instanceof Tile)) {
+        for (let i = 0; i < nonTiles.length; i++) {
+            const e = nonTiles[i];
+            if (e.type !== 'hallway' && e.type !== 'hallwayvertical' && e.type !== 'obj_debris' && e.type !== 'obj_splatter') {
                 if (this.tileWave && (e.type === 'door' || e instanceof Door || e.type === 'obj_cutoff' || e.type === 'obj_cutoffsmall' || e.type === 'cutoff' || e.isCutoff || (typeof Cutoff !== 'undefined' && e instanceof Cutoff))) continue;
                 if (!this.showCollisions && !this.isEditorMode && this.isCollisionEntity(e)) continue;
                 let eLeft = e.x;
@@ -8219,8 +8623,8 @@ this.entities.push(
         }
         
         // 3. Particles/Effects (Debris in front of player)
-        for (let i = 0; i < this.entities.length; i++) {
-            const e = this.entities[i];
+        for (let i = 0; i < nonTiles.length; i++) {
+            const e = nonTiles[i];
             if (e.type === 'obj_debris' && !e.renderBehind) {
                 if (e.x + e.width > viewLeft && e.x < viewRight && 
                     e.y + e.height > viewTop && e.y < viewBottom) {
@@ -9865,24 +10269,13 @@ this.entities.push(
             Math.round(-this.camera.y + shakeY)
         );
 
-        let count = 0;
-        for (let i = 0; i < this.entities.length; i++) {
-            const e = this.entities[i];
-            if (e.type === 'tile' || e instanceof Tile) {
-                const eLayer = e.layer || 1;
-                if (eLayer !== targetLayer) continue;
-                if (e.x + e.width > tileViewLeft && e.x < tileViewRight &&
-                    e.y + e.height > viewTop && e.y < viewBottom) {
-                    e.render(this.tileOffscreenCtx);
-                    count++;
-                }
-            }
-        }
+        let count = this.renderTileLayer(this.tileOffscreenCtx, tileViewLeft, tileViewRight, viewTop, viewBottom, targetLayer);
 
         // When waving Layer 1 (main tiles), render doors and cutoffs onto the same waving canvas
         if (targetLayer === 1) {
-            for (let i = 0; i < this.entities.length; i++) {
-                const e = this.entities[i];
+            const nonTiles = this.getNonTileEntities();
+            for (let i = 0; i < nonTiles.length; i++) {
+                const e = nonTiles[i];
                 if (e.type === 'door' || e instanceof Door) {
                     const doorW = Math.max(e.width, 100);
                     const doorH = Math.max(e.height, 100);
@@ -9985,18 +10378,16 @@ this.entities.push(
         const endX = startX + this.canvas.width + this.gridSize;
         const endY = startY + this.canvas.height + this.gridSize;
 
+        ctx.beginPath();
         for (let x = startX; x <= endX; x += this.gridSize) {
-            ctx.beginPath();
             ctx.moveTo(x, startY);
             ctx.lineTo(x, endY);
-            ctx.stroke();
         }
         for (let y = startY; y <= endY; y += this.gridSize) {
-            ctx.beginPath();
             ctx.moveTo(startX, y);
             ctx.lineTo(endX, y);
-            ctx.stroke();
         }
+        ctx.stroke();
 
         // Draw Room Boundaries (if set)
         if (this.roomWidth > 0 || this.roomHeight > 0) {
