@@ -1923,7 +1923,7 @@ class Game {
         // Palette buttons
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (btn.id === 'tile-wave-btn') return;
+                if (btn.id === 'tile-wave-btn' || btn.id === 'clear-tiles-palette-btn') return;
                 if (btn.dataset.type) {
                     this.selectTool(btn.dataset.type);
                 }
@@ -1976,6 +1976,17 @@ class Game {
                 }
             });
         }
+
+        // Clear Tiles Only button (Wipe all Tile/Tile2/Tile3 instances, preserve solids/objects/background)
+        ['clear-tiles-btn', 'clear-tiles-palette-btn'].forEach(btnId => {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.promptClearRoomTiles();
+                });
+            }
+        });
 
         // Add Room button
         const addRoomBtn = document.getElementById('add-room-btn');
@@ -3765,7 +3776,7 @@ class Game {
         if (!type) return;
         this.selectedType = type;
         document.querySelectorAll('.tool-btn').forEach(btn => {
-            if (btn.id === 'tile-wave-btn') return;
+            if (btn.id === 'tile-wave-btn' || btn.id === 'clear-tiles-palette-btn') return;
             if (btn.dataset.type === type) {
                 btn.classList.add('active');
             } else {
@@ -3785,6 +3796,12 @@ class Game {
             } else {
                 palette.classList.add('hidden');
             }
+        }
+        const toolbar = document.getElementById('editor-toolbar');
+        if (toolbar) {
+            const activeSidebarTab = document.querySelector('.sidebar-tab.active');
+            const isTileMode = this.isTileType(type) || (activeSidebarTab && activeSidebarTab.dataset && activeSidebarTab.dataset.target === 'tiles');
+            toolbar.classList.toggle('tile-compact', !!isTileMode);
         }
     }
 
@@ -4758,6 +4775,39 @@ class Game {
         }
 
         this.showFlipToast('방의 모든 오브젝트가 초기화되었습니다 (배경 유지)');
+    }
+
+    promptClearRoomTiles() {
+        const tileCount = this.entities.filter(ent => ent && (ent instanceof Tile || ent.type === 'tile')).length;
+        const warningMsg = `⚠️ [경고: 전체 타일 삭제]\n\n현재 방('${this.currentRoom || 'room'}')의 모든 타일(${tileCount}개)을 삭제하시겠습니까?\n\n• TILE 1, TILE 2(앞), TILE 3(뒤) 등 배치된 모든 타일만 삭제됩니다.\n• 발판, 경사로, 블록, 적, 아이템, 배경 및 방 크기는 그대로 유지됩니다.\n\n정말로 모든 타일을 삭제하시겠습니까?`;
+        if (confirm(warningMsg)) {
+            if (confirm(`🚨 [최종 확인]\n\n이 작업은 되돌릴 수 없습니다!\n정말로 현재 방의 전체 타일(${tileCount}개)을 삭제할까요?`)) {
+                this.clearRoomTiles();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    clearRoomTiles() {
+        const before = this.entities.length;
+        const isTileEntity = (ent) => Boolean(ent && (ent instanceof Tile || ent.type === 'tile'));
+        this.entities = this.entities.filter(ent => !isTileEntity(ent));
+        const removed = before - this.entities.length;
+        if (Array.isArray(this.destroyedBlocks) && this.destroyedBlocks.length > 0) {
+            this.destroyedBlocks = this.destroyedBlocks.filter(ent => !isTileEntity(ent));
+        }
+        if (Array.isArray(this.selectedEntities) && this.selectedEntities.length > 0) {
+            this.selectedEntities = this.selectedEntities.filter(ent => !isTileEntity(ent));
+        }
+        if (isTileEntity(this.hoveredEntity)) {
+            this.hoveredEntity = null;
+        }
+        if (this.currentRoom) {
+            this.saveCurrentRoomToMemory();
+        }
+        this.showFlipToast(`모든 타일 ${removed}개가 삭제되었습니다 (오브젝트/배경 유지)`);
+        return removed;
     }
 
     exportLevel() {
@@ -10702,6 +10752,16 @@ this.entities.push(
             'clear_room': {
                 args: [],
                 execute: (game) => game.debugCommands['clearroom'].execute(game)
+            },
+            'cleartiles': {
+                args: [],
+                execute: (game) => {
+                    return game.promptClearRoomTiles() ? 'All room tiles cleared (objects/solids preserved)' : 'Clear tiles cancelled';
+                }
+            },
+            'clear_tiles': {
+                args: [],
+                execute: (game) => game.debugCommands['cleartiles'].execute(game)
             },
             'persistent_destruction': {
                 args: [

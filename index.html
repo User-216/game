@@ -70,6 +70,7 @@
                     <button class="editor-tab" id="export-btn">SAVE</button>
                     <button class="editor-tab" id="reset-room-btn" title="파일 원본으로 되돌리기 (Revert)">RESET</button>
                     <button class="editor-tab" id="clear-room-btn" title="방 초기화: 모든 오브젝트 삭제 (배경 및 크기 유지)" style="color: #ff4d4d; border-color: rgba(255, 77, 77, 0.4);">CLEAR</button>
+                    <button class="editor-tab" id="clear-tiles-btn" title="전체 타일 지우기: 현재 방의 모든 타일(TILE 1/2/3)만 삭제 (발판/오브젝트/배경 유지)" style="color: #ff8a65; border-color: rgba(255, 138, 101, 0.4);">CLEAR TILES</button>
                     <button class="editor-tab" id="add-room-btn">ADD RM</button>
                     <button class="editor-tab" id="load-room-btn">LOAD RM</button>
                     <input type="file" id="load-room-input" accept=".js,.txt,.json" style="display:none;">
@@ -115,6 +116,7 @@
                         <button class="tool-btn" data-type="tile2" data-category="tiles" style="background:#2e7d32; display:none;">TILE 2 (앞)</button>
                         <button class="tool-btn" data-type="tile3" data-category="tiles" style="background:#455a64; display:none;">TILE 3 (뒤)</button>
                         <button class="tool-btn" data-type="erase" data-category="tiles" style="background:#e74c3c; display:none;">ERASE</button>
+                        <button class="tool-btn" id="clear-tiles-palette-btn" data-category="tiles" style="background:#8e2424; color:#ffcccc; display:none;" title="전체 타일 지우기: 현재 방의 모든 타일(TILE 1/2/3)만 삭제">CLR TILES</button>
                         <button class="tool-btn" id="tile-wave-btn" data-category="tiles" style="background:#444; color:#aaa; display:none;">WAVE: OFF</button>
                         
                         <button class="tool-btn" data-type="hallway" data-category="triggers" style="display:none;">HALL</button>
@@ -180,6 +182,7 @@
                                 }
                             });
                             if (firstBtn) firstBtn.click();
+                            if (editor) editor.classList.toggle('tile-compact', target === 'tiles');
                         });
                     });
                     

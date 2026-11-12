@@ -467,3 +467,70 @@ input[type=range]::-webkit-slider-runnable-track {
     pointer-events: none;
     white-space: nowrap;
 }
+
+/* Compact Design Mode toolbar when working in Tile mode (keep Tile controls clear, shrink non-tile UI) */
+#editor-toolbar.tile-compact {
+    min-width: 0;
+    max-width: 340px;
+    top: 10px;
+    left: 10px;
+    border-width: 1px;
+}
+
+#editor-toolbar.tile-compact .editor-topbar {
+    flex-wrap: wrap;
+    border-bottom-width: 1px;
+}
+
+#editor-toolbar.tile-compact .editor-tab {
+    padding: 3px 6px;
+    font-size: 10px;
+    line-height: 1.2;
+    border-right-width: 1px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+#editor-toolbar.tile-compact .editor-main {
+    height: auto;
+}
+
+#editor-toolbar.tile-compact .editor-sidebar {
+    width: 66px;
+    border-right-width: 1px;
+}
+
+#editor-toolbar.tile-compact .sidebar-tab {
+    padding: 3px 5px;
+    font-size: 10px;
+    border-bottom-width: 1px;
+    opacity: 0.72;
+}
+
+#editor-toolbar.tile-compact .sidebar-tab.active {
+    padding: 4px 5px;
+    font-size: 11px;
+    opacity: 1;
+}
+
+#editor-toolbar.tile-compact .palette-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 3px;
+    padding: 4px;
+    overflow: visible;
+}
+
+#editor-toolbar.tile-compact .tool-btn {
+    width: 56px;
+    height: 36px;
+    font-size: 11px;
+    padding: 2px;
+}
+
+#editor-toolbar.tile-compact + #editor-hint-floating {
+    top: 10px;
+    left: 360px;
+    font-size: 12px;
+    opacity: 0.75;
+}
