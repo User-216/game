@@ -1834,12 +1834,369 @@ class EscapeBlockOpen extends EscapeBlockBase {
 
 EscapeBlockBase.initImages();
 
+class FallBlock extends Entity {
+    constructor(x, y, width = 32, height = 32, imageIndex = undefined) {
+        super(x, y, width, height);
+        this.type = 'fallblock';
+        this.startX = x;
+        this.startY = y;
+        this.isSolid = true;
+        this.state = 'idle'; // 'idle', 'shaking', 'falling', 'respawning'
+        this.shakeTimer = 0;
+        this.maxShakeTime = 38; // ~0.63s shaking
+        this.shakeOffsetY = 0;
+        this.vy = 0;
+        this.respawnTimer = 0;
+        this.respawnDelay = 180; // 3 seconds before respawning
+        this.visible = true;
+        this.alpha = 1.0;
+        this.particles = [];
+
+        // Random image variant from available images (fallblcok.png, fallblcok1.png, fallblcok2.png, fallblcok3.png)
+        const total = (FallBlock.imageSources && FallBlock.imageSources.length > 0) ? FallBlock.imageSources.length : 4;
+        if (imageIndex !== undefined && Number.isInteger(imageIndex) && imageIndex >= 0) {
+            this.imageIndex = imageIndex % total;
+        } else {
+            this.imageIndex = Math.floor(Math.random() * total);
+        }
+    }
+
+    static imageSources = [
+        'fallblcok.png',
+        'fallblcok1.png',
+        'fallblcok2.png',
+        'fallblcok3.png'
+    ];
+    static images = [];
+    static imageOrigins = [
+        { x: 10, y: 14 },
+        { x: 11, y: 14 },
+        { x: 10, y: 14 },
+        { x: 11, y: 14 }
+    ];
+    static image = null; // compatibility pointer to images[0]
+
+    static initImages() {
+        if (typeof Image === 'undefined') {
+            FallBlock.images = [];
+            FallBlock.image = null;
+            return;
+        }
+        if (FallBlock.images && FallBlock.images.length > 0) return;
+
+        FallBlock.imageOrigins = [
+            { x: 10, y: 14 },
+            { x: 11, y: 14 },
+            { x: 10, y: 14 },
+            { x: 11, y: 14 }
+        ];
+
+        FallBlock.images = FallBlock.imageSources.map((src, index) => {
+            const img = new Image();
+            img.onload = () => {
+                FallBlock.computeImageBBox(index);
+            };
+            img.src = src;
+            return img;
+        });
+
+        FallBlock.image = FallBlock.images[0];
+    }
+
+    static computeImageBBox(index = 0) {
+        if (!FallBlock.images || !FallBlock.images[index]) return;
+        const img = FallBlock.images[index];
+        if (!img.complete || img.naturalWidth === 0) return;
+
+        try {
+            if (typeof document !== 'undefined') {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth;
+                c.height = img.naturalHeight;
+                const ctx = c.getContext('2d', { willReadFrequently: true });
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    const data = ctx.getImageData(0, 0, c.width, c.height).data;
+                    let minX = c.width, minY = c.height;
+                    let found = false;
+                    for (let y = 0; y < c.height; y++) {
+                        for (let x = 0; x < c.width; x++) {
+                            const alpha = data[(y * c.width + x) * 4 + 3];
+                            if (alpha > 10) {
+                                found = true;
+                                if (x < minX) minX = x;
+                                if (y < minY) minY = y;
+                            }
+                        }
+                    }
+                    if (found) {
+                        FallBlock.imageOrigins[index] = { x: minX, y: minY };
+                    }
+                }
+            }
+        } catch (e) {
+            // Keep default fallback
+        }
+    }
+
+    static getImageAndOrigin(index = 0) {
+        if (!FallBlock.images || FallBlock.images.length === 0) {
+            FallBlock.initImages();
+        }
+        const total = (FallBlock.images && FallBlock.images.length > 0) ? FallBlock.images.length : (FallBlock.imageSources ? FallBlock.imageSources.length : 4);
+        const validIndex = total > 0 ? (Math.abs(index || 0) % total) : 0;
+        const img = (FallBlock.images && FallBlock.images[validIndex]) ? FallBlock.images[validIndex] : FallBlock.image;
+        const fallbackOrigins = [
+            { x: 10, y: 14 },
+            { x: 11, y: 14 },
+            { x: 10, y: 14 },
+            { x: 11, y: 14 }
+        ];
+        const origin = (FallBlock.imageOrigins && FallBlock.imageOrigins[validIndex]) ? FallBlock.imageOrigins[validIndex] : (fallbackOrigins[validIndex] || { x: 10, y: 14 });
+        return { img, origin };
+    }
+
+    static getOrigin(index = 0) {
+        return FallBlock.getImageAndOrigin(index).origin;
+    }
+
+    reset() {
+        this.x = this.startX;
+        this.y = this.startY;
+        this.vy = 0;
+        this.shakeOffsetY = 0;
+        this.shakeTimer = 0;
+        this.state = 'idle';
+        this.isSolid = true;
+        this.visible = true;
+        this.alpha = 1.0;
+        this.particles = [];
+    }
+
+    update(game = (typeof window !== 'undefined' ? window.gameInstance : null)) {
+        const g = game || (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        if (!g) return;
+
+        // In editor mode, stay reset and static
+        if (g.isEditorMode) {
+            this.x = this.startX;
+            this.y = this.startY;
+            this.vy = 0;
+            this.shakeTimer = 0;
+            this.shakeOffsetY = 0;
+            this.state = 'idle';
+            this.isSolid = true;
+            this.visible = true;
+            this.alpha = 1.0;
+            this.particles = [];
+            return;
+        }
+
+        const player = g.player;
+
+        // Update dust particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.25;
+            p.life -= p.decay;
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+
+        if (this.state === 'idle') {
+            this.x = this.startX;
+            this.y = this.startY;
+            this.vy = 0;
+            this.shakeOffsetY = 0;
+            this.isSolid = true;
+            this.visible = true;
+            this.alpha = 1.0;
+
+            // Detect if player is standing on this block
+            if (player) {
+                const isStandingOnThis = (player.standingOnEntity === this);
+                const isPlayerFeetOnTop = (
+                    player.isGrounded &&
+                    (player.y + player.height >= this.y - 4) &&
+                    (player.y + player.height <= this.y + 6) &&
+                    (player.x + player.width > this.x + 2) &&
+                    (player.x < this.x + this.width - 2)
+                );
+
+                if (isStandingOnThis || isPlayerFeetOnTop) {
+                    this.state = 'shaking';
+                    this.shakeTimer = this.maxShakeTime;
+                    this.shakeOffsetY = 0;
+                }
+            }
+        } else if (this.state === 'shaking') {
+            this.shakeTimer--;
+
+            // "흔들흔들 위/아레로 그러다가 떨어지게 만들어줘"
+            // Rapid vertical shaking (wobble up and down)
+            const cycle = this.maxShakeTime - this.shakeTimer;
+            const progress = cycle / this.maxShakeTime;
+            const amp = 2 + progress * 2;
+            const dir = (Math.floor(cycle / 2) % 2 === 0) ? -1 : 1;
+            this.shakeOffsetY = Math.round(dir * amp);
+
+            // Dust / debris crumbs while shaking
+            if (this.shakeTimer % 6 === 0) {
+                this.particles.push({
+                    x: this.x + Math.random() * this.width,
+                    y: this.y + this.height,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: Math.random() * 1.2 + 0.3,
+                    size: Math.random() * 3 + 2,
+                    color: Math.random() > 0.5 ? '#8e4c62' : '#4f2643',
+                    life: 1.0,
+                    decay: 0.06
+                });
+            }
+
+            if (this.shakeTimer <= 0) {
+                this.state = 'falling';
+                this.shakeOffsetY = 0;
+                this.vy = 1.0; // Initial drop velocity
+                // Spawn a small burst of dust particles at the moment it drops
+                for (let i = 0; i < 4; i++) {
+                    this.particles.push({
+                        x: this.x + Math.random() * this.width,
+                        y: this.y + this.height,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: Math.random() * 2 + 1,
+                        size: Math.random() * 3 + 2,
+                        color: '#8e4c62',
+                        life: 1.0,
+                        decay: 0.05
+                    });
+                }
+            }
+        } else if (this.state === 'falling') {
+            this.shakeOffsetY = 0;
+            this.vy += 0.55; // Gravity
+            if (this.vy > 14) this.vy = 14;
+
+            const prevY = this.y;
+            this.y += this.vy;
+
+            // Carry player downwards if they are standing on the block
+            if (player && (player.standingOnEntity === this || (player.isGrounded && Math.abs((player.y + player.height) - prevY) <= 8 && player.x + player.width > this.x && player.x < this.x + this.width))) {
+                player.standingOnEntity = this;
+                player.isGrounded = true;
+                player.y = this.y - player.height;
+                player.vy = 0;
+            }
+
+            // Check if fallen below room bounds or too far
+            const limitY = Math.max((g.roomHeight || 2000) + 150, this.startY + 700);
+            if (this.y > limitY) {
+                this.state = 'respawning';
+                this.isSolid = false;
+                this.visible = false;
+                this.respawnTimer = this.respawnDelay;
+            }
+        } else if (this.state === 'respawning') {
+            this.isSolid = false;
+            this.visible = false;
+            this.respawnTimer--;
+            if (this.respawnTimer <= 0) {
+                this.x = this.startX;
+                this.y = this.startY;
+                this.vy = 0;
+                this.shakeOffsetY = 0;
+                this.shakeTimer = 0;
+                this.state = 'idle';
+                this.isSolid = true;
+                this.visible = true;
+                this.alpha = 1.0;
+            }
+        }
+    }
+
+    render(ctx) {
+        if (!ctx) return;
+        const g = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        const isEditor = g && g.isEditorMode;
+
+        // Render dust particles
+        if (this.particles.length > 0) {
+            ctx.save();
+            for (let i = 0; i < this.particles.length; i++) {
+                const p = this.particles[i];
+                ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+            ctx.restore();
+        }
+
+        if (!this.visible && !isEditor) return;
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+
+        const drawY = isEditor ? this.y : (this.y + this.shakeOffsetY);
+        const drawX = this.x;
+
+        if (this.alpha < 1.0 && !isEditor) {
+            ctx.globalAlpha = this.alpha;
+        }
+
+        const { img, origin } = FallBlock.getImageAndOrigin(this.imageIndex);
+        if (img && img.complete && img.naturalWidth > 0) {
+            const imgW = img.naturalWidth;
+            const imgH = img.naturalHeight;
+            const originX = origin.x;
+            const originY = origin.y;
+
+            if (this.width === 32 && this.height === 32) {
+                ctx.drawImage(img, drawX - originX, drawY - originY, imgW, imgH);
+            } else {
+                for (let ox = 0; ox < this.width; ox += 32) {
+                    for (let oy = 0; oy < this.height; oy += 32) {
+                        ctx.drawImage(img, drawX + ox - originX, drawY + oy - originY, imgW, imgH);
+                    }
+                }
+            }
+        } else {
+            ctx.fillStyle = '#8e4c62';
+            ctx.fillRect(drawX, drawY, this.width, this.height);
+            ctx.strokeStyle = '#220a12';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(drawX, drawY, this.width, this.height);
+        }
+
+        if (isEditor) {
+            ctx.strokeStyle = '#ff78b4';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.strokeRect(drawX, drawY, this.width, this.height);
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 10px monospace';
+            ctx.shadowColor = '#000000';
+            ctx.shadowBlur = 3;
+            ctx.fillText('FALL', drawX + 2, drawY + 12);
+        }
+
+        ctx.restore();
+    }
+}
+FallBlock.initImages();
+
 if (typeof window !== 'undefined') {
     window.EscapeBlockBase = EscapeBlockBase;
     window.EscapeBlockClosed = EscapeBlockClosed;
     window.EscapeBlockOpen = EscapeBlockOpen;
     window.escapeblock_closed = EscapeBlockClosed;
     window.escapeblock_open = EscapeBlockOpen;
+    window.FallBlock = FallBlock;
+    window.obj_fallblock = FallBlock;
+    window.fallblock = FallBlock;
 }
 
 
@@ -3894,6 +4251,9 @@ if (typeof window !== 'undefined') {
     window.secretportalexit = SecretPortalExit;
     window.obj_secretportal = SecretPortal;
     window.obj_secretportalexit = SecretPortalExit;
+    window.FallBlock = FallBlock;
+    window.fallblock = FallBlock;
+    window.obj_fallblock = FallBlock;
 
 }
 
@@ -4428,7 +4788,7 @@ class Slime extends Entity {
             for (let i = 0; i < snapshotCount; i++) {
                 const ent = checkEntities[i];
                 if (!ent || ent === this || ent.isDestroyed || ent.isSolid === false || Slime.isBreakableBlock(ent)) continue;
-                if (ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || (typeof ent.type === 'string' && ent.type.startsWith('targetDoor')) || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+                if (ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || (typeof ent.type === 'string' && ent.type.startsWith('targetDoor')) || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'fallblock' || (typeof FallBlock !== 'undefined' && ent instanceof FallBlock) || ent.type === 'left-up' || ent.type === 'right-up') continue;
                 if (reachLeft < ent.x + ent.width && reachRight > ent.x && ent.y < this.y + this.height - 14 && this.y < ent.y + ent.height - 10) {
                     if (kickDir > 0 && ent.x >= prevX) {
                         reachRight = Math.min(reachRight, ent.x + 1);
@@ -4462,7 +4822,7 @@ class Slime extends Entity {
         
         // AABB with solid platforms
         for (let ent of checkEntities) {
-            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'left-up' || ent.type === 'right-up') continue;
+            if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'fallblock' || (typeof FallBlock !== 'undefined' && ent instanceof FallBlock) || ent.type === 'left-up' || ent.type === 'right-up') continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -4512,8 +4872,8 @@ class Slime extends Entity {
         
         for (let ent of checkEntities) {
             if (ent === this || ent.isDestroyed || ent.isSolid === false || ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || ent.type.startsWith('targetDoor') || ent.type === 'tutorialbook' || ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || ent.type === 'tile' || ent.type === 'left-up' || ent.type === 'right-up') continue;
-            // Handle oneway
-            if (ent.type === 'oneway' && this.vy < 0) continue;
+            // Handle oneway & fallblock (semi-solid)
+            if ((ent.type === 'oneway' || ent.type === 'fallblock' || (typeof FallBlock !== 'undefined' && ent instanceof FallBlock)) && this.vy < 0) continue;
             
             if (this.x < ent.x + ent.width &&
                 this.x + this.width > ent.x &&
@@ -4521,7 +4881,7 @@ class Slime extends Entity {
                 this.y + this.height > ent.y) {
                 
                 if (this.vy > 0) { // Landing
-                    if (ent.type === 'oneway') {
+                    if (ent.type === 'oneway' || ent.type === 'fallblock' || (typeof FallBlock !== 'undefined' && ent instanceof FallBlock)) {
                         if (this.y - this.vy + this.height <= ent.y + 10) {
                             this.y = ent.y - this.height;
                             this.vy = 0;
@@ -4532,7 +4892,7 @@ class Slime extends Entity {
                         this.vy = 0;
                         this.isGrounded = true;
                     }
-                } else if (this.vy < 0 && ent.type !== 'oneway') { // Hit ceiling
+                } else if (this.vy < 0 && ent.type !== 'oneway' && ent.type !== 'fallblock' && !(typeof FallBlock !== 'undefined' && ent instanceof FallBlock)) { // Hit ceiling
                     this.y = ent.y + ent.height;
                     this.vy = 0;
                 }

@@ -1307,7 +1307,7 @@ class Player {
             const headBox = { x: this.x, y: this.y - 22, width: 26, height: 22 };
             let hitCeiling = false;
             for (let entity of entities) {
-                if (entity.isDestroyed || entity.isSolid === false || entity.type === 'secretportal' || entity.type === 'secretportalexit' || entity.type === 'obj_secretportal' || entity.type === 'obj_secretportalexit' || (typeof SecretPortal !== 'undefined' && entity instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && entity instanceof SecretPortalExit) || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
+                if (entity.isDestroyed || entity.isSolid === false || entity.type === 'oneway' || entity.type === 'fallblock' || (typeof FallBlock !== 'undefined' && entity instanceof FallBlock) || entity.type === 'secretportal' || entity.type === 'secretportalexit' || entity.type === 'obj_secretportal' || entity.type === 'obj_secretportalexit' || (typeof SecretPortal !== 'undefined' && entity instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && entity instanceof SecretPortalExit) || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type.startsWith('targetDoor') || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'left-up' || entity.type === 'right-up' || entity.type === 'tile') continue;
                 if (Physics.checkCollision(headBox, entity)) {
                     hitCeiling = true;
                     break;
@@ -1707,7 +1707,7 @@ class Player {
             // Normal AABB Support
             const resolution = Physics.resolveAABB(this, entity);
             if (resolution) {
-                if (entity.type === 'oneway') {
+                if (entity.type === 'oneway' || entity.type === 'fallblock' || (typeof FallBlock !== 'undefined' && entity instanceof FallBlock)) {
                     // approximate previous bottom
                     const prevBottom = this.y - this.vy + this.height;
                     // Skip collision if moving up or if already inside/below
@@ -1721,7 +1721,7 @@ class Player {
                 }
 
                 // Step Up logic: If resolved horizontally, but feet are near the top of the block, convert to vertical
-                if (resolution.axis === 'x' && entity.type !== 'oneway') {
+                if (resolution.axis === 'x' && entity.type !== 'oneway' && entity.type !== 'fallblock' && !(typeof FallBlock !== 'undefined' && entity instanceof FallBlock)) {
                     const isDestroyableTarget = (entity.type === 'destroyable' || entity.type === 'obj_secretblock' || entity.type === 'secretblock' || entity.type === 'obj_secretbigblock' || entity.type === 'secretbigblock' || (entity instanceof Destroyable && !(entity instanceof Metal) && !(typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)));
                     const canBreakHorizontally = (isDestroyableTarget && (this.isRunning || this.isGroundPounding || this.isClimbing || this.isSuplexGrabbing || this.isTumbling)) ||
                         ((entity.type === 'metal' || entity.type === 'obj_secretmetalblock' || entity.type === 'secretmetalblock' || entity instanceof Metal || (typeof SecretMetalBlock !== 'undefined' && entity instanceof SecretMetalBlock)) && Math.abs(this.vx) >= 11.5);
@@ -2027,7 +2027,7 @@ class Player {
             let targetWall = null;
 
             entities.forEach(entity => {
-                if (!entity.isDestroyed && entity.isSolid !== false && !entity.isCutoff && entity.type !== 'obj_cutoff' && entity.type !== 'obj_cutoffsmall' && entity.type !== 'cutoff' && (entity.type !== 'hallway' && entity.type !== 'hallwayvertical') && entity.type !== 'door' && entity.type !== 'levelgate' && entity.type !== 'tutorialbook' && entity.type !== 'obj_palettedresser' && entity.type !== 'obj_computer' && entity.type !== 'obj_debris' && entity.type !== 'tile' && Physics.checkCollision(this, entity)) {
+                if (!entity.isDestroyed && entity.isSolid !== false && !entity.isCutoff && entity.type !== 'obj_cutoff' && entity.type !== 'obj_cutoffsmall' && entity.type !== 'cutoff' && (entity.type !== 'hallway' && entity.type !== 'hallwayvertical') && entity.type !== 'door' && entity.type !== 'levelgate' && entity.type !== 'tutorialbook' && entity.type !== 'obj_palettedresser' && entity.type !== 'obj_computer' && entity.type !== 'obj_debris' && entity.type !== 'tile' && entity.type !== 'oneway' && entity.type !== 'fallblock' && !(typeof FallBlock !== 'undefined' && entity instanceof FallBlock) && Physics.checkCollision(this, entity)) {
                     stillTouching = true;
                     targetWall = entity;
                 }
@@ -2043,7 +2043,7 @@ class Player {
 
                 // Find the wall we were just climbing (it should be very close horizontally)
                 entities.forEach(entity => {
-                    if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type === 'rankcontroller' || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'tile') return;
+                    if (entity.isDestroyed || entity.isSolid === false || entity.isCutoff || entity.type === 'obj_cutoff' || entity.type === 'obj_cutoffsmall' || entity.type === 'cutoff' || (entity.type === 'hallway' || entity.type === 'hallwayvertical') || entity.type === 'door' || entity.type === 'levelgate' || entity.type === 'exitgate' || entity.type === 'rankcontroller' || entity.type === 'tutorialbook' || entity.type === 'obj_palettedresser' || entity.type === 'obj_computer' || entity.type === 'obj_debris' || entity.type === 'obj_collect' || entity.type === 'obj_bigcollect' || entity.type === 'obj_slime' || entity.type === 'obj_baddiespawner' || entity.type === 'obj_splatter' || entity.type === 'slope' || entity.type === 'tile' || entity.type === 'oneway' || entity.type === 'fallblock' || (typeof FallBlock !== 'undefined' && entity instanceof FallBlock)) return;
 
                     const isRightWall = this.climbSide === 1;
                     const wallX = isRightWall ? entity.x : entity.x + entity.width;

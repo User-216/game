@@ -2825,6 +2825,7 @@ class Game {
         if (this.isEditorMode && (e.isSecret || (e.type && e.type.includes('secret')))) return false;
         if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
+        if (e.type === 'fallblock' || (typeof FallBlock !== 'undefined' && e instanceof FallBlock)) return false;
         if (e.type === 'secretportal' || e.type === 'secretportalexit' || e.type === 'obj_secretportal' || e.type === 'obj_secretportalexit' || (typeof SecretPortal !== 'undefined' && e instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && e instanceof SecretPortalExit) || e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e.type === 'escapeblock_closed' || e.type === 'escapeblock_open' || (typeof EscapeBlockClosed !== 'undefined' && e instanceof EscapeBlockClosed) || (typeof EscapeBlockOpen !== 'undefined' && e instanceof EscapeBlockOpen) || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
         const type = e.type;
         if (type === 'platform' || e instanceof Platform) return true;
@@ -4643,7 +4644,7 @@ class Game {
             } else if (this.selectedType === 'appleblock-big' || this.selectedType === 'appleblock_big' || this.selectedType === 'appleblock') {
                 w = 32;
                 h = 32;
-            } else if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff') {
+            } else if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff' || this.selectedType === 'fallblock') {
                 w = 32;
                 h = 32;
             } else if (this.selectedType === 'pillar') {
@@ -4697,6 +4698,7 @@ class Game {
             case 'slope-right': entity = new Slope(x, y, w, h, 'right-up'); break;
             case 'destroyable-small': entity = new Destroyable(x, y, w, h); break;
             case 'destroyable': entity = new Destroyable(x, y, w, h); break;
+            case 'fallblock': entity = new FallBlock(x, y, w, h); break;
             case 'appleblock-small':
             case 'appleblock_small':
                 entity = new AppleBlockSmall(x, y, w, h);
@@ -5078,6 +5080,15 @@ class Game {
                 base = `new Cutoff(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.side || 'top'}', '${ent.spriteType || '32x32'}', ${ent.imageIndex || 0})`;
             }
             else if (ent instanceof Metal) base = `new Metal(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height})`;
+            else if ((typeof FallBlock !== 'undefined' && ent instanceof FallBlock) || ent.type === 'fallblock') {
+                const bx = ent.startX !== undefined ? ent.startX : ent.x;
+                const by = ent.startY !== undefined ? ent.startY : ent.y;
+                if (ent.imageIndex !== undefined) {
+                    base = `new FallBlock(${bx}, ${by}, ${ent.width}, ${ent.height}, ${ent.imageIndex})`;
+                } else {
+                    base = `new FallBlock(${bx}, ${by}, ${ent.width}, ${ent.height})`;
+                }
+            }
             else if (ent instanceof AppleBlock || ent.type === 'appleblock' || ent.type === 'appleblock_small' || ent.type === 'appleblock_big') {
                 base = `new AppleBlock(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, ${ent.isBig})`;
             }
@@ -10451,7 +10462,7 @@ this.entities.push(
                 pw = 16; ph = 16;
             } else if (this.selectedType === 'appleblock-big' || this.selectedType === 'appleblock_big' || this.selectedType === 'appleblock') {
                 pw = 32; ph = 32;
-            } else if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff' || this.selectedType === 'obj_collect' || this.selectedType === 'tutorialbook' || this.selectedType === 'slope-left' || this.selectedType === 'slope-right') {
+            } else if (this.selectedType === 'destroyable-small' || this.selectedType === 'secretblock' || this.selectedType === 'cutoff' || this.selectedType === 'obj_cutoff' || this.selectedType === 'obj_collect' || this.selectedType === 'tutorialbook' || this.selectedType === 'slope-left' || this.selectedType === 'slope-right' || this.selectedType === 'fallblock') {
                 pw = 32; ph = 32;
             } else if (this.selectedType === 'pillar') {
                 pw = 128; ph = 224;
@@ -10485,6 +10496,19 @@ this.entities.push(
                 const img = Destroyable.imageSmall;
                 if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 32, 32);
                 else { ctx.fillStyle = '#df7208'; ctx.fillRect(0, 0, 32, 32); }
+            } else if (this.selectedType === 'fallblock') {
+                const { img, origin } = (typeof FallBlock !== 'undefined' && FallBlock.getImageAndOrigin) ? FallBlock.getImageAndOrigin(0) : { img: (typeof FallBlock !== 'undefined' ? FallBlock.image : null), origin: { x: 10, y: 14 } };
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, -origin.x, -origin.y, img.naturalWidth, img.naturalHeight);
+                } else {
+                    ctx.fillStyle = '#8e4c62';
+                    ctx.fillRect(0, 0, 32, 32);
+                }
+                ctx.strokeStyle = '#ff78b4';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.strokeRect(0, 0, 32, 32);
+                ctx.setLineDash([]);
             } else if (this.selectedType === 'destroyable') {
                 const img = Destroyable.imageBig;
                 if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0, 64, 64);
@@ -10776,6 +10800,26 @@ this.entities.push(
                                 ctx.fillStyle = '#df7208';
                                 ctx.fillRect(cx, cy, dw, dh);
                             }
+                        }
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'fallblock') {
+                    const tileSize = 32;
+                    ctx.globalAlpha = 0.6;
+                    let blockIdx = 0;
+                    for (let cx = minX; cx < minX + w; cx += tileSize) {
+                        for (let cy = minY; cy < minY + h; cy += tileSize) {
+                            const { img, origin } = (typeof FallBlock !== 'undefined' && FallBlock.getImageAndOrigin) ? FallBlock.getImageAndOrigin(blockIdx) : { img: null, origin: { x: 10, y: 14 } };
+                            if (img && img.complete && img.naturalWidth > 0) {
+                                ctx.drawImage(img, cx - origin.x, cy - origin.y, img.naturalWidth, img.naturalHeight);
+                            } else {
+                                ctx.fillStyle = '#8e4c62';
+                                ctx.fillRect(cx, cy, tileSize, tileSize);
+                            }
+                            ctx.strokeStyle = '#ff78b4';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(cx, cy, tileSize, tileSize);
+                            blockIdx++;
                         }
                     }
                     ctx.globalAlpha = 1.0;
