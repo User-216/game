@@ -4222,11 +4222,343 @@ class PizzaSon extends Entity {
     }
 }
 
+class TownNPC extends Entity {
+    static sprites = {};
+    static imagesLoaded = false;
+
+    static initImages() {
+        if (TownNPC.imagesLoaded) return;
+        TownNPC.sprites = {};
+
+        // Character 1: 사과 (Apple NPC)
+        const appleWalk = [];
+        for (let i = 1; i <= 2; i++) {
+            const img = new Image();
+            img.src = `spr_applenpc_walk/spr_applenpc_walk${i}.png`;
+            appleWalk.push(img);
+        }
+        TownNPC.sprites[1] = appleWalk;
+        TownNPC.imagesLoaded = true;
+    }
+
+    constructor(x, y, width = 48, height = 64, npcType = 1, flipX = false) {
+        super(x, y, width, height, 'transparent', flipX, false);
+        this.type = 'obj_npc';
+        this.baseX = x;
+        this.baseY = y;
+        this.npcType = npcType || 1;
+        this.flipX = !!flipX;
+        this.facingDir = this.flipX ? -1 : 1;
+
+        this.isSolid = false;
+        this.isPlatform = false;
+
+        this.vx = 0;
+        this.vy = 0;
+        this.isGrounded = false;
+        this.wasGrounded = false;
+        this.moveSpeed = 1.3;
+
+        this.state = 'idle'; // 'idle' or 'walk'
+        this.image_index = 0;
+        this.image_speed = 0.12;
+
+        // 패턴 타이머: 몇 초 걷다가 멈추고 몇 초 뒤 다시 걷기
+        this.stateTimer = 60 + Math.floor(Math.random() * 60);
+
+        TownNPC.initImages();
+    }
+
+    resetState() {
+        if (typeof this.baseX === 'number') this.x = this.baseX;
+        if (typeof this.baseY === 'number') this.y = this.baseY;
+        this.vx = 0;
+        this.vy = 0;
+        this.isGrounded = false;
+        this.wasGrounded = false;
+        this.state = 'idle';
+        this.image_index = 0;
+        this.facingDir = this.flipX ? -1 : 1;
+        this.stateTimer = 60 + Math.floor(Math.random() * 60);
+    }
+
+    setNpcType(type) {
+        this.npcType = type || 1;
+    }
+
+    update(game) {
+        if (this.isDestroyed || this.markedForDeletion) return;
+
+        const isEditor = (game && game.isEditorMode) || 
+            (typeof window !== 'undefined' && ((window.gameInstance && window.gameInstance.isEditorMode) || (window.game && window.game.isEditorMode)));
+        if (isEditor) {
+            this.baseX = this.x;
+            this.baseY = this.y;
+            return;
+        }
+
+        this.wasGrounded = this.isGrounded;
+
+        // 1. 행동 패턴 (걷기 <-> 가만히 있기)
+        if (this.state === 'walk') {
+            const sprites = (TownNPC.sprites && TownNPC.sprites[this.npcType]) || TownNPC.sprites[1] || [];
+            const spriteLen = (sprites && sprites.length > 0) ? sprites.length : 2;
+            this.image_index = (this.image_index + this.image_speed) % spriteLen;
+            this.vx = this.facingDir * this.moveSpeed;
+
+            this.stateTimer--;
+            if (this.stateTimer <= 0) {
+                this.state = 'idle';
+                this.vx = 0;
+                this.image_index = 0; // 가만히 서 있는 스프라이트 (1프레임)
+                // 1.5초 ~ 3.5초 정지
+                this.stateTimer = 90 + Math.floor(Math.random() * 120);
+            }
+        } else if (this.state === 'idle') {
+            this.vx = 0;
+            this.image_index = 0;
+
+            // "가만이 있을떈 플레이어 바라보게 해줘"
+            if (game && game.player) {
+                const px = game.player.x + game.player.width / 2;
+                const mx = this.x + this.width / 2;
+                if (Math.abs(px - mx) > 8) {
+                    this.facingDir = (px > mx) ? 1 : -1;
+                }
+            }
+
+            this.stateTimer--;
+            if (this.stateTimer <= 0) {
+                this.state = 'walk';
+                // 다시 걸을 때 40% 확률로 방향 반전
+                if (Math.random() < 0.4) {
+                    this.facingDir *= -1;
+                }
+                this.vx = this.facingDir * this.moveSpeed;
+                // 2초 ~ 4초 동안 걷기
+                this.stateTimer = 120 + Math.floor(Math.random() * 120);
+            }
+        }
+
+        // 2. 가로 이동
+        this.x += this.vx;
+
+        // 룸 경계 체크
+        if (game && typeof game.roomWidth === 'number' && game.roomWidth > 0) {
+            if (this.x < 0) {
+                this.x = 0;
+                this.facingDir = 1;
+                this.vx = this.facingDir * this.moveSpeed;
+            } else if (this.x + this.width > game.roomWidth) {
+                this.x = game.roomWidth - this.width;
+                this.facingDir = -1;
+                this.vx = this.facingDir * this.moveSpeed;
+            }
+        }
+
+        const checkEntities = (game && typeof game.getNonTileEntities === 'function')
+            ? game.getNonTileEntities()
+            : (game ? game.entities : []);
+
+        // 3. 벽 충돌 (벽에 닿으면 방향 반전)
+        if (this.vx !== 0 && checkEntities) {
+            for (let ent of checkEntities) {
+                if (!ent || ent === this || ent.isDestroyed || ent.isSolid === false) continue;
+                if (ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || 
+                    ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || 
+                    (typeof ent.type === 'string' && ent.type.startsWith('targetDoor')) || ent.type === 'tutorialbook' || 
+                    ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || 
+                    ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || 
+                    ent.type === 'tile' || ent.type === 'oneway' || ent.type === 'fallblock' || 
+                    ent.type === 'obj_npc' || ent.type === 'npc' ||
+                    ent.type === 'left-up' || ent.type === 'right-up') continue;
+
+                if (this.x < ent.x + ent.width &&
+                    this.x + this.width > ent.x &&
+                    this.y + this.height - 4 > ent.y &&
+                    this.y + 4 < ent.y + ent.height) {
+
+                    if (this.vx > 0) this.x = ent.x - this.width;
+                    else if (this.vx < 0) this.x = ent.x + ent.width;
+
+                    this.facingDir *= -1;
+                    this.vx = this.facingDir * this.moveSpeed;
+                    break;
+                }
+            }
+        }
+
+        // 4. 중력 & 세로 이동 & 바닥 착지
+        this.vy += 0.5;
+        if (this.vy > 14) this.vy = 14;
+        this.y += this.vy;
+        this.isGrounded = false;
+
+        if (checkEntities) {
+            for (let ent of checkEntities) {
+                if (!ent || ent === this || ent.isDestroyed || ent.isSolid === false) continue;
+                if (ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || 
+                    ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || 
+                    (typeof ent.type === 'string' && ent.type.startsWith('targetDoor')) || ent.type === 'tutorialbook' || 
+                    ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || 
+                    ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || 
+                    ent.type === 'tile' || ent.type === 'obj_npc' || ent.type === 'npc' ||
+                    ent.type === 'left-up' || ent.type === 'right-up') continue;
+
+                if ((ent.type === 'oneway' || ent.type === 'fallblock' || (typeof FallBlock !== 'undefined' && ent instanceof FallBlock)) && this.vy < 0) continue;
+
+                if (this.x < ent.x + ent.width &&
+                    this.x + this.width > ent.x &&
+                    this.y < ent.y + ent.height &&
+                    this.y + this.height > ent.y) {
+
+                    if (this.vy > 0) {
+                        if (ent.type === 'oneway' || ent.type === 'fallblock' || (typeof FallBlock !== 'undefined' && ent instanceof FallBlock)) {
+                            if (this.y - this.vy + this.height <= ent.y + 12) {
+                                this.y = ent.y - this.height;
+                                this.vy = 0;
+                                this.isGrounded = true;
+                            }
+                        } else {
+                            this.y = ent.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                        }
+                    } else if (this.vy < 0 && ent.type !== 'oneway' && ent.type !== 'fallblock' && !(typeof FallBlock !== 'undefined' && ent instanceof FallBlock)) {
+                        this.y = ent.y + ent.height;
+                        this.vy = 0;
+                    }
+                }
+            }
+
+            // 경사로 (Slopes)
+            for (let ent of checkEntities) {
+                if (!ent || ent.isDestroyed) continue;
+                if (ent.type === 'left-up' || ent.type === 'right-up') {
+                    if (this.vy < 0) continue;
+                    if (typeof Physics !== 'undefined' && typeof Physics.getSlopeHeight === 'function') {
+                        const slopeY = Physics.getSlopeHeight(this, ent);
+                        const snapUp = this.wasGrounded ? 32 : 6;
+                        const slopeThickness = Math.max(48, (this.vy || 0) + 12);
+                        const slopeBottom = ent.y + ent.height;
+
+                        if (slopeY !== null && this.y + this.height > slopeY - snapUp && 
+                            this.y + this.height <= slopeY + slopeThickness && 
+                            this.y + this.height <= slopeBottom + 16) {
+                            if (this.isGrounded && this.y + this.height < slopeY - 0.1) {
+                                continue;
+                            }
+                            this.y = slopeY - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. 낙하 방지 ("그리고 떨어질려고 하면 꺽게 하고")
+        if (this.isGrounded && this.state === 'walk' && checkEntities) {
+            let hasFloorAhead = false;
+            const probeX = (this.facingDir > 0) ? this.x + this.width + 6 : this.x - 6;
+            const feetY = this.y + this.height;
+
+            for (let ent of checkEntities) {
+                if (!ent || ent === this || ent.isDestroyed || ent.isSolid === false) continue;
+                if (ent.isCutoff || ent.type === 'obj_cutoff' || ent.type === 'obj_cutoffsmall' || ent.type === 'cutoff' || 
+                    ent.type === 'hallway' || ent.type === 'hallwayvertical' || ent.type === 'door' || 
+                    (typeof ent.type === 'string' && ent.type.startsWith('targetDoor')) || ent.type === 'tutorialbook' || 
+                    ent.type === 'obj_collect' || ent.type === 'obj_bigcollect' || ent.type === 'obj_slime' || 
+                    ent.type === 'obj_baddiespawner' || ent.type === 'obj_splatter' || ent.type === 'ladder' || 
+                    ent.type === 'tile' || ent.type === 'obj_npc' || ent.type === 'npc') continue;
+
+                if (probeX >= ent.x && probeX <= ent.x + ent.width) {
+                    if (ent.type === 'left-up' || ent.type === 'right-up') {
+                        if (typeof Physics !== 'undefined' && typeof Physics.getSlopeHeight === 'function') {
+                            const sY = Physics.getSlopeHeight({ x: probeX - 16, width: 32 }, ent);
+                            if (sY !== null && Math.abs(sY - feetY) <= 40) {
+                                hasFloorAhead = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        // 일반 수평 발판/블록
+                        if (ent.y <= feetY + 35 && ent.y + ent.height >= feetY - 10) {
+                            hasFloorAhead = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!hasFloorAhead) {
+                // 발판 끝에 도달함 -> 방향 전환!
+                this.facingDir *= -1;
+                this.vx = this.facingDir * this.moveSpeed;
+                this.x += this.vx * 2;
+            }
+        }
+    }
+
+    render(ctx) {
+        if (this.isDestroyed) return;
+
+        const sprites = (TownNPC.sprites && TownNPC.sprites[this.npcType]) || TownNPC.sprites[1] || [];
+        let img = null;
+        if (sprites && sprites.length > 0) {
+            const frameIdx = (this.state === 'walk')
+                ? Math.floor(this.image_index) % sprites.length
+                : 0;
+            img = sprites[frameIdx];
+        }
+
+        ctx.save();
+        if (img && img.complete && img.naturalWidth > 0) {
+            const cx = Math.round(this.x + this.width / 2);
+            const cy = Math.round(this.y + this.height);
+            ctx.translate(cx, cy);
+            ctx.scale(this.facingDir === -1 ? -1 : 1, 1);
+            // 100x100 spr_applenpc_walk 스프라이트에서 발바닥 y=96에 맞춤
+            ctx.drawImage(img, -50, -96, 100, 100);
+        } else {
+            ctx.fillStyle = '#27ae60';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('사과', this.x + this.width / 2, this.y + this.height / 2);
+        }
+        ctx.restore();
+
+        const showDebug = (typeof window !== 'undefined' && window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
+        if (showDebug) {
+            ctx.save();
+            ctx.strokeStyle = '#2ecc71';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+            if (window.gameInstance && window.gameInstance.isEditorMode) {
+                ctx.fillStyle = '#2ecc71';
+                ctx.font = 'bold 10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`NPC [${this.npcType === 1 ? '사과' : this.npcType}]`, this.x + this.width / 2, this.y - 4);
+            }
+            ctx.restore();
+        }
+    }
+}
+
 PizzaBoxUnopen.initImages();
 Toppin.initImage();
 PizzaSon.initImages();
+TownNPC.initImages();
 
 if (typeof window !== 'undefined') {
+    window.TownNPC = TownNPC;
+    window.townnpc = TownNPC;
+    window.obj_npc = TownNPC;
+    window.npc = TownNPC;
+
     window.PizzaBoxUnopen = PizzaBoxUnopen;
     window.pizzaboxunopen = PizzaBoxUnopen;
     window.obj_pizzaboxunopen = PizzaBoxUnopen;

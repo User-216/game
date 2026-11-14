@@ -1714,6 +1714,24 @@ class Game {
                 }
             }
 
+            const npc = this.entities.find(ent => 
+                (ent instanceof TownNPC || ent.type === 'obj_npc' || ent.type === 'npc') &&
+                worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
+                worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height
+            );
+            if (npc) {
+                const cur = npc.npcType || 1;
+                const input = prompt('마을 주민 캐릭터 번호를 변경하세요 (1: 사과):\n1: 사과', String(cur));
+                if (input !== null) {
+                    let chosen = parseInt(input.trim(), 10);
+                    if (!isNaN(chosen) && chosen >= 1) {
+                        npc.setNpcType(chosen);
+                        this.lastNpcType = chosen;
+                        this.saveCurrentRoomToMemory();
+                    }
+                }
+            }
+
             const portal = this.entities.find(ent => 
                 (ent instanceof SecretPortal || ent.type === 'secretportal') &&
                 worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
@@ -3661,6 +3679,8 @@ class Game {
                     ent.particles = [];
                 } else if ((typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) || ent.type === 'obj_pizzason' || ent.type === 'pizzason') {
                     ent.resetState();
+                } else if ((typeof TownNPC !== 'undefined' && ent instanceof TownNPC) || ent.type === 'obj_npc' || ent.type === 'npc') {
+                    ent.resetState();
                 }
             });
 
@@ -3757,6 +3777,8 @@ class Game {
                     ent.markedForDeletion = false;
                     ent.particles = [];
                 } else if ((typeof PizzaSon !== 'undefined' && ent instanceof PizzaSon) || ent.type === 'obj_pizzason' || ent.type === 'pizzason') {
+                    ent.resetState();
+                } else if ((typeof TownNPC !== 'undefined' && ent instanceof TownNPC) || ent.type === 'obj_npc' || ent.type === 'npc') {
                     ent.resetState();
                 }
             });
@@ -4680,6 +4702,9 @@ class Game {
             } else if (this.selectedType === 'door') {
                 w = 100;
                 h = 100;
+            } else if (this.selectedType === 'obj_npc' || this.selectedType === 'npc') {
+                w = 48;
+                h = 64;
             } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit' || this.selectedType === 'obj_pizzason' || this.selectedType === 'pizzason') {
                 w = 64;
                 h = 64;
@@ -4886,6 +4911,19 @@ class Game {
             case 'obj_pizzason':
                 entity = new PizzaSon(x, y, w, h);
                 break;
+            case 'npc':
+            case 'obj_npc': {
+                const defaultType = this.lastNpcType || 1;
+                const input = prompt('마을 주민의 캐릭터 번호를 설정하세요 (1: 사과):\n1: 사과', String(defaultType));
+                if (input === null) break;
+                let chosenType = parseInt(input.trim(), 10);
+                if (isNaN(chosenType) || chosenType < 1) {
+                    chosenType = 1;
+                }
+                this.lastNpcType = chosenType;
+                entity = new TownNPC(x, y, 48, 64, chosenType, this.objectFlipX);
+                break;
+            }
             case 'obj_collect':
                 entity = new Collect(x, y, w, h);
                 break;
@@ -4903,7 +4941,7 @@ class Game {
         if (entity) {
             if (this.objectFlipX) entity.flipX = true;
             if (this.objectFlipY) entity.flipY = true;
-            if (entity instanceof Slime && this.objectFlipX) {
+            if ((entity instanceof Slime || (typeof TownNPC !== 'undefined' && entity instanceof TownNPC)) && this.objectFlipX) {
                 entity.facingDir = -1;
                 entity.vx = -Math.abs(entity.vx);
             }
@@ -5119,6 +5157,12 @@ class Game {
                 const bx = ent.baseX !== undefined ? ent.baseX : ent.x;
                 const by = ent.baseY !== undefined ? ent.baseY : ent.y;
                 base = `new PizzaSon(${bx}, ${by}, ${ent.width}, ${ent.height})`;
+            }
+            else if ((typeof TownNPC !== 'undefined' && ent instanceof TownNPC) || ent.type === 'obj_npc' || ent.type === 'npc') {
+                const bx = ent.baseX !== undefined ? ent.baseX : ent.x;
+                const by = ent.baseY !== undefined ? ent.baseY : ent.y;
+                const nType = ent.npcType || 1;
+                base = `new TownNPC(${bx}, ${by}, ${ent.width}, ${ent.height}, ${nType}, ${ent.flipX || false})`;
             }
             else if (ent instanceof Slime) {
                 if (ent.spawnedBySpawner) return; // Never save cloned/spawned enemies
@@ -8563,6 +8607,13 @@ this.entities.push(
                     eTop = e.y + e.height / 2 - 64;
                     eBottom = eTop + 128;
                 }
+                if (e.type === 'obj_npc' || e.type === 'npc' || (typeof TownNPC !== 'undefined' && e instanceof TownNPC)) {
+                    const cx = e.x + e.width / 2;
+                    eLeft = cx - 50;
+                    eRight = cx + 50;
+                    eTop = e.y + e.height - 96;
+                    eBottom = e.y + e.height + 4;
+                }
                 if (eRight > viewLeft && eLeft < viewRight && 
                     eBottom > viewTop && eTop < viewBottom) {
                     if (this.player && this.player.isHoldingEnemy && this.player.heldEnemy === e) {
@@ -10476,6 +10527,8 @@ this.entities.push(
                 pw = 100; ph = 100;
             } else if (this.selectedType === 'obj_slime' || this.selectedType === 'obj_baddiespawner') {
                 pw = 40; ph = 40;
+            } else if (this.selectedType === 'obj_npc' || this.selectedType === 'npc') {
+                pw = 48; ph = 64;
             } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect' || this.selectedType === 'pizzaboxunopen' || this.selectedType === 'obj_pizzason' || this.selectedType === 'pizzason' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit') {
                 pw = 64; ph = 64;
             }
@@ -10692,6 +10745,19 @@ this.entities.push(
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('PIZZASON', pw / 2, ph / 2);
+                }
+            } else if (this.selectedType === 'obj_npc' || this.selectedType === 'npc') {
+                const img = typeof TownNPC !== 'undefined' && TownNPC.sprites && TownNPC.sprites[1] && TownNPC.sprites[1][0];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, pw / 2 - 50, ph - 96, 100, 100);
+                } else {
+                    ctx.fillStyle = '#27ae60';
+                    ctx.fillRect(0, 0, pw, ph);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('사과 NPC', pw / 2, ph / 2);
                 }
             } else if (this.selectedType === 'oneway') {
                 ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';

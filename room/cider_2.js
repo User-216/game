@@ -10246,7 +10246,6 @@ this.entities.push(
     new Tile(992, 160, 32, 32, 64, 128, 'tile_cidersewer.png', 32, 32),
     new Tile(1024, 160, 32, 32, 64, 128, 'tile_cidersewer.png', 32, 32),
     new Tile(1056, 160, 32, 32, 64, 128, 'tile_cidersewer.png', 32, 32),
-    Object.assign(new Slime(1280, 1056, 32, 32), { flipX: true, facingDir: -1 }),
     new Tile(6208, 544, 32, 32, 160, 160, 'tile_cidersewer.png', 32, 32),
     new Tile(6240, 544, 32, 32, 160, 160, 'tile_cidersewer.png', 32, 32),
     new Tile(6272, 544, 32, 32, 160, 160, 'tile_cidersewer.png', 32, 32),
@@ -10268,6 +10267,10 @@ this.entities.push(
     new Tile(5920, 960, 32, 32, 512, 544, 'tile_cidersewer.png', 32, 32),
     new Tile(5952, 928, 32, 32, 544, 512, 'tile_cidersewer.png', 32, 32),
     new Tile(5952, 960, 32, 32, 544, 544, 'tile_cidersewer.png', 32, 32),
+    Object.assign(new TownNPC(3680, 1024, 48, 64, 1, true), { flipX: true }),
+    Object.assign(new TownNPC(6880, 640, 48, 64, 1, true), { flipX: true }),
+    Object.assign(new TownNPC(5824, 448, 48, 64, 1, true), { flipX: true }),
+    Object.assign(new Slime(1280, 1056, 32, 32), { flipX: true }),
 );
 
 };

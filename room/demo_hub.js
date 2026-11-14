@@ -719,7 +719,7 @@ this.entities.push(
     new BigCollect(672, 192, 64, 64),
     new BigCollect(672, 224, 64, 64),
     new BigCollect(608, 224, 64, 64),
-    Object.assign(new Slime(1376, 384, 32, 32), { flipX: true }),
+    Object.assign(new Slime(1376, 384, 32, 32), { flipX: true, facingDir: -1 }),
     new LevelGate(1056, 160, 192, 288, "cider_1", "A", "0", "GATE 2", 0, "rgba(192, 57, 43, 0.8)", false, false, 10000),
     new LevelGate(768, 160, 192, 288, "tutorial_1", "A", "0", "GATE 2", 0, "rgba(192, 57, 43, 0.8)", false, false, 5000),
     new PizzaBoxUnopen(1248, 384, 64, 64, false, false, 1),
@@ -729,6 +729,7 @@ this.entities.push(
     new PizzaBoxUnopen(1344, 320, 64, 64, false, false, 1),
     new SecretPortal(1408, 192, 64, 64, "SecretPortal_test"),
     new PizzaSon(352, 384, 64, 64),
+    Object.assign(new TownNPC(416, 384, 48, 64, 1, true), { flipX: true }),
 );
 
 };
