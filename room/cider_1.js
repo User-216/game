@@ -4,11 +4,9 @@ this.roomWidth = 9100;
 this.roomHeight = 1200;
 this.sRankScore = 10000;
 this.roomMusic = 'mu _shitcity.mp3';
-this.roomBackground = 'bg_cidersewer';
-this.bgFollowCamera = true;
-this.screenFilterColor = '#ffc38f';
-this.screenFilterAlpha = 0.3;
-this.screenFilterBlend = 'multiply';
+this.roomBackground = 'bg_cidercity';
+this.bgFollowCamera = false;
+this.bgSpeed = 0.2;
 this.entities.push(
     new Platform(0, 96, 96, 704, '#00aa9e66'),
     new ExitGate(544, 576, 160, 256),
@@ -5769,7 +5767,7 @@ this.entities.push(
     new Tile(8064, 320, 32, 32, 64, 320, 'tile_cidersewer.png', 32, 32),
     new Tile(8064, 352, 32, 32, 448, 224, 'tile_cidersewer.png', 32, 32, true, false),
     new Tile(8064, 384, 32, 32, 448, 256, 'tile_cidersewer.png', 32, 32, true, false),
-    Object.assign(new Slime(3360, 800, 32, 32), { flipX: true }),
+    Object.assign(new Slime(3360, 800, 32, 32), { flipX: true, facingDir: -1 }),
     new Tile(5600, 1024, 32, 32, 384, 512, 'tile_cidersewer.png', 32, 32),
     new Tile(5600, 1056, 32, 32, 384, 544, 'tile_cidersewer.png', 32, 32),
     new Tile(5600, 1088, 32, 32, 384, 576, 'tile_cidersewer.png', 32, 32),
@@ -8226,7 +8224,7 @@ this.entities.push(
     new Tile(7648, 1376, 32, 32, 96, 256, 'tile_cidersewer.png', 32, 32, true, false),
     new Slime(5984, 928, 32, 32),
     Object.assign(new Slime(5504, 960, 32, 32), { flipX: true }),
-    Object.assign(new Slime(4832, 1024, 32, 32), { flipX: true }),
+    Object.assign(new Slime(4832, 1024, 32, 32), { flipX: true, facingDir: -1 }),
     new Tile(2304, 1152, 32, 32, 128, 128, 'tile_cidersewer.png', 32, 32, true, false),
     new Tile(2304, 1184, 32, 32, 128, 160, 'tile_cidersewer.png', 32, 32, true, false),
     new Tile(2304, 1216, 32, 32, 128, 192, 'tile_cidersewer.png', 32, 32, true, false),

@@ -2133,6 +2133,7 @@ class Game {
         const bgSpeedYInput = document.getElementById('bg-speed-y-input');
         const bgAutoSpeedYInput = document.getElementById('bg-auto-speed-y-input');
         const bgAutoSpeedXInput = document.getElementById('bg-auto-speed-x-input');
+        const bgQuickCiderCity = document.getElementById('bg-quick-cidercity');
         const bgQuickCiderSewer = document.getElementById('bg-quick-cidersewer');
         const bgQuickBeaker = document.getElementById('bg-quick-beaker');
         const bgQuickTutorial = document.getElementById('bg-quick-tutorial');
@@ -2306,6 +2307,9 @@ class Game {
             });
         }
 
+        if (bgQuickCiderCity && bgNameInput) {
+            bgQuickCiderCity.addEventListener('click', () => { bgNameInput.value = 'bg_cidercity'; });
+        }
         if (bgQuickCiderSewer && bgNameInput) {
             bgQuickCiderSewer.addEventListener('click', () => { bgNameInput.value = 'bg_cidersewer'; });
         }

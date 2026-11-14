@@ -3,11 +3,9 @@ window.roomData['cider_2'] = function() {
 this.roomWidth = 7400;
 this.roomHeight = 1700;
 this.sRankScore = 10000;
-this.roomBackground = 'bg_cidersewer';
-this.bgFollowCamera = true;
-this.screenFilterColor = '#ffc38f';
-this.screenFilterAlpha = 0.3;
-this.screenFilterBlend = 'multiply';
+this.roomBackground = 'bg_cidercity';
+this.bgFollowCamera = false;
+this.bgSpeed = 0.2;
 this.entities.push(
     new Platform(-352, 960, 864, 128, '#00aa9e66'),
     new Platform(-224, 672, 32, 32, '#00aa9e66'),
