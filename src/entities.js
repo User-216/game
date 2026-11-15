@@ -5086,10 +5086,10 @@ class Slime extends Entity {
         }
         
         if (this.state === 'walk') {
-            // Check for player mach3 proximity (scared state)
+            // Check for player mach3/mach4 proximity (scared state)
             const p = game.player;
             const absV = Math.abs(p.vx);
-            const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index === 'spr_player_mach3jump';
+            const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index.includes('mach4') || p.sprite_index === 'spr_player_mach3jump';
             if (isMach3 && !p.isTaunting) {
                 const dx = (p.x + p.width/2) - (this.x + this.width/2);
                 const dy = (p.y + p.height/2) - (this.y + this.height/2);
@@ -5364,7 +5364,7 @@ class Slime extends Entity {
             }
             
             const absV = Math.abs(p.vx);
-            const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index === 'spr_player_mach3jump';
+            const isMach3 = absV >= 12 || p.sprite_index.includes('mach3') || p.sprite_index.includes('mach4') || p.sprite_index === 'spr_player_mach3jump';
             const isMach1or2 = (absV >= 8 && absV < 12) || p.sprite_index.includes('mach2') || p.sprite_index.includes('suplexgrab') || p.sprite_index.includes('dash');
             const isStomp = p.vy > 0 && p.y + p.height < this.y + 20 && !p.isGroundPounding;
             const isGroundPound = p.isGroundPounding;

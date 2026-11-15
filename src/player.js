@@ -85,8 +85,12 @@ class Player {
         this.machColors = ['#ff0000', '#00ff00', '#bf00ff']; // Red, Green, Purple
         this.machColorIndex = 0;
         this.machEffectIndex = 0;
+        this.crazyrunOtherEffectIndex = 0;
         this.machFrameCount = 0;
         this.machFlashTimer = 0;
+        this.machWhiteFlashTimer = 0;
+        this.prevMachTier = 0;
+        this.whiteFlashCache = new Map();
 
         // Ghost Trail (Smooth alpha fade for Ground Pound)
         this.ghostAfters = [];
@@ -109,6 +113,7 @@ class Player {
             spr_player_dive: [],
             spr_player_mach2: [],
             spr_player_mach3: [],
+            spr_player_mach4: [],
             spr_player_mach3jump: [],
             spr_player_machslideboost: [],
             spr_player_machslideboost3: [],
@@ -310,6 +315,14 @@ class Player {
             img.src = `player/spr_player_mach3/spr_playerT_mach3_${i}.png`;
             this.sprites.spr_player_mach3.push(img);
         }
+
+        // Load mach4 sprite (5 frames: spr_player_mach4 ~ spr_player_mach8)
+        this.sprites.spr_player_mach4 = [];
+        for (let i = 4; i <= 8; i++) {
+            let img = new Image();
+            img.src = `player/spr_player_mach4/spr_player_mach${i}.png`;
+            this.sprites.spr_player_mach4.push(img);
+        }
         
         // Load mach3jump sprite (9 frames)
         for (let i = 1; i <= 9; i++) {
@@ -447,6 +460,13 @@ class Player {
             this.effectSprites.spr_uparrow.push(img);
         }
 
+        this.effectSprites.spr_crazyrunothereffect = [];
+        for (let i = 0; i <= 6; i++) {
+            let img = new Image();
+            img.src = `effect/spr_crazyrunothereffect/spr_crazyrunothereffect_${i}.png`;
+            this.effectSprites.spr_crazyrunothereffect.push(img);
+        }
+
         this.showUpArrow = false;
         this.activeEffects = [];
         this.machColorIndex = 0;
@@ -517,6 +537,10 @@ class Player {
     update(keys, entities, audio) {
         this.frameCount++;
         this.wasGrounded = this.isGrounded;
+
+        if (this.machWhiteFlashTimer > 0) {
+            this.machWhiteFlashTimer--;
+        }
 
         // Check if standing in front of an interactable (door, dresser, computer) for uparrow
         let atInteractable = false;
@@ -988,6 +1012,7 @@ class Player {
             if (audio) {
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
+                audio.stopFile('mach4');
                 audio.playFile('machslideboost', true);
             }
             return true;
@@ -1342,7 +1367,12 @@ class Player {
 
         const isMachForRollGetUp = (this.isRunning || Math.abs(this.vx) >= 12) && Math.abs(this.vx) >= 5;
         if (this.isTumbling && !wantTumble && this.isGrounded) {
-            if (isMachForRollGetUp) {
+            if (Math.abs(this.vx) >= 16) {
+                this.isRollGettingUp = false;
+                this.sprite_index = 'spr_player_mach4';
+                this.image_index = 0;
+                if (audio) audio.playFile('sfx_rollgetup', true);
+            } else if (isMachForRollGetUp) {
                 this.isRollGettingUp = true;
                 this.image_index = 0;
                 this.sprite_index = 'spr_player_rollgetup';
@@ -2126,16 +2156,21 @@ class Player {
                 
                 this.isGrounded = false;
                 this.standingOnEntity = null;
-                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || ((this.sprite_index === 'spr_player_rollgetup' || this.isRollGettingUp) && Math.abs(this.vx) >= this.machThreshold);
+                const wasRollGettingUp = this.isRollGettingUp || this.sprite_index === 'spr_player_rollgetup';
+                const isMach4Jump = Math.abs(this.vx) >= 16 || this.sprite_index === 'spr_player_mach4' || (wasRollGettingUp && Math.abs(this.vx) >= 16);
+                const isMach3Jump = Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || isMach4Jump || (wasRollGettingUp && Math.abs(this.vx) >= this.machThreshold);
 
                 const wasCrouching = this.isCrouching;
+                const prevSprite = this.sprite_index;
                 this.isRollGettingUp = false;
                 if (this.isMachSliding) {
                     this.stopMachSlide(false);
                 }
                 this.jumpBufferTimer = 0;
-                this.sprite_index = wasCrouching ? 'spr_player_crouch' : (isMach3Jump ? 'spr_player_mach3jump' : (this.isHoldingEnemy ? 'spr_player_haulingidle' : 'spr_player_jump'));
-                this.image_index = 0;
+                this.sprite_index = wasCrouching ? 'spr_player_crouch' : (isMach4Jump ? 'spr_player_mach4' : (isMach3Jump ? 'spr_player_mach3jump' : (this.isHoldingEnemy ? 'spr_player_haulingidle' : 'spr_player_jump')));
+                if (this.sprite_index !== prevSprite) {
+                    this.image_index = 0;
+                }
                 if (audio) audio.play('jump');
                 
                 // ・�・ ・肥ｲｭ: ・戦売 ・ｰ・溢揆 ・・・ｬ・・巐ｨ・ｼ ・緋ｰ (・ｨ, ・ｬ・ｬ・ｰ ・卓乱・・・們丶・ ・伎ｲ・
@@ -2159,7 +2194,8 @@ class Player {
                 // this.isWallJumping = true; // ・�・ ・肥ｲｭ: ・・ｷｸ ・ｩ・・ｼ ・・紛 﨑ｭ・・false・・・�・
                 this.facingDir = -this.wallSide;
                 this.jumpBufferTimer = 0;
-                this.sprite_index = (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3') ? 'spr_player_mach3jump' : 'spr_player_jump';
+                const isMach4WallJump = Math.abs(this.vx) >= 16 || this.sprite_index === 'spr_player_mach4';
+                this.sprite_index = isMach4WallJump ? 'spr_player_mach4' : ((Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3') ? 'spr_player_mach3jump' : 'spr_player_jump');
                 this.image_index = 0;
                 if (audio) audio.play('jump');
             } else if (this.isTumbling && !this.isGrounded) {
@@ -2243,14 +2279,19 @@ class Player {
         } else if (this.isGroundPoundLand) {
             this.sprite_index = 'spr_player_groundpoundland';
         } else if (this.isRollGettingUp && this.isGrounded && !this.isDrifting && !this.isDrifting1) {
-            const isMach = (this.isRunning || Math.abs(this.vx) >= 12) && Math.abs(this.vx) >= 5;
-            if (isMach) {
-                this.sprite_index = 'spr_player_rollgetup';
-                if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
+            if (Math.abs(this.vx) >= 16) {
+                this.isRollGettingUp = false;
+                this.sprite_index = 'spr_player_mach4';
+            } else {
+                const isMach = (this.isRunning || Math.abs(this.vx) >= 12) && Math.abs(this.vx) >= 5;
+                if (isMach) {
+                    this.sprite_index = 'spr_player_rollgetup';
+                    if (Math.floor(this.image_index) >= this.sprites.spr_player_rollgetup.length - 1) {
+                        this.isRollGettingUp = false;
+                    }
+                } else {
                     this.isRollGettingUp = false;
                 }
-            } else {
-                this.isRollGettingUp = false;
             }
         } else if (this.isMachSliding) {
             if (this.sprite_index !== 'spr_player_machslidestart' && this.sprite_index !== 'spr_player_machslide') {
@@ -2283,9 +2324,11 @@ class Player {
                 this.sprite_index = targetSprite;
                 this.image_index = 0;
             }
-        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && !this.isLongJumping && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_machslideboost' && this.sprite_index !== 'spr_player_longjump' && this.sprite_index !== 'spr_player_longjumploop' && this.sprite_index !== 'spr_player_haulingidle' && this.sprite_index !== 'spr_player_haulingwalk' && this.sprite_index !== 'spr_player_finishingblow1') {
+        } else if (!this.isGrounded && !this.isClimbing && !this.isGroundPounding && !this.isSuplexGrabbing && !this.isLongJumping && this.sprite_index !== 'spr_player_jump' && this.sprite_index !== 'spr_player_mach3jump' && this.sprite_index !== 'spr_player_mach3' && this.sprite_index !== 'spr_player_mach4' && this.sprite_index !== 'spr_player_machslideboost3' && this.sprite_index !== 'spr_player_machslideboost' && this.sprite_index !== 'spr_player_longjump' && this.sprite_index !== 'spr_player_longjumploop' && this.sprite_index !== 'spr_player_haulingidle' && this.sprite_index !== 'spr_player_haulingwalk' && this.sprite_index !== 'spr_player_finishingblow1') {
             if (this.isHoldingEnemy && !this.isFinishingBlow) {
                 this.sprite_index = 'spr_player_haulingidle';
+            } else if (Math.abs(this.vx) >= 16 || this.sprite_index === 'spr_player_mach4') {
+                this.sprite_index = 'spr_player_mach4';
             } else {
                 this.sprite_index = 'spr_player_fall';
             }
@@ -2302,7 +2345,9 @@ class Player {
             } else if (Math.abs(this.vx) > 0 && Math.abs(this.vx) <= this.maxSpeed && !this.isRunning && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
                 this.sprite_index = 'spr_player_walk';
             } else if (this.isRunning && Math.abs(this.vx) > 0 && this.sprite_index !== 'spr_player_mach1' && !this.isCrouching && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isGroundPounding && !this.isClimbing) {
-                if (Math.abs(this.vx) >= 12) {
+                if (Math.abs(this.vx) >= 16) {
+                    this.sprite_index = 'spr_player_mach4';
+                } else if (Math.abs(this.vx) >= 12) {
                     this.sprite_index = 'spr_player_mach3';
                 } else {
                     this.sprite_index = 'spr_player_mach2';
@@ -2368,9 +2413,11 @@ class Player {
             this.image_speed = 0.55;
         } else if (this.sprite_index === 'spr_player_groundpound') {
             this.image_speed = 0.55;
-        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3') {
+        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach4') {
             if (this.sprite_index === 'spr_player_mach2') {
                 this.image_speed = 0.25 + (Math.abs(this.vx) * 0.04);
+            } else if (this.sprite_index === 'spr_player_mach4') {
+                this.image_speed = 0.35 + (Math.abs(this.vx) * 0.02);
             } else {
                 this.image_speed = 0.2 + (Math.abs(this.vx) * 0.02);
             } 
@@ -2409,8 +2456,13 @@ class Player {
 
         if (this.sprite_index !== '') {
             this.image_index += this.image_speed;
-            if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+            if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach4' || this.sprite_index === 'spr_player_mach3jump') {
                 this.machEffectIndex += 0.5;
+            }
+            if (this.sprite_index === 'spr_player_mach4' || Math.abs(this.vx) >= 16) {
+                this.crazyrunOtherEffectIndex += 0.5;
+            } else {
+                this.crazyrunOtherEffectIndex = 0;
             }
         }
 
@@ -2420,7 +2472,7 @@ class Player {
             this.image_index = 0;
         }
         if (this.sprite_index === 'spr_player_mach3jump' && this.image_index >= this.sprites.spr_player_mach3jump.length) {
-            this.sprite_index = 'spr_player_mach3';
+            this.sprite_index = (Math.abs(this.vx) >= 16) ? 'spr_player_mach4' : 'spr_player_mach3';
             this.image_index = 0;
         }
         if (this.sprite_index === 'spr_player_longjump' && this.image_index >= this.sprites.spr_player_longjump.length) {
@@ -2533,8 +2585,70 @@ class Player {
         this.isLongJumping = false;
             this.suplexGrabTimer = 0;
         }
-        // ・ｴ・・嵓・�溢桷 墲､ ・・・ ・・･
+
+        // Determine current Mach tier (0: none, 1: mach1, 2: mach2, 3: mach3, 4: mach4)
+        let currentMachTier = 0;
+        const absVx = Math.abs(this.vx);
+        const isMachRunning = this.isRunning && !this.isDrifting && !this.isDrifting1 && !this.isMachSliding && !this.isTumbling && this.state !== 'bump';
+        const isMachSprite = (this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach4' || this.sprite_index === 'spr_player_mach3jump');
+
+        if ((isMachRunning || isMachSprite) && !this.isTumbling && this.state !== 'bump') {
+            if (absVx >= 16 || this.sprite_index === 'spr_player_mach4') {
+                currentMachTier = 4;
+            } else if (absVx >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+                currentMachTier = 3;
+            } else if (absVx >= 8 || this.sprite_index === 'spr_player_mach2') {
+                currentMachTier = 2;
+            } else if (absVx > 0 || this.sprite_index === 'spr_player_mach1') {
+                currentMachTier = 1;
+            }
+        }
+
+        // Trigger 2-frame white flash when entering Mach 3 or Mach 4
+        if ((currentMachTier === 3 && this.prevMachTier < 3) || (currentMachTier === 4 && this.prevMachTier < 4)) {
+            this.machWhiteFlashTimer = 2;
+        }
+        if (this.state === 'bump') {
+            this.machWhiteFlashTimer = 0;
+        }
+        this.prevMachTier = currentMachTier;
+
         this.prevKeysDown = keys.actionDown;
+    }
+
+    getWhiteFlashFrame(img) {
+        if (!img) return img;
+        if (!this.whiteFlashCache) {
+            this.whiteFlashCache = new Map();
+        }
+        const key = img.src || img;
+        if (this.whiteFlashCache.has(key)) {
+            return this.whiteFlashCache.get(key);
+        }
+        if (typeof document === 'undefined') return img;
+        const w = img.naturalWidth || img.width || 100;
+        const h = img.naturalHeight || img.height || 100;
+        if (w <= 0 || h <= 0) return img;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return img;
+        ctx.drawImage(img, 0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        this.whiteFlashCache.set(key, canvas);
+        return canvas;
+    }
+
+    getRenderFrame(img) {
+        if (!img) return img;
+        const tinted = (this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img);
+        if (this.machWhiteFlashTimer > 0) {
+            return this.getWhiteFlashFrame(tinted);
+        }
+        return tinted;
     }
 
     render(ctx) {
@@ -2599,7 +2713,7 @@ class Player {
                         imgToDraw = frame;
                     }
                 }
-            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach3jump' || m.sprite_index === 'spr_player_machslideboost3' || m.sprite_index === 'spr_player_machslideboost' || m.sprite_index === 'spr_player_machslide' || m.sprite_index === 'spr_player_rollgetup' || m.sprite_index === 'spr_player_roll') {
+            } else if (m.sprite_index === 'spr_player_mach2' || m.sprite_index === 'spr_player_mach3' || m.sprite_index === 'spr_player_mach4' || m.sprite_index === 'spr_player_mach3jump' || m.sprite_index === 'spr_player_machslideboost3' || m.sprite_index === 'spr_player_machslideboost' || m.sprite_index === 'spr_player_machslide' || m.sprite_index === 'spr_player_rollgetup' || m.sprite_index === 'spr_player_roll') {
                 const frames = this.sprites[m.sprite_index];
                 const frame = frames[Math.floor(m.image_index) % frames.length];
                 if (frame && frame.complete && frame.naturalWidth > 0) {
@@ -2813,7 +2927,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_walk') {
             const frames = this.sprites.spr_player_walk;
@@ -2828,7 +2942,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_fall') {
             const frames = this.sprites.spr_player_fall;
@@ -2843,7 +2957,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_jump') {
             const frames = this.sprites.spr_player_jump;
@@ -2862,7 +2976,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_land') {
             const frames = this.sprites.spr_player_land;
@@ -2880,7 +2994,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
                 } else if (this.sprite_index === 'spr_player_climbwall') {
             const frames = this.sprites.spr_player_climbwall;
@@ -2895,7 +3009,7 @@ class Player {
                     if (this.climbSide === -1) {
                         ctx.scale(-1, 1);
                     }
-                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, -57.5, 100, 100);
+                    ctx.drawImage(this.getRenderFrame(img), -51, -57.5, 100, 100);
                 }
             }
         } else if (this.sprite_index === 'spr_player_rollgetup') {
@@ -2911,7 +3025,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 
                 if (Math.abs(this.vx) >= 12) {
                     const effectFrames = this.effectSprites.spr_mach_effect;
@@ -2937,7 +3051,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_machslideboost3' || this.sprite_index === 'spr_player_machslideboost' || this.sprite_index === 'spr_player_machslidestart' || this.sprite_index === 'spr_player_machslide') {
             const frames = this.sprites[this.sprite_index];
@@ -2958,10 +3072,10 @@ class Player {
                         ctx.scale(-1, 1);
                     }
                     const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 }
             }
-        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+        } else if (this.sprite_index === 'spr_player_mach2' || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach4' || this.sprite_index === 'spr_player_mach3jump') {
             const frames = this.sprites[this.sprite_index];
             const frameIndex = Math.floor(this.image_index) % frames.length;
             const img = frames[frameIndex];
@@ -2974,15 +3088,27 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 
-                if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach3jump') {
+                if (Math.abs(this.vx) >= 12 || this.sprite_index === 'spr_player_mach3' || this.sprite_index === 'spr_player_mach4' || this.sprite_index === 'spr_player_mach3jump') {
                     const effectFrames = this.effectSprites.spr_mach_effect;
                     if (effectFrames && effectFrames.length > 0) {
                         const efIndex = Math.floor(this.machEffectIndex) % effectFrames.length;
                         const efImg = effectFrames[efIndex];
                         if (efImg && efImg.complete && efImg.naturalWidth > 0) {
                             ctx.drawImage(efImg, -51, offsetY, 100, 100);
+                        }
+                    }
+                }
+
+                // Mach 4 Crazy Run Other Effect (spr_crazyrunothereffect)
+                if (this.sprite_index === 'spr_player_mach4' || Math.abs(this.vx) >= 16) {
+                    const crazyFrames = this.effectSprites.spr_crazyrunothereffect;
+                    if (crazyFrames && crazyFrames.length > 0) {
+                        const crazyIndex = Math.floor(this.crazyrunOtherEffectIndex) % crazyFrames.length;
+                        const crazyImg = crazyFrames[crazyIndex];
+                        if (crazyImg && crazyImg.complete && crazyImg.naturalWidth > 0) {
+                            ctx.drawImage(crazyImg, -100, -100, 200, 200);
                         }
                     }
                 }
@@ -3005,7 +3131,7 @@ class Player {
                         ctx.scale(-1, 1);
                     }
                     const offsetY = -57.5;
-                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 }
             }
         } else if (this.sprite_index === 'spr_player_longjump' || this.sprite_index === 'spr_player_longjumploop') {
@@ -3026,7 +3152,7 @@ class Player {
                         ctx.scale(-1, 1);
                     }
                     const offsetY = -57.5;
-                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 }
             }
         } else if (this.sprite_index === 'spr_player_walkfront') {
@@ -3048,7 +3174,7 @@ class Player {
                     const progress = Math.min(1.0, Math.max(0, this.image_index / (frames.length * 0.75)));
                     const brightnessPct = Math.round(progress * 100);
                     
-                    const imgToDraw = this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img;
+                    const imgToDraw = this.getRenderFrame(img);
                     
                     if (brightnessPct < 100) {
                         ctx.filter = `brightness(${brightnessPct}%)`;
@@ -3073,7 +3199,7 @@ class Player {
                         ctx.scale(-1, 1);
                     }
                     const offsetY = -57.5;
-                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 }
             }
         } else if (this.sprite_index === 'spr_player_groundpoundland') {
@@ -3089,7 +3215,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_groundpoundstart') {
             const frames = this.sprites.spr_player_groundpoundstart;
@@ -3107,7 +3233,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_groundpound') {
             const frames = this.sprites.spr_player_groundpound;
@@ -3122,7 +3248,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_taunt') {
             const frames = this.sprites.spr_player_taunt;
@@ -3138,7 +3264,7 @@ class Player {
                     ctx.scale(-1, 1);
                 }
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
             }
         } else if (this.sprite_index === 'spr_player_crouch' || this.sprite_index === 'spr_player_crawl') {
             const frames = this.sprites[this.sprite_index];
@@ -3153,7 +3279,7 @@ class Player {
                         ctx.scale(-1, 1);
                     }
                     const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 }
             }
         } else if (this.sprite_index === 'spr_player_bump') {
@@ -3170,7 +3296,7 @@ class Player {
                         ctx.scale(-1, 1);
                     }
                     const offsetY = -57.5;
-                    ctx.drawImage(this.paletteManager ? this.paletteManager.getTintedFrame(img, img.src || "img") : img, -51, offsetY, 100, 100);
+                    ctx.drawImage(this.getRenderFrame(img), -51, offsetY, 100, 100);
                 }
             }
         } else {
@@ -3188,7 +3314,7 @@ class Player {
                 ctx.translate(Math.round(drawX + this.width / 2), Math.round(drawY + this.height / 2));
                 if (this.facingDir === -1) ctx.scale(-1, 1);
                 const offsetY = (this.isCrouching || this.isTumbling) ? -68.5 : -57.5;
-                ctx.drawImage(currentMask, -51, offsetY, 100, 100);
+                ctx.drawImage(this.getRenderFrame(currentMask), -51, offsetY, 100, 100);
             } else {
                 ctx.fillStyle = pColor;
                 ctx.fillRect(Math.round(this.x), Math.round(this.y), this.width, this.height);
