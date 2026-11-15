@@ -1732,6 +1732,33 @@ class Game {
                 }
             }
 
+            const camReg = this.entities.find(ent => 
+                (ent instanceof CameraRegion || ent.type === 'obj_cameraregion' || ent.type === 'cameraregion') &&
+                worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
+                worldPos.y >= ent.y && worldPos.y <= ent.y + ent.height
+            );
+            if (camReg) {
+                const cur = camReg.clampAxis || 'xy';
+                let curLabel = '1';
+                if (cur === 'x') curLabel = '2';
+                else if (cur === 'y') curLabel = '3';
+                const input = prompt('카메라 제한 축을 설정하세요:\n1: XY (가로/세로 둘 다 제한)\n2: X만 (가로만 제한, 세로는 자유)\n3: Y만 (세로만 제한, 가로는 자유)', curLabel);
+                if (input !== null) {
+                    const trimmed = input.trim().toLowerCase();
+                    let chosenAxis = 'xy';
+                    if (trimmed === '2' || trimmed === 'x' || trimmed === 'x만') {
+                        chosenAxis = 'x';
+                    } else if (trimmed === '3' || trimmed === 'y' || trimmed === 'y만') {
+                        chosenAxis = 'y';
+                    } else {
+                        chosenAxis = 'xy';
+                    }
+                    camReg.clampAxis = chosenAxis;
+                    this.lastCameraRegionAxis = chosenAxis;
+                    this.saveCurrentRoomToMemory();
+                }
+            }
+
             const portal = this.entities.find(ent => 
                 (ent instanceof SecretPortal || ent.type === 'secretportal') &&
                 worldPos.x >= ent.x && worldPos.x <= ent.x + ent.width &&
@@ -2847,6 +2874,7 @@ class Game {
         if (this.isEditorMode && (e.isSecret || (e.type && e.type.includes('secret')))) return false;
         if (e.isSecret || e.type === 'secretblock' || e.type === 'secretbigblock' || e.type === 'secretmetalblock' || e.type === 'obj_secretblock' || e.type === 'obj_secretbigblock' || e.type === 'obj_secretmetalblock' || (typeof SecretBlock !== 'undefined' && e instanceof SecretBlock) || (typeof SecretMetalBlock !== 'undefined' && e instanceof SecretMetalBlock)) return true;
         if (e instanceof Tile || e.type === 'tile') return false;
+        if (e.type === 'cameraregion' || e.type === 'obj_cameraregion' || (typeof CameraRegion !== 'undefined' && e instanceof CameraRegion)) return false;
         if (e.type === 'fallblock' || (typeof FallBlock !== 'undefined' && e instanceof FallBlock)) return false;
         if (e.type === 'secretportal' || e.type === 'secretportalexit' || e.type === 'obj_secretportal' || e.type === 'obj_secretportalexit' || (typeof SecretPortal !== 'undefined' && e instanceof SecretPortal) || (typeof SecretPortalExit !== 'undefined' && e instanceof SecretPortalExit) || e.type === 'door' || e.type === 'levelgate' || e.type === 'hallway' || e.type === 'hallwayvertical' || e.type === 'escapeblock_closed' || e.type === 'escapeblock_open' || (typeof EscapeBlockClosed !== 'undefined' && e instanceof EscapeBlockClosed) || (typeof EscapeBlockOpen !== 'undefined' && e instanceof EscapeBlockOpen) || e instanceof Door || (typeof LevelGate !== 'undefined' && e instanceof LevelGate)) return false;
         const type = e.type;
@@ -4702,6 +4730,9 @@ class Game {
             } else if (this.selectedType === 'door') {
                 w = 100;
                 h = 100;
+            } else if (this.selectedType === 'cameraregion' || this.selectedType === 'obj_cameraregion') {
+                w = 960;
+                h = 540;
             } else if (this.selectedType === 'obj_npc' || this.selectedType === 'npc') {
                 w = 48;
                 h = 64;
@@ -4922,6 +4953,27 @@ class Game {
                 }
                 this.lastNpcType = chosenType;
                 entity = new TownNPC(x, y, 48, 64, chosenType, this.objectFlipX);
+                break;
+            }
+            case 'cameraregion':
+            case 'obj_cameraregion': {
+                const defaultAxis = this.lastCameraRegionAxis || 'xy';
+                let curLabel = '1';
+                if (defaultAxis === 'x') curLabel = '2';
+                else if (defaultAxis === 'y') curLabel = '3';
+                const input = prompt('카메라 제한 축을 설정하세요:\n1: XY (가로/세로 둘 다 제한)\n2: X만 (가로만 제한, 세로는 자유)\n3: Y만 (세로만 제한, 가로는 자유)', curLabel);
+                if (input === null) break;
+                const trimmed = input.trim().toLowerCase();
+                let chosenAxis = 'xy';
+                if (trimmed === '2' || trimmed === 'x' || trimmed === 'x만') {
+                    chosenAxis = 'x';
+                } else if (trimmed === '3' || trimmed === 'y' || trimmed === 'y만') {
+                    chosenAxis = 'y';
+                } else {
+                    chosenAxis = 'xy';
+                }
+                this.lastCameraRegionAxis = chosenAxis;
+                entity = new CameraRegion(x, y, w, h, chosenAxis);
                 break;
             }
             case 'obj_collect':
@@ -5163,6 +5215,9 @@ class Game {
                 const by = ent.baseY !== undefined ? ent.baseY : ent.y;
                 const nType = ent.npcType || 1;
                 base = `new TownNPC(${bx}, ${by}, ${ent.width}, ${ent.height}, ${nType}, ${ent.flipX || false})`;
+            }
+            else if ((typeof CameraRegion !== 'undefined' && ent instanceof CameraRegion) || ent.type === 'obj_cameraregion' || ent.type === 'cameraregion') {
+                base = `new CameraRegion(${ent.x}, ${ent.y}, ${ent.width}, ${ent.height}, '${ent.clampAxis || 'xy'}')`;
             }
             else if (ent instanceof Slime) {
                 if (ent.spawnedBySpawner) return; // Never save cloned/spawned enemies
@@ -6040,20 +6095,9 @@ this.entities.push(
                 let targetCamX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
                 let playerBottom = this.player.y + this.player.height;
                 let targetCamY = playerBottom - 22.5 - this.canvas.height / 2;
-                if (!this.isEditorMode) {
-                    if (this.roomWidth > 0) {
-                        const maxX = Math.max(0, this.roomWidth - this.canvas.width);
-                        if (targetCamX < 0) targetCamX = 0;
-                        if (targetCamX > maxX) targetCamX = maxX;
-                    }
-                    if (this.roomHeight > 0) {
-                        const maxY = Math.max(0, this.roomHeight - this.canvas.height);
-                        if (targetCamY < 0) targetCamY = 0;
-                        if (targetCamY > maxY) targetCamY = maxY;
-                    }
-                }
-                this.camera.x = targetCamX;
-                this.camera.y = targetCamY;
+                const clampedCam = this.clampCameraTarget(targetCamX, targetCamY);
+                this.camera.x = clampedCam.x;
+                this.camera.y = clampedCam.y;
                 this.cameraSpeedOffset = 0;
 
                 // Snap toppins to new room position behind player with initialized trail
@@ -6136,6 +6180,85 @@ this.entities.push(
         });
     }
 
+    getCameraRegion() {
+        if (!this.player || !this.entities) return null;
+        const px = this.player.x;
+        const py = this.player.y;
+        const pw = this.player.width;
+        const ph = this.player.height;
+
+        const nonTiles = (typeof this.getNonTileEntities === 'function') ? this.getNonTileEntities() : this.entities;
+        for (let i = 0; i < nonTiles.length; i++) {
+            const ent = nonTiles[i];
+            if (!ent || ent.isDestroyed) continue;
+            if (ent instanceof CameraRegion || ent.type === 'obj_cameraregion' || ent.type === 'cameraregion') {
+                if (px < ent.x + ent.width && px + pw > ent.x &&
+                    py < ent.y + ent.height && py + ph > ent.y) {
+                    return ent;
+                }
+            }
+        }
+        return null;
+    }
+
+    clampCameraTarget(targetX, targetY) {
+        if (this.isEditorMode) return { x: targetX, y: targetY };
+
+        let clampedX = targetX;
+        let clampedY = targetY;
+
+        const activeCamRegion = this.getCameraRegion();
+        const axis = activeCamRegion ? String(activeCamRegion.clampAxis || 'xy').toLowerCase() : null;
+        const clampX = !!(activeCamRegion && (axis === 'xy' || axis === 'x' || axis === 'both'));
+        const clampY = !!(activeCamRegion && (axis === 'xy' || axis === 'y' || axis === 'both'));
+
+        if (clampX) {
+            const regX = activeCamRegion.x;
+            const regW = activeCamRegion.width;
+            const minX = regX;
+            const maxX = (regW >= this.canvas.width) ? regX + regW - this.canvas.width : regX + (regW - this.canvas.width) / 2;
+            if (regW >= this.canvas.width) {
+                if (clampedX < minX) clampedX = minX;
+                if (clampedX > maxX) clampedX = maxX;
+            } else {
+                clampedX = maxX;
+            }
+        } else {
+            if (this.roomWidth > 0) {
+                const maxX = Math.max(0, this.roomWidth - this.canvas.width);
+                if (clampedX < 0) clampedX = 0;
+                if (clampedX > maxX) clampedX = maxX;
+            }
+        }
+
+        if (clampY) {
+            const regY = activeCamRegion.y;
+            const regH = activeCamRegion.height;
+            const minY = regY;
+            const maxY = (regH >= this.canvas.height) ? regY + regH - this.canvas.height : regY + (regH - this.canvas.height) / 2;
+            if (regH >= this.canvas.height) {
+                if (clampedY < minY) clampedY = minY;
+                if (clampedY > maxY) clampedY = maxY;
+            } else {
+                clampedY = maxY;
+            }
+        } else {
+            if (this.roomHeight > 0) {
+                const maxY = Math.max(0, this.roomHeight - this.canvas.height);
+                if (clampedY < 0) clampedY = 0;
+                if (clampedY > maxY) clampedY = maxY;
+            } else {
+                const lowestEntityY = this.ensureEntityCaches().maxEntityBottom || 0;
+                let maxTargetY = lowestEntityY + 100 - this.canvas.height;
+                if (clampedY > maxTargetY) {
+                    clampedY = maxTargetY;
+                }
+            }
+        }
+
+        return { x: clampedX, y: clampedY };
+    }
+
     respawnPlayer() {
         const targetDoorId = this.lastTargetDoorId || 'A';
         const doorObj = this.entities.find(e => e.type === `targetDoor_${targetDoorId}`);
@@ -6153,17 +6276,9 @@ this.entities.push(
         let targetX = this.player.x - this.canvas.width / 2 + this.player.width / 2;
         let playerBottom = this.player.y + this.player.height;
         let targetY = playerBottom - 22.5 - this.canvas.height / 2;
-        let maxX = (this.roomWidth && this.roomWidth > 0) ? Math.max(0, this.roomWidth - this.canvas.width) : Infinity;
-        let maxY = (this.roomHeight && this.roomHeight > 0) ? Math.max(0, this.roomHeight - this.canvas.height) : Infinity;
-        if (!this.isEditorMode) {
-            if (this.roomWidth > 0 && targetX < 0) targetX = 0;
-            if (this.roomHeight > 0 && targetY < 0) targetY = 0;
-            if (maxX !== Infinity && targetX > maxX) targetX = maxX;
-            if (maxY !== Infinity && targetY > maxY) targetY = maxY;
-        }
-        
-        this.camera.x = targetX;
-        this.camera.y = targetY;
+        const clampedCam = this.clampCameraTarget(targetX, targetY);
+        this.camera.x = clampedCam.x;
+        this.camera.y = clampedCam.y;
     }
 
     enterLevelGate(gate) {
@@ -8081,26 +8196,9 @@ this.entities.push(
         this.cameraSpeedOffset += (targetSpeedOffset - this.cameraSpeedOffset) * 0.02;
         targetX += this.cameraSpeedOffset;
         
-        if (!this.isEditorMode) {
-            if (this.roomWidth > 0) {
-                const maxX = Math.max(0, this.roomWidth - this.canvas.width);
-                if (targetX < 0) targetX = 0;
-                if (targetX > maxX) targetX = maxX;
-            }
-            if (this.roomHeight > 0) {
-                const maxY = Math.max(0, this.roomHeight - this.canvas.height);
-                if (targetY < 0) targetY = 0;
-                if (targetY > maxY) targetY = maxY;
-            } else {
-                // roomHeight가 설정되지 않은(무한 맵) 경우에만:
-                // 카메라가 빈 공간(void)으로 한없이 떨어지지 않게 엔티티 최하단 기준으로 Y 제한
-                const lowestEntityY = this.ensureEntityCaches().maxEntityBottom || 0;
-                let maxTargetY = lowestEntityY + 100 - this.canvas.height;
-                if (targetY > maxTargetY) {
-                    targetY = maxTargetY;
-                }
-            }
-        }
+        const clampedCam = this.clampCameraTarget(targetX, targetY);
+        targetX = clampedCam.x;
+        targetY = clampedCam.y;
 
         const lerpFactor = (this.settings.cameraSpeed || 20) / 100;
         this.camera.x += (targetX - this.camera.x) * lerpFactor;
@@ -10529,6 +10627,8 @@ this.entities.push(
                 pw = 40; ph = 40;
             } else if (this.selectedType === 'obj_npc' || this.selectedType === 'npc') {
                 pw = 48; ph = 64;
+            } else if (this.selectedType === 'cameraregion' || this.selectedType === 'obj_cameraregion') {
+                pw = 960; ph = 540;
             } else if (this.selectedType === 'destroyable' || this.selectedType === 'metal' || this.selectedType === 'secretbigblock' || this.selectedType === 'secretmetalblock' || this.selectedType === 'obj_palettedresser' || this.selectedType === 'obj_computer' || this.selectedType === 'obj_bigcollect' || this.selectedType === 'pizzaboxunopen' || this.selectedType === 'obj_pizzason' || this.selectedType === 'pizzason' || this.selectedType === 'secretportal' || this.selectedType === 'secretportalexit' || this.selectedType === 'obj_secretportal' || this.selectedType === 'obj_secretportalexit') {
                 pw = 64; ph = 64;
             }
@@ -10759,6 +10859,32 @@ this.entities.push(
                     ctx.textBaseline = 'middle';
                     ctx.fillText('사과 NPC', pw / 2, ph / 2);
                 }
+            } else if (this.selectedType === 'cameraregion' || this.selectedType === 'obj_cameraregion') {
+                const axis = this.lastCameraRegionAxis || 'xy';
+                let fillColor = 'rgba(0, 168, 255, 0.2)';
+                let strokeColor = '#00f2ff';
+                let tag = '[XY]';
+                if (axis === 'x') {
+                    fillColor = 'rgba(230, 126, 34, 0.2)';
+                    strokeColor = '#e67e22';
+                    tag = '[X ONLY]';
+                } else if (axis === 'y') {
+                    fillColor = 'rgba(46, 204, 113, 0.2)';
+                    strokeColor = '#2ecc71';
+                    tag = '[Y ONLY]';
+                }
+                ctx.fillStyle = fillColor;
+                ctx.fillRect(0, 0, pw, ph);
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.strokeRect(0, 0, pw, ph);
+                ctx.setLineDash([]);
+                ctx.fillStyle = strokeColor;
+                ctx.font = 'bold 16px "Impact", "Outfit", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`CAM REGION ${tag} (${pw}x${ph})`, pw / 2, ph / 2);
             } else if (this.selectedType === 'oneway') {
                 ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
                 ctx.fillRect(0, 0, pw, ph);
@@ -11012,6 +11138,34 @@ this.entities.push(
                     }
                     ctx.restore();
                     ctx.globalAlpha = 1.0;
+                } else if (this.selectedType === 'cameraregion' || this.selectedType === 'obj_cameraregion') {
+                    const axis = this.lastCameraRegionAxis || 'xy';
+                    let fillColor = 'rgba(0, 168, 255, 0.25)';
+                    let strokeColor = '#00f2ff';
+                    let tag = '[XY]';
+                    if (axis === 'x') {
+                        fillColor = 'rgba(230, 126, 34, 0.25)';
+                        strokeColor = '#e67e22';
+                        tag = '[X ONLY]';
+                    } else if (axis === 'y') {
+                        fillColor = 'rgba(46, 204, 113, 0.25)';
+                        strokeColor = '#2ecc71';
+                        tag = '[Y ONLY]';
+                    }
+                    ctx.save();
+                    ctx.fillStyle = fillColor;
+                    ctx.fillRect(minX, minY, w, h);
+                    ctx.strokeStyle = strokeColor;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([8, 4]);
+                    ctx.strokeRect(minX, minY, w, h);
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = strokeColor;
+                    ctx.font = 'bold 16px "Impact", "Outfit", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`CAM REGION ${tag} (${w}x${h})`, minX + w / 2, minY + h / 2);
+                    ctx.restore();
                 }
 
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';

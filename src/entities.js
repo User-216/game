@@ -4548,12 +4548,71 @@ class TownNPC extends Entity {
     }
 }
 
+class CameraRegion extends Entity {
+    constructor(x, y, width = 960, height = 540, clampAxis = 'xy') {
+        super(x, y, width, height, 'rgba(0, 168, 255, 0.15)');
+        this.type = 'obj_cameraregion';
+        this.isSolid = false;
+        this.isPlatform = false;
+        const norm = String(clampAxis || 'xy').toLowerCase();
+        this.clampAxis = (norm === 'x' || norm === '2') ? 'x' : ((norm === 'y' || norm === '3') ? 'y' : 'xy');
+    }
+
+    render(ctx) {
+        if (this.isDestroyed) return;
+        const g = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        const isEditor = g && g.isEditorMode;
+        const showDebug = g && g.showCollisions;
+
+        // 일반 인게임 플레이 시에는 완전히 투명 (충돌/트리거 전용)
+        if (!isEditor && !showDebug) return;
+
+        ctx.save();
+        let fillColor = 'rgba(0, 168, 255, 0.15)';
+        let strokeColor = isEditor ? '#00f2ff' : '#00a8ff';
+        let labelText = `CAM REGION [XY] (${Math.round(this.width)}x${Math.round(this.height)})`;
+
+        if (this.clampAxis === 'x') {
+            fillColor = 'rgba(230, 126, 34, 0.15)';
+            strokeColor = '#e67e22';
+            labelText = `CAM REGION [X ONLY] (${Math.round(this.width)}x${Math.round(this.height)})`;
+        } else if (this.clampAxis === 'y') {
+            fillColor = 'rgba(46, 204, 113, 0.15)';
+            strokeColor = '#2ecc71';
+            labelText = `CAM REGION [Y ONLY] (${Math.round(this.width)}x${Math.round(this.height)})`;
+        }
+
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = isEditor ? 2 : 1;
+        ctx.setLineDash([8, 4]);
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.setLineDash([]);
+
+        if (isEditor) {
+            ctx.fillStyle = strokeColor;
+            ctx.font = 'bold 13px "Impact", "Outfit", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(labelText, this.x + this.width / 2, this.y + 6);
+        }
+        ctx.restore();
+    }
+}
+
 PizzaBoxUnopen.initImages();
 Toppin.initImage();
 PizzaSon.initImages();
 TownNPC.initImages();
 
 if (typeof window !== 'undefined') {
+    window.CameraRegion = CameraRegion;
+    window.obj_cameraRegion = CameraRegion;
+    window.obj_cameraregion = CameraRegion;
+    window.cameraregion = CameraRegion;
+
     window.TownNPC = TownNPC;
     window.townnpc = TownNPC;
     window.obj_npc = TownNPC;
