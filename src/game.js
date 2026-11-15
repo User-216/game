@@ -5793,7 +5793,7 @@ this.entities.push(
                 if (roomName === 'demo_hub') {
                     this.resetScoreAndToppins();
                 } else if (roomName === 'rm_rank') {
-                    this.toppins = [];
+                    // rm_rank에서는 점수와 토핑을 유지 (결과 화면에서 키를 누를 때 리셋)
                     this.playerTrail = [];
                 }
                 this.rooms[roomName].call(this);
@@ -6357,9 +6357,8 @@ this.entities.push(
         // 스테이지 클리어 및 랭크/점수 영구 저장!
         this.updateSaveProgress(true);
 
-        // 마지막 스테이지 점수 기록 및 토핑/점수 리셋 (rm_rank 진입)
+        // 마지막 스테이지 점수 기록 (점수 및 토핑은 rm_rank 결과 화면 후 키를 누를 때 리셋)
         this.lastStageScore = this.score || 0;
-        this.resetScoreAndToppins();
 
         // UP 키 누르자 마자 딜레이/페이드 대기 없이 바로 rm_rank 방으로 이동!
         this.transitionState = 'NONE';

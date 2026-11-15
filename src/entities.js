@@ -6130,44 +6130,85 @@ class RankController extends Entity {
         if (this.targetRank) return this.targetRank;
         const raw = (game && (game.forceRank || game.clearedRank)) || (game && typeof game.getCurrentRank === 'function' ? game.getCurrentRank() : 'D');
         const upper = (raw || 'D').toUpperCase();
-        if (upper === 'P' && RankController.getValidImages(RankController.imagesP).length > 0) return 'P';
-        if (upper === 'S' && RankController.getValidImages(RankController.imagesS).length > 0) return 'S';
-        if (upper === 'A' && RankController.getValidImages(RankController.imagesA).length > 0) return 'A';
-        if (upper === 'B' && RankController.getValidImages(RankController.imagesB).length > 0) return 'B';
-        if (upper === 'C' && RankController.getValidImages(RankController.imagesC).length > 0) return 'C';
-        if (upper === 'B' || upper === 'A' || upper === 'S' || upper === 'P') {
-            if (RankController.getValidImages(RankController.imagesC).length > 0) return 'C';
+        if (['P', 'S', 'A', 'B', 'C', 'D'].includes(upper)) {
+            return upper;
         }
         return 'D';
     }
 
     getRankImages(usePurple = false) {
         const r = (this.rank || 'D').toUpperCase();
+
+        // 1. P 또는 S 랭크: 전용 애니메이션이 있으면 사용, 아직 없으면 최상위인 A랭크 애니메이션으로 자연스럽게 폴백!
         if (r === 'P' || r === 'S') {
-            const pPool = (r === "P") ? RankController.imagesP : RankController.imagesS;
+            const pPool = (r === 'P') ? RankController.imagesP : RankController.imagesS;
             const valid = RankController.getValidImages(pPool);
             if (valid.length > 0) return valid;
+
+            const aPool = usePurple ? RankController.imagesA_purple : RankController.imagesA_normal;
+            const aValid = RankController.getValidImages(aPool);
+            if (aValid.length > 0) return aValid;
+
+            const bPool = usePurple ? RankController.imagesB_purple : RankController.imagesB_normal;
+            const bValid = RankController.getValidImages(bPool);
+            if (bValid.length > 0) return bValid;
+
+            const cPool = usePurple ? RankController.imagesC_purple : RankController.imagesC_normal;
+            const cValid = RankController.getValidImages(cPool);
+            if (cValid.length > 0) return cValid;
+
+            return RankController.getValidImages(usePurple ? RankController.imagesD_purple : RankController.imagesD_normal) || [];
         }
-        let targetPool = null;
-        let fallbackPool = null;
+
+        // 2. A 랭크
         if (r === 'A') {
-            targetPool = usePurple ? RankController.imagesA_purple : RankController.imagesA_normal;
-            fallbackPool = usePurple ? RankController.imagesA_normal : RankController.imagesA_purple;
-        } else if (r === 'B') {
-            targetPool = usePurple ? RankController.imagesB_purple : RankController.imagesB_normal;
-            fallbackPool = usePurple ? RankController.imagesB_normal : RankController.imagesB_purple;
-        } else if (r === 'C') {
-            targetPool = usePurple ? RankController.imagesC_purple : RankController.imagesC_normal;
-            fallbackPool = usePurple ? RankController.imagesC_normal : RankController.imagesC_purple;
-        } else {
-            targetPool = usePurple ? RankController.imagesD_purple : RankController.imagesD_normal;
-            fallbackPool = usePurple ? RankController.imagesD_normal : RankController.imagesD_purple;
+            const aPool = usePurple ? RankController.imagesA_purple : RankController.imagesA_normal;
+            const aValid = RankController.getValidImages(aPool);
+            if (aValid.length > 0) return aValid;
+
+            const bPool = usePurple ? RankController.imagesB_purple : RankController.imagesB_normal;
+            const bValid = RankController.getValidImages(bPool);
+            if (bValid.length > 0) return bValid;
+
+            const cPool = usePurple ? RankController.imagesC_purple : RankController.imagesC_normal;
+            const cValid = RankController.getValidImages(cPool);
+            if (cValid.length > 0) return cValid;
+
+            return RankController.getValidImages(usePurple ? RankController.imagesD_purple : RankController.imagesD_normal) || [];
         }
-        const validTarget = RankController.getValidImages(targetPool);
-        if (validTarget.length > 0) return validTarget;
-        const validFallback = RankController.getValidImages(fallbackPool);
-        if (validFallback.length > 0) return validFallback;
-        return RankController.getValidImages(RankController.imagesD_purple) || [];
+
+        // 3. B 랭크
+        if (r === 'B') {
+            const bPool = usePurple ? RankController.imagesB_purple : RankController.imagesB_normal;
+            const bValid = RankController.getValidImages(bPool);
+            if (bValid.length > 0) return bValid;
+
+            const cPool = usePurple ? RankController.imagesC_purple : RankController.imagesC_normal;
+            const cValid = RankController.getValidImages(cPool);
+            if (cValid.length > 0) return cValid;
+
+            return RankController.getValidImages(usePurple ? RankController.imagesD_purple : RankController.imagesD_normal) || [];
+        }
+
+        // 4. C 랭크
+        if (r === 'C') {
+            const cPool = usePurple ? RankController.imagesC_purple : RankController.imagesC_normal;
+            const cValid = RankController.getValidImages(cPool);
+            if (cValid.length > 0) return cValid;
+
+            return RankController.getValidImages(usePurple ? RankController.imagesD_purple : RankController.imagesD_normal) || [];
+        }
+
+        // 5. D 랭크
+        const dPool = usePurple ? RankController.imagesD_purple : RankController.imagesD_normal;
+        const dValid = RankController.getValidImages(dPool);
+        if (dValid.length > 0) return dValid;
+
+        const dFallback = usePurple ? RankController.imagesD_normal : RankController.imagesD_purple;
+        const dFallbackValid = RankController.getValidImages(dFallback);
+        if (dFallbackValid.length > 0) return dFallbackValid;
+
+        return [];
     }
 
     getStats(game) {
@@ -6451,4 +6492,9 @@ class RankController extends Entity {
         }
         ctx.restore();
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.RankController = RankController;
+    window.rankcontroller = RankController;
 }
