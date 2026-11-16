@@ -530,7 +530,7 @@ class SecretPortal extends Entity {
             }
 
             if (!g.isEditorMode && g.player && g.player.state !== 'secretportal' && g.player.state !== 'secretportal_exit' && g.player.state !== 'enterdoor') {
-                if (Physics.checkCollision(this, g.player)) {
+                if (!this.hasOverlappingObstacle(g) && Physics.checkCollision(this, g.player)) {
                     // Sucked into portal
                     this.state = 'close';
                     this.image_index = 0;
@@ -578,8 +578,89 @@ class SecretPortal extends Entity {
         }
     }
 
+    hasOverlappingObstacle(game = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null)) {
+        const g = game || (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        if (!g) return false;
+
+        const bx1 = this.x;
+        const by1 = this.y;
+        const bx2 = this.x + this.width;
+        const by2 = this.y + this.height;
+
+        // 1. Check TileGrid if available
+        if (typeof g.getTilesAtCell === 'function') {
+            const minX = Math.floor(bx1 / 32) * 32;
+            const maxX = Math.floor((bx2 - 1) / 32) * 32;
+            const minY = Math.floor(by1 / 32) * 32;
+            const maxY = Math.floor((by2 - 1) / 32) * 32;
+            for (let cx = minX; cx <= maxX; cx += 32) {
+                for (let cy = minY; cy <= maxY; cy += 32) {
+                    for (let lyr = 1; lyr <= 3; lyr++) {
+                        const tile = g.getTilesAtCell(lyr, cx, cy);
+                        if (tile) {
+                            if (Array.isArray(tile)) {
+                                if (tile.some(t => t && !t.isDestroyed && !t.markedForDeletion)) return true;
+                            } else if (!tile.isDestroyed && !tile.markedForDeletion) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Check entities list (blocks, secret blocks, tiles)
+        const list = g.entities || [];
+        for (let i = 0; i < list.length; i++) {
+            const ent = list[i];
+            if (!ent || ent === this || ent.isDestroyed || ent.markedForDeletion) continue;
+
+            const t = ent.type;
+            const isSecretBlock = (
+                ent.isSecret ||
+                t === 'obj_secretblock' || t === 'obj_secretbigblock' || t === 'obj_secretmetalblock' ||
+                t === 'secretblock' || t === 'secretbigblock' || t === 'secretmetalblock' ||
+                (typeof SecretBlock !== 'undefined' && ent instanceof SecretBlock) ||
+                (typeof SecretMetalBlock !== 'undefined' && ent instanceof SecretMetalBlock)
+            );
+
+            const isBlock = (
+                (typeof Destroyable !== 'undefined' && ent instanceof Destroyable) ||
+                (typeof Metal !== 'undefined' && ent instanceof Metal) ||
+                (typeof Platform !== 'undefined' && ent instanceof Platform) ||
+                (typeof Slope !== 'undefined' && ent instanceof Slope) ||
+                (typeof Pillar !== 'undefined' && ent instanceof Pillar) ||
+                (typeof FallBlock !== 'undefined' && ent instanceof FallBlock) ||
+                (typeof EscapeBlockBase !== 'undefined' && ent instanceof EscapeBlockBase) ||
+                (typeof OneWayPlatform !== 'undefined' && ent instanceof OneWayPlatform) ||
+                t === 'destroyable' || t === 'destroyable-small' || t === 'metal' ||
+                t === 'platform' || t === 'solid' || t === 'pillar' ||
+                t === 'slope' || t === 'slope-left' || t === 'slope-right' ||
+                t === 'fallblock' || t === 'escapeblock_closed' || t === 'escapeblock_open' ||
+                t === 'appleblock-small' || t === 'appleblock-big' || t === 'appleblock' ||
+                t === 'oneway'
+            );
+
+            const isTile = (
+                ent instanceof Tile || t === 'tile' ||
+                (typeof Tile2 !== 'undefined' && ent instanceof Tile2) ||
+                (typeof Tile3 !== 'undefined' && ent instanceof Tile3)
+            );
+
+            if (!isSecretBlock && !isBlock && !isTile) continue;
+
+            const overlapW = Math.min(bx2, ent.x + ent.width) - Math.max(bx1, ent.x);
+            const overlapH = Math.min(by2, ent.y + ent.height) - Math.max(by1, ent.y);
+            if (overlapW > 1 && overlapH > 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     render(ctx) {
         if (this.isDestroyed) return;
+        if (this.hasOverlappingObstacle()) return;
         SecretPortal.initImages();
 
         const frames = (this.state === 'close') ? SecretPortal.spritesClose : SecretPortal.spritesIdle;
@@ -765,8 +846,13 @@ class SecretPortalExit extends Entity {
         }
     }
 
+    hasOverlappingObstacle(game = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null)) {
+        return SecretPortal.prototype.hasOverlappingObstacle.call(this, game);
+    }
+
     render(ctx) {
         if (this.isDestroyed || this.markedForDeletion) return;
+        if (!this.active && this.hasOverlappingObstacle()) return;
         SecretPortalExit.initImages();
 
         const g = window.gameInstance;
@@ -1165,11 +1251,117 @@ class SecretBlock extends Destroyable {
         }
     }
 
+    hasOverlappingBlock(game = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null)) {
+        const g = game || (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        if (!g) return false;
+
+        const bx1 = this.x;
+        const by1 = this.y;
+        const bx2 = this.x + this.width;
+        const by2 = this.y + this.height;
+
+        // 1. Check TileGrid if available (O(1) fast lookup for Tile 1, 2, 3)
+        if (typeof g.getTilesAtCell === 'function') {
+            const minX = Math.floor(bx1 / 32) * 32;
+            const maxX = Math.floor((bx2 - 1) / 32) * 32;
+            const minY = Math.floor(by1 / 32) * 32;
+            const maxY = Math.floor((by2 - 1) / 32) * 32;
+            for (let cx = minX; cx <= maxX; cx += 32) {
+                for (let cy = minY; cy <= maxY; cy += 32) {
+                    for (let lyr = 1; lyr <= 3; lyr++) {
+                        const tile = g.getTilesAtCell(lyr, cx, cy);
+                        if (tile) {
+                            if (Array.isArray(tile)) {
+                                if (tile.some(t => t && !t.isDestroyed && !t.markedForDeletion)) return true;
+                            } else if (!tile.isDestroyed && !tile.markedForDeletion) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Check entities list (Non-tiles or all entities)
+        const list = (typeof g.getNonTileEntities === 'function') ? g.getNonTileEntities() : (g.entities || []);
+        if (list && list.length > 0) {
+            for (let i = 0; i < list.length; i++) {
+                const ent = list[i];
+                if (!ent || ent === this || ent.isDestroyed || ent.markedForDeletion) continue;
+                if (ent.isSecret) continue;
+
+                const t = ent.type;
+                if (t === 'obj_secretblock' || t === 'obj_secretbigblock' || t === 'obj_secretmetalblock' ||
+                    t === 'secretblock' || t === 'secretbigblock' || t === 'secretmetalblock') {
+                    continue;
+                }
+                if ((typeof SecretBlock !== 'undefined' && ent instanceof SecretBlock) ||
+                    (typeof SecretMetalBlock !== 'undefined' && ent instanceof SecretMetalBlock)) {
+                    continue;
+                }
+
+                const isTile = (
+                    ent instanceof Tile || ent.type === 'tile' ||
+                    (typeof Tile2 !== 'undefined' && ent instanceof Tile2) ||
+                    (typeof Tile3 !== 'undefined' && ent instanceof Tile3)
+                );
+
+                const isBlock = (
+                    (typeof Destroyable !== 'undefined' && ent instanceof Destroyable) ||
+                    (typeof Metal !== 'undefined' && ent instanceof Metal) ||
+                    (typeof Platform !== 'undefined' && ent instanceof Platform) ||
+                    (typeof Slope !== 'undefined' && ent instanceof Slope) ||
+                    (typeof Pillar !== 'undefined' && ent instanceof Pillar) ||
+                    (typeof FallBlock !== 'undefined' && ent instanceof FallBlock) ||
+                    (typeof EscapeBlockBase !== 'undefined' && ent instanceof EscapeBlockBase) ||
+                    (typeof OneWayPlatform !== 'undefined' && ent instanceof OneWayPlatform) ||
+                    t === 'destroyable' || t === 'destroyable-small' || t === 'metal' ||
+                    t === 'platform' || t === 'solid' || t === 'pillar' ||
+                    t === 'slope' || t === 'slope-left' || t === 'slope-right' ||
+                    t === 'fallblock' || t === 'escapeblock_closed' || t === 'escapeblock_open' ||
+                    t === 'appleblock-small' || t === 'appleblock-big' || t === 'appleblock' ||
+                    t === 'oneway'
+                );
+
+                if (!isBlock && !isTile) continue;
+
+                const overlapW = Math.min(bx2, ent.x + ent.width) - Math.max(bx1, ent.x);
+                const overlapH = Math.min(by2, ent.y + ent.height) - Math.max(by1, ent.y);
+                if (overlapW > 1 && overlapH > 1) {
+                    return true;
+                }
+            }
+        }
+
+        // 3. Fallback: If g.getTilesAtCell was not used and list was only nonTiles, check g.entities for tiles
+        if (typeof g.getTilesAtCell !== 'function' && g.entities && g.entities !== list) {
+            for (let i = 0; i < g.entities.length; i++) {
+                const ent = g.entities[i];
+                if (!ent || ent === this || ent.isDestroyed || ent.markedForDeletion) continue;
+                const isTile = (
+                    ent instanceof Tile || ent.type === 'tile' ||
+                    (typeof Tile2 !== 'undefined' && ent instanceof Tile2) ||
+                    (typeof Tile3 !== 'undefined' && ent instanceof Tile3)
+                );
+                if (!isTile) continue;
+
+                const overlapW = Math.min(bx2, ent.x + ent.width) - Math.max(bx1, ent.x);
+                const overlapH = Math.min(by2, ent.y + ent.height) - Math.max(by1, ent.y);
+                if (overlapW > 1 && overlapH > 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     render(ctx) {
         const isCollisionVisible = !!(window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
 
         if (!this.isDestroyed) {
             if (!isCollisionVisible) return;
+            if (this.hasOverlappingBlock()) return;
 
             ctx.save();
             ctx.fillStyle = 'rgba(223, 114, 8, 0.55)';
@@ -1287,11 +1479,16 @@ class SecretMetalBlock extends Metal {
         SecretBlock.prototype.destroyOverlappingTiles.call(this, game);
     }
 
+    hasOverlappingBlock(game = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null)) {
+        return SecretBlock.prototype.hasOverlappingBlock.call(this, game);
+    }
+
     render(ctx) {
         const isCollisionVisible = !!(window.gameInstance && (window.gameInstance.showCollisions || window.gameInstance.isEditorMode));
 
         if (!this.isDestroyed) {
             if (!isCollisionVisible) return;
+            if (this.hasOverlappingBlock()) return;
 
             ctx.save();
             ctx.fillStyle = 'rgba(101, 153, 143, 0.6)';
