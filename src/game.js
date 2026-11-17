@@ -107,6 +107,9 @@ class Game {
 
     isKeyPressed(k) {
         if (!k) return false;
+        if (k === ' ' || k === 'Space') {
+            return !!(this.keys[' '] || this.keys['Space'] || this.keys['space']);
+        }
         return !!(this.keys[k] || this.keys[k.toLowerCase()] || this.keys[k.toUpperCase()]);
     }
     
@@ -121,8 +124,74 @@ class Game {
         if (!this.settings || !this.settings.bindings) return;
         const k1 = this.settings.bindings[action];
         const k2 = this.settings.bindings_2 ? this.settings.bindings_2[action] : null;
-        if (k1) { this.keys[k1] = false; this.keys[k1.toLowerCase()] = false; this.keys[k1.toUpperCase()] = false; }
-        if (k2) { this.keys[k2] = false; this.keys[k2.toLowerCase()] = false; this.keys[k2.toUpperCase()] = false; }
+        const clearKey = (k) => {
+            if (!k) return;
+            this.keys[k] = false;
+            this.keys[k.toLowerCase()] = false;
+            this.keys[k.toUpperCase()] = false;
+            if (k === ' ' || k === 'Space') {
+                this.keys[' '] = false;
+                this.keys['Space'] = false;
+                this.keys['space'] = false;
+            }
+        };
+        clearKey(k1);
+        clearKey(k2);
+    }
+
+    getDefaultBindings() {
+        return {
+            left: 'ArrowLeft',
+            right: 'ArrowRight',
+            up: 'ArrowUp',
+            down: 'ArrowDown',
+            jump: 'z',
+            run: 'Shift',
+            grab: 'x',
+            dash: 'Shift',
+            superjump: 'ArrowUp',
+            groundpound: 'ArrowDown',
+            taunt: 'c',
+            pause: 'Escape',
+            menu_left: 'ArrowLeft',
+            menu_right: 'ArrowRight',
+            menu_up: 'ArrowUp',
+            menu_down: 'ArrowDown',
+            menu_confirm: 'z',
+            menu_back: 'x',
+            menu_clear: 'c'
+        };
+    }
+
+    getDefaultBindings2() {
+        return {
+            left: '',
+            right: '',
+            up: '',
+            down: '',
+            jump: '',
+            run: '',
+            grab: '',
+            dash: '',
+            superjump: '',
+            groundpound: '',
+            taunt: '',
+            pause: '',
+            menu_left: 'a',
+            menu_right: 'd',
+            menu_up: 'ArrowUp',
+            menu_down: 'ArrowDown',
+            menu_confirm: ' ',
+            menu_back: 'Escape',
+            menu_clear: ''
+        };
+    }
+
+    resetBindings() {
+        this.settings.bindings = this.getDefaultBindings();
+        this.settings.bindings_2 = this.getDefaultBindings2();
+        this.saveSettings();
+        if (this.refreshControlList) this.refreshControlList();
     }
 
     constructor() {
@@ -141,6 +210,9 @@ class Game {
         this.pauseMenuOptions = ['RESUME', 'OPTIONS', 'PALETTE', 'RESTART', 'EXIT LEVEL'];
         this.pauseMenuIndex = 0;
         this.pauseBubbles = [];
+        this.prevPauseKey = false;
+        this.prevTitlePause = false;
+        this.prevMenuBackKey = false;
         
         // Chat System
         this.chatMessages = []; // { sender, text, timer }
@@ -307,6 +379,22 @@ class Game {
             if (raw) savedSettings = JSON.parse(raw);
         } catch(e) {}
 
+        const defaultB1 = this.getDefaultBindings();
+        const defaultB2 = this.getDefaultBindings2();
+        let loadedB1 = Object.assign({}, defaultB1, savedSettings.bindings || {});
+        let loadedB2 = Object.assign({}, defaultB2);
+
+        if (savedSettings.bindings_2 && savedSettings.bindings_2_version === 2) {
+            Object.assign(loadedB2, savedSettings.bindings_2);
+        } else if (savedSettings.bindings_2) {
+            // Upgrade legacy bindings_2: keep user custom gameplay secondary binds, but ensure menu secondary keys match default
+            for (const k in savedSettings.bindings_2) {
+                if (savedSettings.bindings_2[k] && !defaultB2[k]) {
+                    loadedB2[k] = savedSettings.bindings_2[k];
+                }
+            }
+        }
+
         this.settings = {
             language: savedLang,
             masterVolume: savedSettings.masterVolume !== undefined ? savedSettings.masterVolume : 100,
@@ -329,28 +417,8 @@ class Game {
             timer: savedSettings.timer !== undefined ? savedSettings.timer : false,
             dirSuperjump: savedSettings.dirSuperjump !== undefined ? savedSettings.dirSuperjump : true,
             dirGroundpound: savedSettings.dirGroundpound !== undefined ? savedSettings.dirGroundpound : true,
-            bindings: savedSettings.bindings || {
-                left: 'ArrowLeft',
-                right: 'ArrowRight',
-                up: 'ArrowUp',
-                down: 'ArrowDown',
-                jump: 'z',
-                run: 'Shift',
-                grab: 'x',
-                dash: 'Shift',
-                superjump: 'ArrowUp',
-                groundpound: 'ArrowDown',
-                taunt: 'c',
-                pause: 'Escape',
-                menu_left: 'ArrowLeft',
-                menu_right: 'ArrowRight',
-                menu_up: 'ArrowUp',
-                menu_down: 'ArrowDown',
-                menu_confirm: 'z',
-                menu_back: 'x',
-                menu_clear: 'c'
-            },
-            bindings_2: savedSettings.bindings_2 || {}
+            bindings: loadedB1,
+            bindings_2: loadedB2
         };
         this.bindingKeyFor = null;
         this.audio = new AudioManager(this.settings);
@@ -395,6 +463,7 @@ class Game {
         this.loadingScreenImages = [];
         this.selectedSaveSlot = 1;
         this.currentSaveSlot = 1;
+        this.fileSelectDisplayPercent = 0;
         this.deleteToastTimer = 0;
         this.sRankScore = 10000;
         this.stageSRankScore = null;
@@ -459,7 +528,7 @@ class Game {
         // Hub coordinates & room transitions (Level Gate)
         this.hubX = null;
         this.hubY = null;
-        this.hub_room = null;
+        this.hub_room = 'demo_hub';
         this.restart_room = null;
         this.titleCard = null;
         this.pendingLevelGate = null;
@@ -641,6 +710,7 @@ class Game {
             this.tutorialKeyImages[keyName] = img;
             return img;
         };
+        this.getKeyImage('ESC');
 
         this.sliderTrackImg = new Image();
         this.sliderTrackImg.src = 'spr_slider.png';
@@ -651,6 +721,38 @@ class Game {
         this.sliderThumbImg.src = 'spr_slidericon2.png';
         this.sliderThumbImg.loaded = false;
         this.sliderThumbImg.onload = () => { this.sliderThumbImg.loaded = true; };
+
+        this.mainMenuOptionImg = new Image();
+        this.mainMenuOptionImg.src = 'spr_mainmenu_option.png';
+        this.mainMenuOptionImg.loaded = false;
+        this.mainMenuOptionImg.onload = () => { this.mainMenuOptionImg.loaded = true; };
+
+        this.mainMenuEraseImg = new Image();
+        this.mainMenuEraseImg.src = 'spr_mainmenu_erase.png';
+        this.mainMenuEraseImg.loaded = false;
+        this.mainMenuEraseImg.onload = () => { this.mainMenuEraseImg.loaded = true; };
+
+        // Load percent font (font/spr_percentfont)
+        this.percentFontImages = {};
+        const percentChars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '%'];
+        for (const ch of percentChars) {
+            const img = new Image();
+            const fileBase = ch === '%' ? '%25' : ch;
+            img.src = `font/spr_percentfont/${fileBase}.png`;
+            img.loaded = false;
+            img.onload = () => { img.loaded = true; };
+            img.onerror = () => {
+                if (ch === '%') {
+                    const fallback = new Image();
+                    fallback.src = 'font/spr_percentfont/percent.png';
+                    fallback.onload = () => {
+                        fallback.loaded = true;
+                        this.percentFontImages['%'] = fallback;
+                    };
+                }
+            };
+            this.percentFontImages[ch] = img;
+        }
 
         this.tutorialTexX = 0;
         this.tutorialWaveTimer = 0;
@@ -1495,6 +1597,11 @@ class Game {
             this.keys[key] = true;
             this.keys[key.toLowerCase()] = true;
             this.keys[key.toUpperCase()] = true;
+            if (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1') {
+                this.keys['1'] = true;
+                this.keys['Digit1'] = true;
+                this.keys['Numpad1'] = true;
+            }
 
             let k1 = this.settings.bindings.pause;
             let k2 = this.settings.bindings_2 ? this.settings.bindings_2.pause : null;
@@ -1502,10 +1609,7 @@ class Game {
             if (k1 && (key === k1 || key === k1.toLowerCase() || key === k1.toUpperCase())) isPauseKey = true;
             if (k2 && (key === k2 || key === k2.toLowerCase() || key === k2.toUpperCase())) isPauseKey = true;
             
-            if (isPauseKey && this.gameState !== 'OPTIONS') {
-                e.preventDefault();
-                this.togglePause();
-            } else if (e.key === 'Escape') {
+            if (isPauseKey || e.key === 'Escape') {
                 e.preventDefault();
             }
 
@@ -1547,6 +1651,11 @@ class Game {
             this.keys[key] = false;
             this.keys[key.toLowerCase()] = false;
             this.keys[key.toUpperCase()] = false;
+            if (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1') {
+                this.keys['1'] = false;
+                this.keys['Digit1'] = false;
+                this.keys['Numpad1'] = false;
+            }
         });
 
         // Mobile touch controls
@@ -3158,10 +3267,32 @@ class Game {
                 this.audio.pauseAll();
                 this.audio.playFile('sfx_pausestart', true);
             }
+            this.prevPauseKey = true;
+            this.prevTitlePause = true;
+            this.prevMenuBackKey = true;
             document.getElementById('pause-overlay').style.display = 'none'; // Ensure DOM overlay is hidden
             document.getElementById('pause-overlay').classList.add('hidden');
+        } else if (this.gameState === 'TITLE') {
+            // Main menu pause opens settings/options menu directly
+            this.optionsReturnState = 'TITLE';
+            this.gameState = 'OPTIONS';
+            this.cameraShake = 0;
+            if (this.player) this.player.requestScreenShake = 0;
+            this.optionsMenuIndex = 0;
+            this.optionsMenuLevel = 'MAIN';
+            if (this.audio) {
+                this.audio.pauseAll();
+                this.audio.playFile('sfx_pausestart', true);
+            }
+            this.prevPauseKey = true;
+            this.prevTitlePause = true;
+            this.prevMenuBackKey = true;
+            const optOverlay = document.getElementById('options-overlay');
+            if (optOverlay) optOverlay.style.display = 'none';
         } else if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS') {
-            this.gameState = 'PLAYING';
+            const returnState = (this.gameState === 'OPTIONS' && this.optionsReturnState === 'TITLE') ? 'TITLE' : 'PLAYING';
+            this.gameState = returnState;
+            this.optionsReturnState = null;
             this.needsVoidClear = true;
             this.cameraShake = 0;
             if (this.player) this.player.requestScreenShake = 0;
@@ -3169,6 +3300,9 @@ class Game {
                 this.audio.resumeAll();
                 this.audio.playFile('sfx_pausestart', true);
             }
+            this.prevPauseKey = true;
+            this.prevTitlePause = true;
+            this.prevMenuBackKey = true;
             document.getElementById('pause-overlay').style.display = 'none';
             document.getElementById('pause-overlay').classList.add('hidden');
             document.getElementById('options-overlay').style.display = 'none';
@@ -3193,6 +3327,7 @@ class Game {
                 windowMode: this.settings.windowMode,
                 hasExplicitWindowMode: this.settings.hasExplicitWindowMode,
                 resolutionIndex: this.settings.resolutionIndex,
+                bindings_2_version: 2,
                 bindings: this.settings.bindings,
                 bindings_2: this.settings.bindings_2
             }));
@@ -3280,6 +3415,57 @@ class Game {
             } else {
                 cx += 30 * scale + kerning;
             }
+        }
+    }
+
+    drawPercentText(ctx, textStr, x, y, center = true, scale = 1) {
+        if (!ctx || textStr === undefined || textStr === null) return;
+        textStr = textStr.toString();
+
+        const metrics = {
+            '0': { x: 3, w: 40 },
+            '1': { x: 10, w: 18 },
+            '2': { x: 7, w: 30 },
+            '3': { x: 9, w: 29 },
+            '4': { x: 5, w: 34 },
+            '5': { x: 9, w: 29 },
+            '6': { x: 9, w: 29 },
+            '7': { x: 7, w: 32 },
+            '8': { x: 8, w: 29 },
+            '9': { x: 8, w: 29 },
+            '%': { x: 5, w: 35 }
+        };
+
+        const sep = Math.round(3 * scale);
+        let totalW = 0;
+        const validChars = [];
+
+        for (let i = 0; i < textStr.length; i++) {
+            const ch = textStr[i];
+            if (metrics[ch]) {
+                validChars.push(ch);
+                totalW += Math.round(metrics[ch].w * scale);
+            }
+        }
+        if (validChars.length === 0) return;
+        totalW += (validChars.length - 1) * sep;
+
+        let curX = center ? Math.round(x - totalW / 2) : Math.round(x);
+        const drawY = Math.round(y);
+
+        for (let i = 0; i < validChars.length; i++) {
+            const ch = validChars[i];
+            const m = metrics[ch];
+            const img = this.percentFontImages ? this.percentFontImages[ch] : null;
+            const drawW = Math.round(m.w * scale);
+            const drawH = Math.round(46 * scale);
+
+            if (img && (img.complete || img.loaded) && img.naturalWidth > 0) {
+                ctx.drawImage(img, m.x, 0, m.w, 46, curX, drawY, drawW, drawH);
+            } else {
+                this.drawCreditsText(ctx, ch, curX + drawW / 2, drawY + 10, true, scale);
+            }
+            curX += drawW + sep;
         }
     }
 
@@ -4554,10 +4740,66 @@ class Game {
             return;
         }
 
+        if (this.currentRoom === 'mainmenu' && this.gameState !== 'TITLE' && this.gameState !== 'OPTIONS') {
+            this.gameState = 'TITLE';
+            this.escape = false;
+            if (this.audio) this.audio.resetMusic();
+            if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+            this.camera.x = 0;
+            this.camera.y = 0;
+            if (this.player) {
+                this.player.visible = false;
+                this.player.vx = 0;
+                this.player.vy = 0;
+            }
+            this.mouseClicked = false;
+            if (this.keys) {
+                for (let k in this.keys) {
+                    this.keys[k] = false;
+                }
+            }
+        }
+
         if (this.gameState === 'TITLE') {
             const rect = this.canvas.getBoundingClientRect();
             const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
             const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+
+            // Click on options icon / key area at bottom left
+            if (my >= 360 && mx <= 160) {
+                this.togglePause();
+                return;
+            }
+
+            const menuObj = this.entities.find(ent => (typeof obj_mainmenu !== 'undefined' && ent instanceof obj_mainmenu) || ent.type === 'obj_mainmenu');
+            if (menuObj) {
+                if (menuObj.state === 'WAITING') {
+                    if (this.transitionState === 'NONE' && menuObj.waitCooldown <= 0) {
+                        menuObj.state = 'INTRO';
+                        menuObj.introFrame = 0;
+                        if (this.audio) this.audio.playFile('sfx_step', true);
+                    }
+                    return;
+                } else if (menuObj.state === 'INTRO') {
+                    return;
+                }
+            }
+
+            // Click navigation arrows or file select area at bottom
+            if (my >= 440 && my <= 530) {
+                if (mx < 360) {
+                    this.selectedSaveSlot = this.selectedSaveSlot === 1 ? 3 : (this.selectedSaveSlot - 1);
+                    if (this.audio) this.audio.playFile('sfx_step', true);
+                    return;
+                } else if (mx > 600) {
+                    this.selectedSaveSlot = this.selectedSaveSlot === 3 ? 1 : (this.selectedSaveSlot + 1);
+                    if (this.audio) this.audio.playFile('sfx_step', true);
+                    return;
+                } else {
+                    this.loadSaveSlot(this.selectedSaveSlot);
+                    return;
+                }
+            }
 
             let clickedSlot = 0;
             if (mx < 340) clickedSlot = 1;
@@ -5458,6 +5700,7 @@ this.entities.push(
 
     getDefaultRoomList() {
         return [
+            'mainmenu',
             'demo_hub',
             'tutorial_1',
             'tutorial_2',
@@ -5608,7 +5851,7 @@ this.entities.push(
         this.warmPreloadedRooms(roomsToPreload);
 
         try {
-            await this.loadRoom('demo_hub');
+            await this.loadRoom('mainmenu');
         } finally {
             this.bootRoomLoaded = true;
         }
@@ -5618,6 +5861,20 @@ this.entities.push(
         if (roomName === 'rank') roomName = 'rm_rank';
         if (!targetDoorId) targetDoorId = 'A'; // Override null to 'A'
         this.lastTargetDoorId = targetDoorId;
+
+        if (roomName === 'mainmenu') {
+            this.gameState = 'TITLE';
+            this.escape = false;
+            if (this.audio) this.audio.resetMusic();
+            if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+            this.camera.x = 0;
+            this.camera.y = 0;
+            if (this.player) {
+                this.player.visible = false;
+                this.player.vx = 0;
+                this.player.vy = 0;
+            }
+        }
 
         // Record destroyed/killed entities of current room before switching
         if (this.persistentDestruction && !this.isEditorMode && this.entities && this.destroyedEntityIds) {
@@ -6124,6 +6381,19 @@ this.entities.push(
                 }
                 
                 this.currentRoom = roomName;
+                if (roomName === 'mainmenu') {
+                    this.gameState = 'TITLE';
+                    this.escape = false;
+                    if (this.audio) this.audio.resetMusic();
+                    if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+                    this.camera.x = 0;
+                    this.camera.y = 0;
+                    if (this.player) {
+                        this.player.visible = false;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                    }
+                }
                 this.updateSaveProgress();
                 resolve();
             };
@@ -6282,10 +6552,10 @@ this.entities.push(
     }
 
     enterLevelGate(gate) {
-        // Record Hub coordinates and room as requested by user
+        // Record Hub coordinates and room
         this.hubX = this.player.x;
         this.hubY = this.player.y;
-        this.hub_room = this.currentRoom;
+        this.hub_room = (this.currentRoom && this.currentRoom !== 'mainmenu') ? this.currentRoom : 'demo_hub';
         this.restart_room = gate.targetRoom;
         const gateScore = (gate && gate.sRankScore) ? gate.sRankScore : 10000;
         this.stageSRankScore = gateScore;
@@ -6666,13 +6936,16 @@ this.entities.push(
 
     exitLevelToHubOrTitle() {
         this.escape = false;
-        if (this.audio) this.audio.resetMusic();
+        if (this.audio && typeof this.audio.resetMusic === 'function') this.audio.resetMusic();
         this.updateSaveProgress();
         this.stageSRankScore = null;
         this.sRankScore = 10000;
         this.resetScoreAndToppins();
 
-        if (this.hub_room) {
+        const isHub = (this.currentRoom === 'demo_hub' || this.currentRoom === 'hub' || this.currentRoom === 'hub_room' || this.currentRoom === this.hub_room);
+
+        if (!isHub && this.hub_room && this.hub_room !== 'mainmenu') {
+            // First exit: Inside a level -> exit to the hub room (demo_hub)
             const destRoom = this.hub_room;
             const hx = this.hubX;
             const hy = this.hubY;
@@ -6709,8 +6982,11 @@ this.entities.push(
                 if (this.uiOverlay) this.uiOverlay.style.display = 'block';
             });
         } else {
-            this.gameState = 'TITLE';
-            if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+            // Second exit: Already in the hub room (or no hub) -> exit to mainmenu!
+            this.loadRoom('mainmenu').then(() => {
+                this.gameState = 'TITLE';
+                if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+            });
         }
     }
 
@@ -7185,6 +7461,7 @@ this.entities.push(
                         this.introVideo.muted = true;
                         this.introVideo.play().catch(e2 => {
                             this.gameState = 'TITLE';
+                            if (this.currentRoom !== 'mainmenu') this.loadRoom('mainmenu');
                         });
                     });
                 }
@@ -7200,6 +7477,7 @@ this.entities.push(
         if (this.gameState === 'LOGO') {
             if (this.introVideo.ended || this.introVideo.error) {
                 this.gameState = 'TITLE';
+                if (this.currentRoom !== 'mainmenu') this.loadRoom('mainmenu');
                 this.introSkipPrompt = false;
             }
             
@@ -7219,6 +7497,7 @@ this.entities.push(
                 } else {
                     this.introVideo.pause();
                     this.gameState = 'TITLE';
+                    if (this.currentRoom !== 'mainmenu') this.loadRoom('mainmenu');
                     this.introSkipPrompt = false;
                     this.keys['z'] = false; // Prevent auto-starting the game
                     this.keys['Z'] = false;
@@ -7229,6 +7508,26 @@ this.entities.push(
             return;
         }
 
+        if (this.currentRoom === 'mainmenu' && this.gameState !== 'TITLE' && this.gameState !== 'OPTIONS') {
+            this.gameState = 'TITLE';
+            this.escape = false;
+            if (this.audio) this.audio.resetMusic();
+            if (this.uiOverlay) this.uiOverlay.style.display = 'none';
+            this.camera.x = 0;
+            this.camera.y = 0;
+            if (this.player) {
+                this.player.visible = false;
+                this.player.vx = 0;
+                this.player.vy = 0;
+            }
+            this.mouseClicked = false;
+            if (this.keys) {
+                for (let k in this.keys) {
+                    this.keys[k] = false;
+                }
+            }
+        }
+
         if (this.gameState === 'TITLE') {
             if (this.uiOverlay && this.uiOverlay.style.display !== 'none') {
                 this.uiOverlay.style.display = 'none';
@@ -7236,11 +7535,50 @@ this.entities.push(
 
             if (this.deleteToastTimer > 0) this.deleteToastTimer--;
 
-            // Left / Right / Up / Down to switch save slots
-            const isLeft = (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A'] || this.isActionPressed('left') || this.isActionPressed('menu_left') ||
-                            this.keys['ArrowUp'] || this.keys['w'] || this.keys['W'] || this.isActionPressed('up') || this.isActionPressed('menu_up'));
-            const isRight = (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D'] || this.isActionPressed('right') || this.isActionPressed('menu_right') ||
-                             this.keys['ArrowDown'] || this.keys['s'] || this.keys['S'] || this.isActionPressed('down') || this.isActionPressed('menu_down'));
+            // Pause key in TITLE: Go to OPTIONS menu
+            const isPause = (this.isActionPressed('pause') || this.keys['Escape']);
+            if (isPause && !this.prevPauseKey && !this.prevTitlePause) {
+                this.togglePause();
+                this.prevTitlePause = true;
+                this.prevPauseKey = true;
+                this.prevMenuBackKey = true;
+                return;
+            }
+            this.prevTitlePause = isPause;
+            this.prevPauseKey = isPause;
+            this.prevMenuBackKey = isPause;
+
+            // Ensure obj_mainmenu exists in mainmenu room
+            let menuObj = this.entities.find(e => (typeof obj_mainmenu !== 'undefined' && e instanceof obj_mainmenu) || e.type === 'obj_mainmenu');
+            if (!menuObj && this.currentRoom === 'mainmenu' && typeof obj_mainmenu !== 'undefined') {
+                menuObj = new obj_mainmenu(0, 0);
+                this.entities.push(menuObj);
+            }
+
+            if (menuObj) {
+                menuObj.update(this);
+                if (menuObj.state !== 'FILE_SELECT') {
+                    this.fileSelectDisplayPercent = 0;
+                    return;
+                }
+            }
+
+            // Smoothly roll file selection progress percentage (e.g. 0 -> 1 -> 2 ... -> 100)
+            const currentData = this.getSaveSlotData(this.selectedSaveSlot);
+            const targetPct = (currentData && currentData.percentage !== undefined) ? currentData.percentage : 0;
+            if (this.fileSelectDisplayPercent === undefined || this.fileSelectDisplayPercent === null) {
+                this.fileSelectDisplayPercent = targetPct;
+            } else if (this.fileSelectDisplayPercent < targetPct) {
+                this.fileSelectDisplayPercent = Math.min(targetPct, this.fileSelectDisplayPercent + 1);
+            } else if (this.fileSelectDisplayPercent > targetPct) {
+                this.fileSelectDisplayPercent = Math.max(targetPct, this.fileSelectDisplayPercent - 1);
+            }
+
+            // Left / Right / Up / Down to switch save slots using menu keys
+            const isLeft = (this.isActionPressed('menu_left') || this.isActionPressed('menu_up') ||
+                            this.keys['ArrowLeft'] || this.keys['ArrowUp'] || this.keys['a'] || this.keys['A'] || this.keys['w'] || this.keys['W']);
+            const isRight = (this.isActionPressed('menu_right') || this.isActionPressed('menu_down') ||
+                             this.keys['ArrowRight'] || this.keys['ArrowDown'] || this.keys['d'] || this.keys['D'] || this.keys['s'] || this.keys['S']);
             
             if (isLeft && !this.prevTitleLeft) {
                 this.selectedSaveSlot = this.selectedSaveSlot === 1 ? 3 : (this.selectedSaveSlot - 1);
@@ -7253,21 +7591,22 @@ this.entities.push(
             this.prevTitleLeft = isLeft;
             this.prevTitleRight = isRight;
 
-            // Delete key: C
-            const isDelete = (this.keys['c'] || this.keys['C'] || this.isActionPressed('menu_clear'));
+            // Delete key: MENU CLEAR (or C, Delete, Del)
+            const isDelete = (this.isActionPressed('menu_clear') || this.keys['c'] || this.keys['C'] || this.keys['Delete'] || this.keys['Del']);
             if (isDelete && !this.prevTitleDelete) {
                 this.deleteSaveSlot(this.selectedSaveSlot);
             }
             this.prevTitleDelete = isDelete;
 
-            // Confirm / Start key: Z, Enter, Space
-            const isConfirm = this.keys['z'] || this.keys['Z'] || this.keys['Enter'] || this.keys['Space'] || this.isActionPressed('jump') || this.isActionPressed('menu_confirm');
+            // Confirm / Start key: MENU CONFIRM (or Z, Enter, Space)
+            const isConfirm = (this.isActionPressed('menu_confirm') || this.keys['z'] || this.keys['Z'] || this.keys['Enter'] || this.keys['Space'] || this.keys[' ']);
             if (isConfirm && !this.prevTitleConfirm) {
                 this.loadSaveSlot(this.selectedSaveSlot);
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
                 this.keys['Enter'] = false;
                 this.keys['Space'] = false;
+                this.keys[' '] = false;
             }
             this.prevTitleConfirm = isConfirm;
 
@@ -7296,11 +7635,19 @@ this.entities.push(
                         this.pauseMenuLevel = 'MAIN';
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
-                    if ((this.isActionPressed('menu_back') || this.keys['Escape']) && !this.prevMenuBackKey) {
+                    if ((this.isActionPressed('menu_back') || this.isActionPressed('pause') || this.keys['Escape']) && !this.prevMenuBackKey && !this.prevPauseKey) {
                         if (this.player && this.player.paletteManager) this.player.paletteManager.setPalette(this.appliedPalette);
                         this.pauseMenuLevel = 'MAIN';
+                        this.prevMenuBackKey = true;
+                        this.prevPauseKey = true;
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
+                } else {
+                if ((this.isActionPressed('menu_back') || this.isActionPressed('pause') || this.keys['Escape']) && !this.prevMenuBackKey && !this.prevPauseKey) {
+                    this.togglePause();
+                    this.prevMenuBackKey = true;
+                    this.prevPauseKey = true;
+                    return;
                 } else {
                 if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
                     this.pauseMenuIndex = (this.pauseMenuIndex - 1 + this.pauseMenuOptions.length) % this.pauseMenuOptions.length;
@@ -7325,11 +7672,14 @@ this.entities.push(
                         }
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     } else if (sel === 'OPTIONS') {
+                        this.optionsReturnState = 'PAUSED';
                         this.gameState = 'OPTIONS';
                         this.cameraShake = 0;
                         if (this.player) this.player.requestScreenShake = 0;
                         this.optionsMenuIndex = 0;
                         this.optionsMenuLevel = 'MAIN';
+                        this.prevMenuBackKey = true;
+                        this.prevPauseKey = true;
                         document.getElementById('options-overlay').style.display = 'none'; // just in case
                     } else if (sel === 'RESTART') {
                         this.togglePause();
@@ -7339,6 +7689,7 @@ this.entities.push(
                         this.exitLevelToHubOrTitle();
                     }
                 }
+                } // end else not menu_back
                 } // end else MAIN
                 
                 this.prevKeysUp = this.isActionPressed('menu_up');
@@ -7346,7 +7697,9 @@ this.entities.push(
                 this.prevKeysZ = this.isActionPressed('menu_confirm');
                 this.prevKeysLeft = this.isActionPressed('menu_left');
                 this.prevKeysRight = this.isActionPressed('menu_right');
-                this.prevMenuBackKey = this.isActionPressed('menu_back') || this.keys['Escape'];
+                this.prevMenuBackKey = this.isActionPressed('menu_back') || this.isActionPressed('pause') || this.keys['Escape'];
+                this.prevPauseKey = this.prevMenuBackKey;
+                this.prevTitlePause = this.prevMenuBackKey;
 
                 // Update bubbles
                 if (this.pauseBubbles) {
@@ -7423,8 +7776,14 @@ this.entities.push(
                 
                 if (this.keys['ArrowLeft']) {
                     // Continuous sliders (change by 1 every frame while held)
-                    if (sel === 'MASTER') this.settings.masterVolume = Math.max(0, this.settings.masterVolume - 1);
-                    if (sel === 'MUSIC') this.settings.musicVolume = Math.max(0, this.settings.musicVolume - 1);
+                    if (sel === 'MASTER') {
+                        this.settings.masterVolume = Math.max(0, this.settings.masterVolume - 1);
+                        if (this.audio && this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+                    }
+                    if (sel === 'MUSIC') {
+                        this.settings.musicVolume = Math.max(0, this.settings.musicVolume - 1);
+                        if (this.audio && this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+                    }
                     if (sel === 'SFX') this.settings.sfxVolume = Math.max(0, this.settings.sfxVolume - 1);
                     if (sel === 'SHAKE INTENS') {
                         this.settings.shakeIntens = Math.max(0, this.settings.shakeIntens - 1);
@@ -7459,8 +7818,14 @@ this.entities.push(
                 
                 if (this.keys['ArrowRight']) {
                     // Continuous sliders (change by 1 every frame while held)
-                    if (sel === 'MASTER') this.settings.masterVolume = Math.min(100, this.settings.masterVolume + 1);
-                    if (sel === 'MUSIC') this.settings.musicVolume = Math.min(100, this.settings.musicVolume + 1);
+                    if (sel === 'MASTER') {
+                        this.settings.masterVolume = Math.min(100, this.settings.masterVolume + 1);
+                        if (this.audio && this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+                    }
+                    if (sel === 'MUSIC') {
+                        this.settings.musicVolume = Math.min(100, this.settings.musicVolume + 1);
+                        if (this.audio && this.audio.updateMusicVolume) this.audio.updateMusicVolume();
+                    }
                     if (sel === 'SFX') this.settings.sfxVolume = Math.min(100, this.settings.sfxVolume + 1);
                     if (sel === 'SHAKE INTENS') {
                         this.settings.shakeIntens = Math.min(100, this.settings.shakeIntens + 1);
@@ -7497,33 +7862,33 @@ this.entities.push(
                 }
 
 
-                if (this.optionsMenuLevel === 'BINDINGS' && currentOptions[this.optionsMenuIndex] !== 'BACK') {
-                    if (this.keys['1'] && !this.prevKeys1) {
-                        this.settings.bindings = {
-                            left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
-                            jump: 'z', run: 'Shift', grab: 'x', dash: 'Shift', superjump: 'ArrowUp',
-                            groundpound: 'ArrowDown', taunt: 'c', pause: 'Escape', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
-                            menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'c'
-                        };
+                if (this.optionsMenuLevel === 'BINDINGS') {
+                    // Reset binds with 1 key anywhere in BINDINGS menu (including BACK)
+                    const isResetBinds = (this.keys['1'] || this.keys['Digit1'] || this.keys['Numpad1']);
+                    if (isResetBinds && !this.prevKeys1) {
+                        this.resetBindings();
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     }
-                    if (this.isActionPressed('menu_clear') && !this.prevKeysC) {
-                        let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
-                        if (this.optionsMenuCol === 1) {
-                            if (!this.settings.bindings_2) this.settings.bindings_2 = {};
-                            this.settings.bindings_2[optStr] = '';
-                        } else {
-                            this.settings.bindings[optStr] = '';
+                    if (currentOptions[this.optionsMenuIndex] !== 'BACK') {
+                        if (this.isActionPressed('menu_clear') && !this.prevKeysC) {
+                            let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
+                            if (this.optionsMenuCol === 1) {
+                                if (!this.settings.bindings_2) this.settings.bindings_2 = {};
+                                this.settings.bindings_2[optStr] = '';
+                            } else {
+                                this.settings.bindings[optStr] = '';
+                            }
+                            this.saveSettings();
+                            if (this.audio) this.audio.playFile('sfx_step', true);
                         }
-                        if (this.audio) this.audio.playFile('sfx_step', true);
-                    }
-                    if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
-                        let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
-                        this.bindingKeyFor = optStr;
-                        this.bindingColFor = this.optionsMenuCol || 0;
-                        this.bindingTimeout = 3;
-                        this.bindingLastTime = performance.now();
-                        if (this.audio) this.audio.playFile('sfx_step', true);
+                        if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
+                            let optStr = currentOptions[this.optionsMenuIndex].toLowerCase().replace(' ', '_');
+                            this.bindingKeyFor = optStr;
+                            this.bindingColFor = this.optionsMenuCol || 0;
+                            this.bindingTimeout = 3;
+                            this.bindingLastTime = performance.now();
+                            if (this.audio) this.audio.playFile('sfx_step', true);
+                        }
                     }
                 } else if (this.isActionPressed('menu_confirm') && !this.prevKeysZ) {
                     if (this.optionsMenuLevel === 'MAIN') {
@@ -7556,14 +7921,8 @@ this.entities.push(
                         }
                         if (this.audio) this.audio.playFile('sfx_step', true);
                     } else if (this.optionsMenuLevel === 'CONTROLS' && currentOptions[this.optionsMenuIndex] === 'RESET CONFIG') {
-                        // Reset Keyboard Bindings
-                        this.settings.bindings = {
-                            left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
-                            jump: 'z', run: 'Shift', grab: 'x', dash: 'Shift', superjump: 'ArrowUp',
-                            groundpound: 'ArrowDown', taunt: 'c', pause: 'Escape', menu_left: 'ArrowLeft', menu_right: 'ArrowRight',
-                            menu_up: 'ArrowUp', menu_down: 'ArrowDown', menu_confirm: 'z', menu_back: 'x', menu_clear: 'Delete'
-                        };
-                        this.saveSettings();
+                        // Reset Keyboard Bindings to full defaults
+                        this.resetBindings();
                         
                         // Reset Mobile Layout
                         localStorage.removeItem('mobileLayout');
@@ -7645,7 +8004,7 @@ this.entities.push(
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
 
-                const isBackPress = (this.isActionPressed('menu_back') || this.keys['Escape']) && !this.prevMenuBackKey;
+                const isBackPress = (this.isActionPressed('menu_back') || this.isActionPressed('pause') || this.keys['Escape']) && !this.prevMenuBackKey && !this.prevPauseKey;
                 
                 if (isBackPress && !this.bindingKeyFor) {
                     this.saveSettings();
@@ -7664,10 +8023,23 @@ this.entities.push(
                             this.optionsMenuLevel = 'MAIN';
                             this.optionsMenuIndex = 0;
                         }
+                        this.prevMenuBackKey = true;
+                        this.prevPauseKey = true;
                     } else {
-                        // In MAIN, go back to PAUSED
-                        this.gameState = 'PAUSED';
+                        // In MAIN, go back to previous state (TITLE or PAUSED)
+                        const returnState = this.optionsReturnState || 'PAUSED';
+                        this.gameState = returnState;
                         this.optionsMenuIndex = 0;
+                        this.prevPauseKey = true;
+                        this.prevTitlePause = true;
+                        this.prevMenuBackKey = true;
+                        if (returnState === 'TITLE') {
+                            this.optionsReturnState = null;
+                            if (this.audio) {
+                                this.audio.resumeAll();
+                                this.audio.playFile('sfx_step', true);
+                            }
+                        }
                     }
                     if (this.audio) this.audio.playFile('sfx_step', true);
                 }
@@ -7678,10 +8050,12 @@ this.entities.push(
                 this.prevKeysRight = this.isActionPressed('menu_right');
                 this.prevKeysEsc = this.keys['Escape'];
                 this.prevKeysZ = this.isActionPressed('menu_confirm');
-                this.prevKeys1 = this.keys['1'];
+                this.prevKeys1 = !!(this.keys['1'] || this.keys['Digit1'] || this.keys['Numpad1']);
                 this.prevKeysC = this.isActionPressed('menu_clear');
                 
-                this.prevMenuBackKey = this.isActionPressed('menu_back') || this.keys['Escape'];
+                this.prevMenuBackKey = this.isActionPressed('menu_back') || this.isActionPressed('pause') || this.keys['Escape'];
+                this.prevPauseKey = this.prevMenuBackKey;
+                this.prevTitlePause = this.prevMenuBackKey;
             }
             return;
         }
@@ -7741,19 +8115,6 @@ this.entities.push(
             }
         }
 
-        if (this.gameState === 'TITLE') {
-            if (this.uiOverlay && this.uiOverlay.style.display !== 'none') {
-                this.uiOverlay.style.display = 'none';
-            }
-            if (this.keys['z'] || this.keys['Z']) {
-                this.gameState = 'PLAYING';
-                if (this.uiOverlay) this.uiOverlay.style.display = 'block';
-                this.keys['z'] = false;
-                this.keys['Z'] = false;
-            }
-            return;
-        }
-
         if (this.gameState === 'ONLINE_MENU') {
             const opts = this.onlineMenuOptions[this.onlineMenuLevel];
             if (this.isActionPressed('menu_up') && !this.prevKeysUp) {
@@ -7803,12 +8164,41 @@ this.entities.push(
                 }
                 if (this.audio) this.audio.playFile('sfx_step', true);
             }
+            if ((this.isActionPressed('menu_back') || this.isActionPressed('pause') || this.keys['Escape']) && !this.prevMenuBackKey && !this.prevPauseKey) {
+                if (this.onlineMenuLevel === 'CREATE' || this.onlineMenuLevel === 'JOIN') {
+                    this.onlineMenuLevel = 'MAIN';
+                    this.onlineMenuIndex = 0;
+                    this.prevMenuBackKey = true;
+                    this.prevPauseKey = true;
+                } else {
+                    this.toggleOnlineMenu();
+                    this.prevMenuBackKey = true;
+                    this.prevPauseKey = true;
+                }
+                if (this.audio) this.audio.playFile('sfx_step', true);
+            }
             this.prevKeysUp = this.isActionPressed('menu_up');
             this.prevKeysDown = this.isActionPressed('menu_down');
             this.prevKeysZ = this.isActionPressed('menu_confirm');
+            this.prevMenuBackKey = this.isActionPressed('menu_back') || this.isActionPressed('pause') || this.keys['Escape'];
+            this.prevPauseKey = this.prevMenuBackKey;
             return;
         }
 
+        if (this.gameState === 'PLAYING') {
+            const isPause = (this.isActionPressed('pause') || this.keys['Escape']);
+            if (isPause && !this.prevPauseKey) {
+                if (this.transitionState === 'NONE') {
+                    this.togglePause();
+                    this.prevPauseKey = true;
+                    this.prevMenuBackKey = true;
+                    this.prevTitlePause = true;
+                    return;
+                }
+            }
+            this.prevPauseKey = isPause;
+            this.prevTitlePause = isPause;
+        }
 
         if (this.gameState === 'PAUSED' || this.gameState === 'OPTIONS' || this.gameState === 'ONLINE_MENU' || this.transitionState === 'LOADING_ROOM') {
             return;
@@ -8668,6 +9058,7 @@ this.entities.push(
         // 2.5. Objects & Platforms (Platforms, slopes, enemies, doors, etc.)
         for (let i = 0; i < nonTiles.length; i++) {
             const e = nonTiles[i];
+            if (e.type === 'obj_mainmenu') continue;
             if (e.type !== 'hallway' && e.type !== 'hallwayvertical' && e.type !== 'obj_debris' && e.type !== 'obj_splatter') {
                 if (this.tileWave && (e.type === 'door' || e instanceof Door || e.type === 'obj_cutoff' || e.type === 'obj_cutoffsmall' || e.type === 'cutoff' || e.isCutoff || (typeof Cutoff !== 'undefined' && e instanceof Cutoff))) continue;
                 if (!this.showCollisions && !this.isEditorMode && this.isCollisionEntity(e)) continue;
@@ -8729,7 +9120,7 @@ this.entities.push(
             }
         }
 
-        if (this.player.visible !== false) this.player.render(this.ctx);
+        if (this.gameState !== 'TITLE' && this.player && this.player.visible !== false) this.player.render(this.ctx);
 
         // Render held enemy in front of player
         if (this.player && this.player.isHoldingEnemy && this.player.heldEnemy && typeof this.player.heldEnemy.render === 'function') {
@@ -9450,8 +9841,9 @@ this.entities.push(
                 const isSelected = i === this.optionsMenuIndex;
                 
                 if (this.optionsMenuLevel === 'BINDINGS') {
+                    const instructX = 70;
                     if (opt === 'BACK') {
-                        drawText(this.getMenuLabel('BACK'), startX - 350, startY - 100, 1, isSelected ? 1 : 0.5, false);
+                        drawText(this.getMenuLabel('BACK'), instructX, startY - 100, 1, isSelected ? 1 : 0.5, false);
                         if (i === 0) {
                             const drawInstruction = (keyChar, textStr, x, y) => {
                                 if (this.tutorialBlankKeyLoaded) {
@@ -9472,20 +9864,20 @@ this.entities.push(
                                         this.ctx.fillText(keyChar, x + bImg.width/2, y - 4);
                                     }
                                 } else {
-                                    drawText(keyChar, x, y, 0.8, 1, false);
+                                    drawText(keyChar, x, y, 0.7, 1, false);
                                 }
-                                drawText(this.getMenuLabel(textStr), x + 50, y, 0.8, 1, false);
+                                drawText(this.getMenuLabel(textStr), x + 44, y, 0.7, 1, false);
                             };
-                            drawInstruction('1', 'RESET BINDS', startX - 350, this.canvas.height - 180);
-                            drawInstruction('Z', 'ADD BIND', startX - 350, this.canvas.height - 130);
-                            drawInstruction('C', 'CLEAR BINDS', startX - 350, this.canvas.height - 80);
+                            drawInstruction('1', 'RESET BINDS', instructX, this.canvas.height - 150);
+                            drawInstruction('Z', 'ADD BIND', instructX, this.canvas.height - 105);
+                            drawInstruction('C', 'CLEAR BINDS', instructX, this.canvas.height - 60);
                         }
                         continue;
                     }
 
                     y -= this.bindingsScrollY;
                     let optStr = opt.toLowerCase().replace(' ', '_');
-                    let drawCenter = startX - 50;
+                    let drawCenter = startX + 40;
                     
                     if (this.controlIcons && this.controlIcons[optStr] && this.controlIcons[optStr].complete && this.controlIcons[optStr].naturalWidth > 0) {
                         this.ctx.globalAlpha = isSelected ? 1 : 0.5;
@@ -9496,7 +9888,7 @@ this.entities.push(
                         drawText(this.getMenuLabel(opt), drawCenter, y, 1, isSelected ? 1 : 0.5, true);
                     }
 
-                                        const renderBoundKey = (boundKeyVal, isBindingThis, colIndex) => {
+                    const renderBoundKey = (boundKeyVal, isBindingThis, colIndex) => {
                         if (boundKeyVal || isBindingThis) {
                             let displayKey = isBindingThis ? '' : boundKeyVal;
                             if (displayKey.startsWith('Arrow')) {
@@ -9505,7 +9897,7 @@ this.entities.push(
                             } else if (displayKey === ' ') displayKey = 'SPACE';
                             else displayKey = displayKey.toUpperCase();
                             
-                            let tX = drawCenter + 150 + (colIndex * 40);
+                            let tX = drawCenter + 160 + (colIndex * 44);
                             let tY = y - 6;
                             this.ctx.globalAlpha = (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4;
 
@@ -9552,7 +9944,7 @@ this.entities.push(
                             }
                             this.ctx.globalAlpha = 1;
                         } else {
-                            let tX = drawCenter + 150 + (colIndex * 40);
+                            let tX = drawCenter + 160 + (colIndex * 44);
                             drawText(`[---]`, tX, y, 0.8, (isSelected && this.optionsMenuCol === colIndex) ? 1 : 0.4, false);
                         }
                     };
@@ -10118,7 +10510,7 @@ this.entities.push(
 
 
 
-        if (this.gameState === 'TITLE') {
+        if (this.gameState === 'TITLE' || this.currentRoom === 'mainmenu') {
             this.renderTitleScreen();
         }
 
@@ -11225,6 +11617,11 @@ this.entities.push(
                 const door = (args[1] || 'A').toUpperCase();
                 if (!room) return 'Usage: room_goto <room> [door]';
                 game.loadRoom(room, door).then(() => {
+                    if (room !== 'mainmenu') {
+                        game.gameState = 'PLAYING';
+                        if (game.uiOverlay) game.uiOverlay.style.display = 'block';
+                        if (game.player) game.player.visible = true;
+                    }
                     game.logDebugConsole(`Loaded room: ${room} (Door ${door})`);
                 }).catch(err => {
                     game.logDebugConsole(`Error loading room: ${err.message}`);
@@ -12297,44 +12694,132 @@ this.entities.push(
     }
 
     renderTitleScreen() {
-        // Pure blank black background
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        const menuObj = this.entities.find(e => (typeof obj_mainmenu !== 'undefined' && e instanceof obj_mainmenu) || e.type === 'obj_mainmenu');
+        const showFileSelect = !menuObj || menuObj.state === 'FILE_SELECT';
 
-        const slotXPositions = [200, 480, 760];
-        const bounce = Math.sin(Date.now() / 180) * 4;
-
-        // Render File 1, File 2, File 3 in credits font
-        for (let i = 1; i <= 3; i++) {
-            const sx = slotXPositions[i - 1];
-            const isSelected = (this.selectedSaveSlot === i);
-            const data = this.getSaveSlotData(i);
-            const pct = data.percentage || 0;
-
-            const scale = isSelected ? 1.25 : 0.95;
-            const alpha = isSelected ? 1.0 : 0.4;
-            const yOffset = isSelected ? bounce : 0;
-
-            this.ctx.save();
-            this.ctx.globalAlpha = alpha;
-
-            // "File 1", "File 2", "File 3" in credits font
-            const fileText = `File ${i}`;
-            this.drawCreditsText(this.ctx, fileText, sx, 230 + yOffset, true, scale);
-
-            // Progress percentage in credits font
-            const pctText = `${pct}%`;
-            this.drawCreditsText(this.ctx, pctText, sx, 285 + yOffset, true, scale * 0.9);
-
-            this.ctx.restore();
+        if (menuObj) {
+            menuObj.render(this.ctx, this);
         }
 
-        // Deleted notification in credits font if active
-        if (this.deleteToastTimer > 0) {
+        if (showFileSelect) {
+            // 1. Game progress percentage in spr_percentfont under the logo (center top, smooth rolling counter)
+            const currentData = this.getSaveSlotData(this.selectedSaveSlot);
+            const targetPct = (currentData && currentData.percentage !== undefined) ? currentData.percentage : 0;
+            if (this.fileSelectDisplayPercent === undefined || this.fileSelectDisplayPercent === null) {
+                this.fileSelectDisplayPercent = targetPct;
+            }
+            const pct = Math.round(this.fileSelectDisplayPercent);
+            const pctText = `${pct}%`;
+            this.drawPercentText(this.ctx, pctText, 475, 162, true, 1.0);
+
+            // 2. Selected Save File Title at bottom center (static baseline, no navigation arrows)
+            const slotTitle = `SAVE FILE ${this.selectedSaveSlot}`;
+            this.drawCreditsText(this.ctx, slotTitle, this.canvas.width / 2, 485, true, 1.0);
+
+            // 3. Erase file graphic (spr_mainmenu_erase.png) on bottom right & menu_clear key display
+            const eraseImg = this.mainMenuEraseImg;
+            if (eraseImg && (eraseImg.complete || eraseImg.loaded) && eraseImg.naturalWidth > 0) {
+                this.ctx.drawImage(eraseImg, 0, 0, this.canvas.width, this.canvas.height);
+            } else {
+                this.ctx.save();
+                this.ctx.globalAlpha = 0.75;
+                this.drawCreditsText(this.ctx, "ERASE FILE", 892, 465, true, 0.6);
+                this.ctx.restore();
+            }
+
+            // Draw menu_clear key underneath the erase graphic (matching [ESC] style on left)
+            let clearKeyName = 'C';
+            if (this.settings && this.settings.bindings && this.settings.bindings.menu_clear) {
+                const rawKey = this.settings.bindings.menu_clear;
+                if (rawKey.startsWith('Arrow')) {
+                    const arr = { 'ArrowUp': 'UP', 'ArrowDown': 'DOWN', 'ArrowLeft': 'LEFT', 'ArrowRight': 'RIGHT' };
+                    clearKeyName = arr[rawKey] || rawKey.replace('Arrow', '').toUpperCase();
+                } else if (rawKey === ' ' || rawKey === 'Space') {
+                    clearKeyName = 'SPACE';
+                } else {
+                    clearKeyName = rawKey.toUpperCase();
+                }
+            }
+
+            const eraseCenterX = 892;
+            const eraseKeyY = 496;
             this.ctx.save();
-            const alpha = Math.min(1.0, this.deleteToastTimer / 20);
-            this.ctx.globalAlpha = alpha;
-            this.drawCreditsText(this.ctx, "DELETED", this.canvas.width / 2, 420, true, 1.0);
+            const specialClearImg = this.getKeyImage(clearKeyName);
+            if (specialClearImg && specialClearImg.loaded && !specialClearImg.error) {
+                const kw = specialClearImg.width || 32;
+                this.ctx.drawImage(specialClearImg, eraseCenterX - kw / 2, eraseKeyY);
+            } else if (this.tutorialBlankKeyLoaded && this.tutorialBlankKeyImage && this.tutorialBlankKeyImage.width > 0) {
+                const bImg = this.tutorialBlankKeyImage;
+                const kw = bImg.width || 32;
+                this.ctx.drawImage(bImg, eraseCenterX - kw / 2, eraseKeyY);
+
+                const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
+                let textW = 0;
+                for (let k = 0; k < clearKeyName.length; k++) {
+                    const charIdx = charset.indexOf(clearKeyName[k]);
+                    if (clearKeyName[k] === ' ') textW += 16;
+                    else if (charIdx !== -1 && this.tutorialFontImages && this.tutorialFontImages[charIdx]) {
+                        textW += (this.tutorialFontImages[charIdx].width - 4);
+                    } else textW += 14;
+                }
+                let kx = eraseCenterX - textW / 2;
+                let ky = eraseKeyY - 8;
+                for (let k = 0; k < clearKeyName.length; k++) {
+                    const c = clearKeyName[k];
+                    if (c === ' ') { kx += 16; continue; }
+                    const charIdx = charset.indexOf(c);
+                    if (charIdx !== -1 && this.tutorialFontImages && this.tutorialFontImages[charIdx]) {
+                        this.ctx.drawImage(this.tutorialFontImages[charIdx], kx, ky);
+                        kx += this.tutorialFontImages[charIdx].width - 4;
+                    }
+                }
+            } else {
+                this.drawCreditsText(this.ctx, `[${clearKeyName}]`, eraseCenterX, eraseKeyY + 14, true, 0.7);
+            }
+            this.ctx.restore();
+
+            // Erasing hold indicator
+            if (this.deleteHoldTimer > 0) {
+                const holdProgress = Math.min(1.0, this.deleteHoldTimer / 60);
+                this.ctx.save();
+                this.drawCreditsText(this.ctx, `ERASING... ${Math.round(holdProgress * 100)}%`, this.canvas.width / 2, 430, true, 0.9);
+                this.ctx.restore();
+            }
+
+            // Deleted notification in credits font if active
+            if (this.deleteToastTimer > 0) {
+                this.ctx.save();
+                const alpha = Math.min(1.0, this.deleteToastTimer / 20);
+                this.ctx.globalAlpha = alpha;
+                this.drawCreditsText(this.ctx, "DELETED", this.canvas.width / 2, 420, true, 1.0);
+                this.ctx.restore();
+            }
+
+            // Render spr_mainmenu_option icon & OPTIONS key underneath (bottom left corner)
+            const optImg = this.mainMenuOptionImg;
+            const optScale = 0.7;
+            const optW = 173 * optScale;
+            const optH = 151 * optScale;
+            const optX = 30;
+            const optY = this.canvas.height - (optH + 6 + 32) - 20;
+            const centerX = optX + optW / 2;
+
+            this.ctx.save();
+            if (optImg && (optImg.complete || optImg.loaded) && optImg.naturalWidth > 0) {
+                this.ctx.drawImage(optImg, optX, optY, optW, optH);
+            } else {
+                this.drawCreditsText(this.ctx, "OPTIONS", centerX, optY + 40, true, 1.0);
+            }
+
+            // Draw OPTIONS key underneath the image
+            const keyY = optY + optH + 6;
+            const escImg = this.getKeyImage('ESC');
+            if (escImg && escImg.loaded && !escImg.error) {
+                const kw = escImg.width || 32;
+                this.ctx.drawImage(escImg, centerX - kw / 2, keyY);
+            } else {
+                this.drawCreditsText(this.ctx, "[ESC]", centerX, keyY + 16, true, 0.7);
+            }
             this.ctx.restore();
         }
     }

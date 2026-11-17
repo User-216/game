@@ -38,6 +38,8 @@ class AudioManager {
         this.currentMusicAudio = null;
         this.fadeIntervals = [];
         this.isPausedAll = false;
+        this.pauseMusic = new Audio('music/mu_pause.mp3');
+        this.pauseMusic.loop = true;
 
         // FMOD-style Escape Music Controller
         // Loop region: 1:10 (70.38s) ~ 1:40 (100.08s) (downbeats of Phrase 14 & 21)
@@ -58,6 +60,10 @@ class AudioManager {
             }
             // Do NOT unpause or play music if the game is paused!
             if (this.isPausedAll) {
+                if (this.pauseMusic && this.pauseMusic.paused) {
+                    this.pauseMusic.volume = this.getMusicVolume();
+                    this.pauseMusic.play().catch(() => {});
+                }
                 return;
             }
             if (this.currentMusicAudio && this.currentMusicName) {
@@ -97,6 +103,9 @@ class AudioManager {
         const vol = this.getMusicVolume();
         if (this.currentMusicAudio && !this.currentMusicAudio.isFading) {
             this.currentMusicAudio.volume = vol;
+        }
+        if (this.pauseMusic && !this.pauseMusic.paused) {
+            this.pauseMusic.volume = vol;
         }
     }
 
@@ -211,6 +220,7 @@ class AudioManager {
     }
 
     resetMusic() {
+        this.stopPauseMusic();
         this.escapeLoopEnabled = false;
         this.escapeJumpTriggered = false;
         this.fadeIntervals.forEach(interval => clearInterval(interval));
@@ -424,6 +434,25 @@ class AudioManager {
             audio.currentTime = 0; // reset to beginning
         }
     }
+    playPauseMusic() {
+        if (!this.pauseMusic) {
+            this.pauseMusic = new Audio('music/mu_pause.mp3');
+            this.pauseMusic.loop = true;
+        }
+        this.pauseMusic.volume = this.getMusicVolume();
+        this.pauseMusic.currentTime = 0;
+        this.pauseMusic.play().catch(e => {
+            console.log('Pause music play blocked:', e);
+        });
+    }
+
+    stopPauseMusic() {
+        if (this.pauseMusic) {
+            this.pauseMusic.pause();
+            this.pauseMusic.currentTime = 0;
+        }
+    }
+
     pauseAll() {
         this.isPausedAll = true;
         this.fadeIntervals.forEach(interval => clearInterval(interval));
@@ -454,10 +483,16 @@ class AudioManager {
             this.currentMusicAudio.wasPlaying = true;
             this.currentMusicAudio.pause();
         }
+
+        // Start relaxing pause music
+        this.playPauseMusic();
     }
 
     resumeAll() {
         this.isPausedAll = false;
+        // Stop pause music
+        this.stopPauseMusic();
+
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
         }

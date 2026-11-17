@@ -62,6 +62,14 @@ class BackgroundManager {
                 folder: 'backgrounds/bg_cidercity',
                 layerCount: 3,
                 speeds: [0.05, 0.15, 0.25]
+            },
+            'bg_mainmenu': {
+                name: 'bg_mainmenu',
+                displayName: '메인메뉴 배경 (bg_mainmenu)',
+                folder: 'backgrounds/bg_mainmenu',
+                layerCount: 1,
+                singleFile: 'bg_mainmenu.png',
+                speeds: [0]
             }
         };
 
@@ -70,6 +78,7 @@ class BackgroundManager {
         this.loadBackground('bg_cidersewer');
         this.loadBackground('bg_tutorial');
         this.loadBackground('bg_cidercity');
+        this.loadBackground('bg_mainmenu');
     }
 
     setBackground(bgName, followCameraRear = true, speedMultiplier = 1.0, secretMovement = false, waveEnabled = false, waveAmp = 8, waveSpeed = 1.0, moveY = false, speedMultiplierY = 1.0, autoSpeedY = 0.0, autoSpeedX = 0.0, tileY = true) {

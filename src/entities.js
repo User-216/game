@@ -6568,7 +6568,7 @@ class RankController extends Entity {
                         player.state = 'walkfront';
                         player.visible = true;
                     }
-                    const hubRoom = game.hub_room || 'demo_hub';
+                    const hubRoom = (game.hub_room && game.hub_room !== 'mainmenu') ? game.hub_room : 'demo_hub';
                     if (typeof game.resetScoreAndToppins === 'function') {
                         game.resetScoreAndToppins();
                     } else {
@@ -6691,7 +6691,160 @@ class RankController extends Entity {
     }
 }
 
+class obj_mainmenu extends Entity {
+    constructor(x = 0, y = 0) {
+        super(x, y, 960, 540);
+        this.type = 'obj_mainmenu';
+        this.isSolid = false;
+
+        // State machine:
+        // 'WAITING'     : Initial state. Background only is visible. Waits for any keypress.
+        // 'INTRO'       : Plays spr_mainmenu_intro_demo animation from frame 0 to 20.
+        // 'FILE_SELECT' : Intro completed. File 1, 2, 3 selection UI is active.
+        this.state = 'WAITING';
+        this.introFrame = 0;
+        this.introSpeed = 0.35;
+        this.introFinished = false;
+        this.waitCooldown = 15;
+        this.prevBack = false;
+        this.prevKeys = {};
+        this.prevGamepadState = {};
+
+        obj_mainmenu.loadIntroImages();
+    }
+
+    static loadIntroImages() {
+        if (obj_mainmenu.introImages && obj_mainmenu.introImages.length === 21) return;
+        obj_mainmenu.introImages = [];
+        for (let i = 0; i <= 20; i++) {
+            const img = new Image();
+            img.src = `spr_mainmenu_intro_demo/spr_mainmenu_intro1_${i}.png`;
+            obj_mainmenu.introImages.push(img);
+        }
+    }
+
+    snapshotKeys(game) {
+        if (!game) return;
+        if (game.keys) {
+            for (const k in game.keys) {
+                this.prevKeys[k] = !!game.keys[k];
+            }
+        }
+        if (game.gamepadState) {
+            this.prevGamepadState = Object.assign({}, game.gamepadState);
+        }
+    }
+
+    update(game) {
+        if (!game) return;
+
+        // Do not process input while room is transitioning or fading in
+        if (game.transitionState && game.transitionState !== 'NONE') {
+            this.snapshotKeys(game);
+            game.mouseClicked = false;
+            return;
+        }
+
+        if (this.waitCooldown > 0) {
+            this.waitCooldown--;
+            this.snapshotKeys(game);
+            game.mouseClicked = false;
+            return;
+        }
+
+        if (this.state === 'WAITING') {
+            // Edge-detected fresh key press
+            let freshKeyPressed = false;
+
+            if (game.keys) {
+                for (const k in game.keys) {
+                    if (game.keys[k]) {
+                        if (k.startsWith('action')) continue;
+                        if (k === 'Escape' || k === 'Esc') continue;
+                        const kPause1 = game.settings?.bindings?.pause;
+                        const kPause2 = game.settings?.bindings_2?.pause;
+                        if (k === kPause1 || k === kPause2) continue;
+                        if (k === '`' || k === '~' || k === 'Backquote') continue;
+                        if (/^F[0-9]+$/i.test(k)) continue;
+
+                        // Edge detection: only trigger if the key was NOT held in the previous frame
+                        if (!this.prevKeys[k]) {
+                            freshKeyPressed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (game.gamepadState) {
+                for (const btn in game.gamepadState) {
+                    if (game.gamepadState[btn] && !this.prevGamepadState[btn]) {
+                        if (btn !== 'pause' && btn !== 'bBack' && btn !== 'back') {
+                            freshKeyPressed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (game.mouseClicked) {
+                freshKeyPressed = true;
+                game.mouseClicked = false;
+            }
+
+            this.snapshotKeys(game);
+
+            if (freshKeyPressed) {
+                this.state = 'INTRO';
+                this.introFrame = 0;
+                if (game.audio) game.audio.playFile('sfx_step', true);
+                if (game.keys) {
+                    for (const k in game.keys) game.keys[k] = false;
+                }
+                game.mouseClicked = false;
+            }
+        } else if (this.state === 'INTRO') {
+            this.introFrame += this.introSpeed;
+
+            if (this.introFrame >= 20) {
+                this.introFrame = 20;
+                this.introFinished = true;
+                this.state = 'FILE_SELECT';
+                if (game.keys) {
+                    game.keys['z'] = false;
+                    game.keys['Z'] = false;
+                    game.keys['Enter'] = false;
+                    game.keys['Space'] = false;
+                    game.keys[' '] = false;
+                }
+            }
+        } else if (this.state === 'FILE_SELECT') {
+            // In FILE_SELECT, state remains in FILE_SELECT
+        }
+    }
+
+    render(ctx, game) {
+        if (!ctx) return;
+
+        if (this.state === 'INTRO' || (this.state === 'FILE_SELECT' && this.introFinished)) {
+            const frameIdx = Math.min(20, Math.max(0, Math.floor(this.introFrame)));
+            if (obj_mainmenu.introImages && obj_mainmenu.introImages[frameIdx]) {
+                const img = obj_mainmenu.introImages[frameIdx];
+                if (img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, 0, 0, 960, 540);
+                }
+            }
+        }
+    }
+}
+
 if (typeof window !== 'undefined') {
+    window.obj_mainmenu = obj_mainmenu;
+    window.MainMenu = obj_mainmenu;
     window.RankController = RankController;
     window.rankcontroller = RankController;
+}
+if (typeof global !== 'undefined') {
+    global.obj_mainmenu = obj_mainmenu;
+    global.MainMenu = obj_mainmenu;
 }
