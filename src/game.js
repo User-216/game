@@ -203,6 +203,10 @@ class Game {
         this.posInfo = document.getElementById('pos-info');
         this.stateInfo = document.getElementById('state-info');
         this.uiOverlay = document.getElementById('ui-overlay');
+        this.headerElement = document.querySelector('#ui-overlay .header');
+        if (this.headerElement) {
+            this.headerElement.style.display = 'none';
+        }
         
         this.lastTime = performance.now();
         this.accumulator = 0;
@@ -464,6 +468,7 @@ class Game {
         this.selectedSaveSlot = 1;
         this.currentSaveSlot = 1;
         this.fileSelectDisplayPercent = 0;
+        this.deleteHoldTimer = 0;
         this.deleteToastTimer = 0;
         this.sRankScore = 10000;
         this.stageSRankScore = null;
@@ -606,6 +611,7 @@ class Game {
         this.mousePos = { x: 0, y: 0 };
         this.showCollisions = false;
         this.collisionToggleTimer = 0;
+        this.showDebug = false;
         const savedPersist = localStorage.getItem('persistentDestruction');
         this.persistentDestruction = (savedPersist !== null) ? (savedPersist === 'true') : true;
         this.persistentToggleTimer = 0;
@@ -633,8 +639,9 @@ class Game {
         this.tutorialRopeImage = new Image();
         this.tutorialRopeImage.src = 'tutorial/spr_tutorialbubble_rope.png';
         
-        // Load tutorial sprite font and tint to black
+        // Load tutorial sprite font and tint to black (also keep white copies for UI)
         this.tutorialFontImages = [];
+        this.tutorialFontWhiteImages = [];
         this.tutorialFontLoadedCount = 0;
         this.tutorialFontTotal = 118;
         for (let i = 0; i < this.tutorialFontTotal; i++) {
@@ -655,6 +662,7 @@ class Game {
                 this.tutorialFontLoadedCount++; 
             };
             this.tutorialFontImages.push(img);
+            this.tutorialFontWhiteImages.push(img);
         }
 
         // Load credits font
@@ -3355,7 +3363,7 @@ class Game {
         textStr = textStr.toString();
 
         const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(textStr);
-        const useKoreanFont = hasKorean || (this.settings && this.settings.language === 'ko');
+        const useKoreanFont = hasKorean;
 
         if (useKoreanFont) {
             const fontSize = Math.round(28 * scale);
@@ -3466,6 +3474,99 @@ class Game {
                 this.drawCreditsText(ctx, ch, curX + drawW / 2, drawY + 10, true, scale);
             }
             curX += drawW + sep;
+        }
+    }
+
+    drawSmallText(ctx, textStr, x, y, center = true, scale = 1, color = null) {
+        if (!ctx || textStr === undefined || textStr === null) return;
+        textStr = textStr.toString();
+
+        const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(textStr);
+        if (hasKorean) {
+            const fontSize = Math.round(24 * scale);
+            const pixelated = this.getPixelatedTextCanvas(textStr, 'Custom_Jejudoldam', fontSize, 1, false, color || '#FFFFFF');
+            if (pixelated) {
+                const drawX = center ? (x - pixelated.textWidth / 2 - pixelated.padding) : (x - pixelated.padding);
+                const drawY = y - pixelated.padding;
+                ctx.save();
+                ctx.drawImage(pixelated.canvas, Math.round(drawX), Math.round(drawY));
+                ctx.restore();
+                return;
+            }
+        }
+
+        const charset = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz!¡,.:0123456789?¿-"`';
+        const fontList = (this.tutorialFontWhiteImages && this.tutorialFontWhiteImages.length > 0) ? this.tutorialFontWhiteImages : this.tutorialFontImages;
+        
+        let totalW = 0;
+        const charData = [];
+        for (let i = 0; i < textStr.length; i++) {
+            const ch = textStr[i];
+            if (ch === ' ') {
+                const spaceW = Math.round(14 * scale);
+                charData.push({ isSpace: true, width: spaceW });
+                totalW += spaceW;
+                continue;
+            }
+            const idx = charset.indexOf(ch);
+            if (idx !== -1 && fontList && fontList[idx]) {
+                const img = fontList[idx];
+                const charW = Math.round(Math.max(10, (img.width || 24) - 4) * scale);
+                charData.push({ img, width: charW, origW: img.width || 24, origH: img.height || 32, idx });
+                totalW += charW;
+            } else {
+                const fallbackW = Math.round(14 * scale);
+                charData.push({ fallbackChar: ch, width: fallbackW });
+                totalW += fallbackW;
+            }
+        }
+
+        let curX = center ? Math.round(x - totalW / 2) : Math.round(x);
+        const drawY = Math.round(y);
+
+        for (let i = 0; i < charData.length; i++) {
+            const item = charData[i];
+            if (item.isSpace) {
+                curX += item.width;
+                continue;
+            }
+            if (item.img && (item.img.complete || item.img.loaded || item.img.width > 0)) {
+                const drawW = Math.round(item.origW * scale);
+                const drawH = Math.round(item.origH * scale);
+                if (color) {
+                    if (!this.pixelTextCache) this.pixelTextCache = new Map();
+                    const cacheKey = `smallfont_${item.idx}_${color}_${drawW}_${drawH}`;
+                    let tinted = this.pixelTextCache.get(cacheKey);
+                    if (!tinted) {
+                        const tc = document.createElement('canvas');
+                        tc.width = drawW;
+                        tc.height = drawH;
+                        const tctx = tc.getContext('2d');
+                        tctx.imageSmoothingEnabled = false;
+                        tctx.drawImage(item.img, 0, 0, drawW, drawH);
+                        tctx.globalCompositeOperation = 'source-in';
+                        tctx.fillStyle = color;
+                        tctx.fillRect(0, 0, drawW, drawH);
+                        tinted = tc;
+                        this.pixelTextCache.set(cacheKey, tinted);
+                    }
+                    ctx.drawImage(tinted, curX, drawY);
+                } else {
+                    if (scale === 1) {
+                        ctx.drawImage(item.img, curX, drawY);
+                    } else {
+                        ctx.drawImage(item.img, curX, drawY, drawW, drawH);
+                    }
+                }
+                curX += item.width;
+            } else if (item.fallbackChar) {
+                ctx.save();
+                ctx.fillStyle = color || '#FFFFFF';
+                ctx.font = `bold ${Math.round(20 * scale)}px monospace`;
+                ctx.fillText(item.fallbackChar, curX, drawY + Math.round(20 * scale));
+                ctx.restore();
+                curX += item.width;
+            }
         }
     }
 
@@ -3711,6 +3812,9 @@ class Game {
 
     toggleEditorMode() {
         this.isEditorMode = !this.isEditorMode;
+        if (this.headerElement) {
+            this.headerElement.style.display = (this.showDebug || this.isEditorMode) ? 'flex' : 'none';
+        }
         const toolbar = document.getElementById('editor-toolbar');
         const palette = document.getElementById('tileset-palette');
         if (this.isEditorMode) {
@@ -7580,27 +7684,46 @@ this.entities.push(
             const isRight = (this.isActionPressed('menu_right') || this.isActionPressed('menu_down') ||
                              this.keys['ArrowRight'] || this.keys['ArrowDown'] || this.keys['d'] || this.keys['D'] || this.keys['s'] || this.keys['S']);
             
-            if (isLeft && !this.prevTitleLeft) {
+            if (isLeft && !this.prevTitleLeft && !this.deleteHoldTimer) {
                 this.selectedSaveSlot = this.selectedSaveSlot === 1 ? 3 : (this.selectedSaveSlot - 1);
                 if (this.audio) this.audio.playFile('sfx_step', true);
             }
-            if (isRight && !this.prevTitleRight) {
+            if (isRight && !this.prevTitleRight && !this.deleteHoldTimer) {
                 this.selectedSaveSlot = this.selectedSaveSlot === 3 ? 1 : (this.selectedSaveSlot + 1);
                 if (this.audio) this.audio.playFile('sfx_step', true);
             }
             this.prevTitleLeft = isLeft;
             this.prevTitleRight = isRight;
 
-            // Delete key: MENU CLEAR (or C, Delete, Del)
+            // Delete key: MENU CLEAR (or C, Delete, Del) - Hold for 3 seconds (180 frames)
             const isDelete = (this.isActionPressed('menu_clear') || this.keys['c'] || this.keys['C'] || this.keys['Delete'] || this.keys['Del']);
-            if (isDelete && !this.prevTitleDelete) {
-                this.deleteSaveSlot(this.selectedSaveSlot);
+            if (isDelete) {
+                if (!this.deleteHoldTimer) this.deleteHoldTimer = 0;
+                this.deleteHoldTimer++;
+
+                // Warning sound tick at start of each second (1, 60, 120)
+                if (this.deleteHoldTimer === 1 || this.deleteHoldTimer === 60 || this.deleteHoldTimer === 120) {
+                    if (this.audio) this.audio.playFile('sfx_step', true);
+                }
+
+                if (this.deleteHoldTimer >= 180) {
+                    this.deleteSaveSlot(this.selectedSaveSlot);
+                    this.fileSelectDisplayPercent = 0;
+                    this.deleteHoldTimer = 0;
+                    this.deleteToastTimer = 90;
+                    if (this.audio) {
+                        this.audio.playFile('sfx_break', true);
+                    }
+                    this.cameraShake = 6;
+                }
+            } else {
+                this.deleteHoldTimer = 0;
             }
             this.prevTitleDelete = isDelete;
 
             // Confirm / Start key: MENU CONFIRM (or Z, Enter, Space)
             const isConfirm = (this.isActionPressed('menu_confirm') || this.keys['z'] || this.keys['Z'] || this.keys['Enter'] || this.keys['Space'] || this.keys[' ']);
-            if (isConfirm && !this.prevTitleConfirm) {
+            if (isConfirm && !this.prevTitleConfirm && !this.deleteHoldTimer) {
                 this.loadSaveSlot(this.selectedSaveSlot);
                 this.keys['z'] = false;
                 this.keys['Z'] = false;
@@ -8611,15 +8734,26 @@ this.entities.push(
             }
         }
 
+        // Update header visibility for show_debug mode
+        const shouldShowHeader = !!(this.showDebug || this.isEditorMode);
+        if (this.headerElement) {
+            const targetDisplay = shouldShowHeader ? 'flex' : 'none';
+            if (this.headerElement.style.display !== targetDisplay) {
+                this.headerElement.style.display = targetDisplay;
+            }
+        }
+
         // Update speed meters UI
         const lang = this.settings.language || 'ko';
         const dict = i18n[lang];
-        const hSpeed = Math.round(Math.abs(this.player.vx) * 10);
-        const vSpeed = Math.round(Math.abs(this.player.vy) * 10);
-        this.speedMeter.innerText = `${dict['ui.speed']}: ${hSpeed}`;
-        this.climbMeter.innerText = `${dict['ui.climb']}: ${vSpeed}`;
-        if (this.posInfo) {
-            this.posInfo.innerText = `X: ${Math.round(this.player.x)}, Y: ${Math.round(this.player.y)}`;
+        if (shouldShowHeader) {
+            const hSpeed = Math.round(Math.abs(this.player.vx) * 10);
+            const vSpeed = Math.round(Math.abs(this.player.vy) * 10);
+            if (this.speedMeter) this.speedMeter.innerText = `${dict['ui.speed']}: ${hSpeed}`;
+            if (this.climbMeter) this.climbMeter.innerText = `${dict['ui.climb']}: ${vSpeed}`;
+            if (this.posInfo) {
+                this.posInfo.innerText = `X: ${Math.round(this.player.x)}, Y: ${Math.round(this.player.y)}`;
+            }
         }
 
         // Update state info UI
@@ -8766,7 +8900,9 @@ this.entities.push(
             }
         }
 
-        this.stateInfo.innerText = `${dict['ui.state']}: ${currentStates.join(" / ")} | ${dict['ui.room']}: ${this.currentRoom}`;
+        if (shouldShowHeader && this.stateInfo) {
+            this.stateInfo.innerText = `${dict['ui.state']}: ${currentStates.join(" / ")} | ${dict['ui.room']}: ${this.currentRoom}`;
+        }
 
         // Tutorial Book Interaction Check
         let touchingBook = false;
@@ -9120,7 +9256,7 @@ this.entities.push(
             }
         }
 
-        if (this.gameState !== 'TITLE' && this.player && this.player.visible !== false) this.player.render(this.ctx);
+        if (this.gameState !== 'TITLE' && this.player && this.player.visible !== false && typeof this.player.render === 'function') this.player.render(this.ctx);
 
         // Render held enemy in front of player
         if (this.player && this.player.isHoldingEnemy && this.player.heldEnemy && typeof this.player.heldEnemy.render === 'function') {
@@ -10510,7 +10646,7 @@ this.entities.push(
 
 
 
-        if (this.gameState === 'TITLE' || this.currentRoom === 'mainmenu') {
+        if (this.gameState === 'TITLE') {
             this.renderTitleScreen();
         }
 
@@ -11881,6 +12017,47 @@ this.entities.push(
                 ],
                 execute: (game, args) => game.debugCommands['showcollisions'].execute(game, args)
             },
+            'show_debug': {
+                args: [
+                    {
+                        name: 'state',
+                        getOptions: (game, currentArg) => ['true', 'false'].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'true/false'
+                    }
+                ],
+                execute: (game, args) => {
+                    if (args[0] !== undefined) {
+                        game.showDebug = (args[0] === 'true' || args[0] === '1');
+                    } else {
+                        game.showDebug = !game.showDebug;
+                    }
+                    const headerEl = game.headerElement || document.querySelector('#ui-overlay .header');
+                    if (headerEl) {
+                        headerEl.style.display = (game.showDebug || game.isEditorMode) ? 'flex' : 'none';
+                    }
+                    return `Show Debug: ${game.showDebug ? 'ON' : 'OFF'}`;
+                }
+            },
+            'showdebug': {
+                args: [
+                    {
+                        name: 'state',
+                        getOptions: (game, currentArg) => ['true', 'false'].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'true/false'
+                    }
+                ],
+                execute: (game, args) => game.debugCommands['show_debug'].execute(game, args)
+            },
+            'debug': {
+                args: [
+                    {
+                        name: 'state',
+                        getOptions: (game, currentArg) => ['true', 'false'].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'true/false'
+                    }
+                ],
+                execute: (game, args) => game.debugCommands['show_debug'].execute(game, args)
+            },
             'godmode': {
                 args: [],
                 execute: (game) => {
@@ -12694,6 +12871,7 @@ this.entities.push(
     }
 
     renderTitleScreen() {
+        if (this.gameState !== 'TITLE') return;
         const menuObj = this.entities.find(e => (typeof obj_mainmenu !== 'undefined' && e instanceof obj_mainmenu) || e.type === 'obj_mainmenu');
         const showFileSelect = !menuObj || menuObj.state === 'FILE_SELECT';
 
@@ -12778,49 +12956,78 @@ this.entities.push(
             }
             this.ctx.restore();
 
-            // Erasing hold indicator
-            if (this.deleteHoldTimer > 0) {
-                const holdProgress = Math.min(1.0, this.deleteHoldTimer / 60);
-                this.ctx.save();
-                this.drawCreditsText(this.ctx, `ERASING... ${Math.round(holdProgress * 100)}%`, this.canvas.width / 2, 430, true, 0.9);
-                this.ctx.restore();
-            }
-
-            // Deleted notification in credits font if active
-            if (this.deleteToastTimer > 0) {
-                this.ctx.save();
-                const alpha = Math.min(1.0, this.deleteToastTimer / 20);
-                this.ctx.globalAlpha = alpha;
-                this.drawCreditsText(this.ctx, "DELETED", this.canvas.width / 2, 420, true, 1.0);
-                this.ctx.restore();
-            }
-
-            // Render spr_mainmenu_option icon & OPTIONS key underneath (bottom left corner)
+            // Render spr_mainmenu_option icon & OPTIONS key underneath (bottom left corner, 1:1 pixel crisp)
             const optImg = this.mainMenuOptionImg;
-            const optScale = 0.7;
-            const optW = 173 * optScale;
-            const optH = 151 * optScale;
+            const optW = (optImg && optImg.naturalWidth > 0) ? optImg.naturalWidth : (optImg && optImg.width > 0 ? optImg.width : 173);
+            const optH = (optImg && optImg.naturalHeight > 0) ? optImg.naturalHeight : (optImg && optImg.height > 0 ? optImg.height : 151);
             const optX = 30;
-            const optY = this.canvas.height - (optH + 6 + 32) - 20;
-            const centerX = optX + optW / 2;
+            const optY = Math.round(this.canvas.height - (optH + 6 + 32) - 20);
+            const centerX = Math.round(optX + optW / 2);
 
             this.ctx.save();
-            if (optImg && (optImg.complete || optImg.loaded) && optImg.naturalWidth > 0) {
-                this.ctx.drawImage(optImg, optX, optY, optW, optH);
+            this.ctx.imageSmoothingEnabled = false;
+            if (optImg && (optImg.complete || optImg.loaded) && (optImg.naturalWidth > 0 || optImg.width > 0)) {
+                this.ctx.drawImage(optImg, Math.round(optX), Math.round(optY), optW, optH);
             } else {
                 this.drawCreditsText(this.ctx, "OPTIONS", centerX, optY + 40, true, 1.0);
             }
 
             // Draw OPTIONS key underneath the image
-            const keyY = optY + optH + 6;
+            const keyY = Math.round(optY + optH + 6);
             const escImg = this.getKeyImage('ESC');
             if (escImg && escImg.loaded && !escImg.error) {
                 const kw = escImg.width || 32;
-                this.ctx.drawImage(escImg, centerX - kw / 2, keyY);
+                this.ctx.drawImage(escImg, Math.round(centerX - kw / 2), keyY);
             } else {
                 this.drawCreditsText(this.ctx, "[ESC]", centerX, keyY + 16, true, 0.7);
             }
             this.ctx.restore();
+
+            // Erasing hold indicator (Pizza Tower style 3-second countdown spotlight screen)
+            if (this.deleteHoldTimer > 0) {
+                const screenCenterX = this.canvas.width / 2;
+                const secondsLeft = Math.max(1, Math.ceil((180 - this.deleteHoldTimer) / 60));
+
+                this.ctx.save();
+                // 1. Semi-transparent dark overlay darkening the whole room
+                const screenW = this.canvas.width;
+                const screenH = this.canvas.height;
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
+                this.ctx.fillRect(0, 0, screenW, screenH);
+
+                // 2. Spotlight ellipse on floor
+                const spotY = 370;
+                const spotGrad = this.ctx.createRadialGradient(screenCenterX, spotY, 20, screenCenterX, spotY, 220);
+                spotGrad.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+                spotGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.08)');
+                spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                this.ctx.fillStyle = spotGrad;
+                this.ctx.beginPath();
+                this.ctx.ellipse(screenCenterX, spotY, 200, 50, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // 3. Header: "DELETING SAVE FILE [Slot]!" in crisp white Pizza Tower smallfont
+                this.drawSmallText(this.ctx, `DELETING SAVE FILE ${this.selectedSaveSlot}!`, screenCenterX, 150, true, 1.0);
+
+                // 4. Countdown number: "3." -> "2." -> "1." in pink/light-red (#ff7085)
+                const secFrame = this.deleteHoldTimer % 60;
+                const pulseScale = (secFrame < 8) ? 1.5 : 1.25;
+                this.drawSmallText(this.ctx, `${secondsLeft}.`, screenCenterX, 255, true, pulseScale, '#ff7085');
+
+                // 5. Confirmation prompt: "ARE YOU SURE?" in crisp white Pizza Tower smallfont
+                this.drawSmallText(this.ctx, "ARE YOU SURE?", screenCenterX, 375, true, 1.0);
+
+                this.ctx.restore();
+            }
+
+            // Deleted notification in crisp smallfont if active
+            if (this.deleteToastTimer > 0) {
+                this.ctx.save();
+                const alpha = Math.min(1.0, this.deleteToastTimer / 20);
+                this.ctx.globalAlpha = alpha;
+                this.drawSmallText(this.ctx, "DELETED", this.canvas.width / 2, 260, true, 1.5, '#ff3333');
+                this.ctx.restore();
+            }
         }
     }
 
@@ -12866,4 +13073,13 @@ window.setRank = function(r = 'C') {
 };
 window.rank = window.setRank;
 window.set_rank = window.setRank;
+
+window.showDebug = function(state) {
+    if (window.gameInstance && window.gameInstance.debugCommands && window.gameInstance.debugCommands['show_debug']) {
+        return window.gameInstance.debugCommands['show_debug'].execute(window.gameInstance, state !== undefined ? [String(state)] : []);
+    }
+};
+window.show_debug = window.showDebug;
+window.showdebug = window.showDebug;
+
 

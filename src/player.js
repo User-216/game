@@ -3368,11 +3368,14 @@ class Player {
         }
         
         // ・ｰ・ｽ・・・ｴ・・・肥符・ｼ・ｴ ・・ｨ・ ・・・・・ｴ・・笈・､.
-        const textWidth = ctx.measureText(debugState).width;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(this.x + this.width / 2 - textWidth / 2 - 2, this.y - 22, textWidth + 4, 16);
-        ctx.fillStyle = 'white';
-        ctx.fillText(debugState, this.x + this.width / 2, this.y - 10);
+        const game = (typeof window !== 'undefined' ? (window.gameInstance || window.game) : null);
+        if (game && (game.showDebug || game.showCollisions || game.isEditorMode)) {
+            const textWidth = ctx.measureText(debugState).width;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(this.x + this.width / 2 - textWidth / 2 - 2, this.y - 22, textWidth + 4, 16);
+            ctx.fillStyle = 'white';
+            ctx.fillText(debugState, this.x + this.width / 2, this.y - 10);
+        }
     }
 }
 

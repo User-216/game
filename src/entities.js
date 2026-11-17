@@ -6825,6 +6825,7 @@ class obj_mainmenu extends Entity {
 
     render(ctx, game) {
         if (!ctx) return;
+        if (game && game.gameState && game.gameState !== 'TITLE') return;
 
         if (this.state === 'INTRO' || (this.state === 'FILE_SELECT' && this.introFinished)) {
             const frameIdx = Math.min(20, Math.max(0, Math.floor(this.introFrame)));
