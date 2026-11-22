@@ -957,6 +957,7 @@ class Player {
         const isGrabActiveOrTriggered = this.isSuplexGrabbing || this.state === 'suplexgrab' || this.isHoldingEnemy || (keys.actionGrab && this.canGrab) || this.grabBufferTimer > 0;
         if (this.wasRunningLastFrame && !isCurrentlyRunning && this.isGrounded && !this.isTumbling && !this.isFinishingBlow && !isGrabActiveOrTriggered) {
             if (audio) {
+                audio.stopFile('mach1');
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
                 audio.stopFile('mach4');
@@ -1010,6 +1011,7 @@ class Player {
                 this.sprite_index = 'spr_player_machslideboost';
             }
             if (audio) {
+                audio.stopFile('mach1');
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
                 audio.stopFile('mach4');
@@ -1964,6 +1966,7 @@ class Player {
                                 this.y -= 2;               // 바닥 충돌 루프에 즉시 잡히지 않도록 2px 띄움
 
                                 if (audio) {
+                                    audio.stopFile('mach1');
                                     audio.stopFile('mach2');
                                     audio.stopFile('mach3');
                                     audio.stopFile('mach4');
@@ -2523,6 +2526,7 @@ class Player {
             const absSpeed = Math.abs(this.vx);
             if (this.isClimbing) {
                 audio.playFile('mach2');
+                audio.stopFile('mach1');
                 audio.stopFile('mach3');
                 audio.stopFile('mach4');
             } else if (this.isRunning && !this.isMachSliding && !this.isDrifting && !this.isDrifting1 && !this.isWalled && !this.isSuplexGrabbing && !this.isTumbling) {
@@ -2530,24 +2534,38 @@ class Player {
                     audio.playFile('mach4');
                     audio.stopFile('mach3');
                     audio.stopFile('mach2');
+                    audio.stopFile('mach1');
                 } else if (absSpeed >= 12) {
                     audio.playFile('mach3');
-                    audio.stopFile('mach2');
                     audio.stopFile('mach4');
+                    audio.stopFile('mach2');
+                    audio.stopFile('mach1');
                 } else if (absSpeed >= 8) {
                     if (this.isGrounded) {
                         audio.playFile('mach2');
                     } else {
                         audio.stopFile('mach2');
                     }
-                    audio.stopFile('mach3');
                     audio.stopFile('mach4');
+                    audio.stopFile('mach3');
+                    audio.stopFile('mach1');
+                } else if (absSpeed >= 0.5) {
+                    if (this.isGrounded) {
+                        audio.playFile('mach1');
+                    } else {
+                        audio.stopFile('mach1');
+                    }
+                    audio.stopFile('mach4');
+                    audio.stopFile('mach3');
+                    audio.stopFile('mach2');
                 } else {
+                    audio.stopFile('mach1');
                     audio.stopFile('mach2');
                     audio.stopFile('mach3');
                     audio.stopFile('mach4');
                 }
             } else {
+                audio.stopFile('mach1');
                 audio.stopFile('mach2');
                 audio.stopFile('mach3');
                 audio.stopFile('mach4');

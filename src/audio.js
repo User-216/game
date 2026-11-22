@@ -5,9 +5,10 @@ class AudioManager {
         
         // Load actual sound files from the sound folder
         this.files = {
-            mach2: new Audio('sound/sfx_mach2.wav'),
-            mach3: new Audio('sound/sfx_mach3.wav'),
-            mach4: new Audio('sound/sfx_mach4.wav'),
+            mach1: new Audio('sound/sfx_mach1.wav?v=' + Date.now()),
+            mach2: new Audio('sound/sfx_mach2.wav?v=' + Date.now()),
+            mach3: new Audio('sound/sfx_mach3.wav?v=' + Date.now()),
+            mach4: new Audio('sound/sfx_mach4.wav?v=' + Date.now()),
             machroll: new Audio('sound/machroll.wav'),
             machslideboost: new Audio('sound/sfx_machslideboost.wav'),
             dive: new Audio('sound/dive.wav'),
@@ -23,15 +24,35 @@ class AudioManager {
             sfx_wallsplat: new Audio('sound/sfx_wallsplat.wav'),
             sfx_switch: new Audio('sound/switch1.ogg'),
             taunt: new Audio('sound/taunt.wav'),
-            boss_gate: new Audio('sound/boss_gate.wav?v=' + Date.now())
+            boss_gate: new Audio('sound/boss_gate.wav?v=' + Date.now()),
+            sf2_short_piano: new Audio('sound/sf2_short_piano__smb3_.wav'),
+            sf2_long_piano: new Audio('sound/sf2_long_piano__smb3_.wav'),
+            sf2_musicbox: new Audio('sound/sf2_musicbox__smb3_.wav'),
+            sf2_strings: new Audio('sound/sf2_strings__smb3_.wav'),
+            sf2_guitar: new Audio('sound/sf2_guitar__smb3_.wav'),
+            sf2_marimba: new Audio('sound/sf2_marimba__smb1_.wav'),
+            sf2_bass_lead: new Audio('sound/sf2_bass___lead__fds_.wav'),
+            sf2_tubular_bells: new Audio('sound/sf2_tubular_bells__fds_.wav'),
+            sf2_tom: new Audio('sound/sf2_tom__smb1_.wav'),
+            sf2_triangle: new Audio('sound/sf2_triangle_wave__nes_.wav'),
+            sf2_drums_smb3: new Audio('sound/sf2_drums__smb3_.wav'),
+            sf2_drums_smb1: new Audio('sound/sf2_drums__smb1_.wav')
         };
         
         // Set loops where appropriate
+        if (this.files.mach1) this.files.mach1.loop = true;
         this.files.mach2.loop = true;
         this.files.mach3.loop = true;
         if (this.files.mach4) this.files.mach4.loop = true;
         if (this.files.machroll) this.files.machroll.loop = true;
         if (this.files.sfx_freefall) this.files.sfx_freefall.loop = true;
+        [
+            'sf2_short_piano', 'sf2_long_piano', 'sf2_musicbox', 'sf2_strings',
+            'sf2_guitar', 'sf2_marimba', 'sf2_bass_lead', 'sf2_tubular_bells',
+            'sf2_tom', 'sf2_triangle', 'sf2_drums_smb3', 'sf2_drums_smb1'
+        ].forEach(k => {
+            if (this.files[k]) this.files[k].loop = true;
+        });
 
         this.musicFiles = {};
         this.currentMusicName = null;
@@ -405,7 +426,11 @@ class AudioManager {
     playFile(name, forceRestart = false) {
         const audio = this.files[name];
         if (audio) {
-            const vol = this.getSFXVolume();
+            let vol = this.getSFXVolume();
+            // Continuous mach running loops are balanced down so other SFX (drift, jumps, bumps) and BGM are clear
+            if (name === 'mach1' || name === 'mach2' || name === 'mach3' || name === 'mach4' || name === 'machroll') {
+                vol *= 0.65;
+            }
             audio.volume = vol;
             if (vol <= 0 && !audio.loop) {
                 // If it's 0 volume and not looping, don't bother playing it to save resources

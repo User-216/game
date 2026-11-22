@@ -45,13 +45,31 @@
         <img id="save-icon" src="player/spr_player_walk/spr_playerT_walk.gif" style="position: absolute; bottom: 20px; right: 20px; width: 80px; height: 80px; display: none; z-index: 1000; filter: drop-shadow(2px 2px 0px rgba(0,0,0,1)); image-rendering: pixelated;" alt="Saving..." />
         
         <div id="ui-overlay">
-            <div class="header">
-                <h1>Neon Platformer</h1>
-                <div class="stats glass">
-                    <span id="speed-meter">SPEED: 0</span>
-                    <span id="climb-speed-meter" style="margin-left: 20px; color: #ff0073; font-weight: 700;">CLIMB: 0</span>
-                    <span id="pos-info" style="margin-left: 20px; color: #00f2ff; font-weight: 700;">X: 0, Y: 0</span>
-                    <span id="state-info" style="margin-left: 20px; font-size: 0.8rem; opacity: 0.8;">STATE: IDLE</span>
+            <div class="header" style="flex-direction: column; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                    <h1>Neon Platformer</h1>
+                    <div class="stats glass">
+                        <span id="speed-meter">SPEED: 0</span>
+                        <span id="climb-speed-meter" style="margin-left: 20px; color: #ff0073; font-weight: 700;">CLIMB: 0</span>
+                        <span id="pos-info" style="margin-left: 20px; color: #00f2ff; font-weight: 700;">X: 0, Y: 0</span>
+                        <span id="state-info" style="margin-left: 20px; font-size: 0.8rem; opacity: 0.8;">STATE: IDLE</span>
+                    </div>
+                </div>
+                <div id="sf2-sound-test-bar" style="display: flex; flex-wrap: wrap; gap: 6px; pointer-events: auto; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,204,0,0.3); align-self: flex-start; margin-top: 10px;">
+                    <span style="font-size: 11px; color: #ffcc00; font-weight: bold; align-self: center; margin-right: 4px;">🍄 SF2 TEST:</span>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['short_piano'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,204,0,0.25); border: 1px solid #ffcc00; color: #fff; cursor: pointer;">ShortPiano</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['long_piano'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">LongPiano</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['musicbox'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">MusicBox</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['strings'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Strings</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['guitar'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Guitar</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['triangle'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Triangle</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['marimba'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Marimba</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['bass_lead'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">FDS_Bass</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['tubular_bells'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Bells</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['tom'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Tom</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['drums_smb3'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Drums3</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['drums_smb1'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Drums1</button>
+                    <button class="sf2-btn" onclick="if(window.gameInstance)window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, ['stop'])" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,68,68,0.25); border: 1px solid #ff4444; color: #ff8888; cursor: pointer;">정지 ⏹</button>
                 </div>
             </div>
             

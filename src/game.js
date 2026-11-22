@@ -12058,6 +12058,52 @@ this.entities.push(
                 ],
                 execute: (game, args) => game.debugCommands['show_debug'].execute(game, args)
             },
+            'sf2_test': {
+                args: [
+                    {
+                        name: 'instrument',
+                        getOptions: (game, currentArg) => [
+                            'short_piano', 'long_piano', 'musicbox', 'strings',
+                            'guitar', 'marimba', 'bass_lead', 'tubular_bells',
+                            'tom', 'triangle', 'drums_smb3', 'drums_smb1', 'stop'
+                        ].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'instrument'
+                    }
+                ],
+                execute: (game, args) => {
+                    const inst = args[0] ? args[0].toLowerCase() : 'short_piano';
+                    const allKeys = [
+                        'short_piano', 'long_piano', 'musicbox', 'strings',
+                        'guitar', 'marimba', 'bass_lead', 'tubular_bells',
+                        'tom', 'triangle', 'drums_smb3', 'drums_smb1'
+                    ];
+                    if (inst === 'stop') {
+                        if (game.audio) allKeys.forEach(k => game.audio.stopFile('sf2_' + k));
+                        return 'SF2 sound test stopped.';
+                    }
+                    const soundKey = 'sf2_' + inst;
+                    if (game.audio && game.audio.files && game.audio.files[soundKey]) {
+                        allKeys.forEach(k => game.audio.stopFile('sf2_' + k));
+                        game.audio.playFile(soundKey, true);
+                        return `Playing SF2 sound: ${inst}`;
+                    }
+                    return `Available instruments: ${allKeys.join(', ')}, stop`;
+                }
+            },
+            'soundtest': {
+                args: [
+                    {
+                        name: 'instrument',
+                        getOptions: (game, currentArg) => [
+                            'short_piano', 'long_piano', 'musicbox', 'strings',
+                            'guitar', 'marimba', 'bass_lead', 'tubular_bells',
+                            'tom', 'triangle', 'drums_smb3', 'drums_smb1', 'stop'
+                        ].filter(s => s.startsWith(currentArg.toLowerCase())),
+                        hint: 'instrument'
+                    }
+                ],
+                execute: (game, args) => game.debugCommands['sf2_test'].execute(game, args)
+            },
             'godmode': {
                 args: [],
                 execute: (game) => {
@@ -13081,5 +13127,12 @@ window.showDebug = function(state) {
 };
 window.show_debug = window.showDebug;
 window.showdebug = window.showDebug;
+
+window.sf2_test = function(inst) {
+    if (window.gameInstance && window.gameInstance.debugCommands && window.gameInstance.debugCommands['sf2_test']) {
+        return window.gameInstance.debugCommands['sf2_test'].execute(window.gameInstance, inst ? [String(inst)] : []);
+    }
+};
+window.soundtest = window.sf2_test;
 
 
