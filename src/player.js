@@ -805,7 +805,21 @@ class Player {
             this.image_index = Math.floor(Math.random() * 8);
             this.image_speed = 0; // 嵓・�溢桷 ・�・・
             
-            if (audio) audio.playFile('taunt', true); 
+            if (audio) {
+                const modernTaunts = [
+                    'taunt',
+                    'taunt_bacon_vocal',
+                    'taunt_orchestra_hit',
+                    'taunt_cartoon_bonk_pop',
+                    'taunt_wacky_honk',
+                    'taunt_frying_pan',
+                    'taunt_slap_whistle',
+                    'taunt_rubber_squeak',
+                    'taunt_record_scratch'
+                ];
+                const chosen = 'taunt';
+                audio.playFile(chosen, true);
+            } 
             
             this.activeEffects.push({
                 type: 'spr_taunteffect',
